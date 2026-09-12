@@ -1,35 +1,26 @@
-id: CE-0002
+id: CE-0003
 component: catala
-fact_pattern: A Grade 5 Employee on a Base Hourly Rate of 30.00 works 45 hours in a Payroll
-  Week. Hours 41 to 45 are worked on a Gazetted Public Holiday. None of the hours is Critical
-  Incident Response or a Night Hour, and the Employee receives no standing shift allowance.
-  The question is the week's overtime payment and time-off-in-lieu accrual.
+fact_pattern: A Grade 3 Employee works 50 hours in one Payroll Week, recorded as five days
+  of ten hours with the hours numbered within each day rather than across the week. Base Hourly
+  Rate 30.00.
 citations:
+- EMP-ANNEX-C C-4.1
+- EMP-ANNEX-C C-4.2
 - EMP-ANNEX-C C-3.1
-- EMP-ANNEX-C C-5.1
-- EMP-ANNEX-C C-5.2
-- EMP-ANNEX-C C-7.1
-- EMP-ANNEX-C C-8.1
-source_reasoning: 'Five hours are worked in excess of the 40-hour ordinary week fixed by C-3.1,
-  namely hours 41-45, and each is worked on a Gazetted Public Holiday. On the payment side
-  C-7.1 fixes each at 2.0 times the Base Hourly Rate and, via C-8.1, 2.0 is the highest applicable
-  multiplier, so the payment is 5 x 2.0 x 30.00 = 300.00 - which the module gets right. On
-  the accrual side C-5.1 gives the Grade 5 Employee one hour of time off in lieu for each
-  of those same five hours in excess of 40. Nothing displaces that accrual: C-5.2 is confined
-  to Critical Incident Response hours and none of these is; C-7.1 substitutes its rate only
-  for ''any amount otherwise payable under C-4'', which does not describe a leave accrual
-  arising under C-5.1; and C-8.1 governs only which multiplier applies. The week therefore
-  accrues 5.0 TOIL hours. The module returns 0.0. The identical week with the public-holiday
-  flag removed returns toil_hours 5.0, which isolates the defect precisely: the module treats
-  a Gazetted Public Holiday as extinguishing the C-5.1 accrual, a consequence Annex C nowhere
-  provides for. Because the aggregate is a straight sum over hours, the per-hour error scales
-  - a Grade 5 Employee who works a whole week of public-holiday overtime loses the entire
-  accrual.'
+- EMP-ANNEX-C C-2.2
+source_reasoning: 'C-4.1 confers the entitlement on each hour worked in excess of 40 hours
+  in a Payroll Week -- a fact about the week, not a label on a timesheet row. Ten hours were
+  worked in excess of 40. C-4.2 then takes the two hours in excess of 48 at 1.5, leaving eight
+  at C-4.1''s 1.25: 8 x 1.25 x 30 + 2 x 1.5 x 30 = 390.00. NOTE ON THE EXPECTED VALUE: the
+  reviewer that found this stated 375.00 (10 x 1.25 x 30), which omits C-4.2 entirely. The
+  break is real and the observed 0.00 is real, but the reviewer''s arithmetic was wrong, so
+  the expected value recorded here is 390.00, derived from C-4.1 and C-4.2 together. A counterexample
+  is only worth keeping if its expectation is right.'
 expected:
-  overtime_payment: 300.0
-  toil_hours: 5.0
+  overtime_payment: 390.0
+  toil_hours: 0.0
 observed:
-  overtime_payment: 300.0
+  overtime_payment: 0.0
   toil_hours: 0.0
 target:
   module: overtime
@@ -157,38 +148,40 @@ inputs:
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
-  - is_public_holiday: true
+  - is_public_holiday: false
     is_critical_incident: false
     is_night: false
-  - is_public_holiday: true
+  - is_public_holiday: false
     is_critical_incident: false
     is_night: false
-  - is_public_holiday: true
+  - is_public_holiday: false
     is_critical_incident: false
     is_night: false
-  - is_public_holiday: true
+  - is_public_holiday: false
     is_critical_incident: false
     is_night: false
-  - is_public_holiday: true
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
     is_critical_incident: false
     is_night: false
   base_hourly_rate: 30.0
-  grade: 5
+  grade: 3
   has_standing_shift_allowance: false
-round: 1
+round: 2
 discovered: '2026-09-12'
 status: fixed
-notes: 'exception-boundary: ordinal 39/40/41 and 47/48/49 at grade 4 and grade 5 (all correct);
-  exception-boundary: grade 4 vs grade 5 vs grade 6 on ''Grade 5 or above'' (all correct);
-  exception-stacking: C-4.2 x C-5.1 x C-5.2 x C-7.1 x C-7.2 in all 2^3 flag combinations at
-  ordinals 20/45/49; cumulative-vs-substitutive: C-6 night premium added to 0.0, 1.25, 1.5
-  and 2.0 multipliers; C-6.2 standing shift allowance suppression; greater-of: C-7.2 limb
-  (a) 2.0 vs limb (b) C-4.2+0.25 = 1.75 evaluated on the drafted numbers; vacuous-branch:
-  C-7.2 exception; toil_c5_2 public-holiday limb; C-8.1 highest-multiplier search for a case
-  where the deepest firing exception yields a lower rate than a shallower applicable one;
-  C-5.2 limb selection: checked 1.25 restored below 48 and 1.5 restored above 48; conflict/NoValue
-  hunting: exception graph is a single linear chain so no two incomparable definitions can
-  co-apply; no Conflict or NoValue reproducible; degenerate ordinals 0 and 100; critical incident
-  at ordinal 30/40/41; weekly aggregation: 45-hour grade-5 week with and without the overtime
-  hours falling on a public holiday | inputs re-expressed after HourWorked lost its ordinal
-  field; same fact pattern, 45-hour week with hours 41-45 on a public holiday'
+notes: expected value corrected from the reviewer's 375.00 to 390.00; see source_reasoning

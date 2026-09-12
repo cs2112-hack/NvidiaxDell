@@ -12,10 +12,14 @@ hour, not a week. `WeeklyOvertime` aggregates.
 
 ```catala-metadata
 declaration structure HourWorked:
-  data ordinal content integer
   data is_public_holiday content boolean
   data is_critical_incident content boolean
   data is_night content boolean
+
+declaration structure WeekTally:
+  data hours_counted content integer
+  data payment content money
+  data toil content decimal
 
 declaration scope HourPremium:
   input ordinal content integer
@@ -25,6 +29,8 @@ declaration scope HourPremium:
   input grade content integer
   input has_standing_shift_allowance content boolean
   output multiplier content decimal
+  output salaried_element content decimal
+  output additional_payable content decimal
   output night_premium content decimal
   output total_rate content decimal
   output accrues_toil content boolean
@@ -34,6 +40,8 @@ declaration scope WeeklyOvertime:
   input base_hourly_rate content money
   input grade content integer
   input has_standing_shift_allowance content boolean
+  internal tally content WeekTally
+  output hours_worked content integer
   output overtime_payment content money
   output toil_hours content decimal
 ```
@@ -181,6 +189,48 @@ scope HourPremium:
     consequence equals 0.0
 ```
 
+## What the base salary already pays for
+
+C-4.1 and C-7.1 both express an entitlement as a multiple of the Base Hourly
+Rate, but they are doing different work, and conflating them makes the module
+inconsistent with itself.
+
+| EMP-ANNEX-C C-3.1 (001-employment-terms-annex-c.md:51)
+|
+| The ordinary working week is 40 hours.
+
+An ordinary working week of 40 hours is 2,080 hours a year, and C-2.1 sets the
+Base Hourly Rate at annual base salary divided by exactly 2,080. So base salary
+already pays precisely 1.0 times the Base Hourly Rate for every hour inside the
+ordinary 40, and nothing for an hour beyond it.
+
+It follows that a multiplier means different things on either side of hour 40.
+For an hour beyond 40 the C-4 multiplier is the whole sum payable, because
+salary pays nothing for that hour. For an hour inside the 40, C-7.1's statement
+that the hour "is calculated at 2.0 times the Base Hourly Rate" fixes the
+hour's total value at 2.0, of which salary has already paid 1.0 -- so the
+further sum payable is 1.0, not 2.0.
+
+Before this decomposition existed the module returned 0.0 for an ordinary hour,
+which is only right if the figure is a sum payable on top of salary, and 2.0 for
+a public-holiday hour inside the 40, which is only right if the figure is the
+hour's whole value. The same number was being used as a total in one place and
+an addition in another. `multiplier` is now strictly the multiple the governing
+provision specifies, `salaried_element` is what salary has already paid, and
+`additional_payable` is the sum actually owed. Found by the adversarial
+reviewer; see tests/counterexamples/CE-0006.yaml.
+
+```catala
+scope HourPremium:
+  definition salaried_element equals
+    if ordinal > 40 then 0.0 else 1.0
+
+  definition additional_payable equals
+    if multiplier = 0.0 then 0.0
+    else if multiplier > salaried_element then multiplier - salaried_element
+    else 0.0
+```
+
 ## C-8 Precedence
 
 | EMP-ANNEX-C C-8.1 (001-employment-terms-annex-c.md:96)
@@ -203,7 +253,7 @@ thing a reader of an answer needs.
 
 ```catala
 scope HourPremium:
-  definition total_rate equals multiplier + night_premium
+  definition total_rate equals additional_payable + night_premium
 ```
 
 The second limb of C-5.1 is the time-off-in-lieu accrual, which is a separate
@@ -245,32 +295,57 @@ scope HourPremium:
 
 ## Weekly aggregation
 
+C-4.1 confers the entitlement on "each hour worked in excess of 40 hours in a
+Payroll Week". That is a fact about the week, not a label on a timesheet row:
+the hour in excess of 40 is the forty-first hour actually worked, whatever any
+row happens to be numbered.
+
+An earlier version took each row's ordinal as given. That failed in both
+directions. A 50-hour week recorded as five days of ten hours, numbered within
+each day, has no row above 40, so the whole entitlement vanished -- and at
+Grade 5 the whole time-off-in-lieu accrual vanished with it. Conversely a
+complete 41-hour timesheet containing one row an import had stamped 49 attracted
+the C-4.2 rate of 1.5, on a week in which no hour beyond 48 was worked at all.
+Found by the adversarial reviewer; see CE-0003, CE-0004 and CE-0005.
+
+The ordinal is therefore derived from the hour's position in the week's own
+record, by folding over it, and `HourWorked` no longer carries an ordinal field
+for a caller to get wrong.
+
 | NO-CLAUSE: Annex C states no weekly aggregation rule. Summing the per-hour
 | entitlements that C-4 to C-8 confer adds no law of its own; the legal content
-| is entirely in HourPremium above.
+| is entirely in HourPremium above. What this block does add is the derivation
+| of each hour's position in the Payroll Week, which C-4.1 makes operative.
 
 ```catala
 scope WeeklyOvertime:
-  definition overtime_payment equals
-    Money.sum of (map each h among hours to
-      (output of HourPremium with {
-         -- ordinal: h.ordinal
-         -- is_public_holiday: h.is_public_holiday
-         -- is_critical_incident: h.is_critical_incident
-         -- is_night: h.is_night
-         -- grade: grade
-         -- has_standing_shift_allowance: has_standing_shift_allowance
-       }).total_rate * base_hourly_rate)
+  definition tally equals
+    combine all h among hours in acc
+    initially WeekTally {
+      -- hours_counted: 0
+      -- payment: $0.00
+      -- toil: 0.0
+    }
+    with (
+      let n equals acc.hours_counted + 1 in
+      let hp equals
+        output of HourPremium with {
+          -- ordinal: n
+          -- grade: grade
+          -- is_public_holiday: h.is_public_holiday
+          -- is_critical_incident: h.is_critical_incident
+          -- is_night: h.is_night
+          -- has_standing_shift_allowance: has_standing_shift_allowance
+        }
+      in
+      WeekTally {
+        -- hours_counted: n
+        -- payment: acc.payment + hp.total_rate * base_hourly_rate
+        -- toil: acc.toil + (if hp.accrues_toil then 1.0 else 0.0)
+      }
+    )
 
-  definition toil_hours equals
-    Decimal.sum of (map each h among hours to
-      (if (output of HourPremium with {
-             -- ordinal: h.ordinal
-             -- is_public_holiday: h.is_public_holiday
-             -- is_critical_incident: h.is_critical_incident
-             -- is_night: h.is_night
-             -- grade: grade
-             -- has_standing_shift_allowance: has_standing_shift_allowance
-           }).accrues_toil
-       then 1.0 else 0.0))
+  definition hours_worked equals tally.hours_counted
+  definition overtime_payment equals tally.payment
+  definition toil_hours equals tally.toil
 ```

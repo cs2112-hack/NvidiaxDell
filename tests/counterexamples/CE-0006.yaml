@@ -1,0 +1,155 @@
+id: CE-0006
+component: catala
+fact_pattern: A Grade 3 Employee works exactly 40 hours in the Payroll Week, the 20th of them
+  on a Gazetted Public Holiday. Base Hourly Rate 30.00.
+citations:
+- EMP-ANNEX-C C-7.1
+- EMP-ANNEX-C C-2.1
+- EMP-ANNEX-C C-3.1
+- EMP-ANNEX-C C-4.1
+source_reasoning: 'C-7.1 fixes the value of a public-holiday hour at 2.0 times the Base Hourly
+  Rate. C-3.1''s ordinary week of 40 hours is 2,080 hours a year and C-2.1 divides annual
+  salary by exactly 2,080, so salary has already paid 1.0 times the Base Hourly Rate for an
+  hour inside the ordinary 40. The further sum payable is therefore 1.0 x 30 = 30.00, not
+  60.00. The module was internally inconsistent: it returned 0.0 for a plain ordinary hour,
+  which is only correct if the figure is a sum payable on top of salary, yet 2.0 for a public-holiday
+  hour in the same position, which is only correct if the figure is the hour''s whole value.'
+expected:
+  overtime_payment: 30.0
+  toil_hours: 0.0
+observed:
+  overtime_payment: 60.0
+  toil_hours: 0.0
+target:
+  module: overtime
+  path: catala/modules/overtime.catala_en
+  scope: WeeklyOvertime
+inputs:
+  hours:
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: true
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  - is_public_holiday: false
+    is_critical_incident: false
+    is_night: false
+  base_hourly_rate: 30.0
+  grade: 3
+  has_standing_shift_allowance: false
+round: 2
+discovered: '2026-09-12'
+status: fixed
+notes: ''

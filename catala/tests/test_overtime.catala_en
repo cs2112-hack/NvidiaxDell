@@ -1,14 +1,19 @@
-# Tests — Annex C working time and overtime
+# Tests -- Annex C working time and overtime
 
-Assertion-based tests for `Overtime.HourPremium`. Every branch of the
-exception hierarchy on `multiplier`, `night_premium` and `accrues_toil` is
-covered, and the threshold cases are tested on both sides of the boundary —
-40/41 and 48/49 for the hours thresholds, Grade 4/5 for the grade threshold —
-because an off-by-one on an inclusive/exclusive boundary is the failure mode
-that a single mid-range test cannot see.
+Assertion-based tests for `Overtime.HourPremium` and `Overtime.WeeklyOvertime`.
+Every branch of every exception hierarchy is covered, and each threshold is
+tested on both sides and exactly on the boundary -- 40/41 and 48/49 for hours,
+Grade 4/5 for grade -- because an off-by-one on an inclusive/exclusive boundary
+is the failure a single mid-range test cannot see.
 
-Counterexamples found by the adversarial reviewer are kept separately, in
-`tests/counterexamples/`, and are re-run by `scripts/check.sh`.
+The per-hour figures distinguish `multiplier` (the multiple the governing
+provision specifies), `salaried_element` (what base salary has already paid for
+that hour) and `additional_payable` (the sum actually owed). Conflating the
+first and the third is a defect the adversarial reviewer found; see
+tests/counterexamples/CE-0006.yaml.
+
+Counterexamples found by the reviewer live in `tests/counterexamples/` and are
+re-run by `scripts/check.sh` independently of these.
 
 > Using Overtime
 
@@ -32,6 +37,8 @@ scope TestOrdinaryHour:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 0.0
+  assertion r.salaried_element = 1.0
+  assertion r.additional_payable = 0.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 0.0
   assertion r.accrues_toil = false
@@ -39,7 +46,7 @@ scope TestOrdinaryHour:
 
 ## C4_1_Boundary40
 
-C-4.1 applies to hours 'in excess of 40', so hour 40 itself is ordinary.
+C-4.1 applies to hours in excess of 40, so hour 40 itself is ordinary.
 
 ```catala
 #[test]
@@ -57,6 +64,8 @@ scope TestC4_1_Boundary40:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 0.0
+  assertion r.salaried_element = 1.0
+  assertion r.additional_payable = 0.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 0.0
   assertion r.accrues_toil = false
@@ -82,6 +91,8 @@ scope TestC4_1_Boundary41:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 1.25
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 1.25
   assertion r.night_premium = 0.0
   assertion r.total_rate = 1.25
   assertion r.accrues_toil = false
@@ -89,7 +100,7 @@ scope TestC4_1_Boundary41:
 
 ## C4_2_Boundary48
 
-C-4.2 applies 'in excess of 48', so hour 48 remains at the C-4.1 rate.
+C-4.2 applies in excess of 48, so hour 48 remains at the C-4.1 rate.
 
 ```catala
 #[test]
@@ -107,6 +118,8 @@ scope TestC4_2_Boundary48:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 1.25
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 1.25
   assertion r.night_premium = 0.0
   assertion r.total_rate = 1.25
   assertion r.accrues_toil = false
@@ -132,6 +145,8 @@ scope TestC4_2_Boundary49:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 1.5
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 1.5
   assertion r.night_premium = 0.0
   assertion r.total_rate = 1.5
   assertion r.accrues_toil = false
@@ -157,6 +172,8 @@ scope TestC5_1_Grade5NoPayment:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 0.0
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 0.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 0.0
   assertion r.accrues_toil = true
@@ -182,6 +199,8 @@ scope TestC5_1_Grade5Beyond48:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 0.0
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 0.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 0.0
   assertion r.accrues_toil = true
@@ -189,7 +208,7 @@ scope TestC5_1_Grade5Beyond48:
 
 ## C5_1_Grade4NotExempt
 
-C-5.1 applies at 'Grade 5 or above', so Grade 4 keeps the C-4.1 rate.
+C-5.1 applies at Grade 5 or above, so Grade 4 keeps the C-4.1 rate.
 
 ```catala
 #[test]
@@ -207,6 +226,8 @@ scope TestC5_1_Grade4NotExempt:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 1.25
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 1.25
   assertion r.night_premium = 0.0
   assertion r.total_rate = 1.25
   assertion r.accrues_toil = false
@@ -232,6 +253,8 @@ scope TestC5_2_CriticalIncident:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 1.25
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 1.25
   assertion r.night_premium = 0.0
   assertion r.total_rate = 1.25
   assertion r.accrues_toil = false
@@ -239,7 +262,7 @@ scope TestC5_2_CriticalIncident:
 
 ## C5_2_CriticalBeyond48
 
-C-5.2 reinstates 'in accordance with C-4', which is C-4.2 beyond 48 hours.
+C-5.2 reinstates in accordance with C-4, which is C-4.2 beyond 48 hours.
 
 ```catala
 #[test]
@@ -257,6 +280,8 @@ scope TestC5_2_CriticalBeyond48:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 1.5
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 1.5
   assertion r.night_premium = 0.0
   assertion r.total_rate = 1.5
   assertion r.accrues_toil = false
@@ -264,7 +289,7 @@ scope TestC5_2_CriticalBeyond48:
 
 ## C7_1_HolidayWithin40
 
-C-7.1 carries no hours threshold: it applies within the ordinary 40.
+C-7.1 carries no hours threshold and applies within the ordinary 40. Salary has already paid 1.0 for the hour, so the further sum payable is 1.0, not 2.0.
 
 ```catala
 #[test]
@@ -282,6 +307,62 @@ scope TestC7_1_HolidayWithin40:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 2.0
+  assertion r.salaried_element = 1.0
+  assertion r.additional_payable = 1.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 1.0
+  assertion r.accrues_toil = false
+```
+
+## C7_1_HolidayAtHour40
+
+C-7.1 on the last salaried hour of the ordinary week: still only 1.0 further payable.
+
+```catala
+#[test]
+declaration scope TestC7_1_HolidayAtHour40:
+  output r content Overtime.HourPremium
+
+scope TestC7_1_HolidayAtHour40:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 40
+      -- grade: 3
+      -- is_public_holiday: true
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 2.0
+  assertion r.salaried_element = 1.0
+  assertion r.additional_payable = 1.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 1.0
+  assertion r.accrues_toil = false
+```
+
+## C7_1_HolidayAtHour41
+
+C-7.1 on the first hour beyond 40: salary pays nothing for it, so the whole 2.0 is payable.
+
+```catala
+#[test]
+declaration scope TestC7_1_HolidayAtHour41:
+  output r content Overtime.HourPremium
+
+scope TestC7_1_HolidayAtHour41:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 41
+      -- grade: 3
+      -- is_public_holiday: true
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 2.0
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 2.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 2.0
   assertion r.accrues_toil = false
@@ -289,7 +370,7 @@ scope TestC7_1_HolidayWithin40:
 
 ## C7_1_HolidaySubstitutes
 
-C-7.1 is 'in substitution for, and not in addition to' C-4.
+C-7.1 is in substitution for, and not in addition to, C-4.
 
 ```catala
 #[test]
@@ -307,6 +388,8 @@ scope TestC7_1_HolidaySubstitutes:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 2.0
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 2.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 2.0
   assertion r.accrues_toil = false
@@ -332,6 +415,8 @@ scope TestC7_2_HolidayBeyond48:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 2.0
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 2.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 2.0
   assertion r.accrues_toil = false
@@ -339,11 +424,7 @@ scope TestC7_2_HolidayBeyond48:
 
 ## C8_1_HighestApplies
 
-C-8.1: C-5.1 and C-7.1 both bear on the hour; the higher multiplier governs the
-payment. The TOIL accrual under the second sentence of C-5.1 is NOT displaced,
-because C-7.1 substitutes only for "any amount otherwise payable under C-4" and
-C-8.1 speaks only of multipliers. Found by the adversarial reviewer; see
-tests/counterexamples/CE-0001.yaml.
+C-8.1: the higher multiplier governs the payment, but the TOIL accrual under the second sentence of C-5.1 is NOT displaced -- C-7.1 substitutes only for amounts payable under C-4 and C-8.1 speaks only of multipliers. Found by the adversarial reviewer; see tests/counterexamples/CE-0001.yaml.
 
 ```catala
 #[test]
@@ -361,6 +442,8 @@ scope TestC8_1_HighestApplies:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 2.0
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 2.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 2.0
   assertion r.accrues_toil = true
@@ -386,6 +469,8 @@ scope TestC8_1_HolidayAndIncident:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 2.0
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 2.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 2.0
   assertion r.accrues_toil = false
@@ -393,7 +478,7 @@ scope TestC8_1_HolidayAndIncident:
 
 ## C6_1_NightCumulative
 
-C-6.1/C-8.2: the night premium is cumulative with the C-4.1 multiplier.
+C-6.1 and C-8.2: the night premium is cumulative with the C-4.1 multiplier.
 
 ```catala
 #[test]
@@ -411,6 +496,8 @@ scope TestC6_1_NightCumulative:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 1.25
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 1.25
   assertion r.night_premium = 0.15
   assertion r.total_rate = 1.4
   assertion r.accrues_toil = false
@@ -436,6 +523,8 @@ scope TestC6_1_NightOnHoliday:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 2.0
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 2.0
   assertion r.night_premium = 0.15
   assertion r.total_rate = 2.15
   assertion r.accrues_toil = false
@@ -461,6 +550,8 @@ scope TestC6_1_NightOnToilHour:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 0.0
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 0.0
   assertion r.night_premium = 0.15
   assertion r.total_rate = 0.15
   assertion r.accrues_toil = true
@@ -486,6 +577,8 @@ scope TestC6_2_StandingAllowance:
       -- has_standing_shift_allowance: true
     }
   assertion r.multiplier = 1.25
+  assertion r.salaried_element = 0.0
+  assertion r.additional_payable = 1.25
   assertion r.night_premium = 0.0
   assertion r.total_rate = 1.25
   assertion r.accrues_toil = false
@@ -511,7 +604,441 @@ scope TestC6_1_NightOrdinaryHour:
       -- has_standing_shift_allowance: false
     }
   assertion r.multiplier = 0.0
+  assertion r.salaried_element = 1.0
+  assertion r.additional_payable = 0.0
   assertion r.night_premium = 0.15
   assertion r.total_rate = 0.15
   assertion r.accrues_toil = false
+```
+
+## Weekly_G3_50Hours
+
+Fifty hours at Grade 3. Eight hours fall under C-4.1 at 1.25 and two under C-4.2 at 1.5. The ordinal is derived from each hour's position in the week, so a timesheet numbered within each day gives the same answer; see tests/counterexamples/CE-0003.yaml.
+
+```catala
+#[test]
+declaration scope TestWeekly_G3_50Hours:
+  output r content Overtime.WeeklyOvertime
+
+scope TestWeekly_G3_50Hours:
+  definition r equals
+    output of Overtime.WeeklyOvertime with {
+      -- hours: [
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false }
+      ]
+      -- base_hourly_rate: $30.00
+      -- grade: 3
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.hours_worked = 50
+  assertion r.overtime_payment = $390.00
+  assertion r.toil_hours = 0.0
+```
+
+## Weekly_G5_50Hours
+
+The same week at Grade 5: C-5.1 removes the payment and accrues ten hours of time off in lieu; see CE-0004.
+
+```catala
+#[test]
+declaration scope TestWeekly_G5_50Hours:
+  output r content Overtime.WeeklyOvertime
+
+scope TestWeekly_G5_50Hours:
+  definition r equals
+    output of Overtime.WeeklyOvertime with {
+      -- hours: [
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false }
+      ]
+      -- base_hourly_rate: $30.00
+      -- grade: 5
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.hours_worked = 50
+  assertion r.overtime_payment = $0.00
+  assertion r.toil_hours = 10.0
+```
+
+## Weekly_G3_41Hours
+
+A complete 41-hour timesheet. No hour was worked in excess of 48, so C-4.2 cannot apply; see CE-0005.
+
+```catala
+#[test]
+declaration scope TestWeekly_G3_41Hours:
+  output r content Overtime.WeeklyOvertime
+
+scope TestWeekly_G3_41Hours:
+  definition r equals
+    output of Overtime.WeeklyOvertime with {
+      -- hours: [
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false }
+      ]
+      -- base_hourly_rate: $30.00
+      -- grade: 3
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.hours_worked = 41
+  assertion r.overtime_payment = $37.50
+  assertion r.toil_hours = 0.0
+```
+
+## Weekly_G3_40Hours_HolidayAt20
+
+Exactly forty hours, the twentieth on a public holiday. Salary has already paid for that hour, so C-7.1 leaves only 1.0 times the Base Hourly Rate further payable; see CE-0006.
+
+```catala
+#[test]
+declaration scope TestWeekly_G3_40Hours_HolidayAt20:
+  output r content Overtime.WeeklyOvertime
+
+scope TestWeekly_G3_40Hours_HolidayAt20:
+  definition r equals
+    output of Overtime.WeeklyOvertime with {
+      -- hours: [
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: true -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false }
+      ]
+      -- base_hourly_rate: $30.00
+      -- grade: 3
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.hours_worked = 40
+  assertion r.overtime_payment = $30.00
+  assertion r.toil_hours = 0.0
+```
+
+## Weekly_G5_50Hours_6Critical
+
+Grade 5 with six hours of Critical Incident Response: C-5.2 restores a payment for those six and C-5.1 accrues TOIL for the other four.
+
+```catala
+#[test]
+declaration scope TestWeekly_G5_50Hours_6Critical:
+  output r content Overtime.WeeklyOvertime
+
+scope TestWeekly_G5_50Hours_6Critical:
+  definition r equals
+    output of Overtime.WeeklyOvertime with {
+      -- hours: [
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: true -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: true -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: true -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: true -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: true -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: true -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false }
+      ]
+      -- base_hourly_rate: $30.00
+      -- grade: 5
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.hours_worked = 50
+  assertion r.overtime_payment = $225.00
+  assertion r.toil_hours = 4.0
+```
+
+## Weekly_G3_40Hours_NoOvertime
+
+An ordinary week creates no entitlement at all.
+
+```catala
+#[test]
+declaration scope TestWeekly_G3_40Hours_NoOvertime:
+  output r content Overtime.WeeklyOvertime
+
+scope TestWeekly_G3_40Hours_NoOvertime:
+  definition r equals
+    output of Overtime.WeeklyOvertime with {
+      -- hours: [
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false };
+      Overtime.HourWorked { -- is_public_holiday: false -- is_critical_incident: false -- is_night: false }
+      ]
+      -- base_hourly_rate: $30.00
+      -- grade: 3
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.hours_worked = 40
+  assertion r.overtime_payment = $0.00
+  assertion r.toil_hours = 0.0
+```
+
+## Weekly_EmptyWeek
+
+A week with no hours recorded. No clause of Annex C confers anything, so the
+figures are nil rather than an error.
+
+```catala
+#[test]
+declaration scope TestWeekly_EmptyWeek:
+  output r content Overtime.WeeklyOvertime
+
+scope TestWeekly_EmptyWeek:
+  definition r equals
+    output of Overtime.WeeklyOvertime with {
+      -- hours: []
+      -- base_hourly_rate: $30.00
+      -- grade: 3
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.hours_worked = 0
+  assertion r.overtime_payment = $0.00
+  assertion r.toil_hours = 0.0
 ```

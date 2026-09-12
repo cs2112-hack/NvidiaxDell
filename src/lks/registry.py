@@ -133,23 +133,45 @@ def coverage(
 ) -> dict[str, Any]:
     """Which RULE/HYBRID clauses are encoded, and which are encoded twice.
 
-    A clause encoded in two scopes is a conflict by construction: two places
-    now claim authority over the same rule, and nothing guarantees they agree.
+    Duplication is measured **across modules**, not across scopes. A clause
+    encoded in two modules is a conflict by construction: two units now claim
+    authority over the same rule and nothing makes them agree. A clause
+    encoded across two scopes of the SAME module is ordinary decomposition --
+    C-9.2's rounding proviso lives in its own scope so the tie case is
+    reachable, and is then applied by the accrual scope. Flagging that as a
+    conflict would push authors to inline such provisos, which is the opposite
+    of what we want.
+
+    Clauses quoted above a declaration prologue are credited to the module
+    too: a clause whose entire content is a type (E-2.1's City Tier is an
+    enumeration and nothing else) is genuinely encoded, and reporting it as
+    missing would understate coverage and hide the real gaps.
     """
     entries = entries if entries is not None else build_registry()
     ledger = load_ledger()
     need = {r for r, d in ledger.items() if d.label in (Label.RULE, Label.HYBRID)}
-    where: dict[str, list[str]] = {}
+    by_module: dict[str, set[str]] = {}
     for e in entries.values():
         for ref in e.encodes:
-            where.setdefault(ref, []).append(e.qualified)
+            by_module.setdefault(ref, set()).add(e.module)
+    # a clause quoted anywhere in a module's literate source counts as encoded.
+    # encoded_refs() keys on FILENAME, so resolve each to its declared module
+    # name -- otherwise overtime.catala_en and module Overtime look like two
+    # different modules and every clause reads as duplicated.
+    from .literate import encoded_refs
+
+    stem_to_module = {Path(e.path).stem: e.module for e in entries.values()}
+    for ref, files in encoded_refs().items():
+        for f in files:
+            stem = Path(f).stem
+            by_module.setdefault(ref, set()).add(stem_to_module.get(stem, stem))
     return {
         "required": len(need),
-        "encoded": len(need & set(where)),
-        "missing": sorted(need - set(where)),
-        "duplicated": {r: v for r, v in where.items() if len(set(v)) > 1},
+        "encoded": len(need & set(by_module)),
+        "missing": sorted(need - set(by_module)),
+        "duplicated": {r: sorted(v) for r, v in by_module.items() if len(v) > 1},
         "encoded_but_prose": sorted(
-            r for r in where
+            r for r in by_module
             if r in ledger and ledger[r].label is Label.PROSE
         ),
     }
