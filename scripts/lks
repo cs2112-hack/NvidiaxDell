@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """lks — the legal knowledge system's command line.
 
+    lks agent status                        the local model and role isolation
+    lks agent triage "<DOC CLAUSE>"         propose a label, compare to the ledger
+    lks agent facts --scope M.S "<question>"  extract facts, execute nothing
     lks serve [--port 8765]                 the web interface
     lks ask "<question>" [--inputs JSON] [--scope Module.Scope] [--backend mongo|files]
     lks scopes [--grep TEXT]
@@ -8,7 +11,8 @@
     lks why <Module.Scope> <variable>
     lks cite <DOC-ID CLAUSE-ID>
     lks index build | sync | status
-    lks ingest <document.md> [--candidate FILE ...]
+    lks convert <file> [--doc-id ID] [--title T] [--effective-date YYYY-MM-DD]
+    lks ingest <document> [--candidate FILE ...]   (.md .txt .docx .pdf .html)
     lks proposals [--id ID]
     lks merge <proposal-id>
     lks counterexamples [--open]
@@ -126,9 +130,68 @@ def cmd_index(a):
     return 0
 
 
+def _overrides(a):
+    """Metadata the document does not state, supplied by hand."""
+    return {k: getattr(a, k, None) for k in
+            ("doc_id", "title", "version", "effective_date", "jurisdiction", "owner")
+            if getattr(a, k, None)}
+
+
+def cmd_convert(a):
+    """Convert a real document to the house convention, for a human to check."""
+    from lks.extract import ExtractionError, capabilities
+    from lks.structure import convert_file
+
+    if a.formats:
+        print(json.dumps(capabilities(), indent=2))
+        return 0
+    if not a.file:
+        print("lks convert <file> [--doc-id ID] [--title T] "
+              "[--effective-date YYYY-MM-DD]\n"
+              "       lks convert --formats   (what this installation can read)",
+              file=sys.stderr)
+        return 2
+    try:
+        c = convert_file(a.file, out_dir=a.out_dir, overrides=_overrides(a))
+    except ExtractionError as e:
+        print(f"cannot read {a.file}: {e}", file=sys.stderr)
+        return 1
+    s = c.structured
+    print(f"{a.file}  ->  {c.converted_path}")
+    print(f"  format        {s.extracted.fmt} (read with {s.extracted.tool})")
+    print(f"  scheme        {s.scheme.describe()}")
+    print(f"                {s.scheme.evidence['why']}")
+    print(f"  paragraphs    {s.extracted.n_paras} in, all accounted for in the report")
+    print(f"  clauses       {len(s.clauses)}  "
+          f"({len(s.clauses) - len(s.synthesised)} ids from the document, "
+          f"{len(s.synthesised)} synthesised)")
+    if s.synthesised:
+        print(f"  SYNTHESISED   {', '.join(c2.clause_id for c2 in s.synthesised)}")
+        print( "                these ids are positional and CANNOT be cited")
+    if s.unassigned:
+        print(f"  UNASSIGNED    {len(s.unassigned)} paragraph(s) could not be placed: "
+              f"{[d.index for d in s.unassigned]}")
+    if s.furniture:
+        print(f"  furniture     {len(s.furniture)} paragraph(s) left out as page "
+              f"headers/footers: {[d.index for d in s.furniture]}")
+    for f, v in s.meta.items():
+        if v == "NEEDS-HUMAN-INPUT":
+            print(f"  NEEDS HUMAN   {f}: {s.needs_human.get(f, '')}")
+    print(f"  report        {c.report_path}")
+    print("\nRead the report, then the converted document. Neither is merged: run "
+          "`lks ingest` on the converted file (or on the original) to open a "
+          "proposal.")
+    return 0
+
+
 def cmd_ingest(a):
     from lks.ingest import propose_ingestion
-    pr = propose_ingestion(a.document, candidate_paths=a.candidate or [])
+    pr = propose_ingestion(a.document, candidate_paths=a.candidate or [],
+                           overrides=_overrides(a))
+    if pr.conversion:
+        print(f"converted {pr.original_path} -> {pr.source_path} "
+              f"({pr.conversion['scheme']}); report "
+              f"{pr.conversion['report_path']}")
     print(f"proposal {pr.id}: {len(pr.conflicts)} conflict(s), "
           f"{len(pr.blocking)} blocking, mergeable={pr.mergeable}")
     for c in pr.conflicts:
@@ -180,6 +243,84 @@ def cmd_counterexamples(a):
     return 0
 
 
+def cmd_agent(a):
+    from lks import agents, llm
+    if a.action == "status":
+        print(f"model     {llm.DEFAULT_MODEL}")
+        print(f"host      {llm.OLLAMA_HOST}")
+        try:
+            tags = llm.available()
+            names = sorted(m.get("name", "") for m in tags.get("models", []))
+            print(f"ollama    reachable; models: {', '.join(names) or '(none)'}")
+        except llm.ModelUnavailable as e:
+            print(f"ollama    NOT reachable — {e}")
+        enf = agents.REVIEWER.enforcement()
+        print(f"isolation {enf}")
+        if enf == agents.Enforcement.PROMPT:
+            print("          OpenShell absent: a role is only ASKED not to read what it")
+            print("          must not see. Packets are still stripped, but the boundary")
+            print("          is not enforced by the filesystem.")
+        print()
+        for name, r in agents.ROLES.items():
+            print(f"  {name}")
+            print(f"      {r.purpose}")
+            print(f"      may read : {', '.join(r.reads) or '(nothing from the repo)'}")
+            print(f"      must not : {', '.join(r.forbidden)}")
+            for prob in agents.audit_isolation(r):
+                print(f"      PROBLEM  {prob}")
+        return 0
+
+    if a.action == "triage":
+        from lks.segment import load_corpus
+        from lks.triage import load_ledger
+        ref = " ".join(a.args)
+        clause = None
+        for d in load_corpus("corpus"):
+            for cl in d.clauses:
+                if cl.ref == ref:
+                    clause = cl
+        if clause is None:
+            print(f"no clause {ref!r}", file=sys.stderr)
+            return 1
+        res = agents.triage_clause(clause)
+        print(res)
+        if res.ok:
+            truth = load_ledger().get(ref)
+            print(f"  model     {res.value['label']}  {res.value['reason']}")
+            if res.value["judgement_inputs"]:
+                print(f"  judgement {res.value['judgement_inputs']}")
+            if truth:
+                mark = "agrees" if truth.label.value == res.value["label"] else "DISAGREES"
+                print(f"  ledger    {truth.label.value}  ({mark})")
+        return 0 if res.ok else 1
+
+    if a.action == "facts":
+        from lks.catala_runner import json_schema
+        from lks.registry import build_registry, load_registry
+        reg = load_registry() or build_registry()
+        e = reg.get(a.scope)
+        if e is None:
+            print(f"no scope {a.scope!r}; try: lks scopes", file=sys.stderr)
+            return 1
+        in_schema, _ = json_schema(e.path, e.scope)
+        types = {}
+        defs = in_schema.get("definitions", {})
+        root = defs.get(in_schema.get("$ref", "").split("/")[-1], {})
+        for n, spec in (root.get("properties") or {}).items():
+            r = spec.get("$ref", "")
+            types[n] = r.split("/")[-1] if r else spec.get("type", "unknown")
+        res = agents.extract_facts(" ".join(a.args), types)
+        print(res)
+        if res.ok:
+            print(f"  extracted: {json.dumps(res.value['facts'], indent=2)}")
+            if res.value["omitted"]:
+                print(f"  a person must supply: {', '.join(res.value['omitted'])}")
+            print("  Nothing was executed. Check these, then: lks run "
+                  f"{a.scope} '<json>'")
+        return 0 if res.ok else 1
+    return 0
+
+
 def cmd_serve(a):
     from lks.api import serve
     serve(a.host, a.port)
@@ -223,8 +364,28 @@ def main() -> int:
     i.add_argument("action", choices=["build", "sync", "status"])
     i.set_defaults(fn=cmd_index)
 
+    def _meta_args(sp):
+        """Front-matter values a real document may not state."""
+        sp.add_argument("--doc-id", dest="doc_id")
+        sp.add_argument("--title")
+        sp.add_argument("--version")
+        sp.add_argument("--effective-date", dest="effective_date",
+                        help="YYYY-MM-DD; never guessed from the text")
+        sp.add_argument("--jurisdiction")
+        sp.add_argument("--owner")
+
+    cv = sub.add_parser("convert", help="convert a real document (.txt .md .docx "
+                                        ".pdf .html) to the house convention")
+    cv.add_argument("file", nargs="?")
+    cv.add_argument("--out-dir", default="ingest/converted")
+    cv.add_argument("--formats", action="store_true",
+                    help="print the formats this installation can read, and stop")
+    _meta_args(cv)
+    cv.set_defaults(fn=cmd_convert)
+
     g = sub.add_parser("ingest", help="propose ingestion of a new document")
     g.add_argument("document"); g.add_argument("--candidate", action="append")
+    _meta_args(g)
     g.set_defaults(fn=cmd_ingest)
 
     pl = sub.add_parser("proposals", help="list ingestion proposals")
@@ -238,6 +399,12 @@ def main() -> int:
     ce = sub.add_parser("counterexamples", help="list the permanent regression suite")
     ce.add_argument("--open", dest="open_only", action="store_true")
     ce.set_defaults(fn=cmd_counterexamples)
+
+    ag = sub.add_parser("agent", help="the local model and its roles")
+    ag.add_argument("action", choices=["status", "triage", "facts"])
+    ag.add_argument("args", nargs="*")
+    ag.add_argument("--scope", default="", help="for 'facts': the scope to fill")
+    ag.set_defaults(fn=cmd_agent)
 
     sv = sub.add_parser("serve", help="run the local web interface")
     sv.add_argument("--host", default="127.0.0.1")

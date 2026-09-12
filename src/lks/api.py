@@ -290,6 +290,69 @@ def _count(n) -> int:
     return 1 + sum(_count(c) for c in n.exceptions)
 
 
+def ep_agent_status(_body: Any, _q: dict) -> dict:
+    """Whether a local agent is available, and what each role may see."""
+    from . import agents, llm
+    out: dict[str, Any] = {
+        "model": llm.DEFAULT_MODEL,
+        "host": llm.OLLAMA_HOST,
+        "available": False,
+        "models": [],
+        "isolation": agents.REVIEWER.enforcement(),
+        "openshell": agents.openshell_available(),
+        "roles": [],
+    }
+    try:
+        tags = llm.available()
+        out["available"] = True
+        out["models"] = sorted(m.get("name", "") for m in tags.get("models", []))
+    except llm.ModelUnavailable as e:
+        out["error"] = str(e)
+    for name, r in agents.ROLES.items():
+        out["roles"].append({
+            "name": name, "purpose": r.purpose,
+            "reads": r.reads, "forbidden": r.forbidden,
+            "enforcement": r.enforcement(),
+            "isolation_problems": agents.audit_isolation(r),
+        })
+    return out
+
+
+def ep_slotfill(body: Any, _q: dict) -> dict:
+    """Extract the facts a question states, for a person to check.
+
+    Nothing is executed here. The extracted facts are returned so the
+    interface can prefill the form and the person can see, and correct, every
+    value before a rule runs on it. A fact the question did not state is
+    reported as omitted rather than guessed.
+    """
+    from . import agents, llm
+    key = (body or {}).get("target", "")
+    question = ((body or {}).get("question") or "").strip()
+    if not key or not question:
+        raise ApiError("target and question are both required.")
+    e = _registry().get(key)
+    if e is None:
+        raise ApiError(f"No scope {key!r}.", 404)
+    from .catala_runner import json_schema
+    try:
+        in_schema, _ = json_schema(e.path, e.scope)
+    except Exception as ex:
+        raise ApiError(f"Cannot read the input schema for {key}: {ex}", 500)
+    types = _flatten_schema(in_schema)
+    try:
+        res = agents.extract_facts(question, types, model=llm.DEFAULT_MODEL)
+    except llm.ModelUnavailable as ex:
+        raise ApiError(str(ex), 503)
+    if not res.ok:
+        return {"key": key, "facts": {}, "omitted": sorted(types),
+                "error": res.error, "usage": str(res.usage)}
+    return {
+        "key": key, "facts": res.value["facts"], "omitted": res.value["omitted"],
+        "error": None, "usage": str(res.usage), "model": res.role,
+    }
+
+
 def ep_clause(_body: Any, q: dict) -> dict:
     ref = unquote(q.get("ref", "")).strip()
     for d in _corpus():
@@ -403,6 +466,8 @@ ROUTES: dict[tuple[str, str], Callable[[Any, dict], Any]] = {
     ("POST", "/api/run"): ep_run,
     ("GET", "/api/hierarchy"): ep_hierarchy,
     ("POST", "/api/explain"): ep_explain,
+    ("GET", "/api/agent"): ep_agent_status,
+    ("POST", "/api/slotfill"): ep_slotfill,
     ("GET", "/api/clause"): ep_clause,
     ("GET", "/api/verification"): ep_verification,
     ("GET", "/api/proposals"): ep_proposals,
