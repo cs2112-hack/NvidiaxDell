@@ -1,0 +1,810 @@
+_comment: 'Triage ledger. ''heuristic'' rows were proposed by lks.triage and have NOT been adjudicated.
+  Edit a row and set source: adjudicated to fix it; adjudicated rows always win over the heuristic. clause_hash
+  pins the decision to the clause text it was made against -- if the clause changes, lks.triage.stale()
+  will flag the decision for re-review.'
+decisions:
+  EMP-ANNEX-C C-1.1:
+    ref: EMP-ANNEX-C C-1.1
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 0a1c98d608e98329
+  EMP-ANNEX-C C-1.2:
+    ref: EMP-ANNEX-C C-1.2
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: c141ec66cca72d62
+  EMP-ANNEX-C C-1.3:
+    ref: EMP-ANNEX-C C-1.3
+    label: PROSE
+    reason: boilerplate//interpretive markers ['headings are for convenience']
+    source: heuristic
+    clause_hash: 00e8dbae6a39a340
+  EMP-ANNEX-C C-2.1:
+    ref: EMP-ANNEX-C C-2.1
+    label: RULE
+    reason: quantified definition (score 4) -> becomes a struct/type
+    source: heuristic
+    clause_hash: ef6e01571ad104c2
+  EMP-ANNEX-C C-2.2:
+    ref: EMP-ANNEX-C C-2.2
+    label: RULE
+    reason: quantified definition (score 4) -> becomes a struct/type
+    source: heuristic
+    clause_hash: 75b15367ef506b4a
+  EMP-ANNEX-C C-2.3:
+    ref: EMP-ANNEX-C C-2.3
+    label: RULE
+    reason: quantified definition (score 4) -> becomes a struct/type
+    source: heuristic
+    clause_hash: b60d94cde1857a6b
+  EMP-ANNEX-C C-2.4:
+    ref: EMP-ANNEX-C C-2.4
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 13dd4342388e9698
+  EMP-ANNEX-C C-2.5:
+    ref: EMP-ANNEX-C C-2.5
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 281f71448d9ee073
+  EMP-ANNEX-C C-2.6:
+    ref: EMP-ANNEX-C C-2.6
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: b3560225d04afd6d
+  EMP-ANNEX-C C-3.1:
+    ref: EMP-ANNEX-C C-3.1
+    label: PROSE
+    reason: no computable content (score 2)
+    source: heuristic
+    clause_hash: e920deabc9dd1dba
+  EMP-ANNEX-C C-4.1:
+    ref: EMP-ANNEX-C C-4.1
+    label: RULE
+    reason: quantified and computable (score 11)
+    source: heuristic
+    clause_hash: b6ac265197f7f162
+  EMP-ANNEX-C C-4.2:
+    ref: EMP-ANNEX-C C-4.2
+    label: RULE
+    reason: quantified and computable (score 10)
+    source: heuristic
+    clause_hash: e49fc45645975c88
+  EMP-ANNEX-C C-5.1:
+    ref: EMP-ANNEX-C C-5.1
+    label: RULE
+    reason: quantified and computable (score 12)
+    source: heuristic
+    clause_hash: 598451dbe762baa8
+  EMP-ANNEX-C C-5.2:
+    ref: EMP-ANNEX-C C-5.2
+    label: RULE
+    reason: quantified and computable (score 9)
+    source: heuristic
+    clause_hash: d2544eac9f569176
+  EMP-ANNEX-C C-6.1:
+    ref: EMP-ANNEX-C C-6.1
+    label: RULE
+    reason: quantified and computable (score 10)
+    source: heuristic
+    clause_hash: a952db495deff0d1
+  EMP-ANNEX-C C-6.2:
+    ref: EMP-ANNEX-C C-6.2
+    label: RULE
+    reason: weakly quantified but computable (score 3)
+    source: heuristic
+    clause_hash: 0b2038b941623d7d
+  EMP-ANNEX-C C-7.1:
+    ref: EMP-ANNEX-C C-7.1
+    label: RULE
+    reason: quantified and computable (score 8)
+    source: heuristic
+    clause_hash: 78d28630cbe353cd
+  EMP-ANNEX-C C-7.2:
+    ref: EMP-ANNEX-C C-7.2
+    label: RULE
+    reason: quantified and computable (score 13)
+    source: heuristic
+    clause_hash: 220100582d283d7d
+  EMP-ANNEX-C C-8.1:
+    ref: EMP-ANNEX-C C-8.1
+    label: RULE
+    reason: weakly quantified but computable (score 3)
+    source: heuristic
+    clause_hash: 8439478f15cee9b0
+  EMP-ANNEX-C C-8.2:
+    ref: EMP-ANNEX-C C-8.2
+    label: RULE
+    reason: weakly quantified but computable (score 4)
+    source: heuristic
+    clause_hash: cc1efdd2a37191aa
+  EMP-ANNEX-C C-9.1:
+    ref: EMP-ANNEX-C C-9.1
+    label: RULE
+    reason: quantified and computable (score 6)
+    source: heuristic
+    clause_hash: 10198e637a8c7277
+  EMP-ANNEX-C C-9.2:
+    ref: EMP-ANNEX-C C-9.2
+    label: RULE
+    reason: quantified and computable (score 6)
+    source: heuristic
+    clause_hash: b74f82f2fec11016
+  EMP-ANNEX-C C-9.3:
+    ref: EMP-ANNEX-C C-9.3
+    label: RULE
+    reason: weakly quantified but computable (score 5)
+    source: heuristic
+    clause_hash: 646296e31b8d3773
+  EMP-ANNEX-C C-9.4:
+    ref: EMP-ANNEX-C C-9.4
+    label: RULE
+    reason: weakly quantified but computable (score 3)
+    source: heuristic
+    clause_hash: 0c284d7efb1eea48
+  EMP-ANNEX-C C-9.5:
+    ref: EMP-ANNEX-C C-9.5
+    label: RULE
+    reason: quantified and computable (score 6)
+    source: heuristic
+    clause_hash: 80b3d40bfd4fe706
+  EMP-ANNEX-C C-10.1:
+    ref: EMP-ANNEX-C C-10.1
+    label: PROSE
+    reason: boilerplate//interpretive markers ['no variation']
+    source: heuristic
+    clause_hash: 7f91ab5eb0983cec
+  EXP-POL E-1.1:
+    ref: EXP-POL E-1.1
+    label: PROSE
+    reason: judgement-dependent ['properly incurred'], score 0
+    source: heuristic
+    clause_hash: b57d4f9dc327c5a3
+  EXP-POL E-1.2:
+    ref: EXP-POL E-1.2
+    label: PROSE
+    reason: boilerplate//interpretive markers ['is not intended to describe']
+    source: heuristic
+    clause_hash: 8ed559af0bdc722a
+  EXP-POL E-1.3:
+    ref: EXP-POL E-1.3
+    label: PROSE
+    reason: boilerplate//interpretive markers ['remain responsible for their own']
+    source: heuristic
+    clause_hash: 60119eccb20dc9bb
+  EXP-POL E-2.1:
+    ref: EXP-POL E-2.1
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 39d3a28f2c6962c6
+  EXP-POL E-2.2:
+    ref: EXP-POL E-2.2
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: e5d35dd4091dacdc
+  EXP-POL E-2.3:
+    ref: EXP-POL E-2.3
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 3ba43497fbc4bf1e
+  EXP-POL E-2.4:
+    ref: EXP-POL E-2.4
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 2b4cab256c0f3377
+  EXP-POL E-3.1:
+    ref: EXP-POL E-3.1
+    label: RULE
+    reason: quantified and computable (score 14)
+    source: heuristic
+    clause_hash: 07e5c014f50210db
+  EXP-POL E-3.2:
+    ref: EXP-POL E-3.2
+    label: RULE
+    reason: weakly quantified but computable (score 5)
+    source: heuristic
+    clause_hash: 6fd9f97d3602fa8b
+  EXP-POL E-3.3:
+    ref: EXP-POL E-3.3
+    label: PROSE
+    reason: no computable content (score 2)
+    source: heuristic
+    clause_hash: 17b874525bff815b
+  EXP-POL E-3.4:
+    ref: EXP-POL E-3.4
+    label: RULE
+    reason: weakly quantified but computable (score 5)
+    source: heuristic
+    clause_hash: 8b3fc8965636b1e9
+  EXP-POL E-3.5:
+    ref: EXP-POL E-3.5
+    label: PROSE
+    reason: no computable content (score 2)
+    source: heuristic
+    clause_hash: 6f623695d0665542
+  EXP-POL E-4.1:
+    ref: EXP-POL E-4.1
+    label: RULE
+    reason: quantified and computable (score 14)
+    source: heuristic
+    clause_hash: 8595c2882e934c7b
+  EXP-POL E-4.2:
+    ref: EXP-POL E-4.2
+    label: RULE
+    reason: quantified and computable (score 8)
+    source: heuristic
+    clause_hash: aad5dc01726202e5
+  EXP-POL E-4.3:
+    ref: EXP-POL E-4.3
+    label: PROSE
+    reason: no computable content (score 1)
+    source: heuristic
+    clause_hash: 4bb6c958dece2e01
+  EXP-POL E-5.1:
+    ref: EXP-POL E-5.1
+    label: PROSE
+    reason: no computable content (score 2)
+    source: heuristic
+    clause_hash: 5c894fe0cfe2e255
+  EXP-POL E-5.2:
+    ref: EXP-POL E-5.2
+    label: RULE
+    reason: weakly quantified but computable (score 4)
+    source: heuristic
+    clause_hash: 260ee75a446a701f
+  EXP-POL E-5.3:
+    ref: EXP-POL E-5.3
+    label: RULE
+    reason: quantified and computable (score 10)
+    source: heuristic
+    clause_hash: f77f6156c7de6911
+  EXP-POL E-6.1:
+    ref: EXP-POL E-6.1
+    label: RULE
+    reason: weakly quantified but computable (score 4)
+    source: heuristic
+    clause_hash: 61bbd79e920a1e1d
+  EXP-POL E-6.2:
+    ref: EXP-POL E-6.2
+    label: HYBRID
+    reason: arithmetic (score 11) gated on judgement ['good reason']
+    source: heuristic
+    clause_hash: 091e34eeeed377ab
+  EXP-POL E-6.3:
+    ref: EXP-POL E-6.3
+    label: RULE
+    reason: quantified and computable (score 6)
+    source: heuristic
+    clause_hash: 89df9d9083cb6fe9
+  EXP-POL E-7.1:
+    ref: EXP-POL E-7.1
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 75a1809a8ce2e1a6
+  EXP-POL E-7.2:
+    ref: EXP-POL E-7.2
+    label: RULE
+    reason: quantified and computable (score 9)
+    source: heuristic
+    clause_hash: 596ab0243cb2d6de
+  EXP-POL E-8.1:
+    ref: EXP-POL E-8.1
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: f791262c15e412dd
+  COMM-PLAN S-1.1:
+    ref: COMM-PLAN S-1.1
+    label: RULE
+    reason: weakly quantified but computable (score 4)
+    source: heuristic
+    clause_hash: f8a4d01d3dd3fff4
+  COMM-PLAN S-1.2:
+    ref: COMM-PLAN S-1.2
+    label: PROSE
+    reason: boilerplate//interpretive markers ['is discretionary']
+    source: heuristic
+    clause_hash: 916c5ab37a511d00
+  COMM-PLAN S-1.3:
+    ref: COMM-PLAN S-1.3
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 0a5293dace74e9e8
+  COMM-PLAN S-2.1:
+    ref: COMM-PLAN S-2.1
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 0a854f5452fe6d40
+  COMM-PLAN S-2.2:
+    ref: COMM-PLAN S-2.2
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 11d97cee240c4d4f
+  COMM-PLAN S-2.3:
+    ref: COMM-PLAN S-2.3
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 24adf9e0a9933d3e
+  COMM-PLAN S-2.4:
+    ref: COMM-PLAN S-2.4
+    label: RULE
+    reason: quantified definition (score 4) -> becomes a struct/type
+    source: heuristic
+    clause_hash: 78a133264d19bf14
+  COMM-PLAN S-2.5:
+    ref: COMM-PLAN S-2.5
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 4408290392a2eb1e
+  COMM-PLAN S-2.6:
+    ref: COMM-PLAN S-2.6
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: c6ca5dcdca05bed6
+  COMM-PLAN S-3.1:
+    ref: COMM-PLAN S-3.1
+    label: RULE
+    reason: quantified and computable (score 7)
+    source: heuristic
+    clause_hash: e0eabdfcbf3f2f3a
+  COMM-PLAN S-4.1:
+    ref: COMM-PLAN S-4.1
+    label: RULE
+    reason: quantified and computable (score 22)
+    source: heuristic
+    clause_hash: 618a40367898c1e2
+  COMM-PLAN S-4.2:
+    ref: COMM-PLAN S-4.2
+    label: PROSE
+    reason: no computable content (score 1)
+    source: heuristic
+    clause_hash: acde63250607cb42
+  COMM-PLAN S-4.3:
+    ref: COMM-PLAN S-4.3
+    label: RULE
+    reason: quantified and computable (score 10)
+    source: heuristic
+    clause_hash: 5238ced960d3259a
+  COMM-PLAN S-4.4:
+    ref: COMM-PLAN S-4.4
+    label: RULE
+    reason: weakly quantified but computable (score 5)
+    source: heuristic
+    clause_hash: 31507044d3f8dccb
+  COMM-PLAN S-5.1:
+    ref: COMM-PLAN S-5.1
+    label: RULE
+    reason: quantified and computable (score 7)
+    source: heuristic
+    clause_hash: 834aec26ce3e4608
+  COMM-PLAN S-5.2:
+    ref: COMM-PLAN S-5.2
+    label: RULE
+    reason: weakly quantified but computable (score 5)
+    source: heuristic
+    clause_hash: 7a82b9bb80a2a5f6
+  COMM-PLAN S-5.3:
+    ref: COMM-PLAN S-5.3
+    label: RULE
+    reason: quantified and computable (score 9)
+    source: heuristic
+    clause_hash: 3b8f6965bf9e9d0c
+  COMM-PLAN S-6.1:
+    ref: COMM-PLAN S-6.1
+    label: RULE
+    reason: quantified and computable (score 9)
+    source: heuristic
+    clause_hash: 8f01fd106b4e774f
+  COMM-PLAN S-6.2:
+    ref: COMM-PLAN S-6.2
+    label: RULE
+    reason: weakly quantified but computable (score 5)
+    source: heuristic
+    clause_hash: e6e58b17adabbbf3
+  COMM-PLAN S-7.1:
+    ref: COMM-PLAN S-7.1
+    label: PROSE
+    reason: no computable content (score 2)
+    source: heuristic
+    clause_hash: e145e2a64fa27e97
+  COMM-PLAN S-7.2:
+    ref: COMM-PLAN S-7.2
+    label: PROSE
+    reason: judgement-dependent ['material'], score 3
+    source: heuristic
+    clause_hash: d05593edf884f05a
+  COMM-PLAN S-7.3:
+    ref: COMM-PLAN S-7.3
+    label: RULE
+    reason: quantified and computable (score 6)
+    source: heuristic
+    clause_hash: 71d0b5cd74570e63
+  COMM-PLAN S-8.1:
+    ref: COMM-PLAN S-8.1
+    label: RULE
+    reason: weakly quantified but computable (score 4)
+    source: heuristic
+    clause_hash: e74783862236e688
+  COMM-PLAN S-8.2:
+    ref: COMM-PLAN S-8.2
+    label: RULE
+    reason: weakly quantified but computable (score 3)
+    source: heuristic
+    clause_hash: b11f7c7a045865ec
+  COMM-PLAN S-9.1:
+    ref: COMM-PLAN S-9.1
+    label: PROSE
+    reason: judgement-dependent ['determined by the', 'final'], score 0
+    source: heuristic
+    clause_hash: 3def82096540b5e0
+  MSA-SCH4 L-1.1:
+    ref: MSA-SCH4 L-1.1
+    label: PROSE
+    reason: no computable content (score 1)
+    source: heuristic
+    clause_hash: a9ba868fa05cb393
+  MSA-SCH4 L-1.2:
+    ref: MSA-SCH4 L-1.2
+    label: PROSE
+    reason: boilerplate//interpretive markers ['sole financial remedy']
+    source: heuristic
+    clause_hash: 4d710d0dffdb941e
+  MSA-SCH4 L-1.3:
+    ref: MSA-SCH4 L-1.3
+    label: PROSE
+    reason: boilerplate//interpretive markers ['acknowledge that']
+    source: heuristic
+    clause_hash: 4b65847c63511250
+  MSA-SCH4 L-2.1:
+    ref: MSA-SCH4 L-2.1
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 23ef6dbcedb76b25
+  MSA-SCH4 L-2.2:
+    ref: MSA-SCH4 L-2.2
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 25f2e2348c697d1f
+  MSA-SCH4 L-2.3:
+    ref: MSA-SCH4 L-2.3
+    label: RULE
+    reason: quantified definition (score 4) -> becomes a struct/type
+    source: heuristic
+    clause_hash: b36cf00825975218
+  MSA-SCH4 L-2.4:
+    ref: MSA-SCH4 L-2.4
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 09161c75b64143a4
+  MSA-SCH4 L-2.5:
+    ref: MSA-SCH4 L-2.5
+    label: RULE
+    reason: quantified definition (score 5) -> becomes a struct/type
+    source: heuristic
+    clause_hash: 8dfa98bdfee6bfd0
+  MSA-SCH4 L-2.6:
+    ref: MSA-SCH4 L-2.6
+    label: RULE
+    reason: quantified definition (score 10) -> becomes a struct/type
+    source: heuristic
+    clause_hash: bd5a5c6faea8484c
+  MSA-SCH4 L-2.7:
+    ref: MSA-SCH4 L-2.7
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 59bd63a768454363
+  MSA-SCH4 L-3.1:
+    ref: MSA-SCH4 L-3.1
+    label: RULE
+    reason: weakly quantified but computable (score 5)
+    source: heuristic
+    clause_hash: a2acd3c3dd71afe6
+  MSA-SCH4 L-4.1:
+    ref: MSA-SCH4 L-4.1
+    label: RULE
+    reason: quantified and computable (score 48)
+    source: heuristic
+    clause_hash: ba628deed8e00055
+  MSA-SCH4 L-4.2:
+    ref: MSA-SCH4 L-4.2
+    label: RULE
+    reason: weakly quantified but computable (score 3)
+    source: heuristic
+    clause_hash: a7686f5ab9332df3
+  MSA-SCH4 L-4.3:
+    ref: MSA-SCH4 L-4.3
+    label: RULE
+    reason: quantified and computable (score 10)
+    source: heuristic
+    clause_hash: 611dd48a30c5bb3d
+  MSA-SCH4 L-4.4:
+    ref: MSA-SCH4 L-4.4
+    label: RULE
+    reason: quantified and computable (score 7)
+    source: heuristic
+    clause_hash: 4039e56a06297dfa
+  MSA-SCH4 L-4.5:
+    ref: MSA-SCH4 L-4.5
+    label: RULE
+    reason: weakly quantified but computable (score 4)
+    source: heuristic
+    clause_hash: e1b3ff76a0effe38
+  MSA-SCH4 L-5.1:
+    ref: MSA-SCH4 L-5.1
+    label: RULE
+    reason: quantified and computable (score 6)
+    source: heuristic
+    clause_hash: cefcc6f808554f39
+  MSA-SCH4 L-5.2:
+    ref: MSA-SCH4 L-5.2
+    label: RULE
+    reason: quantified and computable (score 6)
+    source: heuristic
+    clause_hash: 2e35c95e16c8b99d
+  MSA-SCH4 L-6.1:
+    ref: MSA-SCH4 L-6.1
+    label: RULE
+    reason: quantified and computable (score 9)
+    source: heuristic
+    clause_hash: fbe363fc6d4ca9a2
+  MSA-SCH4 L-6.2:
+    ref: MSA-SCH4 L-6.2
+    label: RULE
+    reason: weakly quantified but computable (score 5)
+    source: heuristic
+    clause_hash: 23edb6e8bbd70ffc
+  NDA-MUT N-1.1:
+    ref: NDA-MUT N-1.1
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: e66668641c2b2ad2
+  NDA-MUT N-1.2:
+    ref: NDA-MUT N-1.2
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 1479920c3531bcdf
+  NDA-MUT N-2.1:
+    ref: NDA-MUT N-2.1
+    label: PROSE
+    reason: qualitative definition; judgement terms ['ought reasonably']
+    source: heuristic
+    clause_hash: 40b05859f7d61316
+  NDA-MUT N-2.2:
+    ref: NDA-MUT N-2.2
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 256c1f31c49f464e
+  NDA-MUT N-2.3:
+    ref: NDA-MUT N-2.3
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 9a203a5966576fe2
+  NDA-MUT N-3.1:
+    ref: NDA-MUT N-3.1
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 0decc40ab39c3af0
+  NDA-MUT N-3.2:
+    ref: NDA-MUT N-3.2
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: c0ec70a5c1871826
+  NDA-MUT N-3.3:
+    ref: NDA-MUT N-3.3
+    label: PROSE
+    reason: judgement-dependent ['reasonable'], score 2
+    source: heuristic
+    clause_hash: 5dfb6d0dd8c3a0a0
+  NDA-MUT N-3.4:
+    ref: NDA-MUT N-3.4
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: c9c5e6992ea95e58
+  NDA-MUT N-4.1:
+    ref: NDA-MUT N-4.1
+    label: PROSE
+    reason: judgement-dependent ['practicable'], score 0
+    source: heuristic
+    clause_hash: 6ebe0adc9178969f
+  NDA-MUT N-5.1:
+    ref: NDA-MUT N-5.1
+    label: RULE
+    reason: weakly quantified but computable (score 4)
+    source: heuristic
+    clause_hash: 9ff6cf78ad55641d
+  NDA-MUT N-5.2:
+    ref: NDA-MUT N-5.2
+    label: RULE
+    reason: quantified and computable (score 7)
+    source: heuristic
+    clause_hash: f433ededfe337832
+  NDA-MUT N-5.3:
+    ref: NDA-MUT N-5.3
+    label: PROSE
+    reason: no computable content (score 1)
+    source: heuristic
+    clause_hash: 7739abf9f4bb0037
+  NDA-MUT N-5.4:
+    ref: NDA-MUT N-5.4
+    label: PROSE
+    reason: no computable content (score 1)
+    source: heuristic
+    clause_hash: b05263cf61b3879d
+  NDA-MUT N-6.1:
+    ref: NDA-MUT N-6.1
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 94869ed7ba883a5d
+  NDA-MUT N-6.2:
+    ref: NDA-MUT N-6.2
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 765bb72a0b55b533
+  NDA-MUT N-7.1:
+    ref: NDA-MUT N-7.1
+    label: PROSE
+    reason: boilerplate//interpretive markers ['no licence']
+    source: heuristic
+    clause_hash: cf71ccd639eb5668
+  NDA-MUT N-7.2:
+    ref: NDA-MUT N-7.2
+    label: PROSE
+    reason: boilerplate//interpretive markers ['as is']
+    source: heuristic
+    clause_hash: 77d03f361b8047cd
+  NDA-MUT N-8.1:
+    ref: NDA-MUT N-8.1
+    label: PROSE
+    reason: boilerplate//interpretive markers ['acknowledges that']
+    source: heuristic
+    clause_hash: 73655e38d4cefc80
+  NDA-MUT N-9.1:
+    ref: NDA-MUT N-9.1
+    label: PROSE
+    reason: boilerplate//interpretive markers ['exclusive jurisdiction', 'is governed by the law', 'submit
+      to the']
+    source: heuristic
+    clause_hash: 1684cd6c4f7a44ff
+  NDA-MUT N-9.2:
+    ref: NDA-MUT N-9.2
+    label: PROSE
+    reason: boilerplate//interpretive markers ['no variation']
+    source: heuristic
+    clause_hash: 593a995a8e02e0e7
+  NDA-MUT N-9.3:
+    ref: NDA-MUT N-9.3
+    label: PROSE
+    reason: boilerplate//interpretive markers ['does not create any partnership']
+    source: heuristic
+    clause_hash: 25b95d7cf2eb645c
+  DATA-RET R-1.1:
+    ref: DATA-RET R-1.1
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 5b96492f1b7f3813
+  DATA-RET R-1.2:
+    ref: DATA-RET R-1.2
+    label: PROSE
+    reason: judgement-dependent ['expected to'], score 0
+    source: heuristic
+    clause_hash: a25ea5c18222d7d2
+  DATA-RET R-2.1:
+    ref: DATA-RET R-2.1
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 8b82ea61e8ba6202
+  DATA-RET R-2.2:
+    ref: DATA-RET R-2.2
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: 8e8b7485b3bf6a59
+  DATA-RET R-2.3:
+    ref: DATA-RET R-2.3
+    label: PROSE
+    reason: qualitative definition; judgement terms ['reasonably']
+    source: heuristic
+    clause_hash: 70917eb6a185f806
+  DATA-RET R-2.4:
+    ref: DATA-RET R-2.4
+    label: PROSE
+    reason: qualitative definition; judgement terms none
+    source: heuristic
+    clause_hash: c27b8a277e1e0f3f
+  DATA-RET R-3.1:
+    ref: DATA-RET R-3.1
+    label: RULE
+    reason: quantified and computable (score 18)
+    source: heuristic
+    clause_hash: 173814584f6d2dcc
+  DATA-RET R-3.2:
+    ref: DATA-RET R-3.2
+    label: RULE
+    reason: quantified and computable (score 7)
+    source: heuristic
+    clause_hash: 3bf8d685957ca995
+  DATA-RET R-3.3:
+    ref: DATA-RET R-3.3
+    label: RULE
+    reason: weakly quantified but computable (score 3)
+    source: heuristic
+    clause_hash: bae6aae170db8da8
+  DATA-RET R-4.1:
+    ref: DATA-RET R-4.1
+    label: PROSE
+    reason: no computable content (score 1)
+    source: heuristic
+    clause_hash: fa41cd2a6c2f2bef
+  DATA-RET R-4.2:
+    ref: DATA-RET R-4.2
+    label: PROSE
+    reason: no computable content (score 2)
+    source: heuristic
+    clause_hash: d5fa38f21bf33893
+  DATA-RET R-4.3:
+    ref: DATA-RET R-4.3
+    label: RULE
+    reason: quantified and computable (score 6)
+    source: heuristic
+    clause_hash: f8f3d4b6e2c418f8
+  DATA-RET R-5.1:
+    ref: DATA-RET R-5.1
+    label: RULE
+    reason: weakly quantified but computable (score 4)
+    source: heuristic
+    clause_hash: de303aedd09d9a94
+  DATA-RET R-5.2:
+    ref: DATA-RET R-5.2
+    label: PROSE
+    reason: no computable content (score 1)
+    source: heuristic
+    clause_hash: 01bde60e7cf303f2
+  DATA-RET R-6.1:
+    ref: DATA-RET R-6.1
+    label: RULE
+    reason: quantified and computable (score 6)
+    source: heuristic
+    clause_hash: d5036f1d02e325a8
+  DATA-RET R-7.1:
+    ref: DATA-RET R-7.1
+    label: PROSE
+    reason: boilerplate//interpretive markers ['is accountable for']
+    source: heuristic
+    clause_hash: 68d574dfc5d4437a
+  DATA-RET R-7.2:
+    ref: DATA-RET R-7.2
+    label: PROSE
+    reason: no computable content (score 0)
+    source: heuristic
+    clause_hash: 6c14c0682c140044
