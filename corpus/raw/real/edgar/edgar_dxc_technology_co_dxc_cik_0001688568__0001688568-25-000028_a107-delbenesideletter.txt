@@ -1,0 +1,69 @@
+SOURCE: https://www.sec.gov/Archives/edgar/data/1688568/000168856825000028/a107-delbenesideletter.htm
+FORM: None EX-10.7
+FILED: 2025-05-14
+MATCHED QUERY: "service credit"
+LICENSE: public SEC disclosure (EDGAR); underlying contract publicly filed
+
+EX-10.7
+8
+a107-delbenesideletter.htm
+EX-10.7
+
+Document
+
+Exhibit 10.7
+Execution Version
+[Company Letterhead]
+
+May 13, 2025
+
+Rob Del Bene
+Via Email
+
+Re: Compensation Adjustments
+
+Dear Rob:
+
+We are pleased to inform you that the Compensation Committee (the “Committee”) of the Board of Directors of DXC Technology Company (the “Company”) has determined to make several adjustments to your compensation as follows:
+
+1.As you know, the Company has previously granted you certain service-based and performance-based restricted stock units (collectively, the “RSUs”), including for the avoidance of doubt, the service-based and performance-based restricted stock units granted concurrently with the date hereof (the “Retention RSUs”), pursuant to the DXC Technology Company 2017 Omnibus Incentive Plan (as amended from time to time, the “Plan”) and the restricted stock unit award agreements thereunder (the “Award Agreements”).
+
+The Award Agreements provided for certain retirement vesting treatment in the event your employment is terminated at age 55 or older for no reason, or for any reason other than Cause (as defined in the Award Agreements), death or Disability (as defined in the Plan), so long as you have at least 5 years credited continuous service with the Company or its subsidiaries immediately prior to the date of such termination.
+
+The Committee has determined to provide you with an additional two years of service credit for purposes of such Award Agreement retirement vesting provisions (the “Retirement Service Credit”). As a result, you will be deemed to have achieved five years of continuous service with the Company as of June 15, 2026 for purposes of the Award Agreements.
+
+2.Effective as of April 1, 2025, your base salary will be increased to $800,000 per year, and shall be payable in accordance with the Company’s normal U.S. payroll practices.
+
+3.Effective as of April 1, 2025, your target annual bonus under the Company’s annual incentive plan will be increased to 135% of your base salary.
+
+4.The following definitions shall apply to you solely for purposes of the Retention RSUs and the Award Agreements governing the Retention RSUs:
+
+Exhibit 10.7
+Execution Version
+
+“Qualifying Termination” shall mean the Employee’s status as an employee of the Company (including any successor to the Company resulting from a Change in Control, as applicable) or any of its Subsidiaries is terminated by the Company without Cause, as determined by the Company, or due to Employee’s resignation for Good Reason either before or more than two years after a Change in Control.
+
+“Good Reason” shall mean (A) the adverse change of Employee’s position from the position of Chief Financial Officer; (B) the assignment to Employee of duties that are materially inconsistent with, or that materially impair his ability to perform, the duties customarily assigned to a Chief Financial Officer of a corporation of the size and nature of the Company; or a change in the reporting structure so that Employee reports to someone other than the Chief Executive Officer or the Board or is subject to the direct or indirect authority or control of a person or entity other than the Chief Executive Officer or the Board; (C) any material breach by the Company of this Agreement; (D) conduct by the Company that would cause Employee to commit fraudulent acts or would expose Employee to criminal liability; (E) the Company failing to obtain the assumption in writing of its obligation to perform that certain letter by and between Employee and the Company, dated as of the concurrent date herewith, by any successor to all or substantially all of the Company’s business or assets; (F) relocation of Employee’s principal place of employment to any place more than thirty-five (35) miles from Employee’s previous principal place of employment; or (G) a decrease in Employee’s annual base salary below the annual base salary in effect on the Grant Date, other than an across the board reduction in base salary applicable in like proportions to all senior executive officers.
+
+For the avoidance of doubt, if you resign for Good Reason within two years after a Change in Control, “Good Reason” shall have the meaning set forth in the DXC Technology Company Severance Plan for Senior Management and Key Employees.
+
+All of the other terms and conditions of your RSUs and Award Agreements will not be affected by this change. This letter agreement (together with the Award Agreements) constitute the entire agreement between the parties regarding the subject matter hereof. Any previous understanding or agreement relating to such subject matter is superseded by this letter agreement.
+
+In order to acknowledge your acceptance of the offer to provide for the compensation adjustments as described in this letter agreement, please sign below and return a signed copy to Jennifer Ragone, Executive Vice President and Chief People Officer.
+
+Exhibit 10.7
+Execution Version
+In the meantime, please contact Jennifer Ragone at Jennifer.ragone@dxc.com if you have any questions regarding this matter.
+
+Best regards,
+
+/s/ Jennifer Ragone
+Jennifer Ragone
+Executive Vice President, Chief People Officer
+
+AGREED & ACCEPTED:
+
+/s/ Rob Del Bene
+Rob Del Bene
+
+Date: May 14, 2025

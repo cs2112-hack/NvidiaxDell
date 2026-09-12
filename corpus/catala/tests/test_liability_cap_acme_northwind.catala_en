@@ -1,0 +1,152 @@
+# Fact patterns — liability cap, Acme / Northwind
+
+Generated from `corpus/gold/fact_patterns.jsonl` (FP-001 … FP-005). Every assertion is a
+hand-computed expected value from the clause constants; the assertion is what fails if the
+module drifts from the document.
+
+> Using Legal_types as T
+> Using Liability_cap_acme_northwind as L
+
+## FP-001 — ordinary claim, before the Order Form takes effect (MSA § 9.2)
+
+```catala
+#[test]
+declaration scope TestFp001:
+  output computation content L.LiabilityCap
+
+scope TestFp001:
+  definition computation equals
+    output of L.LiabilityCap with {
+      -- fees_paid_last_12mo: $120,000
+      -- annual_fees: $240,000
+      -- claim_type: T.ClaimType.Ordinary
+      -- claim_date: |2026-03-01|
+    }
+  assertion computation.cap = $120,000
+  assertion computation.uncapped = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp001
+┌─[RESULT]─ TestFp001 ─
+│ computation = LiabilityCap {
+│                 -- cap: $120,000.00
+│                 -- uncapped: false
+│               }
+└─
+```
+
+## FP-002 — confidentiality claim, before the Order Form (MSA § 9.3, 200%)
+
+```catala
+#[test]
+declaration scope TestFp002:
+  output computation content L.LiabilityCap
+
+scope TestFp002:
+  definition computation equals
+    output of L.LiabilityCap with {
+      -- fees_paid_last_12mo: $120,000
+      -- annual_fees: $240,000
+      -- claim_type: T.ClaimType.Confidentiality
+      -- claim_date: |2026-03-01|
+    }
+  assertion computation.cap = $240,000
+  assertion computation.uncapped = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp002
+┌─[RESULT]─ TestFp002 ─
+│ computation = LiabilityCap {
+│                 -- cap: $240,000.00
+│                 -- uncapped: false
+│               }
+└─
+```
+
+## FP-003 — ordinary claim under the Order Form (§ 5.1, 300% of annual fees)
+
+```catala
+#[test]
+declaration scope TestFp003:
+  output computation content L.LiabilityCap
+
+scope TestFp003:
+  definition computation equals
+    output of L.LiabilityCap with {
+      -- fees_paid_last_12mo: $240,000
+      -- annual_fees: $240,000
+      -- claim_type: T.ClaimType.Ordinary
+      -- claim_date: |2026-09-15|
+    }
+  assertion computation.cap = $720,000
+  assertion computation.uncapped = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp003
+┌─[RESULT]─ TestFp003 ─
+│ computation = LiabilityCap {
+│                 -- cap: $720,000.00
+│                 -- uncapped: false
+│               }
+└─
+```
+
+## FP-004 — IP indemnity claim under the Order Form (§ 5.2, 500% supercap)
+
+```catala
+#[test]
+declaration scope TestFp004:
+  output computation content L.LiabilityCap
+
+scope TestFp004:
+  definition computation equals
+    output of L.LiabilityCap with {
+      -- fees_paid_last_12mo: $240,000
+      -- annual_fees: $240,000
+      -- claim_type: T.ClaimType.IpIndemnity
+      -- claim_date: |2026-09-15|
+    }
+  assertion computation.cap = $1,200,000
+  assertion computation.uncapped = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp004
+┌─[RESULT]─ TestFp004 ─
+│ computation = LiabilityCap {
+│                 -- cap: $1,200,000.00
+│                 -- uncapped: false
+│               }
+└─
+```
+
+## FP-005 — gross negligence: no cap at all (MSA § 9.4, preserved by Order Form § 5.3)
+
+```catala
+#[test]
+declaration scope TestFp005:
+  output computation content L.LiabilityCap
+
+scope TestFp005:
+  definition computation equals
+    output of L.LiabilityCap with {
+      -- fees_paid_last_12mo: $240,000
+      -- annual_fees: $240,000
+      -- claim_type: T.ClaimType.GrossNegligence
+      -- claim_date: |2026-09-15|
+    }
+  assertion computation.uncapped = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp005
+┌─[RESULT]─ TestFp005 ─
+│ computation = LiabilityCap {
+│                 -- cap: $240,000.00
+│                 -- uncapped: true
+│               }
+└─
+```

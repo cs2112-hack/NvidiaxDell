@@ -1,0 +1,263 @@
+# Fact patterns — service credits, Acme / Northwind
+
+Generated from `corpus/gold/fact_patterns.jsonl` (FP-009 … FP-016). The monthly service fee
+is $20,000 (SYN-003 cover table). `credit_percentage` is still reported when a request is
+out of time; `credit` is the payable amount, and it is what the gate zeroes.
+
+> Using Service_credit_acme_northwind as S
+
+## FP-009 — commitment met — no credit (Exhibit A § A.2)
+
+```catala
+#[test]
+declaration scope TestFp009:
+  output computation content S.ServiceCredit
+
+scope TestFp009:
+  definition computation equals
+    output of S.ServiceCredit with {
+      -- service_month: |2026-03-01|
+      -- monthly_uptime: 99.95
+      -- monthly_service_fee: $20,000
+      -- request_date: |2026-04-15|
+    }
+  assertion computation.credit_percentage = 0%
+  assertion computation.credit = $0
+  assertion computation.eligible = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp009
+┌─[RESULT]─ TestFp009 ─
+│ computation =
+│   ServiceCredit {
+│     -- eligible: true
+│     -- credit_percentage: 0.0
+│     -- credit: $0.00
+│   }
+└─
+```
+
+## FP-010 — standard tier 1 (Exhibit A § A.3); the Order Form is not yet effective
+
+```catala
+#[test]
+declaration scope TestFp010:
+  output computation content S.ServiceCredit
+
+scope TestFp010:
+  definition computation equals
+    output of S.ServiceCredit with {
+      -- service_month: |2026-03-01|
+      -- monthly_uptime: 99.5
+      -- monthly_service_fee: $20,000
+      -- request_date: |2026-04-15|
+    }
+  assertion computation.credit_percentage = 10%
+  assertion computation.credit = $2,000
+  assertion computation.eligible = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp010
+┌─[RESULT]─ TestFp010 ─
+│ computation =
+│   ServiceCredit {
+│     -- eligible: true
+│     -- credit_percentage: 0.1
+│     -- credit: $2,000.00
+│   }
+└─
+```
+
+## FP-011 — standard tier 2 (Exhibit A § A.3)
+
+```catala
+#[test]
+declaration scope TestFp011:
+  output computation content S.ServiceCredit
+
+scope TestFp011:
+  definition computation equals
+    output of S.ServiceCredit with {
+      -- service_month: |2026-03-01|
+      -- monthly_uptime: 98.7
+      -- monthly_service_fee: $20,000
+      -- request_date: |2026-04-15|
+    }
+  assertion computation.credit_percentage = 25%
+  assertion computation.credit = $5,000
+  assertion computation.eligible = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp011
+┌─[RESULT]─ TestFp011 ─
+│ computation =
+│   ServiceCredit {
+│     -- eligible: true
+│     -- credit_percentage: 0.25
+│     -- credit: $5,000.00
+│   }
+└─
+```
+
+## FP-012 — Order Form § 4.2 tier 1 replaces the Exhibit A table
+
+```catala
+#[test]
+declaration scope TestFp012:
+  output computation content S.ServiceCredit
+
+scope TestFp012:
+  definition computation equals
+    output of S.ServiceCredit with {
+      -- service_month: |2026-08-01|
+      -- monthly_uptime: 99.5
+      -- monthly_service_fee: $20,000
+      -- request_date: |2026-09-15|
+    }
+  assertion computation.credit_percentage = 15%
+  assertion computation.credit = $3,000
+  assertion computation.eligible = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp012
+┌─[RESULT]─ TestFp012 ─
+│ computation =
+│   ServiceCredit {
+│     -- eligible: true
+│     -- credit_percentage: 0.15
+│     -- credit: $3,000.00
+│   }
+└─
+```
+
+## FP-013 — Order Form § 4.2 tier 1 at the boundary (uptime exactly 99.0%)
+
+```catala
+#[test]
+declaration scope TestFp013:
+  output computation content S.ServiceCredit
+
+scope TestFp013:
+  definition computation equals
+    output of S.ServiceCredit with {
+      -- service_month: |2026-08-01|
+      -- monthly_uptime: 99.0
+      -- monthly_service_fee: $20,000
+      -- request_date: |2026-09-15|
+    }
+  assertion computation.credit_percentage = 15%
+  assertion computation.credit = $3,000
+  assertion computation.eligible = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp013
+┌─[RESULT]─ TestFp013 ─
+│ computation =
+│   ServiceCredit {
+│     -- eligible: true
+│     -- credit_percentage: 0.15
+│     -- credit: $3,000.00
+│   }
+└─
+```
+
+## FP-014 — Order Form § 4.2 tier 2 — 30%, not the Exhibit A 25%
+
+```catala
+#[test]
+declaration scope TestFp014:
+  output computation content S.ServiceCredit
+
+scope TestFp014:
+  definition computation equals
+    output of S.ServiceCredit with {
+      -- service_month: |2026-08-01|
+      -- monthly_uptime: 98.7
+      -- monthly_service_fee: $20,000
+      -- request_date: |2026-09-15|
+    }
+  assertion computation.credit_percentage = 30%
+  assertion computation.credit = $6,000
+  assertion computation.eligible = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp014
+┌─[RESULT]─ TestFp014 ─
+│ computation =
+│   ServiceCredit {
+│     -- eligible: true
+│     -- credit_percentage: 0.3
+│     -- credit: $6,000.00
+│   }
+└─
+```
+
+## FP-015 — Order Form § 4.2 tier 3 — a full month of fees
+
+```catala
+#[test]
+declaration scope TestFp015:
+  output computation content S.ServiceCredit
+
+scope TestFp015:
+  definition computation equals
+    output of S.ServiceCredit with {
+      -- service_month: |2026-08-01|
+      -- monthly_uptime: 94.0
+      -- monthly_service_fee: $20,000
+      -- request_date: |2026-09-15|
+    }
+  assertion computation.credit_percentage = 100%
+  assertion computation.credit = $20,000
+  assertion computation.eligible = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp015
+┌─[RESULT]─ TestFp015 ─
+│ computation =
+│   ServiceCredit {
+│     -- eligible: true
+│     -- credit_percentage: 1.0
+│     -- credit: $20,000.00
+│   }
+└─
+```
+
+## FP-016 — eligibility gate: request more than 30 days after month end (§ A.4.1)
+
+```catala
+#[test]
+declaration scope TestFp016:
+  output computation content S.ServiceCredit
+
+scope TestFp016:
+  definition computation equals
+    output of S.ServiceCredit with {
+      -- service_month: |2026-08-01|
+      -- monthly_uptime: 98.7
+      -- monthly_service_fee: $20,000
+      -- request_date: |2026-10-15|
+    }
+  assertion computation.credit_percentage = 30%
+  assertion computation.credit = $0
+  assertion computation.eligible = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp016
+┌─[RESULT]─ TestFp016 ─
+│ computation =
+│   ServiceCredit {
+│     -- eligible: false
+│     -- credit_percentage: 0.3
+│     -- credit: $0.00
+│   }
+└─
+```

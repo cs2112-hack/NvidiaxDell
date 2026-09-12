@@ -1,0 +1,323 @@
+# Fact patterns — paid sick leave accrual
+
+Generated from `corpus/gold/fact_patterns.jsonl` (FP-017 … FP-025). Each pattern names the
+branch it is meant to take; the three statutory-floor branches are the compliance bug the
+system exists to catch.
+
+> Using Legal_types as T
+> Using Sick_leave_accrual_acme as S
+
+## FP-017 — handbook 1:40 (SYN-005 § 4.2.1); Washington's statute states the same ratio
+
+```catala
+#[test]
+declaration scope TestFp017:
+  output computation content S.SickLeaveAccrual
+
+scope TestFp017:
+  definition computation equals
+    output of S.SickLeaveAccrual with {
+      -- hours_worked: 1200.0
+      -- weeks_worked: 30
+      -- work_state: T.WorkState.WA
+      -- days_employed: 365
+      -- exempt: false
+    }
+  assertion computation.accrual_divisor = 40.0
+  assertion computation.accrued_hours = 30.0
+  assertion computation.annual_use_cap = 40.0
+  assertion computation.usable = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp017
+┌─[RESULT]─ TestFp017 ─
+│ computation =
+│   SickLeaveAccrual {
+│     -- accrual_divisor: 40.0
+│     -- accrued_hours: 30.0
+│     -- annual_use_cap: 40.0
+│     -- usable: true
+│   }
+└─
+```
+
+## FP-018 — handbook 1:40; Texas has no accrual statute
+
+```catala
+#[test]
+declaration scope TestFp018:
+  output computation content S.SickLeaveAccrual
+
+scope TestFp018:
+  definition computation equals
+    output of S.SickLeaveAccrual with {
+      -- hours_worked: 1000.0
+      -- weeks_worked: 25
+      -- work_state: T.WorkState.TX
+      -- days_employed: 365
+      -- exempt: false
+    }
+  assertion computation.accrual_divisor = 40.0
+  assertion computation.accrued_hours = 25.0
+  assertion computation.annual_use_cap = 40.0
+  assertion computation.usable = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp018
+┌─[RESULT]─ TestFp018 ─
+│ computation =
+│   SickLeaveAccrual {
+│     -- accrual_divisor: 40.0
+│     -- accrued_hours: 25.0
+│     -- annual_use_cap: 40.0
+│     -- usable: true
+│   }
+└─
+```
+
+## FP-019 — Cal. Lab. Code § 246(b)(1) floor displaces the handbook — 40 hours, not 30
+
+```catala
+#[test]
+declaration scope TestFp019:
+  output computation content S.SickLeaveAccrual
+
+scope TestFp019:
+  definition computation equals
+    output of S.SickLeaveAccrual with {
+      -- hours_worked: 1200.0
+      -- weeks_worked: 30
+      -- work_state: T.WorkState.CA
+      -- days_employed: 365
+      -- exempt: false
+    }
+  assertion computation.accrual_divisor = 30.0
+  assertion computation.accrued_hours = 40.0
+  assertion computation.annual_use_cap = 40.0
+  assertion computation.usable = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp019
+┌─[RESULT]─ TestFp019 ─
+│ computation =
+│   SickLeaveAccrual {
+│     -- accrual_divisor: 30.0
+│     -- accrued_hours: 40.0
+│     -- annual_use_cap: 40.0
+│     -- usable: true
+│   }
+└─
+```
+
+## FP-020 — California floor, accrual ceiling not yet reached
+
+```catala
+#[test]
+declaration scope TestFp020:
+  output computation content S.SickLeaveAccrual
+
+scope TestFp020:
+  definition computation equals
+    output of S.SickLeaveAccrual with {
+      -- hours_worked: 1800.0
+      -- weeks_worked: 45
+      -- work_state: T.WorkState.CA
+      -- days_employed: 365
+      -- exempt: false
+    }
+  assertion computation.accrual_divisor = 30.0
+  assertion computation.accrued_hours = 60.0
+  assertion computation.annual_use_cap = 40.0
+  assertion computation.usable = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp020
+┌─[RESULT]─ TestFp020 ─
+│ computation =
+│   SickLeaveAccrual {
+│     -- accrual_divisor: 30.0
+│     -- accrued_hours: 60.0
+│     -- annual_use_cap: 40.0
+│     -- usable: true
+│   }
+└─
+```
+
+## FP-021 — California 80-hour accrual ceiling binds
+
+```catala
+#[test]
+declaration scope TestFp021:
+  output computation content S.SickLeaveAccrual
+
+scope TestFp021:
+  definition computation equals
+    output of S.SickLeaveAccrual with {
+      -- hours_worked: 3000.0
+      -- weeks_worked: 75
+      -- work_state: T.WorkState.CA
+      -- days_employed: 365
+      -- exempt: false
+    }
+  assertion computation.accrual_divisor = 30.0
+  assertion computation.accrued_hours = 80.0
+  assertion computation.annual_use_cap = 40.0
+  assertion computation.usable = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp021
+┌─[RESULT]─ TestFp021 ─
+│ computation =
+│   SickLeaveAccrual {
+│     -- accrual_divisor: 30.0
+│     -- accrued_hours: 80.0
+│     -- annual_use_cap: 40.0
+│     -- usable: true
+│   }
+└─
+```
+
+## FP-022 — C.R.S. § 8-13.3-403 floor, 48-hour annual cap
+
+```catala
+#[test]
+declaration scope TestFp022:
+  output computation content S.SickLeaveAccrual
+
+scope TestFp022:
+  definition computation equals
+    output of S.SickLeaveAccrual with {
+      -- hours_worked: 1200.0
+      -- weeks_worked: 30
+      -- work_state: T.WorkState.CO
+      -- days_employed: 365
+      -- exempt: false
+    }
+  assertion computation.accrual_divisor = 30.0
+  assertion computation.accrued_hours = 40.0
+  assertion computation.annual_use_cap = 48.0
+  assertion computation.usable = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp022
+┌─[RESULT]─ TestFp022 ─
+│ computation =
+│   SickLeaveAccrual {
+│     -- accrual_divisor: 30.0
+│     -- accrued_hours: 40.0
+│     -- annual_use_cap: 48.0
+│     -- usable: true
+│   }
+└─
+```
+
+## FP-023 — Colorado 48-hour ceiling binds
+
+```catala
+#[test]
+declaration scope TestFp023:
+  output computation content S.SickLeaveAccrual
+
+scope TestFp023:
+  definition computation equals
+    output of S.SickLeaveAccrual with {
+      -- hours_worked: 3000.0
+      -- weeks_worked: 75
+      -- work_state: T.WorkState.CO
+      -- days_employed: 365
+      -- exempt: false
+    }
+  assertion computation.accrual_divisor = 30.0
+  assertion computation.accrued_hours = 48.0
+  assertion computation.annual_use_cap = 48.0
+  assertion computation.usable = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp023
+┌─[RESULT]─ TestFp023 ─
+│ computation =
+│   SickLeaveAccrual {
+│     -- accrual_divisor: 30.0
+│     -- accrued_hours: 48.0
+│     -- annual_use_cap: 48.0
+│     -- usable: true
+│   }
+└─
+```
+
+## FP-024 — accrues from day one, not usable before day 90 (§ 246(c))
+
+```catala
+#[test]
+declaration scope TestFp024:
+  output computation content S.SickLeaveAccrual
+
+scope TestFp024:
+  definition computation equals
+    output of S.SickLeaveAccrual with {
+      -- hours_worked: 600.0
+      -- weeks_worked: 15
+      -- work_state: T.WorkState.CA
+      -- days_employed: 45
+      -- exempt: false
+    }
+  assertion computation.accrual_divisor = 30.0
+  assertion computation.accrued_hours = 20.0
+  assertion computation.annual_use_cap = 40.0
+  assertion computation.usable = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp024
+┌─[RESULT]─ TestFp024 ─
+│ computation =
+│   SickLeaveAccrual {
+│     -- accrual_divisor: 30.0
+│     -- accrued_hours: 20.0
+│     -- annual_use_cap: 40.0
+│     -- usable: false
+│   }
+└─
+```
+
+## FP-025 — exempt employee deemed to work 40 hours a week (§ 246(b)(2))
+
+```catala
+#[test]
+declaration scope TestFp025:
+  output computation content S.SickLeaveAccrual
+
+scope TestFp025:
+  definition computation equals
+    output of S.SickLeaveAccrual with {
+      -- hours_worked: 840.0
+      -- weeks_worked: 21
+      -- work_state: T.WorkState.CA
+      -- days_employed: 200
+      -- exempt: true
+    }
+  assertion computation.accrual_divisor = 30.0
+  assertion computation.accrued_hours = 28.0
+  assertion computation.annual_use_cap = 40.0
+  assertion computation.usable = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp025
+┌─[RESULT]─ TestFp025 ─
+│ computation =
+│   SickLeaveAccrual {
+│     -- accrual_divisor: 30.0
+│     -- accrued_hours: 28.0
+│     -- annual_use_cap: 40.0
+│     -- usable: true
+│   }
+└─
+```

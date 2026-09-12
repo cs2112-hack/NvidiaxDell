@@ -1,0 +1,35 @@
+# Overtime — Fair Labor Standards Act
+
+> Module Overtime_flsa
+
+Source: REAL-007, 29 U.S.C. § 207(a)(1), fetched verbatim from Cornell LII.
+
+```catala-metadata
+declaration scope Overtime:
+  input hours_worked_in_week content decimal
+  input regular_rate content money
+
+  internal overtime_hours content decimal
+
+  output overtime_pay content money
+  output total_pay content money
+```
+
+## REAL-007, 29 U.S.C. § 207(a)(1)
+
+  no employer shall employ any of his employees … for a workweek longer than forty hours
+  unless such employee receives compensation for his employment in excess of the hours
+  above specified at a rate not less than one and one-half times the regular rate at which
+  he is employed.
+
+```catala
+scope Overtime:
+  definition overtime_hours equals
+    if hours_worked_in_week > 40.0 then hours_worked_in_week - 40.0 else 0.0
+
+  definition overtime_pay equals regular_rate * overtime_hours * 1.5
+
+  definition total_pay equals
+    regular_rate * (if hours_worked_in_week > 40.0 then 40.0 else hours_worked_in_week)
+    + overtime_pay
+```

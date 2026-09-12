@@ -1,0 +1,124 @@
+# Service credits — Acme Cloud Systems / Northwind Logistics (ACME-NW-MSA-2026)
+
+> Module Service_credit_acme_northwind
+
+Sources: SYN-002 (Exhibit A, standard SLA, 2026-01-01) and SYN-003 § 4.2 (Order Form No. 1,
+effective 2026-07-01). `monthly_uptime` is a percentage expressed as a plain decimal
+(99.5 means 99.5%); `month` is the first day of the affected calendar month.
+
+```catala-metadata
+declaration scope ServiceCredit:
+  input service_month content date
+  input monthly_uptime content decimal
+  input monthly_service_fee content money
+  input request_date content date
+
+  internal order_form_applies condition
+  internal credit_deadline content date
+
+  output eligible content boolean
+  output credit_percentage content decimal
+  output credit content money
+```
+
+## SYN-003 — the Order Form's tier table governs months from its effective date
+
+  Order Form effective date: July 1, 2026. […] The Service Credit table in Section A.3 of
+  Exhibit A to the MSA is replaced, for the Services ordered under this Order Form, with
+  the following […]
+
+Authority for treating this as an exception rather than a competing definition:
+SYN-001 § 14.3 (Order of Precedence) and SYN-003 § 6.1.
+
+```catala
+scope ServiceCredit:
+  rule order_form_applies under condition service_month >= |2026-07-01|
+  consequence fulfilled
+```
+
+## SYN-002 § A.4.1 — the claim window
+
+  To receive a Service Credit, Customer must submit a request to Acme support within
+  thirty (30) days after the end of the calendar month in which the Downtime occurred.
+  Requests submitted after that period are not eligible.
+
+```catala
+scope ServiceCredit:
+  definition credit_deadline equals (service_month + 1 month) + 30 day
+  definition eligible equals request_date <= credit_deadline
+```
+
+## SYN-002 § A.2–A.3 — the standard commitment and tier table
+
+  Acme will make the Services available with a Monthly Uptime Percentage of at least
+  99.9% during each calendar month. […] Less than 99.9% but equal to or greater than
+  99.0% → 10%; less than 99.0% but equal to or greater than 95.0% → 25%; less than
+  95.0% → 100%.
+
+```catala
+scope ServiceCredit:
+  label commitment_met
+  definition credit_percentage equals 0%
+
+  label std_tier_1 exception commitment_met
+  definition credit_percentage
+    under condition
+      not order_form_applies
+      and monthly_uptime < 99.9 and monthly_uptime >= 99.0
+    consequence equals 10%
+
+  label std_tier_2 exception commitment_met
+  definition credit_percentage
+    under condition
+      not order_form_applies
+      and monthly_uptime < 99.0 and monthly_uptime >= 95.0
+    consequence equals 25%
+
+  label std_tier_3 exception commitment_met
+  definition credit_percentage
+    under condition not order_form_applies and monthly_uptime < 95.0
+    consequence equals 100%
+```
+
+## SYN-003 § 4.2 — the Enterprise tier table
+
+  Less than 99.9% but equal to or greater than 99.0% → 15%; less than 99.0% but equal to
+  or greater than 95.0% → 30%; less than 95.0% → 100%.
+
+```catala
+scope ServiceCredit:
+  label ent_tier_1 exception commitment_met
+  definition credit_percentage
+    under condition
+      order_form_applies
+      and monthly_uptime < 99.9 and monthly_uptime >= 99.0
+    consequence equals 15%
+
+  label ent_tier_2 exception commitment_met
+  definition credit_percentage
+    under condition
+      order_form_applies
+      and monthly_uptime < 99.0 and monthly_uptime >= 95.0
+    consequence equals 30%
+
+  label ent_tier_3 exception commitment_met
+  definition credit_percentage
+    under condition order_form_applies and monthly_uptime < 95.0
+    consequence equals 100%
+```
+
+## SYN-002 § A.4.2 — the monthly ceiling, and the credit itself
+
+  Service Credits in any calendar month shall not exceed one hundred percent (100%) of
+  the Monthly Service Fee for the affected Service.
+
+The tier tables top out at 100%, so the ceiling binds only if a future document raises a
+tier above it; it is encoded because the clause says so, not because a tier needs it.
+
+```catala
+scope ServiceCredit:
+  definition credit equals
+    if not eligible then $0
+    else if credit_percentage > 100% then monthly_service_fee
+    else monthly_service_fee * credit_percentage
+```

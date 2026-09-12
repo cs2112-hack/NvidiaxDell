@@ -1,0 +1,231 @@
+# Fact patterns — expense approval
+
+Generated from `corpus/gold/fact_patterns.jsonl`. The interesting cases are the ones where
+the corporate ladder and the Engineering ladder disagree and § 7.1 picks the stricter.
+
+> Using Legal_types as T
+> Using Expense_approval_acme as E
+
+## FP-032 — both ladders agree
+
+```catala
+#[test]
+declaration scope TestFp032:
+  output computation content E.ExpenseApproval
+
+scope TestFp032:
+  definition computation equals
+    output of E.ExpenseApproval with {
+      -- amount: $800
+      -- department: T.Department.Engineering
+    }
+  assertion computation.approval_level = T.ApprovalLevel.Manager
+  assertion computation.receipt_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp032
+┌─[RESULT]─ TestFp032 ─
+│ computation =
+│   ExpenseApproval {
+│     -- approval_level: Manager
+│     -- receipt_required: true
+│   }
+└─
+```
+
+## FP-033 — corporate base at the boundary
+
+```catala
+#[test]
+declaration scope TestFp033:
+  output computation content E.ExpenseApproval
+
+scope TestFp033:
+  definition computation equals
+    output of E.ExpenseApproval with {
+      -- amount: $1,000
+      -- department: T.Department.Sales
+    }
+  assertion computation.approval_level = T.ApprovalLevel.Manager
+  assertion computation.receipt_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp033
+┌─[RESULT]─ TestFp033 ─
+│ computation =
+│   ExpenseApproval {
+│     -- approval_level: Manager
+│     -- receipt_required: true
+│   }
+└─
+```
+
+## FP-034 — handbook § 7.1: corporate Director is stricter than the department's Manager
+
+```catala
+#[test]
+declaration scope TestFp034:
+  output computation content E.ExpenseApproval
+
+scope TestFp034:
+  definition computation equals
+    output of E.ExpenseApproval with {
+      -- amount: $2,000
+      -- department: T.Department.Engineering
+    }
+  assertion computation.approval_level = T.ApprovalLevel.Director
+  assertion computation.receipt_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp034
+┌─[RESULT]─ TestFp034 ─
+│ computation =
+│   ExpenseApproval {
+│     -- approval_level: Director
+│     -- receipt_required: true
+│   }
+└─
+```
+
+## FP-035 — boundary: corporate Director still beats department Manager
+
+```catala
+#[test]
+declaration scope TestFp035:
+  output computation content E.ExpenseApproval
+
+scope TestFp035:
+  definition computation equals
+    output of E.ExpenseApproval with {
+      -- amount: $2,500
+      -- department: T.Department.Engineering
+    }
+  assertion computation.approval_level = T.ApprovalLevel.Director
+  assertion computation.receipt_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp035
+┌─[RESULT]─ TestFp035 ─
+│ computation =
+│   ExpenseApproval {
+│     -- approval_level: Director
+│     -- receipt_required: true
+│   }
+└─
+```
+
+## FP-036 — handbook § 7.1: corporate VP is stricter than the department's Director
+
+```catala
+#[test]
+declaration scope TestFp036:
+  output computation content E.ExpenseApproval
+
+scope TestFp036:
+  definition computation equals
+    output of E.ExpenseApproval with {
+      -- amount: $6,000
+      -- department: T.Department.Engineering
+    }
+  assertion computation.approval_level = T.ApprovalLevel.VicePresident
+  assertion computation.receipt_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp036
+┌─[RESULT]─ TestFp036 ─
+│ computation =
+│   ExpenseApproval {
+│     -- approval_level: VicePresident
+│     -- receipt_required: true
+│   }
+└─
+```
+
+## FP-037 — corporate CFO tier controls
+
+```catala
+#[test]
+declaration scope TestFp037:
+  output computation content E.ExpenseApproval
+
+scope TestFp037:
+  definition computation equals
+    output of E.ExpenseApproval with {
+      -- amount: $30,000
+      -- department: T.Department.Engineering
+    }
+  assertion computation.approval_level = T.ApprovalLevel.ChiefFinancialOfficer
+  assertion computation.receipt_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp037
+┌─[RESULT]─ TestFp037 ─
+│ computation =
+│   ExpenseApproval {
+│     -- approval_level: ChiefFinancialOfficer
+│     -- receipt_required: true
+│   }
+└─
+```
+
+## FP-038 — no department policy for Sales — corporate ladder alone
+
+```catala
+#[test]
+declaration scope TestFp038:
+  output computation content E.ExpenseApproval
+
+scope TestFp038:
+  definition computation equals
+    output of E.ExpenseApproval with {
+      -- amount: $6,000
+      -- department: T.Department.Sales
+    }
+  assertion computation.approval_level = T.ApprovalLevel.VicePresident
+  assertion computation.receipt_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp038
+┌─[RESULT]─ TestFp038 ─
+│ computation =
+│   ExpenseApproval {
+│     -- approval_level: VicePresident
+│     -- receipt_required: true
+│   }
+└─
+```
+
+## FP-039 — below the $75 receipt threshold (SYN-006 § 3.1)
+
+```catala
+#[test]
+declaration scope TestFp039:
+  output computation content E.ExpenseApproval
+
+scope TestFp039:
+  definition computation equals
+    output of E.ExpenseApproval with {
+      -- amount: $50
+      -- department: T.Department.Marketing
+    }
+  assertion computation.approval_level = T.ApprovalLevel.Manager
+  assertion computation.receipt_required = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp039
+┌─[RESULT]─ TestFp039 ─
+│ computation =
+│   ExpenseApproval {
+│     -- approval_level: Manager
+│     -- receipt_required: false
+│   }
+└─
+```

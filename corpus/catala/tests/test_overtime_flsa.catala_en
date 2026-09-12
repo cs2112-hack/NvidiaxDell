@@ -1,0 +1,58 @@
+# Fact patterns — FLSA overtime (FP-061, FP-062)
+
+> Using Overtime_flsa as O
+
+## FP-061 — 46 hours at $30: six hours at time and a half
+
+```catala
+#[test]
+declaration scope TestFp061:
+  output computation content O.Overtime
+
+scope TestFp061:
+  definition computation equals
+    output of O.Overtime with {
+      -- hours_worked_in_week: 46.0
+      -- regular_rate: $30
+    }
+  assertion computation.overtime_pay = $270
+  assertion computation.total_pay = $1,470
+```
+
+```catala-test-cli
+$ catala test-scope TestFp061
+┌─[RESULT]─ TestFp061 ─
+│ computation =
+│   Overtime {
+│     -- overtime_pay: $270.00
+│     -- total_pay: $1,470.00
+│   }
+└─
+```
+
+## FP-062 — 38 hours: no overtime
+
+```catala
+#[test]
+declaration scope TestFp062:
+  output computation content O.Overtime
+
+scope TestFp062:
+  definition computation equals
+    output of O.Overtime with {
+      -- hours_worked_in_week: 38.0
+      -- regular_rate: $30
+    }
+  assertion computation.overtime_pay = $0
+  assertion computation.total_pay = $1,140
+```
+
+```catala-test-cli
+$ catala test-scope TestFp062
+┌─[RESULT]─ TestFp062 ─
+│ computation = Overtime {
+│                 -- overtime_pay: $0.00
+│                 -- total_pay: $1,140.00
+│               }
+└─
+```

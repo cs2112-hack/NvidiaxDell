@@ -1,0 +1,75 @@
+# CONFLICT — service credits, Acme Cloud Systems / Globex Retail Group (ACME-GBX-MSA-2026)
+
+> Module Conflict_service_credit_acme_globex
+
+This module is **expected not to execute.** SYN-009 § 2.1 (Service Level Exhibit,
+2026-02-01) and SYN-010 § 2.1 (Service Level Addendum, 2026-06-15) both define the credit
+percentage for the same uptime bands with different values, and SYN-010 § 4.1 states:
+
+  This Addendum supplements the Service Level Exhibit. The parties have not agreed an order
+  of precedence between this Addendum and the Service Level Exhibit, and each document
+  stands on its own terms.
+
+With no precedence clause there is no `exception` to declare, so both definitions stay in
+place and the interpreter reports the collision with both source locations. That report is
+the product feature; inventing a priority here would be a bug.
+
+```catala-metadata
+declaration scope GlobexServiceCredit:
+  input monthly_uptime content decimal
+  input monthly_service_fee content money
+
+  output credit_percentage content decimal
+  output credit content money
+```
+
+## SYN-009 § 2.1 — Service Level Exhibit tier table
+
+  Less than 99.9% but equal to or greater than 99.0% → 10%; less than 99.0% but equal to
+  or greater than 95.0% → 25%; less than 95.0% → 100%.
+
+```catala
+scope GlobexServiceCredit:
+  definition credit_percentage
+    under condition monthly_uptime >= 99.9
+    consequence equals 0%
+
+  definition credit_percentage
+    under condition monthly_uptime < 99.9 and monthly_uptime >= 99.0
+    consequence equals 10%
+
+  definition credit_percentage
+    under condition monthly_uptime < 99.0 and monthly_uptime >= 95.0
+    consequence equals 25%
+
+  definition credit_percentage
+    under condition monthly_uptime < 95.0
+    consequence equals 100%
+```
+
+## SYN-010 § 2.1 — Service Level Addendum tier table
+
+  Less than 99.9% but equal to or greater than 99.0% → 20%; less than 99.0% but equal to
+  or greater than 95.0% → 40%; less than 95.0% → 100%.
+
+```catala
+scope GlobexServiceCredit:
+  definition credit_percentage
+    under condition monthly_uptime < 99.9 and monthly_uptime >= 99.0
+    consequence equals 20%
+
+  definition credit_percentage
+    under condition monthly_uptime < 99.0 and monthly_uptime >= 95.0
+    consequence equals 40%
+
+  definition credit_percentage
+    under condition monthly_uptime < 95.0
+    consequence equals 100%
+```
+
+## The credit
+
+```catala
+scope GlobexServiceCredit:
+  definition credit equals monthly_service_fee * credit_percentage
+```

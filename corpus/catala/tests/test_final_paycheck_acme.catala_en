@@ -1,0 +1,188 @@
+# Fact patterns — final paycheck deadline
+
+Generated from `corpus/gold/fact_patterns.jsonl`. Last day of employment is 2026-03-10 and
+the next regular payroll date is 2026-03-20 throughout, so the only thing moving is the
+statutory branch.
+
+> Using Legal_types as T
+> Using Final_paycheck_acme as F
+
+## FP-040 — Cal. Lab. Code § 201 — wages due immediately on discharge
+
+```catala
+#[test]
+declaration scope TestFp040:
+  output computation content F.FinalPaycheck
+
+scope TestFp040:
+  definition computation equals
+    output of F.FinalPaycheck with {
+      -- last_day: |2026-03-10|
+      -- separation: T.Separation.InvoluntaryTermination
+      -- work_state: T.WorkState.CA
+      -- next_regular_payroll_date: |2026-03-20|
+    }
+  assertion computation.due_date = |2026-03-10|
+  assertion computation.pto_payout_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp040
+┌─[RESULT]─ TestFp040 ─
+│ computation =
+│   FinalPaycheck {
+│     -- due_date: |2026-03-10|
+│     -- pto_payout_required: true
+│   }
+└─
+```
+
+## FP-041 — Cal. Lab. Code § 202 — within 72 hours
+
+```catala
+#[test]
+declaration scope TestFp041:
+  output computation content F.FinalPaycheck
+
+scope TestFp041:
+  definition computation equals
+    output of F.FinalPaycheck with {
+      -- last_day: |2026-03-10|
+      -- separation: T.Separation.QuitWithoutNotice
+      -- work_state: T.WorkState.CA
+      -- next_regular_payroll_date: |2026-03-20|
+    }
+  assertion computation.due_date = |2026-03-13|
+  assertion computation.pto_payout_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp041
+┌─[RESULT]─ TestFp041 ─
+│ computation =
+│   FinalPaycheck {
+│     -- due_date: |2026-03-13|
+│     -- pto_payout_required: true
+│   }
+└─
+```
+
+## FP-042 — § 202 — 72 hours' notice means wages are due at quitting
+
+```catala
+#[test]
+declaration scope TestFp042:
+  output computation content F.FinalPaycheck
+
+scope TestFp042:
+  definition computation equals
+    output of F.FinalPaycheck with {
+      -- last_day: |2026-03-10|
+      -- separation: T.Separation.QuitWithNotice
+      -- work_state: T.WorkState.CA
+      -- next_regular_payroll_date: |2026-03-20|
+    }
+  assertion computation.due_date = |2026-03-10|
+  assertion computation.pto_payout_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp042
+┌─[RESULT]─ TestFp042 ─
+│ computation =
+│   FinalPaycheck {
+│     -- due_date: |2026-03-10|
+│     -- pto_payout_required: true
+│   }
+└─
+```
+
+## FP-043 — C.R.S. § 8-4-109 — due immediately
+
+```catala
+#[test]
+declaration scope TestFp043:
+  output computation content F.FinalPaycheck
+
+scope TestFp043:
+  definition computation equals
+    output of F.FinalPaycheck with {
+      -- last_day: |2026-03-10|
+      -- separation: T.Separation.InvoluntaryTermination
+      -- work_state: T.WorkState.CO
+      -- next_regular_payroll_date: |2026-03-20|
+    }
+  assertion computation.due_date = |2026-03-10|
+  assertion computation.pto_payout_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp043
+┌─[RESULT]─ TestFp043 ─
+│ computation =
+│   FinalPaycheck {
+│     -- due_date: |2026-03-10|
+│     -- pto_payout_required: true
+│   }
+└─
+```
+
+## FP-044 — handbook § 9.3 base rule — next regular payroll date
+
+```catala
+#[test]
+declaration scope TestFp044:
+  output computation content F.FinalPaycheck
+
+scope TestFp044:
+  definition computation equals
+    output of F.FinalPaycheck with {
+      -- last_day: |2026-03-10|
+      -- separation: T.Separation.InvoluntaryTermination
+      -- work_state: T.WorkState.TX
+      -- next_regular_payroll_date: |2026-03-20|
+    }
+  assertion computation.due_date = |2026-03-20|
+  assertion computation.pto_payout_required = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp044
+┌─[RESULT]─ TestFp044 ─
+│ computation =
+│   FinalPaycheck {
+│     -- due_date: |2026-03-20|
+│     -- pto_payout_required: false
+│   }
+└─
+```
+
+## FP-045 — handbook § 9.3 — Washington requires the next regular payday
+
+```catala
+#[test]
+declaration scope TestFp045:
+  output computation content F.FinalPaycheck
+
+scope TestFp045:
+  definition computation equals
+    output of F.FinalPaycheck with {
+      -- last_day: |2026-03-10|
+      -- separation: T.Separation.QuitWithoutNotice
+      -- work_state: T.WorkState.WA
+      -- next_regular_payroll_date: |2026-03-20|
+    }
+  assertion computation.due_date = |2026-03-20|
+  assertion computation.pto_payout_required = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp045
+┌─[RESULT]─ TestFp045 ─
+│ computation =
+│   FinalPaycheck {
+│     -- due_date: |2026-03-20|
+│     -- pto_payout_required: false
+│   }
+└─
+```

@@ -1,0 +1,114 @@
+# Final paycheck deadline — Acme Cloud Systems (US)
+
+> Module Final_paycheck_acme
+> Using Legal_types as T
+
+Sources: SYN-005 § 9.3–9.4 (handbook) as the base, displaced by REAL-003
+(Cal. Lab. Code § 201), REAL-004 (§ 202), REAL-005 (§ 227.3) and REAL-002
+(C.R.S. § 8-4-109). The handbook again supplies the authority:
+
+  SYN-005 § 9.5 — Where applicable state law requires final wages to be paid earlier than
+  the next regular payroll date, Payroll will issue final wages by the deadline that law
+  requires.
+
+Catala dates carry no time of day, so § 202's "within 72 hours" is encoded as three days.
+
+```catala-metadata
+declaration scope FinalPaycheck:
+  input last_day content date
+  input separation content T.Separation
+  input work_state content T.WorkState
+  input next_regular_payroll_date content date
+
+  output due_date content date
+  output pto_payout_required content boolean
+```
+
+## SYN-005 § 9.3–9.4 — the handbook's base rule
+
+  Final wages, including any earned and unpaid incentive compensation, are paid on the
+  next regular payroll date following the employee's last day of employment. […] Accrued
+  unused PTO is not paid out on separation, except where applicable state law requires
+  payout.
+
+```catala
+scope FinalPaycheck:
+  label handbook_9_3
+  definition due_date equals next_regular_payroll_date
+
+  label handbook_9_4
+  definition pto_payout_required equals false
+```
+
+## REAL-003, Cal. Lab. Code § 201(a) — discharge
+
+  If an employer discharges an employee, the wages earned and unpaid at the time of
+  discharge are due and payable immediately.
+
+```catala
+scope FinalPaycheck:
+  exception handbook_9_3
+  definition due_date
+    under condition
+      work_state = T.WorkState.CA
+      and separation = T.Separation.InvoluntaryTermination
+    consequence equals last_day
+```
+
+## REAL-004, Cal. Lab. Code § 202(a) — quitting
+
+  If an employee not having a written contract for a definite period quits his or her
+  employment, his or her wages shall become due and payable not later than 72 hours
+  thereafter, unless the employee has given 72 hours previous notice of his or her
+  intention to quit, in which case the employee is entitled to his or her wages at the
+  time of quitting.
+
+```catala
+scope FinalPaycheck:
+  exception handbook_9_3
+  definition due_date
+    under condition
+      work_state = T.WorkState.CA
+      and separation = T.Separation.QuitWithoutNotice
+    consequence equals last_day + 3 day
+
+  exception handbook_9_3
+  definition due_date
+    under condition
+      work_state = T.WorkState.CA
+      and separation = T.Separation.QuitWithNotice
+    consequence equals last_day
+```
+
+## REAL-002, C.R.S. § 8-4-109(1)(a) — Colorado discharge
+
+Wages are due immediately on an involuntary termination; where the payroll unit is not
+operating at that moment the statute allows a short grace period, which is not encoded
+because Acme's payroll unit runs daily.
+
+```catala
+scope FinalPaycheck:
+  exception handbook_9_3
+  definition due_date
+    under condition
+      work_state = T.WorkState.CO
+      and separation = T.Separation.InvoluntaryTermination
+    consequence equals last_day
+```
+
+## REAL-005, Cal. Lab. Code § 227.3 — vacation is wages
+
+  Whenever a contract of employment or employer policy provides for paid vacations, and an
+  employee is terminated without having taken off his vested vacation time, all vested
+  vacation shall be paid to him as wages at his final rate.
+
+Colorado treats earned vacation the same way under C.R.S. § 8-4-101(14).
+
+```catala
+scope FinalPaycheck:
+  exception handbook_9_4
+  definition pto_payout_required
+    under condition
+      work_state = T.WorkState.CA or work_state = T.WorkState.CO
+    consequence equals true
+```

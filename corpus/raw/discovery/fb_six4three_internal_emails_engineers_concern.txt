@@ -1,0 +1,112 @@
+SOURCE: https://www.documentcloud.org/documents/6429802/
+TEXT: https://s3.documentcloud.org/documents/6429802/Engineers-concern-in-internal-Facebook-emails.txt
+TITLE: Engineers concern in internal Facebook emails
+PAGES: 4
+RETRIEVED: 2026-09-12
+
+EXHIBIT 109
+
+UNREDACTED VERSION OF DOCUMENT SOUGHT TO BE LODGED UNDER SEAL
+
+ 
+
+From:
+Sent:
+To:
+Subject:
+
+Bryan Klimt </O=THEFACEBOOK/OU=EXCHANGE ADMINISTRATIVE GROUP
+(FYDIBOHF23SPDLT)/CN=RECIPIENTS/CN=BKLIMT268>
+Monday, December 02, 2013 10:27 PM
+Kevin Lacker;Ilya Sukhar; David Poll; Bryan Klimt
+Message summary [id.471818182931087]
+
+Bryan Klimt:
+>David was just showing me some posts Imissed from P512N...
+>
+>https://www.facebook.com/photo.php?fbid=10152003414262604&set=gm.588570241191595&type=1&theater
+>
+>Sowe are literally going to group apps into buckets based on how scared we are of them and give them different APls?
+How do we ever hope to document this? Put a link at the top of the page that says "Going to be building a messenger
+app? Click here to filter out the APIs we won't let you use!" And what if an app adds a feature that moves them from 2
+to 1? Shitjust breaks? And a messaging app can‘t use Facebook login? So the message is, "if you're going to compete
+with us at all, make sure you don't integrate with us at all."? Iam just dumbfounded.
+David Poll:
+>agreed
+Kevin Lacker:
+>yeahthis is complicated
+Ilya Sukhar:
+>Yeah,not great, but this already happens to some degree - e.g. Path isn't allowed to use certain things.
+Ilya Sukhar:
+>Theabsolute numbers in terms of who is considered a competitor are pretty small.
+Bryan Klimt:
+>Justbecause something already happens...
+Ilya Sukhar:
+> know, Iknow, just saying.
+David Poll:
+>more than complicated, it's sort of unethical
+Kevin Lacker:
+>well, Iagree it is bad
+Bryan Klimt:
+>lt
+Kevin Lacker:
+>but,the solution is to not launch stupid APls that we don't want to support
+Bryan Klimt:
+
+CONFIDENTIAL
+
+FB-Ol363612
+
+ > t'sgoing the wrong direction.
+David Poll:
+>also,every contact app is a pure competitor?
+David Poll:
+>*sigh*
+Bryan Klimt:
+>or ever messaging app!
+Bryan Klimt:
+>that's gonna make Parse chat—as—a—service
+really difficult to use. Using it will make you a messaging app, which will
+mean you arent' allowed to use it?
+Kevin Lacker:
+>no no no
+Kevin Lacker:
+>the key parse strategy is "island of quality"
+Kevin Lacker:
+>parse doesn't obey these terrible constraints
+Ilya Sukhar:
+>Rea istica lyonly the top 5 messaging apps will ever raise an eyebrow.
+Ilya Sukhar:
+>So,I agree this sucks but you are reading this too absolutely.
+Kevin Lacker:
+>doyou guys want to come over to animal and we can discuss right now
+Bryan Klimt:
+>Thatfeels unethical somehow, but I‘m having difficulty explaining how. ltjust makes me feel like a bad person.
+Ilya Sukhar:
+>Thisis kind a political safety net internally that allows Platform to escape-hatch situations that the rest of the company
+isn't happy about.
+Bryan Klimt:
+>with whom?
+Kevin Lacker:
+>me and Ilya
+Bryan Klimt:
+>okay
+Kevin Lacker:
+> lyaand l are just both sitting - yeah
+
+CONFIDENTIAL
+
+FB-Ol3636l3
+
+ Ilya Sukhar:
+>Yeahwe're just hanging out in this room both chatting on the same thread.
+Ilya Sukhar:
+>Heyguys, just FYI,Iasked Doug to find some time to meet up. Ithink it's still useful for you to get his take.
+Bryan Klimt:
+>(v)
+
+CONFIDENTIAL
+
+FB-Ol3636l4
+
+ 

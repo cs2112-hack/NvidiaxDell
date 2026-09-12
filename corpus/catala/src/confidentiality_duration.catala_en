@@ -1,0 +1,50 @@
+# Confidentiality survival — by agreement
+
+> Module Confidentiality_duration
+
+Sources: SYN-001 § 11.2 (Acme/Northwind MSA, three years) and SYN-011 § 4.2 (Acme/Vertex
+NDA, five years). The two periods differ but do **not** conflict: the agreement is an input
+to the scope, so each definition governs its own agreement. This is the calibration case
+from `gold/conflicts.jsonl` (CONF-012) in executable form.
+
+```catala-metadata
+declaration enumeration Agreement:
+  -- NorthwindMsa
+  -- VertexNda
+
+declaration scope ConfidentialityDuration:
+  input disclosure_date content date
+  input agreement content Agreement
+  input is_trade_secret content boolean
+
+  output obligation_end content date
+  output indefinite content boolean
+```
+
+## SYN-001 § 11.2 — three years, and trade secrets for as long as they are secret
+
+  The obligations in Section 11.1 continue for three (3) years after the date of
+  disclosure, except that obligations with respect to information that qualifies as a
+  trade secret continue for as long as the information remains a trade secret.
+
+```catala
+scope ConfidentialityDuration:
+  label msa_11_2
+  definition obligation_end equals disclosure_date + 3 year
+
+  definition indefinite equals is_trade_secret
+```
+
+## SYN-011 § 4.2 — five years under the Vertex NDA
+
+  The obligations in Section 3 continue for five (5) years after the date of each
+  disclosure. Obligations with respect to information that constitutes a trade secret
+  continue for so long as the information remains a trade secret under applicable law.
+
+```catala
+scope ConfidentialityDuration:
+  exception msa_11_2
+  definition obligation_end
+    under condition agreement = Agreement.VertexNda
+    consequence equals disclosure_date + 5 year
+```

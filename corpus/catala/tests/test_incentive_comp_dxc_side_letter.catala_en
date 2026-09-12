@@ -1,0 +1,28 @@
+# Fact pattern — DXC CFO target bonus (FP-060), from a real SEC filing
+
+> Using Incentive_comp_dxc_side_letter as D
+
+## FP-060 — 135% of an $800,000 base
+
+```catala
+#[test]
+declaration scope TestFp060:
+  output computation content D.IncentiveCompDxc
+
+scope TestFp060:
+  definition computation equals
+    output of D.IncentiveCompDxc with { -- annual_base_salary: $800,000 }
+  assertion computation.target_bonus = $1,080,000
+  assertion computation.target_bonus_rate = 135%
+```
+
+```catala-test-cli
+$ catala test-scope TestFp060
+┌─[RESULT]─ TestFp060 ─
+│ computation =
+│   IncentiveCompDxc {
+│     -- target_bonus_rate: 1.35
+│     -- target_bonus: $1,080,000.00
+│   }
+└─
+```

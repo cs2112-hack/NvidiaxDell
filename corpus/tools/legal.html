@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>$title$</title>
+<style>
+  @page { size: Letter; margin: 1in 1.1in 1.15in 1.1in; }
+  html { font-size: 11.5pt; }
+  body { font-family: "Charter","Palatino Linotype","Palatino","Book Antiqua",Georgia,serif;
+         line-height: 1.55; color: #14161a; text-align: justify; hyphens: auto; margin: 0; }
+  .cover { text-align: center; margin: 0 0 2.2rem; padding-bottom: 1.2rem;
+           border-bottom: 1.5px solid #14161a; }
+  .cover .eyebrow { font-variant: small-caps; letter-spacing: .22em; font-size: .72rem;
+                    color: #5b6068; margin-bottom: .9rem; }
+  .cover h1.doctitle { font-size: 1.5rem; line-height: 1.25; margin: 0 0 .7rem;
+                       font-weight: 600; letter-spacing: .01em; }
+  .cover .parties { font-variant: small-caps; letter-spacing: .06em; font-size: .95rem; color: #2b2f36; }
+  .cover .meta { margin-top: .9rem; font-size: .78rem; color: #5b6068; }
+  .cover .meta span { margin: 0 .55rem; white-space: nowrap; }
+  /* the cover block already prints the document title */
+  body > h1:first-of-type { display: none; }
+  h1 { font-size: 1.05rem; font-variant: small-caps; letter-spacing: .07em; margin: 2rem 0 .55rem;
+       padding-bottom: .2rem; border-bottom: .5px solid #c3c7ce; page-break-after: avoid; }
+  h2 { font-size: .95rem; font-weight: 600; margin: 1.4rem 0 .4rem; page-break-after: avoid; }
+  h3 { font-size: .9rem; font-weight: 600; font-style: italic; margin: 1.1rem 0 .35rem; }
+  p { margin: 0 0 .62rem; orphans: 3; widows: 3; }
+  blockquote { margin: .8rem 1.4rem; color: #3a3f47; font-size: .95rem; border-left: 2px solid #c3c7ce;
+               padding-left: .9rem; }
+  table { border-collapse: collapse; width: 100%; margin: .9rem 0 1.1rem; font-size: .92rem;
+          page-break-inside: avoid; }
+  th { text-align: left; font-variant: small-caps; letter-spacing: .06em; font-weight: 600;
+       border-bottom: 1px solid #14161a; padding: .35rem .5rem; }
+  td { border-bottom: .5px solid #d7dae0; padding: .33rem .5rem; vertical-align: top; }
+  tr:last-child td { border-bottom: 1px solid #14161a; }
+  code { font-family: "SF Mono",Menlo,monospace; font-size: .88em; background: #f3f4f6; padding: 0 .2em; }
+  .footnote { margin-top: 2.4rem; padding-top: .6rem; border-top: .5px solid #c3c7ce;
+              font-size: .72rem; color: #5b6068; text-align: left; }
+  .sig { margin-top: 2.6rem; page-break-inside: avoid; display: flex; gap: 2.4rem; }
+  .sig div { flex: 1; }
+  .sig .line { border-bottom: .75px solid #14161a; height: 2.1rem; margin-bottom: .3rem; }
+  .sig .lbl { font-size: .72rem; font-variant: small-caps; letter-spacing: .08em; color: #5b6068; }
+</style></head><body>
+<div class="cover">
+  <div class="eyebrow">$if(kind)$$kind$$else$Legal Document$endif$$if(doc_id)$ &middot; $doc_id$$endif$</div>
+  <h1 class="doctitle">$title$</h1>
+  $if(parties)$<div class="parties">$for(parties)$$parties$$sep$ &nbsp;&mdash;&nbsp; $endfor$</div>$endif$
+  <div class="meta">
+    $if(agreement_id)$<span>Agreement $agreement_id$</span>$endif$
+    $if(effective_date)$<span>Effective $effective_date$</span>$endif$
+    $if(parent_doc)$<span>Issued under $parent_doc$</span>$endif$
+  </div>
+</div>
+$body$
+<div class="sig">
+  <div><div class="line"></div><div class="lbl">Signature &middot; Name &middot; Title &middot; Date</div></div>
+  <div><div class="line"></div><div class="lbl">Signature &middot; Name &middot; Title &middot; Date</div></div>
+</div>
+<div class="footnote">
+  $if(doc_id)$$doc_id$ &middot; $endif$Rendered for the internal legal knowledge-system demo corpus.
+  $if(license)$License / provenance: $license$$endif$
+  $if(note)$<br>Corpus note: $note$$endif$
+</div>
+</body></html>
