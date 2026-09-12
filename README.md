@@ -1,4 +1,4 @@
-# Precedence
+# Ross
 
 **Your contracts already contain the answers as arithmetic. We compile them so they can be run.**
 
@@ -28,7 +28,7 @@ Contracts contain two kinds of sentences.
 | Liability caps, PTO accrual rates, SLA credit tiers, notice periods, approval thresholds, payment terms | "Good faith", "material breach", "commercially reasonable efforts", governing law, recitals |
 | → compiled to **Catala**, executed | → **local vector store**, quoted with citations |
 
-Precedence splits them. The rule-like clauses become typed, executable Catala scopes. Everything else is retrieved and cited. Answers are always labeled with which engine produced them, and the two are never silently blended.
+Ross splits them. The rule-like clauses become typed, executable Catala scopes. Everything else is retrieved and cited. Answers are always labeled with which engine produced them, and the two are never silently blended.
 
 Catala is the DSL used to compile French tax and social-benefit law into verified code. An MSA is not harder than the French tax code.
 
@@ -451,8 +451,4 @@ Every rule-dense corpus is the same shape: benefits plans, insurance policies, p
 
 ## Team
 
-*[names]*
-
-## License
-
-*[TBD]*. IP is retained by the team per event rules. All third-party content in the corpus is public-domain or used under CC BY 4.0 with attribution recorded in `corpus/manifest.csv`.
+*Ruben Hayrapetyan, Jason Pitchford, Sheikh Gaye, Nirajan Nair*
