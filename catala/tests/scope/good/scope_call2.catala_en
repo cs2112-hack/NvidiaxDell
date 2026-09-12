@@ -1,0 +1,69 @@
+```catala
+#[test] declaration scope Toto:
+  context bar content integer
+  output foo content integer
+
+scope Toto:
+  definition bar equals 1
+  definition foo equals 1212 + bar
+
+#[test] declaration scope Titi:
+  output fizz content Toto
+  output fuzz content Toto
+  toto scope Toto
+
+scope Titi:
+  definition toto.bar equals 44
+  definition fizz equals output of Toto
+  definition fuzz equals output of Toto with {--bar: 111}
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[WARNING]─
+│
+│  Unused variable: toto does not contribute to computing any of scope Titi
+│  outputs. Did you forget something?
+│
+├─➤ tests/scope/good/scope_call2.catala_en:13.3-7:
+│    │
+│ 13 │   toto scope Toto
+│    │   ‾‾‾‾
+└─
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope Titi
+┌─[WARNING]─
+│
+│  Unused variable: toto does not contribute to computing any of scope Titi
+│  outputs. Did you forget something?
+│
+├─➤ tests/scope/good/scope_call2.catala_en:13.3-7:
+│    │
+│ 13 │   toto scope Toto
+│    │   ‾‾‾‾
+└─
+┌─[RESULT]─ Titi ─
+│ fizz = Toto {
+│          -- foo: 1,213
+│        }
+│ fuzz = Toto {
+│          -- foo: 1,323
+│        }
+└─
+```
+
+
+```catala-test-cli
+$ catala dependency-graph --disable-warnings
+{"intra_scopes":{"Toto":{"nodes":{"2":"foo","1":"bar"},"edges":[{"from":1,"to":2}]},"Titi":{"nodes":{"5":"toto","4":"fuzz","3":"fizz"},"edges":[]}},"inter_scopes":{"nodes":{"2":"Titi","1":"Toto"},"edges":[{"from":1,"to":2},{"from":1,"to":2},{"from":1,"to":2}]},"types":{"nodes":{"8":"Titi","6":"Toto","4":"Period_en.Period","3":"MonthYear_en.MonthYear","980147805":"Date_en.Day_of_week","809014657":"Date_en.Month","9647113":"Optional"},"edges":[{"from":6,"to":8},{"from":6,"to":8},{"from":809014657,"to":3}]}}
+```

@@ -1,0 +1,403 @@
+```catala
+declaration mk_p
+  content Period
+  depends on b content date, e content date
+  equals
+    Period { -- begin: b -- end: e }
+
+#[test]
+declaration scope Tunit:
+  output p_one_day content Period
+  output p_bad content Period.Period
+  output p_succ_one_day content Period
+  output p_in_succ_one_day content Period
+  output p_from_month_and_year content Period
+  output p_from_year content Period
+
+scope Tunit:
+  definition p_one_day equals mk_p of (|2020-01-01|, |2020-01-01|)
+  assertion (Period.valid of p_one_day and Period.duration of p_one_day = 1 day)
+
+  definition p_bad equals mk_p of (|2020-01-02|, |2020-01-01|)
+  assertion (not (Period.valid of p_bad))
+
+  definition p_succ_one_day equals mk_p of (|2020-01-02|, |2020-01-03|)
+  assertion (Period.valid of p_succ_one_day)
+  assertion (Period.are_adjacent of p_one_day, p_succ_one_day)
+  assertion ((Period.intersection of p_one_day, p_succ_one_day) with pattern Absent)
+  assertion (Period.join of p_one_day, p_succ_one_day = mk_p of |2020-01-01|, |2020-01-03|)
+  assertion (Period.covers of p_one_day, p_succ_one_day = false)
+  assertion (Period.overlaps of p_one_day, p_succ_one_day = false)
+  assertion (Period.is_before of p_succ_one_day, p_one_day.begin = true)
+  assertion (Period.is_after of p_one_day, p_succ_one_day.begin = true)
+  assertion (Period.is_contained of p_succ_one_day, |2020-01-02|)
+
+  definition p_in_succ_one_day equals mk_p of (|2020-01-03|, |2020-01-03|)
+  assertion (
+    Period.valid of p_in_succ_one_day
+    and not (Period.are_adjacent of p_succ_one_day, p_in_succ_one_day)
+    and (
+      (Period.intersection of p_succ_one_day, p_in_succ_one_day)
+      with pattern Present content p
+      and p = (mk_p of |2020-01-03|, |2020-01-03|)
+    )
+    and (Period.join of p_succ_one_day, p_in_succ_one_day = p_succ_one_day)
+    and (Period.covers of p_succ_one_day, p_in_succ_one_day = true)
+    and (Period.overlaps of p_succ_one_day, p_in_succ_one_day = true)
+  )
+
+  assertion (
+    (Period.find_period of [ p_one_day; p_succ_one_day; p_in_succ_one_day ], |2020-01-04|) with pattern Absent
+    and (
+      (
+        Period.find_period of
+          [ p_one_day; p_succ_one_day; p_in_succ_one_day ],
+          |2020-01-03|
+      )
+      with pattern Present content p
+      and p = p_succ_one_day
+    )
+  )
+
+  definition p_from_month_and_year equals Period.of_month_and_year of Date.Month.May, 1968
+  assertion p_from_month_and_year = Period { -- begin: |1968-05-01| -- end: |1968-05-31| }
+
+  definition p_from_year equals Period.of_year of 2002
+  assertion p_from_year = Period { -- begin: |2002-01-01| -- end: |2002-12-31| }
+```
+
+```catala
+#[test]
+declaration scope Tsort:
+  output o1 content list of (Period, integer)
+  output o2 content list of (Period, integer)
+  output o3 content list of (Period, integer)
+  output o4 content list of (Period, money)
+  output o5 content list of (Period, decimal)
+
+scope Tsort:
+  definition o1 equals
+    Period.sort_by_date of []
+  definition o2 equals
+    Period.sort_by_date of [ (Period { -- begin: |2020-01-01| -- end: |2020-01-10| }, 1) ]
+  definition o3 equals
+    Period.sort_by_date of
+      [
+        (Period { -- begin: |2020-01-01| -- end: |2020-01-10| }, 1);
+        (Period { -- begin: |2020-02-01| -- end: |2020-01-10| }, 2)
+      ]
+  definition o4 equals
+    Period.sort_by_date of
+      [
+        (Period { -- begin: |2020-12-01| -- end: |2020-01-10| }, $7);
+        (Period { -- begin: |2020-02-01| -- end: |2020-01-10| }, $2);
+        (Period { -- begin: |2020-01-01| -- end: |2020-01-10| }, $1);
+        (Period { -- begin: |2020-04-01| -- end: |1999-01-01| }, $3);
+        (Period { -- begin: |2020-06-01| -- end: |2020-01-10| }, $4);
+        (Period { -- begin: |2020-11-01| -- end: |2020-01-10| }, $5);
+        (Period { -- begin: |2020-11-02| -- end: |2020-01-10| }, $6)
+      ]
+  definition o5 equals
+    Period.sort_by_date of
+      [
+        (Period { -- begin: |2020-01-01| -- end: |2020-01-04| }, 1.0);
+        (Period { -- begin: |2020-02-01| -- end: |2020-01-10| }, 3.0);
+        (Period { -- begin: |2020-02-01| -- end: |2020-01-10| }, 4.0);
+        (Period.Period { -- begin: |2020-01-01| -- end: |2020-01-03| }, 2.0)
+      ]
+```
+
+```catala-test-cli
+$ catala test-scope Tsort
+┌─[RESULT]─ Tsort ─
+│ o1 = []
+│ o2 =
+│   [
+│     (Period {
+│        -- begin: |2020-01-01|
+│        -- end: |2020-01-10|
+│      }, 1);
+│   ]
+│ o3 =
+│   [
+│     (Period {
+│        -- begin: |2020-01-01|
+│        -- end: |2020-01-10|
+│      }, 1);
+│     (Period {
+│        -- begin: |2020-02-01|
+│        -- end: |2020-01-10|
+│      }, 2);
+│   ]
+│ o4 =
+│   [
+│     (Period {
+│        -- begin: |2020-01-01|
+│        -- end: |2020-01-10|
+│      }, $1.00);
+│     (Period {
+│        -- begin: |2020-02-01|
+│        -- end: |2020-01-10|
+│      }, $2.00);
+│     (Period {
+│        -- begin: |2020-04-01|
+│        -- end: |1999-01-01|
+│      }, $3.00);
+│     (Period {
+│        -- begin: |2020-06-01|
+│        -- end: |2020-01-10|
+│      }, $4.00);
+│     (Period {
+│        -- begin: |2020-11-01|
+│        -- end: |2020-01-10|
+│      }, $5.00);
+│     (Period {
+│        -- begin: |2020-11-02|
+│        -- end: |2020-01-10|
+│      }, $6.00);
+│     (Period {
+│        -- begin: |2020-12-01|
+│        -- end: |2020-01-10|
+│      }, $7.00);
+│   ]
+│ o5 =
+│   [
+│     (Period {
+│        -- begin: |2020-01-01|
+│        -- end: |2020-01-04|
+│      }, 1.0);
+│     (Period {
+│        -- begin: |2020-01-01|
+│        -- end: |2020-01-03|
+│      }, 2.0);
+│     (Period {
+│        -- begin: |2020-02-01|
+│        -- end: |2020-01-10|
+│      }, 3.0);
+│     (Period {
+│        -- begin: |2020-02-01|
+│        -- end: |2020-01-10|
+│      }, 4.0);
+│   ]
+└─
+```
+
+```catala
+#[test]
+declaration scope Tsplit_by_month:
+  output o1 content list of Period.Period
+  output o2 content list of Period.Period
+  output o3 content list of Period.Period
+  output o4 content list of Period.Period
+  output o5 content list of Period.Period
+  output o6 content list of Period.Period
+
+scope Tsplit_by_month:
+  definition o1 equals
+    Period.split_by_month of Period.Period { -- begin: |2020-01-10| -- end: |2020-01-20| }
+  definition o2 equals
+    Period.split_by_month of Period.Period { -- begin: |2020-01-10| -- end: |2019-12-12| }
+  definition o3 equals
+    Period.split_by_month of Period.Period { -- begin: |2020-01-01| -- end: |2020-02-01| }
+  definition o4 equals
+    Period.split_by_month of Period.Period { -- begin: |2020-01-10| -- end: |2020-02-01| }
+  definition o5 equals
+    Period.split_by_month of Period.Period { -- begin: |2020-01-10| -- end: |2020-04-17| }
+  definition o6 equals
+    Period.split_by_month of Period.Period { -- begin: |2020-01-31| -- end: |2020-04-17| }
+```
+
+```catala-test-cli
+$ catala test-scope Tsplit_by_month
+┌─[RESULT]─ Tsplit_by_month ─
+│ o1 = [
+│        Period {
+│          -- begin: |2020-01-10|
+│          -- end: |2020-01-20|
+│        };
+│      ]
+│ o2 = []
+│ o3 = [
+│        Period {
+│          -- begin: |2020-01-01|
+│          -- end: |2020-02-01|
+│        };
+│      ]
+│ o4 = [
+│        Period {
+│          -- begin: |2020-01-10|
+│          -- end: |2020-02-01|
+│        };
+│      ]
+│ o5 =
+│   [
+│     Period {
+│       -- begin: |2020-01-10|
+│       -- end: |2020-01-31|
+│     };
+│     Period {
+│       -- begin: |2020-02-01|
+│       -- end: |2020-02-29|
+│     };
+│     Period {
+│       -- begin: |2020-03-01|
+│       -- end: |2020-03-31|
+│     };
+│     Period {
+│       -- begin: |2020-04-01|
+│       -- end: |2020-04-17|
+│     };
+│   ]
+│ o6 =
+│   [
+│     Period {
+│       -- begin: |2020-01-31|
+│       -- end: |2020-01-31|
+│     };
+│     Period {
+│       -- begin: |2020-02-01|
+│       -- end: |2020-02-29|
+│     };
+│     Period {
+│       -- begin: |2020-03-01|
+│       -- end: |2020-03-31|
+│     };
+│     Period {
+│       -- begin: |2020-04-01|
+│       -- end: |2020-04-17|
+│     };
+│   ]
+└─
+```
+
+```catala
+#[test]
+declaration scope Tsplit_by_year:
+  output o1 content list of Period.Period
+  output o2 content list of Period.Period
+  output o3 content list of Period.Period
+  output o4 content list of Period.Period
+  output o5 content list of Period.Period
+  output o6 content list of Period.Period
+
+scope Tsplit_by_year:
+  definition o1 equals
+    Period.split_by_year of
+      January,
+      Period.Period { -- begin: |2001-10-01| -- end: |2001-12-01| }
+  definition o2 equals
+    Period.split_by_year of
+      January,
+      Period.Period { -- begin: |2001-01-10| -- end: |2000-12-12| }
+  definition o3 equals
+    Period.split_by_year of
+      January,
+      Period.Period { -- begin: |2001-01-01| -- end: |2002-01-01| }
+  definition o4 equals
+    Period.split_by_year of
+      January,
+      Period.Period { -- begin: |2001-10-10| -- end: |2002-01-01| }
+  definition o5 equals
+    Period.split_by_year of
+      January,
+      Period.Period { -- begin: |2001-10-10| -- end: |2008-04-17| }
+  definition o6 equals
+    Period.split_by_year of
+      November,
+      Period.Period { -- begin: |2001-10-10| -- end: |2008-04-17| }
+```
+
+```catala-test-cli
+$ catala test-scope Tsplit_by_year
+┌─[RESULT]─ Tsplit_by_year ─
+│ o1 = [
+│        Period {
+│          -- begin: |2001-10-01|
+│          -- end: |2001-12-01|
+│        };
+│      ]
+│ o2 = []
+│ o3 = [
+│        Period {
+│          -- begin: |2001-01-01|
+│          -- end: |2002-01-01|
+│        };
+│      ]
+│ o4 = [
+│        Period {
+│          -- begin: |2001-10-10|
+│          -- end: |2002-01-01|
+│        };
+│      ]
+│ o5 =
+│   [
+│     Period {
+│       -- begin: |2001-10-10|
+│       -- end: |2001-12-31|
+│     };
+│     Period {
+│       -- begin: |2002-01-01|
+│       -- end: |2002-12-31|
+│     };
+│     Period {
+│       -- begin: |2003-01-01|
+│       -- end: |2003-12-31|
+│     };
+│     Period {
+│       -- begin: |2004-01-01|
+│       -- end: |2004-12-31|
+│     };
+│     Period {
+│       -- begin: |2005-01-01|
+│       -- end: |2005-12-31|
+│     };
+│     Period {
+│       -- begin: |2006-01-01|
+│       -- end: |2006-12-31|
+│     };
+│     Period {
+│       -- begin: |2007-01-01|
+│       -- end: |2007-12-31|
+│     };
+│     Period {
+│       -- begin: |2008-01-01|
+│       -- end: |2008-04-17|
+│     };
+│   ]
+│ o6 =
+│   [
+│     Period {
+│       -- begin: |2001-10-10|
+│       -- end: |2001-10-31|
+│     };
+│     Period {
+│       -- begin: |2001-11-01|
+│       -- end: |2002-10-31|
+│     };
+│     Period {
+│       -- begin: |2002-11-01|
+│       -- end: |2003-10-31|
+│     };
+│     Period {
+│       -- begin: |2003-11-01|
+│       -- end: |2004-10-31|
+│     };
+│     Period {
+│       -- begin: |2004-11-01|
+│       -- end: |2005-10-31|
+│     };
+│     Period {
+│       -- begin: |2005-11-01|
+│       -- end: |2006-10-31|
+│     };
+│     Period {
+│       -- begin: |2006-11-01|
+│       -- end: |2007-10-31|
+│     };
+│     Period {
+│       -- begin: |2007-11-01|
+│       -- end: |2008-04-17|
+│     };
+│   ]
+└─
+```

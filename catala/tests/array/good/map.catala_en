@@ -1,0 +1,37 @@
+## Article
+
+```catala
+#[test] declaration scope B:
+   output x content list of money
+   output z content list of boolean
+
+scope B:
+   definition x equals [$4; $8 ]
+   definition z equals map each m among x to (m >= $4.95)
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope B
+┌─[RESULT]─ B ─
+│ x = [
+│       $4.00;
+│       $8.00;
+│     ]
+│ z = [
+│       false;
+│       true;
+│     ]
+└─
+```

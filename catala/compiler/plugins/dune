@@ -1,0 +1,77 @@
+(alias
+ (name plugins)
+ (deps
+  (glob_files *.cmxs)))
+
+(documentation
+ (package catala)
+ (mld_files plugins))
+
+;; Base plugins
+
+(executable
+ (name python)
+ (modules python)
+ (modes plugin)
+ (libraries catala.driver))
+
+(executable
+ (name lazy_interp)
+ (modules lazy_interp)
+ (modes plugin)
+ (flags (-linkall))
+ (libraries shared_ast catala.driver ocamlgraph))
+
+(executable
+ (name explain)
+ (modules explain)
+ (modes plugin)
+ (flags (-linkall))
+ (libraries shared_ast catala.driver ocamlgraph))
+
+(install
+ (files
+  python.cmxs
+  (lazy_interp.cmxs as lazy_interpreter.cmxs)
+  explain.cmxs)
+ (package catala)
+ (section
+  (site
+   (catala plugins))))
+
+;; JS plugins
+
+(executable
+ (name api_web)
+ (modules api_web)
+ (modes plugin)
+ (libraries catala.driver))
+
+(executable
+ (name json_schema)
+ (modules json_schema)
+ (modes plugin)
+ (libraries catala.driver))
+
+(install
+ (files api_web.cmxs json_schema.cmxs)
+ (package catala-js)
+ (section
+  (site
+   (catala plugins))))
+
+;; Proof plugin
+
+(executable
+ (name proof)
+ (modules proof)
+ (modes plugin)
+ (libraries verification catala.driver)
+ (embed_in_plugin_libraries z3 verification))
+
+(install
+ (files proof.cmxs)
+ (package catala-proof)
+ (section
+  (site
+   (catala plugins))))

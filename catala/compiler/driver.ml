@@ -1,0 +1,1574 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2020 Inria,
+   contributors: Denis Merigoux <denis.merigoux@inria.fr>, Emile Rolley
+   <emile.rolley@tuta.io>, Louis Gesbert <louis.gesbert@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+open Catala_utils
+open Shared_ast
+
+module Passes = struct
+  (* Each pass takes only its cli options, then calls upon its dependent passes
+     (forwarding their options as needed) *)
+
+  let debug_pass_name s =
+    Message.debug "@{<bold;magenta>=@} @{<bold>%s@} @{<bold;magenta>=@}"
+      (String.uppercase_ascii s)
+
+  let surface options : Surface.Ast.program =
+    debug_pass_name "surface";
+    Surface.Parser_driver.parse_top_level_file options.Global.input_src
+
+  let desugared ?allow_external options ~includes ~stdlib :
+      Desugared.Ast.program * Desugared.Name_resolution.context =
+    let prg = surface options in
+    let mod_uses, modules =
+      Surface.Parser_driver.load_modules options includes ~stdlib prg
+    in
+    debug_pass_name "desugared";
+    Message.debug "Name resolution...";
+    let ctx = Desugared.Name_resolution.form_context (prg, mod_uses) modules in
+    Message.report_delayed_errors_if_any ();
+    Message.debug "Desugaring...";
+    let modules = ModuleName.Map.map fst modules in
+    let prg =
+      Desugared.From_surface.translate_program ctx ?allow_external modules prg
+    in
+    Message.report_delayed_errors_if_any ();
+    Message.debug "Disambiguating...";
+    let prg = Desugared.Disambiguate.program prg in
+    Message.report_delayed_errors_if_any ();
+    Message.debug "Linting...";
+    Desugared.Linting.lint_program prg;
+    prg, ctx
+
+  let scopelang ?allow_external options ~includes ~stdlib :
+      untyped Scopelang.Ast.program =
+    let prg, _ = desugared options ?allow_external ~includes ~stdlib in
+    debug_pass_name "scopelang";
+    let exceptions_graphs =
+      Scopelang.From_desugared.build_exceptions_graph prg
+    in
+    let prg =
+      Scopelang.From_desugared.translate_program prg exceptions_graphs
+    in
+    Message.report_delayed_errors_if_any ();
+    prg
+
+  let dcalc : type ty.
+      Global.options ->
+      includes:Global.raw_file list ->
+      stdlib:Global.raw_file option ->
+      optimize:bool ->
+      check_invariants:bool ->
+      autotest:bool ->
+      typed:ty mark ->
+      ty Dcalc.Ast.program * TypeIdent.t list =
+   fun options ~includes ~stdlib ~optimize ~check_invariants ~autotest ~typed ->
+    let prg = scopelang options ~includes ~stdlib in
+    debug_pass_name "dcalc";
+    let type_ordering =
+      Scopelang.Dependency.check_type_cycles prg.program_ctx.ctx_abstract_types
+        prg.program_ctx.ctx_structs prg.program_ctx.ctx_enums
+    in
+    let (prg : ty Scopelang.Ast.program) =
+      match typed with
+      | Typed _ ->
+        Message.debug "Typechecking...";
+        Scopelang.Ast.type_program prg
+      | Untyped _ -> prg
+      | Custom _ -> invalid_arg "Driver.Passes.dcalc"
+    in
+    Message.report_delayed_errors_if_any ();
+    Message.debug "Translating to default calculus...";
+    let prg = Dcalc.From_scopelang.translate_program prg in
+    let prg =
+      if autotest then (
+        Interpreter.load_runtime_modules
+          ~hashf:Hash.(finalise ~monomorphize_types:false)
+          prg;
+        Dcalc.Autotest.program prg)
+      else prg
+    in
+    let prg =
+      if optimize then begin
+        Message.debug "Optimizing default calculus...";
+        Optimizations.optimize_program prg
+      end
+      else prg
+    in
+    let (prg : ty Dcalc.Ast.program) =
+      match typed with
+      | Typed _ ->
+        Message.debug "Typechecking again...";
+        Typing.program ~internal_check:true prg
+      | Untyped _ -> prg
+      | Custom _ -> assert false
+    in
+    Message.report_delayed_errors_if_any ();
+    if check_invariants then (
+      Message.debug "Checking invariants...";
+      match typed with
+      | Typed _ ->
+        if Dcalc.Invariants.check_all_invariants prg then
+          Message.result "All invariant checks passed"
+        else
+          raise
+            (Message.error ~internal:true "Some Dcalc invariants are invalid")
+      | _ -> Message.error "--check-invariants cannot be used with --no-typing");
+    prg, type_ordering
+
+  let lcalc
+      (type ty)
+      options
+      ~includes
+      ~stdlib
+      ~optimize
+      ~check_invariants
+      ~autotest
+      ~(typed : ty mark)
+      ~closure_conversion
+      ~keep_special_ops
+      ~monomorphize_types
+      ~split_threshold
+      ~renaming
+      ~lift_pos :
+      typed Lcalc.Ast.program * TypeIdent.t list * Renaming.context option =
+    let prg, type_ordering =
+      dcalc options ~includes ~stdlib ~optimize ~check_invariants ~autotest
+        ~typed
+    in
+    debug_pass_name "lcalc";
+    let prg =
+      match typed with
+      | Untyped _ -> Lcalc.From_dcalc.translate_program prg
+      | Typed _ -> Lcalc.From_dcalc.translate_program prg
+      | Custom _ -> invalid_arg "Driver.Passes.lcalc"
+    in
+    let prg =
+      if optimize then begin
+        Message.debug "Optimizing lambda calculus...";
+        Optimizations.optimize_program prg
+      end
+      else prg
+    in
+    let prg =
+      if not closure_conversion then (
+        Message.debug "Retyping lambda calculus...";
+        Typing.program ~internal_check:true prg)
+      else (
+        Message.debug "Performing closure conversion...";
+        let prg =
+          Lcalc.Closure_conversion.closure_conversion ~keep_special_ops prg
+        in
+        let prg =
+          if optimize then (
+            Message.debug "Optimizing lambda calculus...";
+            Optimizations.optimize_program prg)
+          else prg
+        in
+        Message.debug "Retyping lambda calculus...";
+        Typing.program ~internal_check:true ~assume_op_types:true prg)
+    in
+    let prg, type_ordering =
+      if monomorphize_types then (
+        Message.debug "Monomorphizing types...";
+        let prg, type_ordering = Lcalc.Monomorphize.program prg in
+        Message.debug "Retyping lambda calculus...";
+        let prg =
+          Typing.program ~assume_op_types:true ~internal_check:true prg
+        in
+        prg, type_ordering)
+      else prg, type_ordering
+    in
+    Message.report_delayed_errors_if_any ();
+    let prg =
+      match lift_pos with
+      | None -> prg
+      | Some op_needs_pos ->
+        Message.debug "Lifting inline code locations...";
+        Lcalc.Lift_positions.process_program ~op_needs_pos prg
+    in
+    let prg =
+      match split_threshold with
+      | None -> prg
+      | Some threshold ->
+        Message.debug "Splitting expressions larger than %d nodes..." threshold;
+        Lcalc.Split.split_program ~threshold prg
+    in
+    match renaming with
+    | None -> prg, type_ordering, None
+    | Some renaming ->
+      Message.debug "Renaming idents...";
+      let prg, ren_ctx = Renaming.apply renaming prg in
+      let type_ordering =
+        let open TypeIdent in
+        List.map
+          (function
+            | Struct s -> Struct (Renaming.struct_name ren_ctx s)
+            | Enum e -> Enum (Renaming.enum_name ren_ctx e)
+            | Abstract t -> Abstract (Renaming.abstract_type ren_ctx t))
+          type_ordering
+      in
+      prg, type_ordering, Some ren_ctx
+
+  let scalc
+      options
+      ~includes
+      ~stdlib
+      ~optimize
+      ~check_invariants
+      ~autotest
+      ~closure_conversion
+      ~keep_special_ops
+      ~dead_value_assignment
+      ~no_struct_literals
+      ~keep_module_names
+      ~monomorphize_types
+      ~split_threshold
+      ~split_scope_var_defs
+      ~renaming
+      ~lift_pos : Scalc.Ast.program * TypeIdent.t list * Renaming.context =
+    let prg, type_ordering, renaming_context =
+      lcalc options ~includes ~stdlib ~optimize ~check_invariants ~autotest
+        ~typed:Expr.typed ~closure_conversion ~keep_special_ops
+        ~monomorphize_types ~split_threshold ~renaming ~lift_pos
+    in
+    let renaming_context =
+      match renaming_context with
+      | None -> Renaming.(get_ctx default_config)
+      | Some r -> r
+    in
+    debug_pass_name "scalc";
+    ( Scalc.From_lcalc.translate_program
+        ~config:
+          {
+            keep_special_ops;
+            dead_value_assignment;
+            no_struct_literals;
+            keep_module_names;
+            renaming_context;
+            split_scope_var_defs;
+          }
+        prg,
+      type_ordering,
+      renaming_context )
+end
+
+module Commands = struct
+  open Cmdliner
+
+  let global_options =
+    let setup options =
+      let lang, options =
+        match Global.options.language with
+        | Some lang -> Some lang, options
+        | None -> (
+          match
+            Cli.file_lang (Global.input_src_file options.Global.input_src)
+          with
+          | lang -> Some lang, Global.enforce_options ~language:(Some lang) ()
+          | exception Failure _ -> None, options)
+      in
+      Option.iter Catala_runtime.Print.set_lang lang;
+      options
+    in
+    Term.(const setup $ Cli.Flags.Global.options)
+
+  let get_lang () =
+    match Global.options.language with
+    | Some lang -> lang
+    | None ->
+      Format.kasprintf failwith
+        "Could not infer language variant from the extension of \
+         @{<yellow>%s@}, and @{<bold>--language@} was not specified"
+        (Global.input_src_file Global.(options.input_src))
+
+  let disable_trace options =
+    if options.Global.trace <> None then (
+      Message.warning "%a" Format.pp_print_text
+        "Trace printing is not compatible with the C backend or closure \
+         conversion at the moment and has been disabled.";
+      Global.enforce_options ~trace:None ())
+    else options
+
+  let get_scope_uid (ctx : decl_ctx) (scope : string) : ScopeName.t =
+    if String.contains scope '.' then
+      Message.error
+        "Bad scope argument @{<yellow>%s@}: only references to the top-level \
+         module are allowed"
+        scope;
+    try Ident.Map.find scope ctx.ctx_scope_index
+    with Ident.Map.Not_found _ ->
+      Message.error "There is no scope \"@{<yellow>%s@}\" inside the program."
+        scope
+        ~suggestion:(Ident.Map.keys ctx.ctx_scope_index)
+
+  let get_single_scope_uid prg (scopes : string list) =
+    match scopes with
+    | [s] -> get_scope_uid prg.decl_ctx s
+    | _ :: _ ->
+      Message.error "Expected at most one scope argument but got multiple ones."
+    | [] -> (
+      let exports = BoundList.last prg.code_items in
+      let prg_scopes =
+        List.filter_map
+          (function KScope scope, _ -> Some scope | _ -> None)
+          exports
+      in
+      match prg_scopes with
+      | [] ->
+        Message.error
+          "The program has no exported scopes.@ Please specify option \
+           @{<yellow>--scope@}@ to execute a private scope@ or add \
+           ```catala-metadata to a scope declaration."
+      | _ :: _ :: _ ->
+        Message.error
+          "The program defines multiple scopes but only one was expected.@ \
+           Please specify option @{<yellow>--scope@} to explicit what to \
+           execute.@ The program defines the following scopes:@ @[<hv 4>%a@]"
+          (Format.pp_print_list ~pp_sep:Format.pp_print_space ScopeName.format)
+          prg_scopes
+      | [h] -> h)
+
+  let get_test_scopes_uids prg (scopes : string list) : ScopeName.t list =
+    match scopes with
+    | _ :: _ -> List.map (get_scope_uid prg.decl_ctx) scopes
+    | [] ->
+      let exports = BoundList.last prg.code_items in
+      let test_scopes =
+        List.filter_map
+          (function KTest scope, _ -> Some scope | _ -> None)
+          exports
+      in
+      if test_scopes = [] then
+        if exports <> [] then
+          Message.warning
+            "@[<hv 4>@[<hov>The program defines no test scopes.@ Please \
+             specify option @{<yellow>--scope@} to explicit what to execute@ \
+             or@ mark@ scopes@ in@ the@ program@ with@ the@ @{<cyan>#[test]@}@ \
+             attribute.@ The program defines the following scopes:@]@ %a@]"
+            (Format.pp_print_list ~pp_sep:Format.pp_print_space ScopeName.format)
+            (List.filter_map
+               (function KScope n, _ -> Some n | _ -> None)
+               exports)
+        else
+          Message.warning
+            "@[<hov>The program defines no public or test scopes.@ Please mark \
+             scopes in the program with the @{<cyan>#[test]@}@ attribute,@ or@ \
+             declare@ the@ desired@ scopes@ within@ \
+             @{<yellow>```catala-metadata@}@ blocks@ and@ call@ them@ \
+             explicitely@ using@ the@ @{<yellow>--scope@}@ option@]"
+      else
+        Message.debug "Will execute the following test scopes:@ %a"
+          (Format.pp_print_list ~pp_sep:Format.pp_print_space ScopeName.format)
+          test_scopes;
+      test_scopes
+
+  let get_variable_uid
+      (ctxt : Desugared.Name_resolution.context)
+      (scope_uid : ScopeName.t)
+      (variable : string) : Desugared.Ast.ScopeDef.t =
+    (* Sometimes the variable selected is of the form [a.b] *)
+    let first_part, second_part =
+      match String.index_opt variable '.' with
+      | Some i ->
+        ( String.sub variable 0 i,
+          Some (String.sub variable (i + 1) (String.length variable - i - 1)) )
+      | None -> variable, None
+    in
+    match
+      Ident.Map.find_opt first_part
+        (ScopeName.Map.find scope_uid ctxt.scopes).var_idmap
+    with
+    | None ->
+      Message.error
+        "Variable @{<yellow>\"%s\"@} not found inside scope @{<yellow>\"%a\"@}"
+        variable ScopeName.format scope_uid
+    | Some (ScopeVar v | SubScope (v, _)) ->
+      let state =
+        second_part
+        |> Option.map
+           @@ fun id ->
+           let var_sig = ScopeVar.Map.find v ctxt.var_typs in
+           match Ident.Map.find_opt id var_sig.var_sig_states_idmap with
+           | Some state -> state
+           | None ->
+             Message.error
+               "State @{<yellow>\"%s\"@} is not found for variable \
+                @{<yellow>\"%s\"@} of scope @{<yellow>\"%a\"@}"
+               id first_part ScopeName.format scope_uid
+      in
+      (v, Pos.void), Desugared.Ast.ScopeDef.Var state
+
+  let get_output ?ext options output_file =
+    let output_file = Option.map options.Global.path_rewrite output_file in
+    File.get_main_out_channel ~source_file:options.Global.input_src ~output_file
+      ?ext ()
+
+  let get_output_format options output_file =
+    let output_file = Option.map options.Global.path_rewrite output_file in
+    fun ?ext f ->
+      let output_file, with_output =
+        File.get_main_out_formatter ~source_file:options.Global.input_src
+          ~output_file ?ext ()
+      in
+      Message.debug "Writing to %a" File.format
+        (Option.value ~default:"stdout" output_file);
+      with_output (fun ppf -> f output_file ppf)
+
+  let makefile options output =
+    let prg = Passes.surface options in
+    let backend_extensions_list = [".tex"] in
+    let source_file = Global.input_src_file options.Global.input_src in
+    let output_file, with_output = get_output options ~ext:"d" output in
+    Message.debug "Writing list of dependencies to %a..." File.format
+      (Option.value ~default:"stdout" output_file);
+    with_output
+    @@ fun oc ->
+    Printf.fprintf oc "%s:\\\n%s\n%s:"
+      (String.concat "\\\n"
+         (Option.value ~default:"stdout" output_file
+         :: List.map
+              (fun ext -> File.remove_extension source_file ^ ext)
+              backend_extensions_list))
+      (String.concat "\\\n" prg.Surface.Ast.program_source_files)
+      (String.concat "\\\n" prg.Surface.Ast.program_source_files)
+
+  let makefile_cmd =
+    Cmd.v
+      (Cmd.info "makefile" ~man:Cli.man_base
+         ~doc:
+           "Generates a Makefile-compatible list of the file dependencies of a \
+            Catala program.")
+      Term.(const makefile $ global_options $ Cli.Flags.output)
+
+  let html options output print_only_law wrap_weaved_output =
+    let prg = Passes.surface options in
+    Message.debug "Weaving literate program into HTML";
+    get_output_format options ~ext:"html" output
+    @@ fun output_file fmt ->
+    let language = get_lang () in
+    let weave_output = Literate.Html.ast_to_html language ~print_only_law in
+    Message.debug "Writing to %s" (Option.value ~default:"stdout" output_file);
+    if wrap_weaved_output then
+      Literate.Html.wrap_html prg.Surface.Ast.program_source_files language fmt
+        (fun fmt -> weave_output fmt prg)
+    else weave_output fmt prg
+
+  let html_cmd =
+    Cmd.v
+      (Cmd.info "html" ~man:Cli.man_base
+         ~doc:
+           "Weaves an HTML literate programming output of the Catala program.")
+      Term.(
+        const html
+        $ global_options
+        $ Cli.Flags.output
+        $ Cli.Flags.print_only_law
+        $ Cli.Flags.wrap_weaved_output)
+
+  let latex
+      options
+      _includes
+      output
+      print_only_law
+      wrap_weaved_output
+      extra_files =
+    let prg = Passes.surface options in
+    let prg_annex =
+      List.map
+        (fun f -> Surface.Parser_driver.parse_top_level_file (FileName f))
+        extra_files
+    in
+    Message.debug "Weaving literate program into LaTeX";
+    get_output_format options ~ext:"tex" output
+    @@ fun _output_file fmt ->
+    let language = get_lang () in
+    let weave_output = Literate.Latex.ast_to_latex language ~print_only_law in
+    let weave fmt =
+      weave_output fmt prg;
+      List.iter
+        (fun p ->
+          Format.fprintf fmt "@,\\newpage@,";
+          weave_output fmt p)
+        prg_annex
+    in
+    if wrap_weaved_output then
+      Literate.Latex.wrap_latex
+        (List.flatten
+           (List.map
+              (fun p -> p.Surface.Ast.program_source_files)
+              (prg :: prg_annex)))
+        language fmt weave
+    else weave fmt
+
+  let latex_cmd =
+    Cmd.v
+      (Cmd.info "latex" ~man:Cli.man_base
+         ~doc:
+           "Weaves a LaTeX literate programming output of the Catala program.")
+      Term.(
+        const latex
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.output
+        $ Cli.Flags.print_only_law
+        $ Cli.Flags.wrap_weaved_output
+        $ Cli.Flags.extra_files)
+
+  let exceptions options includes stdlib ex_scope ex_variable output_format =
+    let prg, ctxt = Passes.desugared options ~includes ~stdlib in
+    Passes.debug_pass_name "scopelang";
+    let exceptions_graphs =
+      Scopelang.From_desugared.build_exceptions_graph prg
+    in
+    let scope_uid = get_scope_uid prg.program_ctx ex_scope in
+    let variable_uid = get_variable_uid ctxt scope_uid ex_variable in
+    let g = Desugared.Ast.ScopeDef.Map.find variable_uid exceptions_graphs in
+    let is_condition =
+      let scope =
+        Shared_ast.ScopeName.Map.find scope_uid prg.program_root.module_scopes
+      in
+      (Desugared.Ast.ScopeDef.Map.find variable_uid scope.scope_defs)
+        .scope_def_is_condition
+    in
+    if output_format = Global.JSON then
+      Desugared.Print.exceptions_graph_json ~is_condition scope_uid variable_uid
+        g
+    else Desugared.Print.exceptions_graph ~is_condition scope_uid variable_uid g
+
+  let exceptions_cmd =
+    Cmd.v
+      (Cmd.info "exceptions" ~man:Cli.man_base
+         ~doc:
+           "Prints the exception tree for the definitions of a particular \
+            variable, for debugging purposes. Use the $(b,-s) option to select \
+            the scope and the $(b,-v) option to select the variable. Use \
+            foo.bar to access state bar of variable foo or variable bar of \
+            subscope foo. Use $(b,--output-format=json) for machine-readable \
+            JSON output.")
+      Term.(
+        const exceptions
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.ex_scope
+        $ Cli.Flags.ex_variable
+        $ Cli.Flags.output_format)
+
+  let dependency_graph options includes stdlib =
+    let prg_desugared, _ctxt = Passes.desugared options ~includes ~stdlib in
+    let exceptions_graphs =
+      Scopelang.From_desugared.build_exceptions_graph prg_desugared
+    in
+    let intra_scope_dependency_graphs =
+      ScopeName.Map.map
+        (fun s ->
+          Desugared.Dependency.build_scope_dependencies s
+          |> Desugared.Dependency.scope_dependencies_to_json)
+        prg_desugared.program_root.module_scopes
+    in
+    let prg_scopelang =
+      Scopelang.From_desugared.translate_program prg_desugared exceptions_graphs
+    in
+    let types_dependency_graph =
+      Scopelang.Dependency.build_type_graph
+        prg_scopelang.program_ctx.ctx_structs
+        prg_scopelang.program_ctx.ctx_enums
+      |> Scopelang.Dependency.type_dependencies_graph_to_json
+    in
+    let inter_scope_dependencies =
+      Scopelang.Dependency.build_program_dep_graph prg_scopelang
+      |> Scopelang.Dependency.inter_scope_dependencies_graph_to_json
+    in
+    Passes.debug_pass_name "scopelang";
+    let json_output =
+      `Assoc
+        [
+          ( "intra_scopes",
+            `Assoc
+              (List.map
+                 (fun (s_name, g) -> ScopeName.to_string s_name, g)
+                 (ScopeName.Map.bindings intra_scope_dependency_graphs)) );
+          "inter_scopes", inter_scope_dependencies;
+          "types", types_dependency_graph;
+        ]
+    in
+    Yojson.Safe.to_channel stdout json_output;
+    print_newline ()
+
+  let dependency_graph_cmd =
+    Cmd.v
+      (Cmd.info "dependency-graph" ~man:Cli.man_base
+         ~doc:
+           "Prints the inter-scope dependency graph (which scope calls which \
+            scope), as well as the intra-scope dependency graphs (which scope \
+            variable uses which scope variable), and the type dependency graph \
+            (which type uses which type), in JSON format.")
+      Term.(
+        const dependency_graph
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir)
+
+  let scopelang options includes stdlib output ex_scopes =
+    let prg = Passes.scopelang options ~includes ~stdlib in
+    get_output_format options output
+    @@ fun _ fmt ->
+    match ex_scopes with
+    | _ :: _ ->
+      List.iter
+        (fun scope ->
+          let scope_uid = get_scope_uid prg.program_ctx scope in
+          Scopelang.Print.scope ~debug:options.Global.debug fmt
+            (scope_uid, ScopeName.Map.find scope_uid prg.program_scopes);
+          Format.pp_print_newline fmt ())
+        ex_scopes
+    | [] ->
+      Scopelang.Print.program ~debug:options.Global.debug fmt prg;
+      Format.pp_print_newline fmt ()
+
+  let scopelang_cmd =
+    Cmd.v
+      (Cmd.info "scopelang" ~man:Cli.man_base ~docs:Cli.s_debug
+         ~doc:
+           "Prints a debugging verbatim of the scope language intermediate \
+            representation of the Catala program. Use the $(b,-s) option to \
+            restrict the output to a particular scope.")
+      Term.(
+        const scopelang
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.output
+        $ Cli.Flags.ex_scopes)
+
+  let typecheck options check_invariants includes stdlib quiet =
+    let prg = Passes.scopelang options ~allow_external:true ~includes ~stdlib in
+    Message.debug "Typechecking...";
+    let _type_ordering =
+      Scopelang.Dependency.check_type_cycles prg.program_ctx.ctx_abstract_types
+        prg.program_ctx.ctx_structs prg.program_ctx.ctx_enums
+    in
+    let prg = Scopelang.Ast.type_program prg in
+    Message.debug "Translating to default calculus...";
+    (* Strictly type-checking could stop here, but we also want this pass to
+       check full name-resolution and cycle detection. These are checked during
+       translation to dcalc so we run it here and drop the result. *)
+    let prg = Dcalc.From_scopelang.translate_program prg in
+
+    (* Additionally, we might want to check the invariants. *)
+    if check_invariants then (
+      let prg = Shared_ast.Typing.program prg in
+      Message.debug "Checking invariants...";
+      if Dcalc.Invariants.check_all_invariants prg then
+        if quiet then () else Message.result "All invariant checks passed"
+      else
+        raise (Message.error ~internal:true "Some Dcalc invariants are invalid"));
+    Message.report_delayed_errors_if_any ();
+    if not quiet then Message.result "Typechecking successful!"
+
+  let typecheck_cmd =
+    Cmd.v
+      (Cmd.info "typecheck" ~man:Cli.man_base
+         ~doc:"Parses and typechecks a Catala program, without interpreting it.")
+      Term.(
+        const typecheck
+        $ global_options
+        $ Cli.Flags.check_invariants
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.quiet)
+
+  let dcalc
+      typed
+      options
+      includes
+      stdlib
+      output
+      optimize
+      ex_scopes
+      check_invariants
+      autotest =
+    let prg, _ =
+      Passes.dcalc options ~includes ~stdlib ~optimize ~check_invariants
+        ~autotest ~typed
+    in
+    get_output_format options output
+    @@ fun _ fmt ->
+    match ex_scopes with
+    | [] ->
+      Print.program ~debug:options.Global.debug fmt prg;
+      Format.pp_print_newline fmt ()
+    | scopes ->
+      List.iter
+        (fun scope ->
+          let scope_uid = get_scope_uid prg.decl_ctx scope in
+          Print.scope ~debug:options.Global.debug fmt
+            ( scope,
+              BoundList.find
+                ~f:(function
+                  | ScopeDef (name, body) when ScopeName.equal name scope_uid ->
+                    Some body
+                  | _ -> None)
+                prg.code_items );
+          Format.pp_print_newline fmt ())
+        scopes
+
+  let dcalc_cmd =
+    let f no_typing =
+      if no_typing then dcalc Expr.untyped else dcalc Expr.typed
+    in
+    Cmd.v
+      (Cmd.info "dcalc" ~man:Cli.man_base ~docs:Cli.s_debug
+         ~doc:
+           "Prints a debugging verbatim of the default calculus intermediate \
+            representation of the Catala program. Use the $(b,-s) option to \
+            restrict the output to a particular scope.")
+      Term.(
+        const f
+        $ Cli.Flags.no_typing
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.output
+        $ Cli.Flags.optimize
+        $ Cli.Flags.ex_scopes
+        $ Cli.Flags.check_invariants
+        $ Cli.Flags.autotest)
+
+  let print_interpretation_results
+      options
+      ?(quiet = false)
+      interpreter
+      scope_uid
+      (ctx : decl_ctx) =
+    try
+      Message.debug "Starting interpretation...";
+      let results, cov_opt = interpreter () in
+      Message.debug "End of interpretation";
+      (if quiet then begin
+         (* Caution: this output is parsed by Clerk *)
+         Format.fprintf (Message.std_ppf ()) "%a: @{<green>passed@}%t@."
+           ScopeName.format scope_uid (fun fmt ->
+             Option.iter
+               (Format.fprintf fmt "|%a" Coverage.format_coverage_hex_dump)
+               cov_opt)
+       end
+       else
+         match results, options.Global.output_format with
+         | [], Human ->
+           Message.results
+             ~title:(ScopeName.to_string scope_uid)
+             [(fun ppf -> Format.pp_print_string ppf "Computation successful!")]
+         | _ :: _, Human ->
+           Message.results
+             ~title:(ScopeName.to_string scope_uid)
+             ((List.map (fun ((var, _), result) ppf ->
+                   Format.fprintf ppf "@[<hov 2>%a =@ %a@]"
+                     (fun ppf -> Format.pp_print_as ppf (String.width var))
+                     var
+                     (if options.Global.debug then Print.expr ~debug:false ()
+                      else fun ppf -> Print.UserFacing.value ppf)
+                     result))
+                results)
+         | [], JSON -> Format.fprintf (Message.std_ppf ()) "{}@."
+         | (_, (_, m)) :: _, JSON ->
+           let { out_struct_name; _ } =
+             ScopeName.Map.find scope_uid ctx.ctx_scopes
+           in
+           let json =
+             let fields =
+               List.fold_left
+                 (fun m (sf_s, e) ->
+                   StructField.Map.add (StructField.fresh sf_s) (Expr.box e) m)
+                 StructField.Map.empty results
+             in
+             Expr.estruct ~name:out_struct_name ~fields m
+             |> Expr.unbox
+             |> Expr.embed_value ctx
+             |> Catala_runtime.Json.runtime_value
+           in
+           Format.fprintf (Message.std_ppf ()) "%s@." json);
+      true
+    with
+    | Message.CompilerError content ->
+      Message.Content.emit content Error;
+      if quiet then
+        Format.fprintf (Message.std_ppf ()) "%a: @{<red>failed@}@."
+          ScopeName.format scope_uid;
+      false
+    | Message.CompilerErrors contents ->
+      Message.Content.emit_n contents Error;
+      if quiet then
+        Format.fprintf (Message.std_ppf ()) "%a: @{<red>failed@}@."
+          ScopeName.format scope_uid;
+      false
+
+  let interpret_dcalc
+      typed
+      code_coverage
+      options
+      includes
+      stdlib
+      optimize
+      check_invariants
+      quiet
+      ex_scopes
+      scope_input =
+    let prg, _ =
+      Passes.dcalc options ~includes ~stdlib ~optimize ~check_invariants
+        ~autotest:false ~typed
+    in
+    Interpreter.load_runtime_modules
+      ~hashf:Hash.(finalise ~monomorphize_types:false)
+      prg;
+    let scopes =
+      if Option.is_none scope_input then get_test_scopes_uids prg ex_scopes
+      else [get_single_scope_uid prg ex_scopes]
+    in
+    let success =
+      List.fold_left
+        (fun success scope ->
+          if code_coverage then
+            let interp () =
+              let res, cov =
+                Interpreter.interpret_program_dcalc_with_coverage ?stdlib prg
+                  scope
+              in
+              res, Some cov
+            in
+            print_interpretation_results options ~quiet interp scope
+              prg.decl_ctx
+          else
+            let interp () =
+              ( Interpreter.interpret_program_dcalc ?input:scope_input prg scope,
+                None )
+            in
+            print_interpretation_results ~quiet options interp scope
+              prg.decl_ctx
+            && success)
+        true scopes
+    in
+    if not success then raise (Cli.Exit_with 123)
+
+  let lcalc
+      typed
+      options
+      includes
+      stdlib
+      output
+      optimize
+      check_invariants
+      autotest
+      closure_conversion
+      keep_special_ops
+      monomorphize_types
+      split_threshold
+      ex_scopes =
+    let options =
+      if closure_conversion then disable_trace options else options
+    in
+    let prg, _, _ =
+      Passes.lcalc options ~includes ~stdlib ~optimize ~check_invariants
+        ~autotest ~closure_conversion ~keep_special_ops ~typed
+        ~monomorphize_types ~split_threshold ~renaming:(Some Renaming.default)
+        ~lift_pos:None
+    in
+    get_output_format options output
+    @@ fun _ fmt ->
+    match ex_scopes with
+    | _ :: _ as scopes ->
+      List.iter
+        (fun scope ->
+          let scope_uid = get_scope_uid prg.decl_ctx scope in
+          Print.scope ~debug:options.Global.debug fmt
+            (scope, Program.get_scope_body prg scope_uid);
+          Format.pp_print_newline fmt ())
+        scopes
+    | [] ->
+      Print.program ~debug:options.Global.debug fmt prg;
+      Format.pp_print_newline fmt ()
+
+  let lcalc_cmd =
+    let f no_typing =
+      if no_typing then lcalc Expr.untyped else lcalc Expr.typed
+    in
+    Cmd.v
+      (Cmd.info "lcalc" ~man:Cli.man_base ~docs:Cli.s_debug
+         ~doc:
+           "Prints a debugging verbatim of the lambda calculus intermediate \
+            representation of the Catala program. Use the $(b,-s) option to \
+            restrict the output to a particular scope.")
+      Term.(
+        const f
+        $ Cli.Flags.no_typing
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.output
+        $ Cli.Flags.optimize
+        $ Cli.Flags.check_invariants
+        $ Cli.Flags.autotest
+        $ Cli.Flags.closure_conversion
+        $ Cli.Flags.keep_special_ops
+        $ Cli.Flags.monomorphize_types
+        $ Cli.Flags.split_threshold
+        $ Cli.Flags.ex_scopes)
+
+  let interpret_lcalc
+      typed
+      closure_conversion
+      keep_special_ops
+      monomorphize_types
+      options
+      includes
+      stdlib
+      optimize
+      check_invariants
+      quiet
+      ex_scopes
+      scope_input =
+    let options =
+      if closure_conversion then disable_trace options else options
+    in
+    let prg, _, _ =
+      Passes.lcalc options ~includes ~stdlib ~optimize ~check_invariants
+        ~autotest:false ~closure_conversion ~keep_special_ops
+        ~monomorphize_types ~split_threshold:None ~typed ~renaming:None
+        ~lift_pos:None
+    in
+    Interpreter.load_runtime_modules
+      ~hashf:(Hash.finalise ~monomorphize_types)
+      prg;
+    let scopes =
+      if Option.is_none scope_input then get_test_scopes_uids prg ex_scopes
+      else [get_single_scope_uid prg ex_scopes]
+    in
+    let success =
+      List.fold_left
+        (fun success scope ->
+          let interp () =
+            ( Interpreter.interpret_program_lcalc ?input:scope_input prg scope,
+              None )
+          in
+          print_interpretation_results ~quiet options interp scope prg.decl_ctx
+          && success)
+        true scopes
+    in
+    if not success then raise (Cli.Exit_with 123)
+
+  let interpret_cmd =
+    let f
+        lcalc
+        closure_conversion
+        keep_special_ops
+        monomorphize_types
+        no_typing
+        code_coverage =
+      if not lcalc then
+        if closure_conversion || monomorphize_types then
+          Message.error
+            "The flags @{<bold>--closure-conversion@} and \
+             @{<bold>--monomorphize-types@} only make sense with the \
+             @{<bold>--lcalc@} option"
+        else if no_typing then interpret_dcalc Expr.untyped code_coverage
+        else interpret_dcalc Expr.typed code_coverage
+      else if code_coverage then
+        Message.error
+          "The flag @{<bold>--code-coverage@} is not compatible with the \
+           @{<bold>--lcalc@} option"
+      else if no_typing then
+        interpret_lcalc Expr.untyped closure_conversion keep_special_ops
+          monomorphize_types
+      else
+        interpret_lcalc Expr.typed closure_conversion keep_special_ops
+          monomorphize_types
+    in
+    Cmd.v
+      (Cmd.info "interpret" ~man:Cli.man_base
+         ~doc:
+           "Runs the interpreter on the Catala program, executing the scopes \
+            specified with the $(b,-s) option, or the scopes marked as \
+            $(i,#[test]) if absent.")
+      Term.(
+        const f
+        $ Cli.Flags.lcalc
+        $ Cli.Flags.closure_conversion
+        $ Cli.Flags.monomorphize_types
+        $ Cli.Flags.keep_special_ops
+        $ Cli.Flags.no_typing
+        $ Cli.Flags.code_coverage
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.optimize
+        $ Cli.Flags.check_invariants
+        $ Cli.Flags.quiet
+        $ Cli.Flags.ex_scopes
+        $ Cli.Flags.scope_input)
+
+  let ocaml
+      options
+      includes
+      stdlib
+      output
+      optimize
+      check_invariants
+      autotest
+      closure_conversion =
+    let options =
+      if closure_conversion then disable_trace options else options
+    in
+    let prg, type_ordering, _ =
+      Passes.lcalc options ~includes ~stdlib ~optimize ~check_invariants
+        ~autotest ~typed:Expr.typed ~closure_conversion ~keep_special_ops:true
+        ~monomorphize_types:false ~split_threshold:None
+        ~renaming:(Some Lcalc.To_ocaml.renaming)
+        ~lift_pos:(Some Lcalc.To_ocaml.op_needs_pos)
+    in
+    Message.debug "Compiling program into OCaml...";
+    get_output_format options output
+      ~ext:(if Global.options.gen_external then "template.ml" else "ml")
+    @@ fun output_file fmt ->
+    let hashf = Hash.finalise ~monomorphize_types:false in
+    Lcalc.To_ocaml.format_program output_file fmt prg ~hashf type_ordering
+
+  let ocaml_cmd =
+    Cmd.v
+      (Cmd.info "ocaml" ~man:Cli.man_base
+         ~doc:"Generates an OCaml translation of the Catala program.")
+      Term.(
+        const ocaml
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.output
+        $ Cli.Flags.optimize
+        $ Cli.Flags.check_invariants
+        $ Cli.Flags.autotest
+        $ Cli.Flags.closure_conversion)
+
+  let scalc
+      options
+      includes
+      stdlib
+      output
+      optimize
+      check_invariants
+      autotest
+      closure_conversion
+      keep_special_ops
+      dead_value_assignment
+      no_struct_literals
+      monomorphize_types
+      split_threshold
+      ex_scope_opt =
+    let options =
+      if closure_conversion then disable_trace options else options
+    in
+    let prg, _, _ =
+      Passes.scalc options ~includes ~stdlib ~optimize ~check_invariants
+        ~autotest ~closure_conversion ~keep_special_ops ~dead_value_assignment
+        ~no_struct_literals ~keep_module_names:false ~monomorphize_types
+        ~split_threshold ~split_scope_var_defs:false
+        ~renaming:(Some Renaming.default)
+        ~lift_pos:(Some Lcalc.To_ocaml.op_needs_pos)
+    in
+    get_output_format options output
+    @@ fun _ fmt ->
+    match ex_scope_opt with
+    | Some scope ->
+      let scope_uid = get_scope_uid prg.ctx.decl_ctx scope in
+      Scalc.Print.format_item ~debug:options.Global.debug prg.ctx.decl_ctx fmt
+        (List.find
+           (function
+             | Scalc.Ast.SScope { scope_body_name; _ } ->
+               scope_body_name = scope_uid
+             | _ -> false)
+           prg.code_items);
+      Format.pp_print_newline fmt ()
+    | None -> Scalc.Print.format_program fmt prg
+
+  let scalc_cmd =
+    Cmd.v
+      (Cmd.info "scalc" ~man:Cli.man_base ~docs:Cli.s_debug
+         ~doc:
+           "Prints a debugging verbatim of the statement calculus intermediate \
+            representation of the Catala program. Use the $(b,-s) option to \
+            restrict the output to a particular scope.")
+      Term.(
+        const scalc
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.output
+        $ Cli.Flags.optimize
+        $ Cli.Flags.check_invariants
+        $ Cli.Flags.autotest
+        $ Cli.Flags.closure_conversion
+        $ Cli.Flags.keep_special_ops
+        $ Cli.Flags.dead_value_assignment
+        $ Cli.Flags.no_struct_literals
+        $ Cli.Flags.monomorphize_types
+        $ Cli.Flags.split_threshold
+        $ Cli.Flags.ex_scope_opt)
+
+  let python
+      options
+      includes
+      stdlib
+      output
+      optimize
+      check_invariants
+      autotest
+      closure_conversion
+      split_threshold =
+    let options =
+      if closure_conversion then disable_trace options else options
+    in
+    let prg, type_ordering, _ren_ctx =
+      Passes.scalc options ~includes ~stdlib ~optimize ~check_invariants
+        ~autotest ~closure_conversion ~keep_special_ops:false
+        ~dead_value_assignment:true ~no_struct_literals:false
+        ~keep_module_names:false ~monomorphize_types:false
+        ~renaming:(Some Scalc.To_python.renaming)
+        ~lift_pos:(Some Scalc.To_python.op_needs_pos) ~split_threshold
+        ~split_scope_var_defs:false
+    in
+    Message.debug "Compiling program into Python...";
+    get_output_format options output
+      ~ext:(if Global.options.gen_external then "template.py" else "py")
+    @@ fun output_file fmt ->
+    Scalc.To_python.format_program output_file fmt prg type_ordering
+
+  let python_cmd =
+    Cmd.v
+      (Cmd.info "python" ~man:Cli.man_base
+         ~doc:"Generates a Python translation of the Catala program.")
+      Term.(
+        const python
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.output
+        $ Cli.Flags.optimize
+        $ Cli.Flags.check_invariants
+        $ Cli.Flags.autotest
+        $ Cli.Flags.closure_conversion
+        $ Cli.Flags.split_threshold)
+
+  let java
+      options
+      includes
+      stdlib
+      (output : Global.raw_file option)
+      optimize
+      check_invariants
+      autotest
+      closure_conversion
+      split_threshold =
+    let options =
+      if closure_conversion then disable_trace options else options
+    in
+    let split_threshold : int option =
+      (* [javac] has a limit on the number of bytecode statements per
+         method: by default, we set a split threshold limit of
+         10_000. This value was determined empirically as there is no
+         direct relation between lcalc AST size and the generated java
+         bytecode size. Hence, this value may be too big or too large
+         depending on the program shape. *)
+      Option.(some (value split_threshold ~default:10_000))
+    in
+    let prg, _type_ordering, _ren_ctx =
+      Passes.scalc options ~includes ~stdlib ~optimize ~check_invariants
+        ~autotest ~closure_conversion ~keep_special_ops:false
+        ~dead_value_assignment:true ~no_struct_literals:false
+        ~keep_module_names:true ~monomorphize_types:false
+        ~renaming:(Some Scalc.To_java.renaming)
+        ~lift_pos:(Some Scalc.To_java.op_needs_pos) ~split_threshold
+        ~split_scope_var_defs:true
+    in
+    Message.debug "Compiling program into Java...";
+    get_output_format options output
+      ~ext:(if Global.options.gen_external then "template.java" else "java")
+    @@ fun output_file ppf ->
+    let class_name =
+      match output_file, options.Global.input_src with
+      | Some file, _
+      | None, (FileName (file : File.t) | Contents (_, (file : File.t))) ->
+        let name = File.remove_extension file |> Filename.basename in
+        if Global.options.gen_external then
+          String.capitalize_ascii (File.remove_extension name)
+        else name
+      | None, Stdin _ -> "AnonymousClass"
+    in
+    let is_stdlib = stdlib = None in
+    Scalc.To_java.format_program ~is_stdlib ~class_name output_file ppf prg
+
+  let java_cmd =
+    Cmd.v
+      (Cmd.info "java" ~man:Cli.man_base
+         ~doc:"Generates a Java translation of the Catala program.")
+      Term.(
+        const java
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.output
+        $ Cli.Flags.optimize
+        $ Cli.Flags.check_invariants
+        $ Cli.Flags.autotest
+        $ Cli.Flags.closure_conversion
+        $ Cli.Flags.split_threshold)
+
+  let c
+      options
+      includes
+      stdlib
+      output
+      optimize
+      check_invariants
+      autotest
+      split_threshold =
+    let options = disable_trace options in
+    let prg, type_ordering, _ren_ctx =
+      Passes.scalc options ~includes ~stdlib ~optimize ~check_invariants
+        ~autotest ~closure_conversion:true ~keep_special_ops:false
+        ~dead_value_assignment:false ~no_struct_literals:true
+        ~keep_module_names:false ~monomorphize_types:false
+        ~renaming:(Some Scalc.To_c.renaming)
+        ~lift_pos:(Some Scalc.To_c.op_needs_pos) ~split_threshold
+        ~split_scope_var_defs:false
+    in
+    Message.debug "Compiling program into C...";
+    get_output_format options output
+      ~ext:(if Global.options.gen_external then "template.c" else "c")
+    @@ fun output_file ppf ->
+    Scalc.To_c.format_program output_file ppf prg type_ordering
+
+  let c_cmd =
+    Cmd.v
+      (Cmd.info "c" ~man:Cli.man_base
+         ~doc:"Generates an C translation of the Catala program.")
+      Term.(
+        const c
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.output
+        $ Cli.Flags.optimize
+        $ Cli.Flags.check_invariants
+        $ Cli.Flags.autotest
+        $ Cli.Flags.split_threshold)
+
+  let depends options includes stdlib prefix subdir extension extra_files =
+    let file = Global.input_src_file options.Global.input_src in
+    let more_includes = List.map Filename.dirname (file :: extra_files) in
+    let prg =
+      Surface.Ast.
+        {
+          program_module = None;
+          program_items = [];
+          program_source_files = [file];
+          program_used_modules =
+            List.map
+              (fun f ->
+                let name =
+                  String.capitalize_ascii
+                    (String.to_id (Filename.basename (File.remove_extension f)))
+                in
+                {
+                  mod_use_name = name, Pos.void;
+                  mod_use_alias = name, Pos.void;
+                })
+              (file :: extra_files);
+          program_lang = get_lang ();
+        }
+    in
+    let mod_uses, modules =
+      Surface.Parser_driver.load_modules options includes ~stdlib ~more_includes
+        ~allow_notmodules:true prg
+    in
+    let d_ctx =
+      Desugared.Name_resolution.form_context (prg, mod_uses) modules
+    in
+    let modules = ModuleName.Map.map fst modules in
+    let prg = Desugared.From_surface.translate_program d_ctx modules prg in
+    let modules_list_topo =
+      Program.modules_to_list prg.program_ctx.ctx_modules
+    in
+    Format.open_hbox ();
+    Format.pp_print_list ~pp_sep:Format.pp_print_space
+      (fun ppf (m, _) ->
+        let f = Pos.get_file (Mark.get (ModuleName.get_info m)) in
+        let f =
+          match prefix with
+          | None -> f
+          | Some pfx ->
+            if not (Filename.is_relative f) then (
+              Message.warning
+                "Not adding prefix to %s, which is an absolute path" f;
+              f)
+            else File.(pfx / f)
+        in
+        let f =
+          match subdir with
+          | None -> f
+          | Some d -> File.(dirname f / d / basename f)
+        in
+        let f = File.clean_path f in
+        if extension = [] then Format.pp_print_string ppf f
+        else
+          Format.pp_print_list ~pp_sep:Format.pp_print_space
+            (fun ppf ext ->
+              let base = File.(dirname f / ModuleName.to_string m) in
+              Format.pp_print_string ppf base;
+              if ext <> "" then (
+                Format.(
+                  pp_print_char ppf '.';
+                  pp_print_string ppf ext)))
+            ppf extension)
+      Format.std_formatter modules_list_topo;
+    Format.close_box ();
+    Format.print_newline ()
+
+  let depends_cmd =
+    Cmd.v
+      (Cmd.info "depends" ~man:Cli.man_base
+         ~deprecated:
+           "Prefer the use of Clerk Targets defined in a $(i,clerk.toml) file. \
+            This may be unreliable with non-ASCII module names"
+         ~doc:
+           "Lists the dependencies of the given catala files, in linking \
+            order. This includes recursive dependencies and is useful for \
+            linking an application in a target language. The space-separated \
+            list is printed to stdout. The names are printed as expected of \
+            module identifiers, $(i,i.e.) capitalized.\n\
+            NOTE: the files specified are also included in the returned list.")
+      Term.(
+        const depends
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.prefix
+        $ Cli.Flags.subdir
+        $ Cli.Flags.extension
+        $ Cli.Flags.extra_files)
+
+  let pygmentize_cmd =
+    Cmd.v
+      (Cmd.info "pygmentize" ~man:Cli.man_base
+         ~doc:
+           "This special command is a wrapper around the $(b,pygmentize) \
+            command that enables support for colorising Catala code.")
+      Term.(
+        const (fun _ ->
+            assert false
+            (* Not really a catala command, this is handled preemptively at
+               startup *))
+        $ global_options)
+
+  let json_schema_cmd =
+    let f options includes stdlib ex_scope =
+      let mark = Expr.typed in
+      let prg, _ =
+        Passes.dcalc options ~includes ~stdlib ~optimize:false
+          ~check_invariants:false ~autotest:false ~typed:mark
+      in
+      let scope = get_scope_uid prg.decl_ctx ex_scope in
+      let { in_struct_name; out_struct_name; _ } =
+        ScopeName.Map.find scope prg.decl_ctx.ctx_scopes
+      in
+      let module Schema_repr = Json_schema.Make (Json_repr.Yojson) in
+      let scope_input_schema_json =
+        let input_ty = TStruct in_struct_name, Expr.mark_pos mark in
+        let encoding =
+          Encoding.scope_input_encoding scope prg.decl_ctx input_ty
+        in
+        Json_encoding.schema encoding |> Schema_repr.to_json
+      in
+      let scope_output_schema_json =
+        let output_ty = TStruct out_struct_name, Expr.mark_pos mark in
+        let encoding =
+          Encoding.scope_output_encoding scope prg.decl_ctx output_ty
+        in
+        Json_encoding.schema encoding |> Schema_repr.to_json
+      in
+      Format.fprintf (Message.std_ppf ()) "%a@\n"
+        (Yojson.Safe.pretty_print ~std:true)
+        (`List [scope_input_schema_json; scope_output_schema_json])
+    in
+    Cmd.v
+      (Cmd.info "json-schema" ~man:Cli.man_base
+         ~doc:
+           "Display the JSON-schema of the input and output JSON objects of \
+            the given scope. Both schemas are contained in a JSON array of two \
+            elements: first one being the input, the second one the output.")
+      Term.(
+        const f
+        $ global_options
+        $ Cli.Flags.include_dirs
+        $ Cli.Flags.stdlib_dir
+        $ Cli.Flags.ex_scope)
+
+  let commands =
+    [
+      interpret_cmd;
+      typecheck_cmd;
+      ocaml_cmd;
+      python_cmd;
+      java_cmd;
+      c_cmd;
+      latex_cmd;
+      html_cmd;
+      makefile_cmd;
+      scopelang_cmd;
+      dcalc_cmd;
+      lcalc_cmd;
+      scalc_cmd;
+      exceptions_cmd;
+      dependency_graph_cmd;
+      depends_cmd;
+      pygmentize_cmd;
+      json_schema_cmd;
+    ]
+end
+
+let raise_help cmdname cmds =
+  let plugins = Plugin.names () in
+  let cmds = List.filter (fun name -> not (List.mem name plugins)) cmds in
+  Message.error
+    "One of the following commands was expected:@;\
+     <1 4>@[<v>@{<bold;blue>%a@}@]%a@\n\
+     Run `@{<bold>%s --help@}' or `@{<bold>%s COMMAND --help@}' for details."
+    (Format.pp_print_list Format.pp_print_string)
+    (List.sort String.compare cmds)
+    (fun ppf -> function
+      | [] -> ()
+      | plugins ->
+        Format.fprintf ppf
+          "@\n\
+           Or one of the following installed plugins:@;\
+           <1 4>@[<v>@{<blue>%a@}@]"
+          (Format.pp_print_list Format.pp_print_string)
+          plugins)
+    plugins cmdname cmdname
+
+let catala_t extra_commands =
+  let open Cmdliner in
+  let default =
+    Term.(const raise_help $ main_name $ choice_names $ Cli.Flags.Global.flags)
+  in
+  Cmd.group ~default Cli.info (Commands.commands @ extra_commands)
+
+let main () =
+  let argv = Array.copy Sys.argv in
+  (* Our command names (first argument) are case-insensitive *)
+  if Array.length argv >= 2 then argv.(1) <- String.lowercase_ascii argv.(1);
+  (* Pygmentize is a specific exec subcommand that doesn't go through
+     cmdliner *)
+  if
+    Array.length Sys.argv >= 2
+    && argv.(1) = "pygmentize"
+    && not
+         (Array.length Sys.argv >= 3
+         && String.starts_with ~prefix:"--help" argv.(2))
+  then Literate.Pygmentize.exec ();
+  (* Peek to load plugins before the command-line is parsed proper (plugins add
+     their own commands) *)
+  let plugins =
+    let plugins_dirs =
+      match
+        Cmdliner.Cmd.eval_peek_opts ~argv Cli.Flags.Global.flags
+          ~version_opt:true
+      with
+      | Some opts, _ -> opts.Global.plugins_dirs
+      | None, _ -> []
+    in
+    Passes.debug_pass_name "init";
+    List.iter
+      (fun d ->
+        if d = "" then ()
+        else
+          match Sys.is_directory d with
+          | true -> Plugin.load_dir d
+          | false -> Message.debug "Could not read plugin directory %s" d
+          | exception Sys_error _ ->
+            Message.debug "Could not read plugin directory %s" d)
+      plugins_dirs;
+    Dynlink.allow_only
+      (List.filter
+         (function
+           | "Driver__Plugin" | "Catala_utils__Global" -> false | _ -> true)
+         (Dynlink.all_units ()));
+    (* From here on, no plugin registration is allowed. However, the interpreter
+       may still use Dynlink to load external modules ; we prevent access to
+       Catala internal mutable state. *)
+    Plugin.list ()
+  in
+  let command = catala_t plugins in
+  let open Cmdliner in
+  let[@inline] exit_with_error excode fcontent =
+    let bt = Printexc.get_raw_backtrace () in
+    Message.Content.emit (fcontent ()) Error;
+    if Global.options.debug then Printexc.print_raw_backtrace stderr bt;
+    exit excode
+  in
+  let eval_cmd () =
+    let r = Cmd.eval_value ~catch:false ~argv command in
+    (match r with Error `Term -> Plugin.check_failure argv.(1) | _ -> ());
+    Message.report_delayed_errors_if_any ();
+    r
+  in
+  match eval_cmd () with
+  | Ok _ -> exit Cmd.Exit.ok
+  | Error e ->
+    if e = `Term then Plugin.print_failures ();
+    exit Cmd.Exit.cli_error
+  | exception Cli.Exit_with n -> exit n
+  | exception Message.CompilerErrors contents ->
+    Message.Content.emit_n contents Error;
+    exit Cmd.Exit.some_error
+  | exception Message.CompilerError content ->
+    let bt = Printexc.get_raw_backtrace () in
+    let contents = Message.combine_with_pending_errors content bt in
+    Message.Content.emit_n contents Error;
+    exit Cmd.Exit.some_error
+  | exception Failure msg ->
+    exit_with_error Cmd.Exit.some_error
+    @@ fun () -> Message.Content.of_string msg
+  | exception Sys_error msg ->
+    exit_with_error Cmd.Exit.internal_error
+    @@ fun () -> Message.Content.of_string ("System error: " ^ msg)
+  | exception e ->
+    exit_with_error Cmd.Exit.internal_error
+    @@ fun () ->
+    Message.Content.of_string ("Unexpected error: " ^ Printexc.to_string e)
+
+(* Export module PluginAPI, hide parent module Plugin *)
+module Plugin = struct
+  let register name ?man ?doc term =
+    let name = String.lowercase_ascii name in
+    let info = Cmdliner.Cmd.info name ?man ?doc ~docs:Cli.s_plugins in
+    Plugin.register info term
+
+  let register_subcommands name ?man ?doc cmds =
+    let name = String.lowercase_ascii name in
+    let info = Cmdliner.Cmd.info name ?man ?doc ~docs:Cli.s_plugins in
+    Plugin.register_subcommands info cmds
+
+  let register_attribute = Plugin.register_attribute
+end

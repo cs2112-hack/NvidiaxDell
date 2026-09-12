@@ -1,0 +1,9 @@
+# Build artefacts (never commit: _opam is ~1.2G, _build ~225M)
+_build/
+_opam/
+_target/
+_targets/
+_clerk_build/
+_python_venv/
+*.install
+.DS_Store

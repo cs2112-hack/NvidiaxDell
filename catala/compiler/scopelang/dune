@@ -1,0 +1,10 @@
+(library
+ (name scopelang)
+ (public_name catala.scopelang)
+ (libraries catala_utils ocamlgraph desugared yojson)
+ (flags
+  (:standard -short-paths)))
+
+(documentation
+ (package catala)
+ (mld_files scopelang))

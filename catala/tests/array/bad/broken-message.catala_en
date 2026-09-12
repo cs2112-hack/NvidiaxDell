@@ -1,0 +1,63 @@
+## Article
+
+```catala
+declaration scope A:
+  output x content list of money
+  output y content list of decimal
+
+scope A:
+   definition x equals [$12; $13.50; $11; $100.1; $50.20]
+   definition y equals [1.0; 2.0; 3.0; 4.0; 5.9]
+
+declaration scope B:
+  a scope A
+  output reverse content list of money
+  output ratios1 content (list of money, money)
+
+scope B:
+  definition reverse equals
+    # Only this case was changed compared to `fold.catala_en`
+    combine all x among a.x in acc initially [$0] with
+      x ++ acc
+   #  ^ Error should be here (money, while expected list because of `++`)
+
+  definition ratios1 equals
+    combine all x among a.x in (acc1, acc2) initially ([], $1) with
+      (acc1 ++ [x + acc2], acc2 + x)
+```
+
+There was an error -- now fixed -- where the issue was pointed on `x+acc2` with
+a confusing message.
+
+This was diagnosed to be due to delayed error messages that got skipped.
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[ERROR]─
+│
+│  Incompatible types:
+│    got      money,
+│    expected list of money
+│
+│ While typechecking the following expression:
+├─➤ tests/array/bad/broken-message.catala_en:21.7-8:
+│    │
+│ 21 │       x ++ acc
+│    │       ‾
+├─ Article
+│
+│ Type money is coming from:
+├─➤ tests/array/bad/broken-message.catala_en:5.28-33:
+│   │
+│ 5 │   output x content list of money
+│   │                            ‾‾‾‾‾
+├─ Article
+│
+│ Type list of money is coming from:
+├─➤ tests/array/bad/broken-message.catala_en:21.9-11:
+│    │
+│ 21 │       x ++ acc
+│    │         ‾‾
+└─ Article
+#return code 123#
+```

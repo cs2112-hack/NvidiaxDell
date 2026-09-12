@@ -1,0 +1,59 @@
+## Test
+
+```catala
+declaration scope A:
+  internal a content integer
+  output b content integer
+  input c content integer
+  input output d content integer
+  context e content integer
+  context output f content integer
+
+
+scope A:
+  definition a equals 0
+  definition b equals a + 1
+  definition e equals b + c + d + 1
+  definition f equals e + 1
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala Dcalc -s A
+let scope A (A_in: A_in): A =
+  let get c : integer = A_in.c_in in
+  let get d : integer = A_in.d_in in
+  let get e : ⟪integer⟫ = A_in.e_in in
+  let get f : ⟪integer⟫ = A_in.f_in in
+  let set a : ⟪integer⟫ = ⟨ ⟨true ⊢ ⟨0⟩⟩ | false ⊢ ∅ ⟩ in
+  let set b : integer =
+    error_empty ⟨ ⟨true ⊢ ⟨(error_empty a) + 1⟩⟩ | false ⊢ ∅ ⟩
+  in
+  let set e : ⟪integer⟫ =
+    ⟨ e | true ⊢ ⟨ ⟨true ⊢ ⟨b + c + d + 1⟩⟩ | false ⊢ ∅ ⟩ ⟩
+  in
+  let set f : integer =
+    error_empty
+      ⟨ f
+      | true ⊢ ⟨error_empty ⟨ ⟨true ⊢ ⟨(error_empty e) + 1⟩⟩ | false ⊢ ∅ ⟩⟩ ⟩
+  in
+  return { A b = b; d = d; f = f; }
+```
+
+```catala-test-cli
+$ catala Typecheck
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```

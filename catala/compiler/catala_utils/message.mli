@@ -1,0 +1,207 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2023 Inria, contributor:
+   Denis Merigoux <denis.merigoux@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+(** Interface for emitting compiler messages.
+
+    All messages are expected to use the [Format] module. Flush, ["@?"], ["@."],
+    ["%!"] etc. are not supposed to be used outside of this module.
+
+    WARNING: this module performs side-effects at load time, adding support for
+    ocolor tags (e.g. ["@{<blue>text@}"]) to the standard string formatter used
+    by e.g. [Format.sprintf]. (In this case, the tags are ignored, for color
+    output you should use the functions of this module that toggle support
+    depending on cli flags and terminal support). *)
+
+(** {1 Message content} *)
+
+type level = Error | Warning | Debug | Log | Result
+
+module Content : sig
+  (** {2 Types}*)
+
+  type message = Format.formatter -> unit
+  type t
+
+  (** {2 Content creation}*)
+
+  val of_message : message -> t
+
+  val of_result : message -> t
+  (** Similar as [of_message] but tailored for when you want to print the result
+      of a value, etc. *)
+
+  val of_string : string -> t
+  val prepend_message : t -> (Format.formatter -> unit) -> t
+
+  (** {2 Content manipulation}*)
+
+  val to_internal_error : t -> t
+  val add_suggestion : t -> string list -> t
+  val add_position : t -> ?message:message -> Pos.t -> t
+
+  (** {2 Content emission}*)
+
+  val emit_n :
+    ?ppf:Format.formatter -> (t * Printexc.raw_backtrace) list -> level -> unit
+
+  val emit : ?ppf:Format.formatter -> t -> level -> unit
+end
+
+(** This functions emits the message according to the emission type defined by
+    [Cli.message_format_flag]. *)
+
+(** {1 Error exceptions} *)
+
+exception CompilerError of Content.t
+exception CompilerErrors of (Content.t * Printexc.raw_backtrace) list
+
+type lsp_error_kind =
+  | Lexing
+  | Parsing
+  | Typing
+  | Generic
+  | Warning
+  | AssertFailure
+
+type lsp_error = {
+  kind : lsp_error_kind;
+  message : Content.message;
+  pos : Pos.t option;
+  suggestion : string list option;
+}
+
+val register_lsp_error_notifier : (lsp_error -> unit) -> unit
+
+val register_lsp_error_absorber : (lsp_error -> bool) -> unit
+(** The raised error is absorbed if the hook returns [false] *)
+
+(** {1 Some formatting helpers}*)
+
+val unformat : (Format.formatter -> unit) -> string
+(** Converts [f] to a string, discarding formatting and skipping newlines and
+    indents *)
+
+val pp_to_string : ansi:bool -> (Format.formatter -> unit) -> string
+(** [pp_to_string ~ansi f] formats [f] to a string, with ANSI color codes if
+    [ansi] is [true], or plain text otherwise. *)
+
+val has_color : out_channel -> bool
+val set_terminal_width_function : (unit -> int) -> unit
+val terminal_columns : unit -> int
+
+val pad : int -> string -> Format.formatter -> unit
+(** Prints the given character the given number of times (assuming it is of
+    width 1) *)
+
+val pp_link :
+  target:string ->
+  Format.formatter ->
+  ('a, Format.formatter, unit, unit) format4 ->
+  'a
+
+val link : ?target:string -> unit -> Format.formatter -> string -> unit
+(** Prints an hyperlink to the given target, if on a tty. The target defaults to
+    the text *)
+
+val pp_pos : Format.formatter -> Pos.t -> unit
+(** Prints the given position with style and, if possible, an hyperlink *)
+
+val pp_pos_link :
+  Pos.t -> Format.formatter -> ('a, Format.formatter, unit) format -> 'a
+(** Wraps the given format with a link to the given pos *)
+
+val file_url : ?line:int -> ?column:int -> string -> string
+(** Helper to build file targets for hyperlinks *)
+
+(* {1 More general color-enabled formatting helpers}*)
+
+val std_ppf : unit -> Format.formatter
+val err_ppf : unit -> Format.formatter
+val ignore_ppf : unit -> Format.formatter
+
+val formatter_of_out_channel :
+  ?nocolor:bool ->
+  ?force_color:bool ->
+  ?force_tty:bool ->
+  ?force_columns:int ->
+  out_channel ->
+  unit ->
+  Format.formatter
+(** Creates a new formatter from the given out channel, with correct handling of
+    the ocolor tags. Actual use of escape codes in the output depends on
+    [Cli.style_flag] -- and wether the channel is a tty if that is set to auto.
+*)
+
+(** {1 Simple interface for various message emission} *)
+
+type ('a, 'b) emitter =
+  ?header:Content.message ->
+  ?internal:bool ->
+  ?main_pos:Pos.t ->
+  ?pos:Pos.t ->
+  ?pos_msg:Content.message ->
+  ?extra_pos:(string * Pos.t) list ->
+  ?fmt_pos:(Content.message * Pos.t) list ->
+  ?outcome:Content.message list ->
+  ?suggestion:string list ->
+  ('a, Format.formatter, unit, 'b) format4 ->
+  'a
+
+val log : ('a, unit) emitter
+val debug : ('a, unit) emitter
+val result : ('a, unit) emitter
+val warning : ('a, unit) emitter
+val error : ?kind:lsp_error_kind -> ('a, 'exn) emitter
+
+val results :
+  ?ppf:Format.formatter -> ?title:string -> Content.message list -> unit
+
+(** Multiple errors *)
+
+val report_delayed_errors_if_any : unit -> unit
+(** [report_delayed_errors_if_any] checks whether some delayed errors are
+    registered and raises the pending errors if any are present. Current
+    registered delayed errors are also deleted. *)
+
+val delayed_error : ?kind:lsp_error_kind -> 'b -> ('a, 'b) emitter
+
+val wrap_to_delayed_error : ?kind:lsp_error_kind -> 'a -> (unit -> 'a) -> 'a
+(** [wrap_to_delayed_error ?kind dft_val f] protects with a try-with the call of
+    [f] and converts fatal errors (i.e., [error]) into delayed errors. This is
+    useful when no good default value can be provided in a callee without heavy
+    refactoring . The position is guessed by scanning locations from the
+    message's content. *)
+
+val combine_with_pending_errors :
+  Content.t ->
+  Printexc.raw_backtrace ->
+  (Content.t * Printexc.raw_backtrace) list
+(** [combine_with_pending_errors error bt] adds the given [error] and its
+    backtrace [bt] to the current pending errors (if any) and returns the
+    ordered list of errors to eventually emit with [Content.emit_n]. *)
+
+val print_status : ('a, out_channel, unit) format -> 'a
+(** Prints a transient status line to stdout, if it is a tty. Warning: Format
+    and custom tags not supported *)
+
+val print_percent : string -> int -> int -> unit
+(** Prints a transient status line to stdout if it is a tty, ending with a
+    percentage corresponding to the ratio of x and y. *)
+
+val env_forward_vars : unit -> string array
+(** Returns an environment fragment that enables forwarding of the current
+    termimal status to sub-processes, even if they have only indirect access to
+    the underlying terminal. Useful for calling Catala from clerk / ninja. *)

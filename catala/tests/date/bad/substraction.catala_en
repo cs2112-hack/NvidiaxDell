@@ -1,0 +1,36 @@
+```catala
+declaration scope A:
+  output o content boolean
+
+scope A:
+  definition o equals |2024-01-16| - 0 day <= 0 day
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[ERROR]─
+│
+│  Incompatible types:
+│    got      duration,
+│    expected date
+│
+│ While typechecking the following expression:
+├─➤ tests/date/bad/substraction.catala_en:6.23-43:
+│   │
+│ 6 │   definition o equals |2024-01-16| - 0 day <= 0 day
+│   │                       ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+│
+│ Type duration is coming from:
+├─➤ tests/date/bad/substraction.catala_en:6.47-52:
+│   │
+│ 6 │   definition o equals |2024-01-16| - 0 day <= 0 day
+│   │                                               ‾‾‾‾‾
+│
+│ Type date is coming from:
+├─➤ tests/date/bad/substraction.catala_en:6.23-43:
+│   │
+│ 6 │   definition o equals |2024-01-16| - 0 day <= 0 day
+│   │                       ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─
+#return code 123#
+```

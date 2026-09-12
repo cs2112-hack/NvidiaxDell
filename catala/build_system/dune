@@ -1,0 +1,62 @@
+(library
+ (name clerk_driver)
+ (public_name catala.clerk_driver)
+ (libraries
+  ;;  runtime_ocaml
+  catala.catala_utils
+  catala.surface
+  catala.clerk_lib
+  catala.clerk_backend
+  clerk_utils
+  ninja_utils
+  cmdliner
+  re
+  ocolor
+  otoml
+  yojson)
+ (modules clerk_report clerk_runtest clerk_coverage clerk_rules clerk_driver))
+
+(rule
+ (target custom_linking.sexp)
+ (mode fallback)
+ (action
+  (with-stdout-to
+   %{target}
+   (echo "()"))))
+
+(executable
+ (name clerk)
+ (public_name clerk)
+ (flags
+  (:standard
+   (:include custom_linking.sexp)))
+ ; These are actually runtime deps and not link deps
+ (link_deps
+  %{bin:catala}
+  (alias ../runtimes/runtimes))
+ (libraries clerk_driver)
+ (modules clerk)
+ (package catala))
+
+(alias
+ (name clerk)
+ (deps %{bin:clerk} %{bin:catala}))
+
+(include manpages.sexp)
+
+(rule
+ (mode promote)
+ (action
+  (with-stdout-to
+   manpages.sexp
+   (run
+    sh
+    -c
+    "for page in '' $(A=$(%{bin:clerk} 2>/dev/null --__complete --__complete=); if [ $? -eq 0 ]; then echo \"$A\" | awk \"/^item$/ { getline; if (!/^--/) print }\" | sort; else %{bin:clerk} 2>&1 | sed -n \"s/\\(^\\|'\\)[^']*\\('\\|$\\)/ /gp;q\"; fi); do\necho '(rule (alias man) (action (with-stdout-to clerk'${page:+-$page}'.1 (run \%{bin:clerk} '$page' --help=groff))))'\n      done"))))
+
+(install
+ (section man)
+ (package catala)
+ (files
+  (glob_files
+   (*.1 with_prefix man1/))))

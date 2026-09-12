@@ -1,0 +1,152 @@
+## Article
+
+```catala
+#[test] declaration scope A:
+  output x content list of money
+  output y content list of decimal
+
+scope A:
+   definition x equals [$12; $13.50; $11; $100.1; $50.20]
+   definition y equals [1.0; 2.0; 3.0; 4.0; 5.9]
+
+#[test] declaration scope B:
+  a scope A
+  output count content integer
+  output max content money
+  output min content money
+  output total content money
+  output reverse content list of money
+  output ratios1 content (list of money, money)
+  output ratios2 content money
+  output ratios3 content (list of money, money)
+  output sorted content list of money
+
+declaration insert content list of money
+  depends on element content money,
+             lst content list of money
+  equals
+  let (lower, higher) equals
+    combine all x among lst in (lower, higher) initially ([], []) with
+      if x <= element then (lower ++ [x], higher) else (lower, higher ++ [x])
+  in
+  lower ++ [element] ++ higher
+
+scope B:
+  definition count equals
+    combine all x among a.x
+    in acc initially 0
+    with acc + 1
+
+  definition max equals
+    combine all x among a.x
+    in acc initially - $1000
+    with
+      if x > acc then x else acc
+
+  definition min equals
+    combine all x among a.x
+    in acc initially $1000
+    with
+      if x < acc then x else acc
+
+  definition total equals
+    combine all x among a.x
+    in acc initially $0
+    with x + acc
+
+  definition reverse equals
+    combine all x among a.x
+    in acc initially []
+    with [x] ++ acc
+
+  definition ratios1 equals
+    combine all x among a.x
+    in (acc1, acc2) initially ([], $1)
+    with (acc1 ++ [x + acc2], acc2 + x)
+
+  definition ratios2 equals
+    combine all (x, y) among (a.x, a.y)
+    in acc initially $1
+    with acc + x * y
+
+  definition ratios3 equals
+    combine all (x, y) among (a.x, a.y)
+    in (acc1, acc2) initially ([], $1)
+    with (acc1 ++ [x * y], acc2 * y)
+
+  definition sorted equals
+    combine all x among a.x
+    in sorted initially []
+    with insert of (x, sorted)
+```
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[RESULT]─ A ─
+│ x = [
+│       $12.00;
+│       $13.50;
+│       $11.00;
+│       $100.10;
+│       $50.20;
+│     ]
+│ y = [
+│       1.0;
+│       2.0;
+│       3.0;
+│       4.0;
+│       5.9;
+│     ]
+└─
+```
+
+```catala-test-cli
+$ catala test-scope B
+┌─[RESULT]─ B ─
+│ count = 5
+│ max = $100.10
+│ min = $11.00
+│ total = $186.80
+│ reverse = [
+│             $50.20;
+│             $100.10;
+│             $11.00;
+│             $13.50;
+│             $12.00;
+│           ]
+│ ratios1 =
+│   ([
+│      $13.00;
+│      $26.50;
+│      $37.50;
+│      $137.60;
+│      $187.80;
+│    ], $187.80)
+│ ratios2 = $769.58
+│ ratios3 =
+│   ([
+│      $12.00;
+│      $27.00;
+│      $33.00;
+│      $400.40;
+│      $296.18;
+│    ], $141.60)
+│ sorted = [
+│            $11.00;
+│            $12.00;
+│            $13.50;
+│            $50.20;
+│            $100.10;
+│          ]
+└─
+```

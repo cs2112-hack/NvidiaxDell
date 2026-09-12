@@ -1,0 +1,8 @@
+(library
+ (name verification)
+ (public_name catala-proof.verification)
+ (libraries catala.driver z3))
+
+(documentation
+ (package catala-proof)
+ (mld_files verification))

@@ -1,0 +1,30 @@
+{
+  "name": "@catala-lang/rescript-catala",
+  "version": "1.2.1",
+  "description": "ReScript wrapper for the Catala runtime",
+  "scripts": {
+    "clean": "rescript clean",
+    "build": "rescript build -with-deps",
+    "watch": "yarn run build -w"
+  },
+  "main": "index.js",
+  "repository": "https://github.com/CatalaLang/catala",
+  "author": "Emile Rolley <emile.rolley@tuta.io>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/CatalaLang/catala/issues"
+  },
+  "homepage": "https://github.com/CatalaLang/catala/tree/master/runtimes/rescript/README.md",
+  "keywords": [
+    "ReScript",
+    "catala",
+    "runtime"
+  ],
+  "dependencies": {
+    "decco": "^1.6.0",
+    "rescript": "^10.1.4"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

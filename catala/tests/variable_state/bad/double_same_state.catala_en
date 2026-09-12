@@ -1,0 +1,43 @@
+## Test
+
+```catala
+declaration scope A:
+  output foo content integer
+    state bar
+    state bar
+
+scope A:
+  definition foo state bar equals 2
+```
+
+```catala-test-cli
+$ catala Typecheck
+┌─[ERROR]─ 1/2 ─
+│
+│  There are two states with the same name for the same variable: this is
+│  ambiguous. Please change the name of either states.
+│
+│ First instance of state "bar":
+├─➤ tests/variable_state/bad/double_same_state.catala_en:6.11-14:
+│   │
+│ 6 │     state bar
+│   │           ‾‾‾
+├─ Test
+│
+│ Second instance of state "bar":
+├─➤ tests/variable_state/bad/double_same_state.catala_en:7.11-14:
+│   │
+│ 7 │     state bar
+│   │           ‾‾‾
+└─ Test
+┌─[ERROR]─ 2/2 ─
+│
+│  "foo": unknown identifier for a variable of scope A
+│
+├─➤ tests/variable_state/bad/double_same_state.catala_en:10.14-17:
+│    │
+│ 10 │   definition foo state bar equals 2
+│    │              ‾‾‾
+└─ Test
+#return code 123#
+```

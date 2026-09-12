@@ -1,0 +1,33 @@
+## Test
+
+```catala
+declaration scope A:
+  output foo content integer
+    state bar
+    state baz
+
+scope A:
+  definition foo equals 2
+```
+
+```catala-test-cli
+$ catala Typecheck 
+┌─[ERROR]─
+│
+│  This definition does not indicate which state has to be considered for
+│  variable foo.
+│
+├─➤ tests/variable_state/bad/def_no_state.catala_en:10.14-17:
+│    │
+│ 10 │   definition foo equals 2
+│    │              ‾‾‾
+├─ Test
+│
+│ Variable declaration:
+├─➤ tests/variable_state/bad/def_no_state.catala_en:5.10-13:
+│   │
+│ 5 │   output foo content integer
+│   │          ‾‾‾
+└─ Test
+#return code 123#
+```

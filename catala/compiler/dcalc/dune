@@ -1,0 +1,15 @@
+(library
+ (name dcalc)
+ (public_name catala.dcalc)
+ (libraries
+  bindlib
+  catala_utils
+  re
+  ubase
+  catala.runtime_ocaml
+  shared_ast
+  scopelang))
+
+(documentation
+ (package catala)
+ (mld_files dcalc))

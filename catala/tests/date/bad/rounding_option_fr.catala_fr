@@ -1,0 +1,26 @@
+```catala
+déclaration champ d'application Test:
+  interne bday contenu date
+  interne today contenu date
+  résultat ambiguité contenu booléen
+
+champ d'application Test:
+  définition bday égal à |2000-02-29|
+  définition today égal à |2018-03-01|
+  définition ambiguité égal à bday + 18 an <= today 
+```
+
+```catala-test-cli
+$ catala test-scope Test
+┌─[ERROR]─
+│
+│  During evaluation: ambiguous date computation with no rounding mode
+│  specified.
+│
+├─➤ tests/date/bad/rounding_option_fr.catala_fr:10.36-37:
+│    │
+│ 10 │   définition ambiguité égal à bday + 18 an <= today 
+│    │                                    ‾
+└─
+#return code 123#
+```

@@ -1,0 +1,81 @@
+(dirs runtimes compiler build_system tests tests-extra stdlib)
+
+(data_only_dirs syntax_highlighting)
+
+(vendored_dirs catala-examples.tmp french-law.tmp deps)
+
+(copy_files
+ (alias doc)
+ (files compiler/surface/grammar.html))
+
+; Override dune default warnings with sane settings
+
+(env
+ ; don't stop building because of warnings
+ (dev
+  (flags
+   (:standard -warn-error -a+8 -w -67)))
+ ; for CI runs: must fail on warnings
+ (check
+  (flags
+   (:standard
+    -w
+    +a-4-29-40-41-42-44-45-48-58-59-60-63-64-65-66-67-68-69-70
+    -warn-error
+    +a)))
+ ; let us see the warnings even in release mode, but non-fatal
+ (release
+  (flags
+   (:standard
+    -w
+    +a-4-29-40-41-42-44-45-48-58-59-60-63-64-65-66-67-68-69-70
+    -warn-error
+    -a))))
+
+(rule
+ (alias doc)
+ (action
+  (with-stdout-to
+   catala.html
+   (pipe-stdout
+    (run catala --help=groff)
+    (run groff -P -l -P -r -mandoc -Thtml)))))
+
+(rule
+ (alias doc)
+ (action
+  (with-stdout-to
+   clerk.html
+   (pipe-stdout
+    (run clerk --help=groff)
+    (run groff -P -l -P -r -mandoc -Thtml)))))
+
+(alias
+ (name exec)
+ (deps compiler/catala.exe build_system/clerk.exe))
+
+;; This alias contains the minimum requirements to run the tests. It's lighter than building @install which includes the (long) compilation of `catala.js`
+
+(alias
+ (name for-tests)
+ (deps
+  %{bin:catala}
+  %{bin:clerk}
+  (alias runtimes/runtimes)))
+
+(alias
+ (name all)
+ (deps
+  %{bin:catala}
+  %{bin:clerk}
+  (alias compiler/plugins/plugins)))
+
+;; This garbles Clerk output, prefer to run from Makefile
+;; (rule
+;;  (alias runtest)
+;;  (package catala)
+;;  (deps
+;;   (source_tree tests)
+;;   (alias install))
+;;  (action
+;;   (run %{bin:clerk} test --exe %{bin:catala} tests)))

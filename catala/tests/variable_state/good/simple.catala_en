@@ -1,0 +1,35 @@
+## Test
+
+```catala
+#[test] declaration scope A:
+  output foo content integer
+    state bar
+    state baz
+    state fizz
+
+scope A:
+  definition foo state bar equals 1
+
+  definition foo state baz equals foo + 1
+
+  definition foo state fizz equals foo + 1
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[RESULT]─ A ─
+│ foo = 3
+└─
+```

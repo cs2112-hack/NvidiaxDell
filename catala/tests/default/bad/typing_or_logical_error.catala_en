@@ -1,0 +1,30 @@
+###Article
+
+```catala
+declaration scope A:
+  output wrong_definition content integer
+
+scope A:
+ definition wrong_definition = 1
+```
+
+
+```catala-test-cli
+$ catala test-scope A
+┌─[ERROR]─
+│
+│  Syntax error at "=":
+│  » expected 'under condition' followed by a condition, 'equals' followed by
+│    the definition body, or the rest of the variable qualified name.
+│  Those are valid at this point: ".", "under condition", "equals", "state",
+│  "of".
+│
+├─➤ tests/default/bad/typing_or_logical_error.catala_en:8.30-31:
+│   │
+│ 8 │  definition wrong_definition = 1
+│   │                              ‾
+│
+│ Maybe you wanted to write: "."?
+└─
+#return code 123#
+```

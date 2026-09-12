@@ -1,0 +1,61 @@
+> Using Prorata_external as Ext
+
+
+```catala
+#[test] declaration scope S:
+  internal weights content list of money
+  output result1 content list of money
+  output result2 content list of money
+
+scope S:
+  definition weights equals [$4;$1;$1;$4;$1;$1]
+  definition result1 equals Ext.prorata of $10, weights
+  assertion sum money of result1 = $10
+  definition result2 equals Ext.prorata2 of $10, weights
+  assertion sum money of result2 = $10
+```
+
+
+```catala-test-cli
+$ catala test-scope S
+┌─[WARNING]─
+│
+│  Deprecated: the construction 'sum <type> of' is deprecated and will be
+│  removed in the next release.
+│  Use the function 'Money.sum of' instead
+│
+├─➤ tests/modules/good/external_use.catala_en:13.13-33:
+│    │
+│ 13 │   assertion sum money of result1 = $10
+│    │             ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─
+┌─[WARNING]─
+│
+│  Deprecated: the construction 'sum <type> of' is deprecated and will be
+│  removed in the next release.
+│  Use the function 'Money.sum of' instead
+│
+├─➤ tests/modules/good/external_use.catala_en:15.13-33:
+│    │
+│ 15 │   assertion sum money of result2 = $10
+│    │             ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─
+┌─[RESULT]─ S ─
+│ result1 = [
+│             $3.33;
+│             $0.83;
+│             $0.83;
+│             $3.33;
+│             $0.83;
+│             $0.85;
+│           ]
+│ result2 = [
+│             $3.33;
+│             $0.83;
+│             $0.83;
+│             $3.34;
+│             $0.84;
+│             $0.83;
+│           ]
+└─
+```

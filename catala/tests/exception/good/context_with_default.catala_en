@@ -1,0 +1,35 @@
+## Foo
+
+```catala
+#[test] declaration scope Foo:
+  context output x condition
+
+#[test] declaration scope Bar:
+  foo scope Foo
+
+scope Foo:
+  rule x fulfilled
+
+scope Bar:
+  rule foo.x under condition 1 = 2 consequence fulfilled
+  assertion foo.x
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope Bar
+┌─[RESULT]─ Bar ─
+│ Computation successful!
+└─
+```

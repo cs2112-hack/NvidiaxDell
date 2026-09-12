@@ -1,0 +1,37 @@
+## Article
+
+```catala
+#[test] declaration scope A:
+  output x content decimal
+  output y content decimal
+  output x1 content decimal
+  output y1 content decimal
+
+scope A:
+  definition x equals 84.648665
+  definition y equals 4.368297
+  definition x1 equals round of x
+  definition y1 equals round of y
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[RESULT]─ A ─
+│ x = 84.648,665
+│ y = 4.368,297
+│ x1 = 85.0
+│ y1 = 4.0
+└─
+```

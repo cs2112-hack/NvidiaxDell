@@ -1,0 +1,1633 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2025 Inria, contributor:
+   Vincent Botbol <vincent.botbol@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+open Catala_utils
+open Shared_ast
+open Ast
+module Runtime = Catala_runtime
+module D = Dcalc.Ast
+module L = Lcalc.Ast
+open Format
+
+let pp_comma ppf () = fprintf ppf ",@ "
+let pp_skip_line ppf () = fprintf ppf "@\n@,"
+
+let pp_print_list_padded ?pp_sep pp ppf l =
+  if l = [] then ()
+  else (
+    pp_skip_line ppf ();
+    (pp_print_list ?pp_sep pp) ppf l)
+
+let format_doc
+    ?(params : (string * Pos.t) list option)
+    (get_pos : 'a -> Pos.t)
+    ppf
+    (v : 'a) =
+  let param_to_text (n, d) =
+    let d = String.trim d in
+    let s = Format.asprintf "@[<hov>%a@]" pp_print_text d in
+    asprintf "@@param %s @[<hov>%a@]" n pp_print_text s
+  in
+  let pp_content ppf s =
+    let s = Format.asprintf "@[<hov>%a@]" pp_print_text s in
+    let l = String.split_on_char '\n' s |> List.map (fun l -> "* " ^ l) in
+    let pp_item ppf s = fprintf ppf "@[<h>%s@]" s in
+    Format.pp_open_vbox ppf 0;
+    (pp_print_list ~pp_sep:pp_print_cut pp_item) ppf l;
+    Format.pp_close_box ppf ()
+  in
+  let get_doc_attrs p =
+    Pos.get_attrs p (function Doc (d, _p) -> Some d | _ -> None)
+    |> function
+    | [] -> None
+    | l -> Some (String.concat "\n" (List.rev_map String.trim l))
+  in
+  let pos = get_pos v in
+  let doc_opt = get_doc_attrs pos in
+  let params_with_doc =
+    Option.map
+      (List.filter_map (fun (n, p) ->
+           get_doc_attrs p |> Option.map (fun d -> param_to_text (n, d))))
+      params
+  in
+  match doc_opt, params_with_doc with
+  | None, None -> ()
+  | Some d, (None | Some []) ->
+    fprintf ppf "@[<v 1>/**@\n%a@]@\n */@\n" pp_content (String.trim d)
+  | None, Some params ->
+    fprintf ppf "@[<hov 1>/**@\n%a@]@\n */@\n"
+      (pp_print_list ~pp_sep:pp_print_cut pp_content)
+      params
+  | Some d, Some params ->
+    fprintf ppf "@[<v 1>/**@\n%a@\n@\n%a@]@\n */@\n" pp_content (String.trim d)
+      (pp_print_list ~pp_sep:pp_print_cut pp_content)
+      params
+
+type context = {
+  decl_ctx : decl_ctx;
+  in_scope_structs : StructName.Set.t;
+  out_scope_structs : StructName.Set.t;
+  scope_func_names : ScopeName.t FuncName.Map.t;
+  in_globals : bool;
+  global_funcs : FuncName.Set.t;
+  global_vars : VarName.Set.t;
+  var_def_funcs : FuncName.Set.t;
+  external_global_funcs : String.Set.t;
+  external_global_vars : String.Set.t;
+  external_scopes : string String.Map.t;
+}
+
+let java_keywords =
+  (* list taken from
+     https://docs.oracle.com/javase/tutorial/java/nutsandbolts/_keywords.html *)
+  [
+    "abstract";
+    "continue";
+    "for";
+    "new";
+    "switch";
+    "assert";
+    "default";
+    "goto";
+    "package";
+    "synchronized";
+    "boolean";
+    "do";
+    "if";
+    "private";
+    "this";
+    "break";
+    "double";
+    "implements";
+    "protected";
+    "throw";
+    "byte";
+    "else";
+    "import";
+    "public";
+    "throws";
+    "case";
+    "enum";
+    "instanceof";
+    "return";
+    "transient";
+    "catch";
+    "extends";
+    "int";
+    "short";
+    "try";
+    "char";
+    "final";
+    "interface";
+    "static";
+    "void";
+    "class";
+    "finally";
+    "long";
+    "strictfp";
+    "volatile";
+    "const";
+    "float";
+    "native";
+    "super";
+    "while";
+    "String";
+    (* Reserved for generation *)
+    "Globals";
+  ]
+(* todo: reserved names should also include built-in types and everything
+   exposed by the runtime. *)
+
+let op_needs_pos (type a) (op : a Op.t) ty =
+  match op with
+  | Div_int_int | Div_rat_rat | Div_mon_mon | Div_mon_int | Div_mon_rat
+  | Div_dur_dur | Add_dat_dur _ | Sub_dat_dur _ | Map2 | Sort _ ->
+    true
+  | Op.Eq | Lt | Lte | Gt | Gte -> (
+    match ty with
+    | TLit (TUnit | TBool | TInt | TMoney | TRat | TDate) -> false
+    | _ -> true)
+  | _ -> false
+
+let renaming =
+  Renaming.program () ~reserved:java_keywords ~skip_constant_binders:false
+    ~constant_binder_name:None ~namespaced_fields:true ~namespaced_constrs:true
+    ~prefix_module:false ~modnames_conflict:true
+    ~f_var:(String.to_camel_case ~capitalize:false)
+    ~f_struct:String.to_camel_case ~f_enum:String.to_camel_case
+    ~f_abstract_type:String.to_camel_case
+
+let format_qualified
+    (type id)
+    (module Id : Uid.Qualified with type t = id)
+    ppf
+    (s : id) =
+  match List.rev (Id.path s) with
+  | [] -> pp_print_string ppf (Id.base s)
+  | m :: _ ->
+    fprintf ppf "%a.%s" ModuleName.format (ModuleName.normalise m) (Id.base s)
+
+let format_struct = format_qualified (module StructName)
+let format_enum = format_qualified (module EnumName)
+let format_scope = format_qualified (module ScopeName)
+
+let format_op (ppf : formatter) (op : operator Mark.pos) : unit =
+  match Mark.remove op with
+  | Tag _ -> (* Handled by the caller *) assert false
+  | Minus_int | Minus_rat | Minus_mon | Minus_dur ->
+    pp_print_string ppf "subtract"
+  | Not -> pp_print_string ppf "not"
+  | Length -> pp_print_string ppf "length"
+  | ToRat_int | ToRat_mon -> pp_print_string ppf "asDecimal"
+  | ToInt_rat | ToInt_mon -> pp_print_string ppf "asInteger"
+  | ToMoney_rat | ToMoney_int -> pp_print_string ppf "asMoney"
+  | Round_mon -> pp_print_string ppf "round"
+  | Round_rat -> pp_print_string ppf "roundDecimal"
+  | Concat -> pp_print_string ppf "append"
+  | Add_rat_rat | Add_mon_mon | Add_dur_dur | Add_int_int ->
+    pp_print_string ppf "add"
+  | Add_dat_dur RoundUp -> fprintf ppf "addDurationRoundUp"
+  | Add_dat_dur RoundDown -> fprintf ppf "addDurationRoundDown"
+  | Add_dat_dur AbortOnRound -> fprintf ppf "addDurationAbortOnRound"
+  | Sub_int_int | Sub_rat_rat | Sub_mon_mon | Sub_dat_dat | Sub_dur_dur ->
+    pp_print_string ppf "subtract"
+  | Sub_dat_dur RoundUp -> fprintf ppf "subDurationRoundUp"
+  | Sub_dat_dur RoundDown -> fprintf ppf "subDurationRoundDown"
+  | Sub_dat_dur AbortOnRound -> fprintf ppf "subDurationAbortOnRound"
+  | Mult_int_int | Mult_rat_rat | Mult_mon_int | Mult_mon_rat | Mult_dur_int ->
+    pp_print_string ppf "multiply"
+  | Div_int_int | Div_rat_rat | Div_mon_mon | Div_mon_int | Div_mon_rat
+  | Div_dur_dur ->
+    pp_print_string ppf "divide"
+  | And -> pp_print_string ppf "and"
+  | Or -> pp_print_string ppf "or"
+  | Eq ->
+    (* FIXME: position arg and errors *)
+    pp_print_string ppf "equalsTo"
+  | Xor -> pp_print_string ppf "xor"
+  | Lt -> pp_print_string ppf "lessThan"
+  | Lte -> pp_print_string ppf "lessEqThan"
+  | Gt -> pp_print_string ppf "greaterThan"
+  | Gte -> pp_print_string ppf "greaterEqThan"
+  | Map -> pp_print_string ppf "map"
+  | Map2 -> pp_print_string ppf "map2"
+  | Reduce -> pp_print_string ppf "reduce"
+  | Filter -> pp_print_string ppf "filter"
+  | Find -> pp_print_string ppf "find"
+  | Sort `Asc -> pp_print_string ppf "sort_asc"
+  | Sort `Desc -> pp_print_string ppf "sort_desc"
+  | Fold -> pp_print_string ppf "foldLeft"
+  | HandleExceptions -> pp_print_string ppf "CatalaConflict.handleExceptions"
+  | ArrayAccess _ -> fprintf ppf "get"
+  | ConstructorCheck _ -> assert false
+  | ValueFromJson _ ->
+    (* Handled in format_expression call *)
+    Message.error ~internal:true "ValueFromJSON incorrectly reached"
+  | DebugPrint _ ->
+    (* Handled in format_expression call *)
+    Message.error ~internal:true "DebugPrint incorrectly reached"
+  | FromClosureEnv | ToClosureEnv -> failwith "unimplemented"
+
+let format_visibility ppf = function
+  | Private -> () (* nothing => package visibility *)
+  | Public -> fprintf ppf "public "
+
+let rec format_typ ?(wildcard = false) ?(diamond = true) ctx ppf (typ : typ) =
+  let format_typ = format_typ ~wildcard ~diamond in
+  let typ = Type.unquantify typ in
+  match Mark.remove typ with
+  | TLit TBool -> fprintf ppf "CatalaBool"
+  | TLit TUnit -> fprintf ppf "CatalaUnit"
+  | TLit TInt -> fprintf ppf "CatalaInteger"
+  | TLit TRat -> fprintf ppf "CatalaDecimal"
+  | TLit TMoney -> fprintf ppf "CatalaMoney"
+  | TLit TDate -> fprintf ppf "CatalaDate"
+  | TLit TDuration -> fprintf ppf "CatalaDuration"
+  | TLit TPos -> fprintf ppf "CatalaPosition"
+  | TArrow ([ty], ret_ty) ->
+    if diamond then
+      fprintf ppf "CatalaFunction<%a,%a>" (format_typ ctx) ty (format_typ ctx)
+        ret_ty
+    else fprintf ppf "CatalaFunction"
+  | TArrow (_args_ty, ret_ty) ->
+    if diamond then
+      fprintf ppf "CatalaFunction<CatalaTuple,%a>" (format_typ ctx) ret_ty
+    else fprintf ppf "CatalaFunction"
+  | TTuple _ -> fprintf ppf "CatalaTuple"
+  | TStruct sname when sname == ConstantNames.source_pos_struct ->
+    pp_print_string ppf "CatalaPosition"
+  | TStruct sname -> format_struct ppf sname
+  | TEnum ename -> format_enum ppf ename
+  | TAbstract aname -> format_qualified (module AbstractType) ppf aname
+  | TOption typ ->
+    if diamond then fprintf ppf "CatalaOption<%a>" (format_typ ctx) typ
+    else fprintf ppf "CatalaOption"
+  | TArray typ ->
+    if diamond then fprintf ppf "CatalaArray<%a>" (format_typ ctx) typ
+    else fprintf ppf "CatalaArray"
+  | TDefault typ -> (format_typ ctx) ppf typ
+  | TVar _ ->
+    if wildcard then fprintf ppf "? extends CatalaValue<?>"
+    else fprintf ppf "CatalaValue<?>"
+  | TForAll _ -> assert false
+  | TClosureEnv -> assert false
+  | TError -> assert false
+
+let format_struct_params ctx ppf (fields : typ StructField.Map.t) =
+  let fields = StructField.Map.bindings fields in
+  pp_print_list ~pp_sep:pp_comma
+    (fun ppf (sfield, typ) ->
+      fprintf ppf "final %a %a" (format_typ ctx) typ StructField.format sfield)
+    ppf fields
+
+let rec format_lit (ppf : formatter) (l : lit Mark.pos) : unit =
+  match Mark.remove l with
+  | LBool true -> pp_print_string ppf "CatalaBool.TRUE"
+  | LBool false -> pp_print_string ppf "CatalaBool.FALSE"
+  | LInt i when Z.fits_int64 i ->
+    fprintf ppf "new CatalaInteger(%s%s)"
+      (Runtime.integer_to_string i)
+      (if Z.fits_int32 i then "" else "l")
+  | LInt i ->
+    fprintf ppf "new CatalaInteger(\"%s\")" (Runtime.integer_to_string i)
+  | LUnit -> pp_print_string ppf "null"
+  | LRat i ->
+    if Q.den i = Z.one then
+      fprintf ppf "CatalaDecimal.of(%a)" format_lit
+        (Mark.copy l (LInt (Q.num i)))
+    else
+      fprintf ppf "new CatalaDecimal(%a, %a)" format_lit
+        (Mark.copy l (LInt (Q.num i)))
+        format_lit
+        (Mark.copy l (LInt (Q.den i)))
+  | LMoney e when Z.fits_int64 e ->
+    let z_100 = Z.of_int 100 in
+    if Z.(rem e z_100 = zero) then
+      fprintf ppf "new CatalaMoney(%s%s)"
+        Runtime.(integer_to_string (Z.div e z_100))
+        (if Z.fits_int32 e then "" else "l")
+    else
+      fprintf ppf "CatalaMoney.ofCents(%s%s)"
+        Runtime.(integer_to_string (money_to_cents e))
+        (if Z.fits_int32 e then "" else "l")
+  | LMoney e ->
+    fprintf ppf "CatalaMoney.ofCents(\"%s\")"
+      (Runtime.integer_to_string (Runtime.money_to_cents e))
+  | LDate d ->
+    fprintf ppf "CatalaDate.of(%d,%d,%d)"
+      (Runtime.integer_to_int (Runtime.year_of_date d))
+      (Runtime.integer_to_int (Runtime.month_number_of_date d))
+      (Runtime.integer_to_int (Runtime.day_of_month_of_date d))
+  | LDuration d ->
+    let years, months, days = Runtime.duration_to_years_months_days d in
+    fprintf ppf "CatalaDuration.of(%d,%d,%d)" years months days
+
+let get_list_and_args_expr (op : Ast.operator Mark.pos) args =
+  match Mark.remove op, args with
+  | (Filter | Map), [f; l] -> l, [f]
+  | Fold, [f; f_dft; l] -> l, [f; f_dft]
+  | Reduce, [f; l] -> l, [f]
+  | Map2, [pos; f; l1; l2] -> l1, [pos; f; l2]
+  | Concat, [l1; l2] -> l1, [l2]
+  | Find, [f; l] -> l, [f]
+  | Sort _, [pos; f; l] -> l, [pos; f]
+  | _ -> assert false
+
+let fill_struct_bindings
+    (ctx : context)
+    struct_name
+    (given : expr StructField.Map.t) =
+  let expected : expr StructField.Map.t =
+    StructName.Map.find struct_name ctx.decl_ctx.ctx_structs
+    |> StructField.Map.map (fun _ ->
+        ( EInj
+            {
+              name = ConstantNames.option_enum;
+              cons = ConstantNames.none_constr;
+              e1 = ELit LUnit, Pos.void;
+              expr_typ = TOption (Type.any Pos.void), Pos.void;
+            },
+          Pos.void ))
+  in
+  StructField.Map.(
+    merge
+      (fun _f e g ->
+        match e, g with
+        | None, None -> assert false
+        | Some l, None | _, Some l -> Some l)
+      expected given
+    |> bindings)
+
+let poly_cast ctx ppf e fmt =
+  match Mark.remove e with
+  | EApp { poly = true; typ; _ } ->
+    fprintf ppf
+      ("@[<hv 2>CatalaValue.<%a>cast@;<0 -1>(" ^^ fmt ^^ ")@]")
+      (format_typ ctx) typ
+  | _ -> fprintf ppf fmt
+
+(* Quote as a Java string literal, escaping every non-ASCII character: javac
+   reads source in the platform encoding (cp1252 on Windows), which mangles or
+   rejects raw UTF-8. Java expands [\uXXXX] — a UTF-16 code unit — back before
+   lexing, so the string value is unchanged. *)
+let java_string s =
+  let utf16 = Buffer.create (2 * String.length s) in
+  Seq.iter (Buffer.add_utf_16be_uchar utf16) (String.utf8_seq (String.quote s));
+  let utf16 = Buffer.contents utf16 in
+  let buf = Buffer.create (String.length utf16) in
+  for i = 0 to (String.length utf16 / 2) - 1 do
+    let u = String.get_uint16_be utf16 (2 * i) in
+    if u < 0x80 then Buffer.add_char buf (Char.chr u)
+    else Format.ksprintf (Buffer.add_string buf) "\\u%04x" u
+  done;
+  Buffer.contents buf
+
+(* [java_string] the filename so Windows backslashes survive as a Java string
+   literal (unescaped "C:\proj\mod" is an illegal escape). *)
+let format_pos (ppf : formatter) (pos : Pos.t) : unit =
+  fprintf ppf
+    "@[<hv 2>new CatalaPosition@;<0 -1>(@[<hov>%s,@ %d, %d,@ %d, %d@])@]"
+    (java_string (Pos.get_file pos))
+    (Pos.get_start_line pos) (Pos.get_start_column pos) (Pos.get_end_line pos)
+    (Pos.get_end_column pos)
+
+let rec format_expression ctx (ppf : formatter) (e : expr) : unit =
+  let {
+    in_scope_structs;
+    out_scope_structs;
+    scope_func_names;
+    global_vars;
+    global_funcs;
+    in_globals;
+    _;
+  } =
+    ctx
+  in
+  match Mark.remove e with
+  | EVar v ->
+    if VarName.Set.mem v global_vars && not in_globals then
+      fprintf ppf "Globals.";
+    VarName.format ppf v
+  | EFunc f ->
+    if FuncName.Set.mem f global_funcs && not in_globals then
+      fprintf ppf "Globals.";
+    FuncName.format ppf f
+  | EStruct { name = s; fields } when s == ConstantNames.source_pos_struct ->
+    fprintf ppf "new CatalaPosition(%a)"
+      (pp_print_list ~pp_sep:pp_comma (fun ppf (_struct_field, e) ->
+           fprintf ppf "%a" (format_expression ctx) e))
+      (StructField.Map.bindings fields)
+  | EStruct { fields = es; name = s } ->
+    if StructName.Set.mem s in_scope_structs then begin
+      (pp_print_list ~pp_sep:pp_comma (fun ppf (_struct_field, e) ->
+           format_expression ctx ppf e))
+        ppf
+        (fill_struct_bindings ctx s es)
+    end
+    else if StructName.Set.mem s out_scope_structs then begin
+      fprintf ppf "new %a(new %a.%sOut(%a))" format_struct s format_struct s
+        (StructName.base s)
+        (pp_print_list ~pp_sep:pp_comma (fun ppf (_struct_field, e) ->
+             fprintf ppf "%a" (format_expression ctx) e))
+        (StructField.Map.bindings es)
+    end
+    else
+      fprintf ppf "new %a(%a)" format_struct s
+        (pp_print_list ~pp_sep:pp_comma (fun ppf (_struct_field, e) ->
+             fprintf ppf "%a" (format_expression ctx) e))
+        (fill_struct_bindings ctx s es)
+  | EStructFieldAccess { name; field; _ }
+    when StructName.Set.mem name in_scope_structs ->
+    StructField.format ppf field
+  | EStructFieldAccess { e1 = (EVar _, _) as e1; field; _ } ->
+    fprintf ppf "%a.%a" (format_expression ctx) e1 StructField.format field
+  | EStructFieldAccess { e1; field; _ } ->
+    fprintf ppf "(%a).%a" (format_expression ctx) e1 StructField.format field
+  | EInj { cons; name = e_name; _ }
+    when EnumName.equal e_name ConstantNames.option_enum
+         && EnumConstructor.equal cons ConstantNames.none_constr ->
+    fprintf ppf "CatalaOption.none()"
+  | EInj { e1 = e; cons; name = e_name; _ }
+    when EnumName.equal e_name ConstantNames.option_enum
+         && EnumConstructor.equal cons ConstantNames.some_constr ->
+    fprintf ppf "@[<hv 2>CatalaOption.some@;<0 -1>(%a)@]"
+      (format_expression ctx) e
+  | EInj { e1 = ELit LUnit, _; cons; name = enum_name; _ } ->
+    fprintf ppf "%a.%a" format_enum enum_name EnumConstructor.format cons
+  | EInj { e1 = e; cons; name = enum_name; _ } ->
+    fprintf ppf "%a.make%a(%a)" format_enum enum_name EnumConstructor.format
+      cons (format_expression ctx) e
+  | EArray { elts; ty } ->
+    fprintf ppf "@[<hv 2>new CatalaArray<%a>@;<0 -1>(%a)@]" (format_typ ctx) ty
+      (pp_print_list ~pp_sep:pp_comma (fun ppf e ->
+           fprintf ppf "%a" (format_expression ctx) e))
+      elts
+  | ELit l -> fprintf ppf "%a" format_lit (Mark.copy e l)
+  | EPosLit -> format_pos ppf (Mark.get e)
+  | EAppOp { op = ValueFromJson (ty, str), p; args = [_e]; _ } ->
+    let encoded_string = java_string str in
+    fprintf ppf "%a.fromJSONString(%a ,%s)"
+      (format_typ ~wildcard:false ~diamond:false ctx)
+      ty (format_expression ctx) (EPosLit, p) encoded_string
+  | EAppOp { op = DebugPrint str, _; args = [e]; _ } ->
+    fprintf ppf "System.err.println(%s + %a.toString())"
+      (java_string (str ^ " = "))
+      (format_expression ctx) e
+  | EAppOp { op = (HandleExceptions, _) as op; args = exprs; _ } ->
+    fprintf ppf "@[<hv 2>%a@;<0 -1>(%a@])" format_op op
+      (pp_print_list ~pp_sep:pp_comma (format_expression ctx))
+      exprs
+  | EAppOp { op = Concat, _; args = [(EArray { elts = []; _ }, _); e2]; _ } ->
+    (* Do not append to empty list *)
+    format_expression ctx ppf e2
+  | EAppOp
+      {
+        op =
+          ((Map | Filter | Reduce | Fold | Map2 | Concat | Find | Sort _), _) as
+          op;
+        args;
+        _;
+      } ->
+    let l, args = get_list_and_args_expr op args in
+    fprintf ppf "@[<hv 2>%a.%a@;<0 -1>(%a@])"
+      (format_expression_with_paren ctx)
+      l format_op op
+      (pp_print_list ~pp_sep:pp_comma (fun ppf e -> format_expression ctx ppf e))
+      args
+  | EAppOp { op; args = [arg1; arg2]; _ } ->
+    fprintf ppf "@[<hv 2>%a.%a@;<0 -1>(%a@])"
+      (format_expression_with_paren ctx)
+      arg1 format_op op (format_expression ctx) arg2
+  | EAppOp { op = Tag _, _; args = [_]; tys = _ }
+    when Global.options.trace <> None ->
+    (* FIXME: enforce no trace in scalc operators *)
+    assert false
+  | EAppOp { op = (Not, _) as op; args = [arg1]; _ } ->
+    fprintf ppf "%a.%a()" (format_expression ctx) arg1 format_op op
+  | EAppOp
+      {
+        op = (Minus_int | Minus_rat | Minus_mon | Minus_dur), _;
+        args = [arg1];
+        _;
+      } ->
+    fprintf ppf "%a.negate()" (format_expression_with_paren ctx) arg1
+  | EAppOp { op = (ArrayAccess n, _) as op; args = [arg1]; _ } ->
+    fprintf ppf "%a.%a(%d)"
+      (format_expression_with_paren ctx)
+      arg1 format_op op n
+  | EAppOp { op = ConstructorCheck (enum, case), _; args = [arg1]; _ } ->
+    if EnumName.equal enum ConstantNames.option_enum then
+      if EnumConstructor.equal case ConstantNames.none_constr then
+        fprintf ppf "CatalaBool.of(%a.isNone())"
+          (format_expression_with_paren ctx)
+          arg1
+      else
+        fprintf ppf "CatalaBool.of(%a.isSome())"
+          (format_expression_with_paren ctx)
+          arg1
+    else
+      fprintf ppf "%a.kind == %a.%a"
+        (format_expression_with_paren ctx)
+        arg1 format_enum enum EnumConstructor.format case
+  | EAppOp { op; args = [arg1]; _ } ->
+    fprintf ppf "%a.%a()" (format_expression_with_paren ctx) arg1 format_op op
+  | EApp { f = EFunc fname, _; args; _ }
+    when FuncName.Set.mem fname global_funcs ->
+    poly_cast ctx ppf e "@[<hv 2>%s%a.apply@;<0 -1>(%a)@]"
+      (if in_globals then "" else "Globals.")
+      FuncName.format fname
+      (format_currified_args ctx)
+      args
+  | EApp { f = EExternal { modname; name }, _; args; _ }
+    when String.Set.mem (Mark.remove name) ctx.external_global_funcs ->
+    poly_cast ctx ppf e "@[<hv 2>%a.Globals.%s.apply@;<0 -1>(%a)@]"
+      VarName.format (Mark.remove modname) (Mark.remove name)
+      (format_currified_args ctx)
+      args
+  | EApp { f = EFunc fname, _; args; _ }
+    when FuncName.Map.mem fname scope_func_names ->
+    fprintf ppf "@[<hv 2>new %a@;<0 -1>(%a)@]" format_scope
+      (FuncName.Map.find fname scope_func_names)
+      (pp_print_list ~pp_sep:pp_comma (format_expression ctx))
+      args
+  | EApp { f = EExternal { modname; name }, _; args; _ }
+    when String.Map.mem (Mark.remove name) ctx.external_scopes ->
+    let scope_name = String.Map.find (Mark.remove name) ctx.external_scopes in
+    fprintf ppf "@[<hv 0>new %a.%s@;<0 -1>(%a)@]" VarName.format
+      (Mark.remove modname) scope_name
+      (pp_print_list ~pp_sep:pp_comma (format_expression ctx))
+      args
+  | EApp { f; args; _ } ->
+    poly_cast ctx ppf e "@[<hv 0>%a.apply(%a)@]" (format_expression ctx) f
+      (format_currified_args ctx)
+      args
+  | EAppOp { args = []; _ } -> assert false
+  | EAppOp { op; args = arg_pos :: arg1 :: args; tys = (TLit TPos, _) :: _ } ->
+    fprintf ppf "@[<hv 2>%a.%a@;<0 -1>(%a)@]"
+      (format_expression_with_paren ctx)
+      arg1 format_op op
+      (pp_print_list ~pp_sep:pp_comma (format_expression ctx))
+      (arg_pos :: args)
+  | EAppOp { op; args = arg1 :: args; _ } ->
+    fprintf ppf "@[<hv 2>%a.%a@;<0 -1>(%a)@]" (format_expression ctx) arg1
+      format_op op
+      (pp_print_list ~pp_sep:pp_comma (format_expression ctx))
+      args
+  | ETuple es ->
+    fprintf ppf "@[<hv 2>new CatalaTuple@;<0 -1>(%a)@]"
+      (pp_print_list ~pp_sep:pp_comma (fun ppf e ->
+           fprintf ppf "%a" (format_expression ctx) e))
+      es
+  | ETupleAccess { e1; index; typ = (TArrow _, _) as typ } ->
+    fprintf ppf "(%a)@;<0 -1>(%a.get(%d))" (format_typ ctx) typ
+      (format_expression_with_paren ctx)
+      e1 index
+  | ETupleAccess { e1; index; typ } ->
+    fprintf ppf "CatalaValue.<%a>cast@;<0 -1>(%a.get(%d))" (format_typ ctx) typ
+      (format_expression_with_paren ctx)
+      e1 index
+  | EExternal { modname; name }
+    when String.Set.mem (Mark.remove name) ctx.external_global_vars ->
+    fprintf ppf "%a.Globals.%s" VarName.format (Mark.remove modname)
+      (Mark.remove name)
+  | EExternal { modname; name } ->
+    fprintf ppf "%a.Globals.%s" VarName.format (Mark.remove modname)
+      (Mark.remove name)
+
+and format_expression_with_paren ctx (ppf : formatter) (e : expr) : unit =
+  match Mark.remove e with
+  | EAppOp _ | EInj _ | ETupleAccess _ | EStructFieldAccess _ | EFunc _ | EVar _
+    ->
+    format_expression ctx ppf e
+  | EExternal _ | EPosLit | EApp _ | ELit _ | EArray _ | ETuple _ | EStruct _ ->
+    fprintf ppf "(%a)" (format_expression ctx) e
+
+and format_currified_args ctx ppf = function
+  | [] -> fprintf ppf "CatalaUnit.INSTANCE"
+  | [arg] -> (format_expression ctx) ppf arg
+  | args ->
+    fprintf ppf "@[<hov 4>new CatalaTuple@;<0 -1>(%a)@]"
+      (pp_print_list ~pp_sep:pp_comma (format_expression ctx))
+      args
+
+let rec format_stmt ~toplevel (ctx : context) ppf (stmt : Ast.stmt Mark.pos) =
+  match Mark.remove stmt with
+  | SLocalDecl { typ = TLit TUnit, _; _ } -> ()
+  | SLocalDef { expr = e; typ = TLit TUnit, _; _ } ->
+    Format.fprintf ppf "@[<hov 4>%a;@]" (format_expression ctx) e
+  | SLocalDecl { name; typ } ->
+    fprintf ppf "@[<hov 4>final %a@ %a;@]" (format_typ ctx) typ VarName.format
+      (Mark.remove name)
+  | SLocalDef { name; expr; _ } ->
+    fprintf ppf "@[<hov 4>%a = %a;@]" VarName.format (Mark.remove name)
+      (format_expression ctx) expr
+  | SReturn (EStruct { fields; _ }, _) when toplevel ->
+    (* we are in a constructor: assign outputs *)
+    let pp_self_assign ppf (field, expr) =
+      fprintf ppf "@[<hov 4>this.%a = %a;@]" StructField.format field
+        (format_expression ctx) expr
+    in
+    if not (StructField.Map.is_empty fields) then
+      fprintf ppf "@[<v>%a@]"
+        (pp_print_list ~pp_sep:pp_print_space pp_self_assign)
+        (StructField.Map.bindings fields)
+  | SReturn expr ->
+    fprintf ppf "@[<hov 4>return %a;@]" (format_expression ctx) expr
+  | SInnerFuncDef { name; func } ->
+    fprintf ppf "%a;" (format_inner_func_def ctx) (name, func)
+  | SLocalInit { name; typ; expr } ->
+    fprintf ppf "@[<hov 4>%a %a =@ %a;@]" (format_typ ctx) typ VarName.format
+      (Mark.remove name) (format_expression ctx) expr
+  | SFatalError { pos_expr; error } ->
+    fprintf ppf "throw CatalaError.error(CatalaError.Error.%s, %a%s);"
+      (Runtime.error_to_string error)
+      (format_expression ctx) pos_expr
+      (match
+         Pos.get_attr (Mark.get stmt) (function
+           | ErrorMessage m -> Some m
+           | _ -> None)
+       with
+      | None -> ""
+      | Some m -> ", " ^ java_string m)
+  | SIfThenElse
+      {
+        if_expr;
+        then_block;
+        else_block =
+          [
+            ( SLocalDef { expr = ELit LUnit, _; _ }, _
+            | SReturn (ELit LUnit, _), _ );
+          ];
+      } ->
+    fprintf ppf "@[<v 4>if (%a.asBoolean()) {@ %a@;<1 -4>}@]"
+      (format_expression_with_paren ctx)
+      if_expr (format_block ctx) then_block
+  | SIfThenElse { if_expr; then_block; else_block } ->
+    let rec pr_else = function
+      | [(SIfThenElse { if_expr; then_block; else_block }, _)] ->
+        Format.fprintf ppf " else if (%a.asBoolean()) {@ %a@;<1 -4>}"
+          (format_expression ctx) if_expr (format_block ctx) then_block;
+        pr_else else_block
+      | [(SLocalDef { expr = ELit LUnit, _; _ }, _)]
+      | [(SReturn (ELit LUnit, _), _)] ->
+        ()
+      | else_block ->
+        Format.fprintf ppf " else {@ %a@;<1 -4>}" (format_block ctx) else_block
+    in
+    Format.fprintf ppf "@[<v 4>if (%a.asBoolean()) {@ %a@;<1 -4>}"
+      (format_expression ctx) if_expr (format_block ctx) then_block;
+    pr_else else_block;
+    pp_close_box ppf ()
+  | SSwitch
+      {
+        switch_var;
+        switch_var_typ = TOption typ, _;
+        enum_name = _;
+        switch_cases = [none; some];
+      } ->
+    let cond_format ppf = fprintf ppf "%a.isNone()" VarName.format switch_var in
+    let cons_format ppf = format_block ctx ppf none.case_block in
+    let alt_format ppf =
+      (match Mark.remove typ with
+      | TLit TUnit -> ()
+      | _ ->
+        let s = VarName.to_string some.payload_var_name in
+        if s = "" || (s.[0] >= '0' && s.[0] <= '9') then
+          (* Do not generate invalid initializers: it might be the case when
+             considering a wildcard var *)
+          ()
+        else
+          fprintf ppf "%a %s = %a.get();@\n" (format_typ ctx) typ s
+            VarName.format switch_var);
+      format_block ctx ppf some.case_block
+    in
+    format_if ppf ~cond_format ~cons_format ~alt_format
+  | SSwitch { switch_var; switch_var_typ = _; enum_name; switch_cases } ->
+    let format_init_case ppf (enum_cstr, var, (typ : typ)) =
+      match Mark.remove typ with
+      | TLit TUnit -> ()
+      | _ ->
+        let s = VarName.to_string var in
+        if s = "" || (s.[0] >= '0' && s.[0] <= '9') then
+          (* Do not generate invalid initializers: it might be the case when
+             considering a wildcard var *)
+          ()
+        else
+          fprintf ppf "%a %a = %a.get%aContents();@ " (format_typ ctx) typ
+            VarName.format var VarName.format switch_var EnumConstructor.format
+            enum_cstr
+    in
+    let format_switch_case
+        ppf
+        (enum_cstr, { case_block; payload_var_name; payload_var_typ }) =
+      let format_break ppf =
+        let has_return =
+          Utils.has_block_in_all_branches
+            (function SReturn _, _ | SFatalError _, _ -> true | _ -> false)
+            case_block
+        in
+        if not has_return then (
+          pp_print_space ppf ();
+          fprintf ppf "break;")
+      in
+      fprintf ppf "@[<v 4>case %a: {@ %a%a%t@;<1 -4>}@]" EnumConstructor.format
+        enum_cstr format_init_case
+        (enum_cstr, payload_var_name, payload_var_typ)
+        (format_block ctx) case_block format_break
+    in
+    let enum_cstrs =
+      EnumName.Map.find enum_name ctx.decl_ctx.ctx_enums
+      |> EnumConstructor.Map.keys
+    in
+    let pp_default_initializer ppf =
+      fprintf ppf
+        "@\n\
+         @[<v 4>default: {@ throw new RuntimeException(\"Unreachable case\");@;\
+         <1 -4>}@]"
+    in
+    fprintf ppf "@[<v 4>switch (%a.kind) {@ %a%t@;<1 -4>}@]" VarName.format
+      switch_var
+      (pp_print_list ~pp_sep:pp_print_space format_switch_case)
+      (List.combine enum_cstrs switch_cases)
+      pp_default_initializer
+  | SBeginTrace t -> format_begin_trace ctx ppf t
+  | SEndTrace { ret_var = None } -> fprintf ppf "CatalaTrace.end();"
+  | SEndTrace { ret_var = Some v } ->
+    fprintf ppf "CatalaTrace.end(%a);" VarName.format v
+  | SSpecialOp _ -> .
+
+and format_inner_func_def ctx ppf (name, func) =
+  fprintf ppf "@[<hov 4>%a = %a@]" VarName.format (Mark.remove name)
+    (format_inner_func_body ctx)
+    func
+
+and format_inner_func_body ctx ppf =
+  let format_var ppf v =
+    if VarName.to_string v = "" then (* wildcard *) fprintf ppf "unit"
+    else VarName.format ppf v
+  in
+  function
+  | { func_params = []; func_body; _ }
+  | { func_params = [(_, (TLit TUnit, _))]; func_body; _ } ->
+    fprintf ppf "unit -> {@ %a }" (format_block ctx) func_body
+  | { func_params = [(pname, _)]; func_body; _ } ->
+    fprintf ppf "%a -> {@ %a }" format_var (Mark.remove pname)
+      (format_block ctx) func_body
+  | { func_params = _ :: _ :: _ as params; func_body; _ } ->
+    let args_name =
+      VarName.fresh ("tup_arg", Pos.void)
+      |> fun x ->
+      VarName.map_info (fun (s, p) -> sprintf "%s_%d" s (VarName.id x), p) x
+    in
+    let init_params =
+      List.mapi
+        (fun index (name, typ) ->
+          let expr =
+            ETupleAccess { e1 = EVar args_name, Pos.void; index; typ }, Pos.void
+          in
+          SLocalInit { name; typ; expr }, Pos.void)
+        params
+    in
+    fprintf ppf "%a -> {@ %a@\n%a }" format_var args_name (format_block ctx)
+      init_params (format_block ctx) func_body
+
+and format_block ?(toplevel = false) ctx ppf (block : Ast.block) =
+  let rec format_stmts ~toplevel = function
+    | [] -> ()
+    | [stmt] -> format_stmt ~toplevel ctx ppf stmt
+    | (SLocalDecl { name = n, _; typ = TLit TUnit, _ }, _)
+      :: (SLocalDef { name = n2, _; expr; _ }, _)
+      :: r
+      when VarName.equal n n2 ->
+      fprintf ppf "@[<hov 4>%a;@]" (format_expression ctx) expr;
+      pp_print_space ppf ();
+      format_stmts ~toplevel r
+    | (SLocalDecl { name = n, _; typ }, _)
+      :: ( SLocalDef
+             { name = n2, _; expr = EApp { f = EFunc fname, _; args; _ }, _; _ },
+           _ )
+      :: r
+      when VarName.equal n n2 && FuncName.Set.mem fname ctx.var_def_funcs ->
+      (* Special case for scope variable definitions functions that
+         are not compiled as lambdas *)
+      fprintf ppf "@[<hov 4>final %a@ %a = %a(%a);@]" (format_typ ctx) typ
+        VarName.format n FuncName.format fname
+        (pp_print_list ~pp_sep:pp_comma (format_expression ctx))
+        args;
+      pp_print_space ppf ();
+      format_stmts ~toplevel r
+    | (SLocalDecl { name = n, _; typ }, _)
+      :: (SLocalDef { name = n2, _; expr; _ }, _)
+      :: r
+      when VarName.equal n n2 ->
+      fprintf ppf "@[<hov 4>final %a@ %a = %a;@]" (format_typ ctx) typ
+        VarName.format n (format_expression ctx) expr;
+      pp_print_space ppf ();
+      format_stmts ~toplevel r
+    | (SLocalDecl { name = (n, _) as name; typ }, _)
+      :: (SInnerFuncDef { name = n2, _; func }, _)
+      :: r
+      when VarName.equal n n2 ->
+      fprintf ppf "@[<hov 4>final %a@ %a;@]" (format_typ ctx) typ
+        (format_inner_func_def ctx)
+        (name, func);
+      pp_print_space ppf ();
+      format_stmts ~toplevel r
+    | ((SFatalError _, _) as stmt) :: _ -> format_stmt ~toplevel ctx ppf stmt
+    | stmt :: r ->
+      format_stmt ~toplevel ctx ppf stmt;
+      pp_print_space ppf ();
+      format_stmts ~toplevel r
+  in
+  pp_open_vbox ppf 0;
+  format_stmts ~toplevel block;
+  pp_close_box ppf ()
+
+and format_if
+    ~(cond_format : formatter -> unit)
+    ~(cons_format : formatter -> unit)
+    ~(alt_format : formatter -> unit)
+    ppf =
+  fprintf ppf "@[<v 4>if (%t) {@ %t@;<1 -4>} else {@ %t@;<1 -4>}@]" cond_format
+    cons_format alt_format
+
+and format_begin_trace ctx ppf (tag, pos) =
+  let format_pos = format_pos_as_expr ctx in
+  let format_kind ppf =
+    match tag with
+    | ScopeCall scopename ->
+      let _, decl_pos = ScopeName.get_info scopename in
+      fprintf ppf "new CatalaTrace.ScopeCall(%s,@ %a)"
+        (java_string (ScopeName.original_base scopename))
+        format_pos decl_pos
+    | ScopeVarDef { var = scope_var; io } ->
+      let _, decl_pos = ScopeVar.get_info scope_var in
+      fprintf ppf
+        "new CatalaTrace.ScopeVarDef(%s,@ %a,@ CatalaTrace.Input.%s,@ %b)"
+        (java_string (ScopeVar.original_string scope_var))
+        format_pos decl_pos
+        (match io.io_input with
+        | NoInput -> "NoInput"
+        | OnlyInput -> "OnlyInput"
+        | Reentrant -> "Reentrant")
+        io.io_output
+    | LocalVarDef { name } ->
+      fprintf ppf "new CatalaTrace.LocalVarDef(%s)" (java_string name)
+    | FunCall topdef ->
+      let _, decl_pos = TopdefName.get_info topdef in
+      fprintf ppf "new CatalaTrace.FunCall(%s,@ %a)"
+        (java_string (TopdefName.original_base topdef))
+        format_pos decl_pos
+    | LocalTupDef { names } ->
+      fprintf ppf "new CatalaTrace.LocalTupDef(@[<hov 2>new String[]{%a}@])"
+        (pp_print_list
+           ~pp_sep:(fun ppf () -> fprintf ppf ",")
+           (fun fmt name -> pp_print_string fmt (java_string name)))
+        names
+    | BranchingCondition -> fprintf ppf "new CatalaTrace.BranchingCondition()"
+    | Assertion -> fprintf ppf "new CatalaTrace.Assertion()"
+    | Branching None -> fprintf ppf "new CatalaTrace.IfBranching()"
+    | Branching (Some cstr) ->
+      fprintf ppf "new CatalaTrace.MatchBranching(%s)" (java_string cstr)
+    | Exception { label = None; cons_pos } ->
+      fprintf ppf "new CatalaTrace.Exception(%a)" format_pos cons_pos
+    | Exception { label = Some (lbl, pos); cons_pos } ->
+      fprintf ppf "new CatalaTrace.Exception(%s,@ %a,@ %a)" (java_string lbl)
+        format_pos pos format_pos cons_pos
+  in
+  fprintf ppf "@[<hov 2>CatalaTrace.begin(%t,@ %a);@]" format_kind format_pos
+    pos
+
+and format_pos_as_expr ctx ppf p =
+  let p_e = EPosLit, p in
+  format_expression ctx ppf p_e
+
+let format_constructor_body (ctx : context) sbody ppf =
+  format_block ~toplevel:true ctx ppf sbody.scope_body_func.func_body
+
+let format_scope_var_def
+    ctx
+    ppf
+    ((_scope_var, func_name, func) : VarName.t Mark.pos * FuncName.t * func) =
+  let format_params ppf =
+    pp_print_list ~pp_sep:pp_comma (fun ppf pp_v -> pp_v ppf) ppf
+  in
+  let params =
+    List.map
+      (fun (v, t) ->
+        fun ppf ->
+         fprintf ppf "final %a %a" (format_typ ctx) t VarName.format
+           (Mark.remove v))
+      func.func_params
+  in
+  fprintf ppf
+    "@[<v 4>@[<hov 4>private %a %a(@[<hov>%a@])@;<1 -4>{@]@,%a@;<1 -4>}@]"
+    (format_typ ctx) func.func_return_typ FuncName.format func_name
+    format_params params (format_block ctx) func.func_body
+
+let format_constructor (ctx : context) in_fields ppf (sbody : scope_body) =
+  if StructField.Map.cardinal in_fields >= 255 then
+    Message.error
+      "The scope %a has too many input variables: Java does not support more \
+       than 255 parameters in methods. "
+      ScopeName.format_original sbody.scope_body_name;
+  let params =
+    StructField.Map.bindings in_fields
+    |> List.map (fun (sf, _) ->
+        let _, pos = StructField.get_info sf in
+        asprintf "%a" StructField.format sf, pos)
+  in
+  format_doc ~params
+    (fun x -> ScopeName.get_info x |> snd)
+    ppf sbody.scope_body_name;
+  fprintf ppf "@[<v 4>@[<hov 4>%a%a@ (@[<hov>%a@])@;<1 -4>{@]@,%t@;<1 -4>}@]"
+    format_visibility sbody.scope_body_visibility format_scope
+    sbody.scope_body_name (format_struct_params ctx) in_fields
+    (format_constructor_body ctx sbody)
+
+let format_output_parameter ?(vis = Public) ctx ppf (field_name, typ) =
+  format_doc (fun x -> StructField.get_info x |> snd) ppf field_name;
+  fprintf ppf "@[<h>%afinal@ %a@ %a;@]" format_visibility vis (format_typ ctx)
+    typ StructField.format field_name
+
+let format_scope_output_parameters
+    (ctx : context)
+    (sbody : scope_body)
+    ppf
+    fields =
+  fprintf ppf "@[<v>%a@]@\n"
+    (pp_print_list ~pp_sep:pp_print_space
+       (format_output_parameter ~vis:sbody.scope_body_visibility ctx))
+    fields
+
+let format_comparisons class_name pp_fields_equality pp_fields_comparison ppf =
+  fprintf ppf
+    "%@Override@\n\
+     @[<hov 2>public CatalaBool equalsTo(CatalaPosition p, %s o) {@\n\
+     %t@]@\n\
+     }@\n\
+     @,\
+     %@Override@\n\
+     @[<hov 2>public int compareTo(CatalaPosition p, %s o) {@\n\
+     %t@]@\n\
+     }"
+    class_name pp_fields_equality class_name pp_fields_comparison
+
+let format_struct_constructor_body ppf fields =
+  let fields = StructField.Map.bindings fields in
+  fprintf ppf "@[<v>%a@]"
+    (pp_print_list ~pp_sep:pp_print_space (fun ppf (sfield, _typ) ->
+         fprintf ppf "this.%a = %a;" StructField.format sfield
+           StructField.format sfield))
+    fields
+
+let format_struct_constructor ?(vis = Public) ctx ppf (sname, fields) =
+  if StructField.Map.is_empty fields then ()
+  else
+    let params =
+      StructField.Map.bindings fields
+      |> List.map (fun (sf, _) ->
+          StructField.to_string sf, snd (StructField.get_info sf))
+    in
+    format_doc ~params (fun s -> StructName.get_info s |> snd) ppf sname;
+    fprintf ppf "@[<hov 4>%a%a (@[<hov>%a@]) {@\n%a@]@\n}" format_visibility vis
+      format_struct sname (format_struct_params ctx) fields
+      format_struct_constructor_body fields
+
+let format_scope_out_struct_constructor
+    ?(vis = Public)
+    ctx
+    ppf
+    (scope_name, fields) =
+  if StructField.Map.is_empty fields then ()
+  else
+    let format_constr ppf fields =
+      fprintf ppf "@[<hov 4>%a%aOut (@[<hov>%a@]) {@\n%a@]@\n}"
+        format_visibility vis format_scope scope_name (format_struct_params ctx)
+        fields format_struct_constructor_body fields
+    in
+    fprintf ppf
+      "@[<hov 4>%astatic class %aOut extends CatalaStruct {@\n\
+       %a@\n\
+       %a@]@\n\
+       }@\n\
+       @\n"
+      format_visibility vis format_scope scope_name
+      (pp_print_list ~pp_sep:pp_print_space (format_output_parameter ~vis ctx))
+      (StructField.Map.bindings fields)
+      format_constr fields;
+    let format_scope_out_constructor_body ppf fields =
+      let fields = StructField.Map.bindings fields in
+      fprintf ppf "@[<v>%a@]"
+        (pp_print_list ~pp_sep:pp_print_space (fun ppf (sfield, _typ) ->
+             fprintf ppf "this.%a = result.%a;" StructField.format sfield
+               StructField.format sfield))
+        fields
+    in
+    fprintf ppf "@[<hov 4>%a%a (%aOut result) {@\n%a@]@\n}" format_visibility
+      vis format_scope scope_name format_scope scope_name
+      format_scope_out_constructor_body fields
+
+let format_tests ctx ppf p =
+  let closures, tests = p.tests in
+  assert (closures = []);
+  pp_skip_line ppf ();
+  fprintf ppf "// Automatic Catala tests@\n";
+  fprintf ppf "@[<v 4>public static void main(String[] args) {@,";
+  (if tests = [] then
+     Message.warning
+       "%a@{<magenta>#[test]@}@ attribute@ above@ their@ declaration."
+       Format.pp_print_text
+       "No test scope were found: the generated executable won't test any \
+        computation. To mark scopes as tests, ensure they don't require \
+        inputs, and add the "
+   else
+     let () =
+       fprintf ppf "boolean test_mode = false;";
+       fprintf ppf "@,boolean json_mode = false;";
+       if Global.options.trace <> None then
+         fprintf ppf "@,CatalaGlobals.tracing = true;";
+       fprintf ppf
+         "@,\
+          java.util.Set<String> enabled_tests = new \
+          java.util.HashSet<String>();";
+       fprintf ppf
+         "@,@[<hov 4>java.util.Set<String> all_tests = java.util.Set.of(%a);@]"
+         (pp_print_list
+            ~pp_sep:(fun ppf () -> fprintf ppf ",@ ")
+            (fun ppf (name, _, _) ->
+              pp_print_string ppf (java_string (ScopeName.original_base name))))
+         tests;
+       fprintf ppf "@,CatalaGlobals.lang = CatalaGlobals.Language.%s;@\n"
+         (match p.lang with `En -> "EN" | `Fr -> "FR" | `Pl -> "EN");
+       fprintf ppf "@[<v 4>for (int i = 0; i < args.length; i++) {";
+       fprintf ppf "@,if (args[i].equals(\"--test\")) { test_mode = true; }";
+       fprintf ppf
+         "@,else if (args[i].equals(\"--json\")) { json_mode = true; }";
+       fprintf ppf
+         "@,\
+          else if (all_tests.contains(args[i])) { enabled_tests.add(args[i]); }";
+       fprintf ppf "@,@[<v 4>else {";
+       fprintf ppf "@,System.out.println(\"Available scopes: \");";
+       fprintf ppf "@,System.out.println(all_tests);";
+       fprintf ppf "@,System.out.println(\"Available flags: --test  --json\");";
+       fprintf ppf "@,System.exit(2);";
+       fprintf ppf "@;<1 -4>}@]";
+       fprintf ppf "@;<1 -4>}@]@,"
+     in
+     let () =
+       Message.debug "@[<hov 2>Generating entry points for scopes:@ %a@]"
+         (Format.pp_print_list ~pp_sep:Format.pp_print_space
+            (fun ppf (s, _, _) -> ScopeName.format ppf s))
+         tests
+     in
+     let format_test ppf (scope_name, var, block) =
+       pp_open_vbox ppf 2;
+       fprintf ppf
+         "if (enabled_tests.isEmpty() || enabled_tests.contains(%s)) {@\n"
+         (java_string (ScopeName.original_base scope_name));
+       pp_open_vbox ppf 2;
+       fprintf ppf "try {@\n";
+       (if Global.options.trace <> None then
+          let scope_pos = Mark.get (ScopeName.get_info scope_name) in
+          fprintf ppf "%a@\n" (format_begin_trace ctx)
+            (ScopeCall scope_name, scope_pos));
+       fprintf ppf "%a@\n" (format_block ~toplevel:true ctx) block;
+       if Global.options.trace <> None then
+         fprintf ppf "CatalaTrace.end(%s);@\n" (VarName.to_string var);
+       fprintf ppf "CatalaGlobals.displayResult(%s, %s, test_mode, json_mode);"
+         (java_string (ScopeName.original_base scope_name))
+         (VarName.to_string var);
+       pp_close_box ppf ();
+       fprintf ppf
+         "@\n\
+          } catch (RuntimeException e) { CatalaGlobals.displayError(%s, e);@\n\
+          throw e; } }"
+         (java_string (ScopeName.original_base scope_name));
+       pp_close_box ppf ()
+     in
+     pp_print_list ~pp_sep:pp_print_space format_test ppf tests);
+  fprintf ppf "@]@\n}"
+
+let format_scope ctx ppf (sbody : Ast.scope_body) =
+  let out_struct =
+    match sbody.scope_body_func.func_return_typ with
+    | TStruct name, _ -> StructName.Map.find name ctx.decl_ctx.ctx_structs
+    | _ -> assert false
+  in
+  let pp_out_struct ppf =
+    format_scope_out_struct_constructor ctx ~vis:sbody.scope_body_visibility ppf
+      (sbody.scope_body_name, out_struct)
+  in
+  let out_struct_name =
+    match sbody.scope_body_func.func_return_typ with
+    | TStruct sn, _ -> sn
+    | _ -> assert false
+  in
+  let out_fields =
+    StructName.Map.find_opt out_struct_name ctx.decl_ctx.ctx_structs
+    |> function
+    | None -> []
+    | Some out_fields -> StructField.Map.bindings out_fields
+  in
+  if List.length out_fields >= 255 then
+    Message.error
+      "The scope %a has too many output variables: Java does not support more \
+       than 255 parameters in methods, this would yield invalid Java code. "
+      ScopeName.format_original sbody.scope_body_name;
+  let in_struct_name =
+    match sbody.scope_body_func.func_params with
+    | [(_vname, (TStruct sn, _))] -> sn
+    | _ -> assert false
+  in
+  let scope_body_var_defs =
+    match sbody.scope_body_var_defs with
+    | None ->
+      Message.error ~internal:true
+        "Found unexpected non-split scope variable definitions."
+    | Some x -> x
+  in
+  let ctx =
+    {
+      ctx with
+      var_def_funcs =
+        List.map (fun (_, fname, _) -> fname) scope_body_var_defs
+        |> FuncName.Set.of_list;
+    }
+  in
+  let in_fields = StructName.Map.find in_struct_name ctx.decl_ctx.ctx_structs in
+  format_doc (fun x -> ScopeName.get_info x |> snd) ppf sbody.scope_body_name;
+  fprintf ppf
+    "@[<v 4>@[<hov 4>public static class %a extends CatalaStruct {@]@\n\
+     @,\
+     %a@ %a@\n\
+     @,\
+     %a@\n\
+     @,\
+     %t@]@\n\
+     }"
+    format_scope sbody.scope_body_name
+    (format_scope_output_parameters ctx sbody)
+    out_fields
+    (pp_print_list ~pp_sep:pp_skip_line (format_scope_var_def ctx))
+    scope_body_var_defs
+    (format_constructor ctx in_fields)
+    sbody pp_out_struct
+
+let gather_externals ctx =
+  let external_global_funcs, external_global_vars =
+    TopdefName.Map.fold
+      (fun topdef_name (typ, vis) ((efuncs, evars) as acc) ->
+        if TopdefName.path topdef_name = [] || vis <> Public then acc
+        else
+          let v = TopdefName.base topdef_name in
+          match typ with
+          | TArrow _, _ -> String.Set.add v efuncs, evars
+          | _ -> efuncs, String.Set.add v evars)
+      ctx.decl_ctx.ctx_topdefs
+      (String.Set.empty, String.Set.empty)
+  in
+  let external_scopes, external_scopes_in, external_scopes_out =
+    ScopeName.Map.fold
+      (fun sname v ((s_acc, in_acc, out_acc) as acc) ->
+        if ScopeName.path sname = [] then acc
+        else
+          ( String.Map.add (ScopeName.base sname)
+              (StructName.base v.out_struct_name)
+              s_acc,
+            StructName.Set.add v.in_struct_name in_acc,
+            StructName.Set.add v.out_struct_name out_acc ))
+      ctx.decl_ctx.ctx_scopes
+      (String.Map.empty, StructName.Set.empty, StructName.Set.empty)
+  in
+  let in_scope_structs =
+    StructName.Set.union external_scopes_in ctx.in_scope_structs
+  in
+  let out_scope_structs =
+    StructName.Set.union external_scopes_out ctx.out_scope_structs
+  in
+  {
+    ctx with
+    external_scopes;
+    in_scope_structs;
+    out_scope_structs;
+    external_global_vars;
+    external_global_funcs;
+  }
+
+let populate_context (p : Ast.program) : context =
+  let ctx =
+    {
+      decl_ctx = p.ctx.decl_ctx;
+      in_scope_structs = StructName.Set.empty;
+      out_scope_structs = StructName.Set.empty;
+      scope_func_names = FuncName.Map.empty;
+      in_globals = false;
+      global_funcs = FuncName.Set.empty;
+      global_vars = VarName.Set.empty;
+      var_def_funcs = FuncName.Set.empty;
+      external_global_funcs = String.Set.empty;
+      external_global_vars = String.Set.empty;
+      external_scopes = String.Map.empty;
+    }
+  in
+  let ctx = gather_externals ctx in
+  let in_scope_structs, scope_structs =
+    List.fold_left
+      (fun ((in_s, out_s) as acc) -> function
+        | SScope
+            {
+              scope_body_func =
+                {
+                  func_params = [(_, (TStruct in_sname, _))];
+                  func_return_typ = TStruct out_sname, _;
+                  _;
+                };
+              _;
+            } ->
+          StructName.Set.add in_sname in_s, StructName.Set.add out_sname out_s
+        | _ -> acc)
+      (StructName.Set.empty, StructName.Set.empty)
+      p.code_items
+  in
+  {
+    ctx with
+    in_scope_structs =
+      StructName.Set.union ctx.in_scope_structs in_scope_structs;
+    out_scope_structs = StructName.Set.union ctx.out_scope_structs scope_structs;
+  }
+
+let format_structs ctx ppf =
+  (* TODO: register the struct and field original names for consistent printing *)
+  let format_struct ppf (sname, fields) =
+    if StructField.Map.cardinal fields >= 255 then
+      Message.error
+        "The structure %a has too many fields: Java does not support more than \
+         255 parameters. "
+        StructName.format_original sname;
+    let fields_l = StructField.Map.bindings fields in
+    let format_params ppf =
+      let format_output_parameter ppf (field_name, typ) =
+        format_doc (fun x -> StructField.get_info x |> snd) ppf field_name;
+        fprintf ppf "@[<h>public final@ %a@ %a;@]" (format_typ ctx) typ
+          StructField.format field_name
+      in
+      fprintf ppf "@[<v>%a@]"
+        (pp_print_list ~pp_sep:pp_print_space format_output_parameter)
+        fields_l
+    in
+    format_doc (fun x -> StructName.get_info x |> snd) ppf sname;
+    fprintf ppf
+      "@[<v 4>public static class %a extends CatalaStruct {@\n@,%t@\n@,%a@]@\n}"
+      format_struct sname format_params
+      (format_struct_constructor ctx ~vis:Public)
+      (sname, fields)
+  in
+  let structs_to_generate =
+    StructName.Map.filter
+      (fun sname _ ->
+        StructName.path sname = []
+        && (not (StructName.Set.mem sname ctx.in_scope_structs))
+        && not (StructName.Set.mem sname ctx.out_scope_structs))
+      ctx.decl_ctx.ctx_structs
+    |> StructName.Map.bindings
+  in
+  pp_print_list_padded ~pp_sep:pp_skip_line format_struct ppf
+    structs_to_generate
+
+let format_enums ctx ppf =
+  let format_enum ppf (ename, cstrs) =
+    let format_enum_kind ppf =
+      let format_case ppf c =
+        fprintf ppf "@\n%a%a"
+          (format_doc (fun x -> EnumConstructor.get_info x |> snd))
+          c EnumConstructor.format c
+      in
+      fprintf ppf "@[<hov 4>public enum Kind {@ %a@]@ }"
+        (pp_print_list ~pp_sep:pp_comma format_case)
+        (EnumConstructor.Map.keys cstrs)
+    in
+    let format_enum_params ppf =
+      fprintf ppf
+        "private final CatalaValue<?> contents;@\npublic final Kind kind;"
+    in
+    let format_enum_constrs ppf =
+      let format_enum_make ppf (cstr, typ) =
+        let is_unit =
+          match Mark.remove typ with TLit TUnit -> true | _ -> false
+        in
+        format_doc (fun x -> EnumConstructor.get_info x |> snd) ppf cstr;
+        if is_unit then
+          fprintf ppf
+            "public final static %a %a = new %a(Kind.%a, CatalaUnit.INSTANCE);"
+            format_enum ename EnumConstructor.format cstr format_enum ename
+            EnumConstructor.format cstr
+        else
+          let format_arg ppf = fprintf ppf "%a v" (format_typ ctx) typ in
+          fprintf ppf
+            "@[<v 4>public static %a make%a(%t) {@ return new %a(Kind.%a, v);@;\
+             <1 -4>}@]"
+            format_enum ename EnumConstructor.format cstr format_arg format_enum
+            ename EnumConstructor.format cstr
+      in
+      fprintf ppf
+        "@[<v 4>private %a(Kind k, CatalaValue<?> contents) {@ this.kind = k;@ \
+         this.contents = contents;@;\
+         <1 -4>}@]%a"
+        format_enum ename
+        (pp_print_list_padded ~pp_sep:pp_print_space format_enum_make)
+        (EnumConstructor.Map.bindings cstrs)
+    in
+    let format_enum_accessors ppf =
+      let format_default_accessor ppf =
+        fprintf ppf
+          "@[<v 4>public <T> T getContentsAs(Kind k, Class<T> clazz) {@ @[<v \
+           2>if (this.kind != k) {@ throw new \
+           IllegalArgumentException(\"Invalid enum contents access: expected \
+           \" + k + \", got \" + this.kind);@;\
+           <1 -2>}@]@ return (T) this.contents;@;\
+           <1 -4>}@]"
+      in
+      let format_enum_accessor ppf (cstr, typ) =
+        fprintf ppf
+          "@[<v 4>public %a get%aContents() {@ return \
+           this.getContentsAs(Kind.%a, %a.class);@]@\n\
+           }"
+          (format_typ ctx) typ EnumConstructor.format cstr
+          EnumConstructor.format cstr
+          (format_typ ~diamond:false ctx)
+          typ
+      in
+      fprintf ppf "@[<v>%t%a@]" format_default_accessor
+        (pp_print_list_padded ~pp_sep:pp_print_space format_enum_accessor)
+        (List.filter
+           (fun (_, typ) ->
+             match Mark.remove typ with TLit TUnit -> false | _ -> true)
+           (EnumConstructor.Map.bindings cstrs))
+    in
+    format_doc (fun x -> EnumName.get_info x |> snd) ppf ename;
+    fprintf ppf
+      "@@SuppressWarnings(\"unchecked\")@,\
+       @[<v 4>public static class %a extends CatalaEnum {@\n\
+       @,\
+       %t@\n\
+       @,\
+       %t@\n\
+       @,\
+       %t@\n\
+       @,\
+       %t@]@\n\
+       }"
+      format_enum ename format_enum_kind format_enum_params format_enum_constrs
+      format_enum_accessors
+  in
+  let enums_to_generate =
+    EnumName.Map.filter
+      (fun ename _ ->
+        EnumName.path ename = []
+        && not (EnumName.equal ename ConstantNames.option_enum))
+      ctx.decl_ctx.ctx_enums
+    |> EnumName.Map.bindings
+  in
+  pp_print_list_padded ~pp_sep:pp_skip_line format_enum ppf enums_to_generate
+
+let format_abstract_types ctx ppf =
+  let format_abs ppf name =
+    fprintf ppf
+      "@[<v 4>public static class %a extends CatalaValue<%a> {@\n\
+       @ %t@ @ %t@ @ %t@ @ %t@]@\n\
+       }"
+      (format_qualified (module AbstractType))
+      name
+      (format_qualified (module AbstractType))
+      name
+      (format_comparisons
+         (AbstractType.to_string name)
+         (fun ppf ->
+           Format.fprintf ppf
+             "// TO IMPLEMENT@\n\
+              throw CatalaError.error(CatalaError.Error.Impossible, p);")
+         (fun ppf ->
+           Format.fprintf ppf
+             "// TO IMPLEMENT@\n\
+              throw CatalaError.error(CatalaError.Error.Impossible, p);"))
+      (fun ppf ->
+        Format.fprintf ppf
+          "%@Override@\n\
+           @[<v 4>public String toString() {@\n\
+           // TO IMPLEMENT@\n\
+           return \"<%a>\";@]@\n\
+           }"
+          (format_qualified (module AbstractType))
+          name)
+      (fun ppf ->
+        Format.fprintf ppf
+          "%@Override@\n\
+           @[<v 4>public String toJSONString() {@\n\
+           // TO IMPLEMENT@\n\
+           return \"\\\"<%a>\\\"\";@]@\n\
+           }"
+          (format_qualified (module AbstractType))
+          name)
+      (fun ppf ->
+        Format.fprintf ppf
+          "@[<v 4>public static %a fromJSONString(CatalaPosition p, String \
+           json) {@\n\
+           // TO IMPLEMENT@\n\
+           throw CatalaError.error(CatalaError.Error.NotImplemented, p);@]@\n\
+           }"
+          (format_qualified (module AbstractType))
+          name)
+  in
+  ctx.decl_ctx.ctx_abstract_types
+  |> AbstractType.Set.filter (fun tname -> AbstractType.path tname = [])
+  |> AbstractType.Set.elements
+  |> pp_print_list_padded ~pp_sep:pp_skip_line format_abs ppf
+
+let format_external_parameter ctx ppf (name, ty, vis) =
+  fprintf ppf
+    "// TO IMPLEMENT@\n@[<hov 4>%astatic final %a %a =@ null; //TO IMPLEMENT@]"
+    format_visibility vis (format_typ ctx) ty TopdefName.format name
+
+let format_external_method ctx ppf (name, (ty_l, ret_ty), vis) =
+  let format_input_types ppf = function
+    | [] -> fprintf ppf "CatalaUnit"
+    | [t] -> (format_typ ~wildcard:true ctx) ppf t
+    | l -> (format_typ ctx) ppf (TTuple l, Pos.void)
+  in
+  fprintf ppf
+    "// EXTERNAL TO IMPLEMENT@\n\
+     @[<hov 4>%astatic final CatalaFunction<%a,%a> %a =@ x -> {@\n\
+     throw new RuntimeException(\"External function %a not implemented\");@]@\n\
+     };"
+    format_visibility vis format_input_types ty_l (format_typ ctx) ret_ty
+    TopdefName.format name TopdefName.format name
+
+let format_global_parameter ctx ppf (name, e, ty, vis) =
+  fprintf ppf "@[<hov 4>%astatic final %a %a =@ %a;@]" format_visibility vis
+    (format_typ ctx) ty VarName.format name (format_expression ctx) e
+
+let format_global_method ctx ppf (name, f, vis) =
+  let format_input_types ppf = function
+    | [] -> fprintf ppf "CatalaUnit"
+    | [t] -> (format_typ ~wildcard:true ctx) ppf t
+    | l -> (format_typ ctx) ppf (TTuple l, Pos.void)
+  in
+  fprintf ppf "@[<hov 4>%astatic final CatalaFunction<%a,%a> %a =@ %a;@]"
+    format_visibility vis format_input_types
+    (List.map snd f.func_params)
+    (format_typ ctx) f.func_return_typ FuncName.format name
+    (format_inner_func_body ctx)
+    f
+
+let format_globals ctx ppf globals =
+  let externals_vars, externals_funcs =
+    Shared_ast.TopdefName.Map.fold
+      (fun topdef_name (typ, vis) ((vars, funcs) as acc) ->
+        if TopdefName.path topdef_name <> [] then acc
+        else
+          match typ with
+          | TArrow (ty_l, ret_ty), _ ->
+            vars, (topdef_name, (ty_l, ret_ty), vis) :: funcs
+          | _ -> (topdef_name, typ, vis) :: vars, funcs)
+      ctx.decl_ctx.ctx_topdefs ([], [])
+    |> fun (l, r) -> List.rev l, List.rev r
+  in
+  if globals = [] && externals_vars = [] && externals_funcs = [] then (
+    Message.debug "No globals definition to generate";
+    ctx)
+  else
+    let globals, externals_vars, externals_funcs =
+      if globals <> [] then
+        (* Don't generate anything if there are (real) globals *)
+        globals, [], []
+      else [], externals_vars, externals_funcs
+    in
+    let ctx' = { ctx with in_globals = true } in
+    let pp_item ppf = function
+      | SVar { var; expr; typ; visibility } ->
+        format_global_parameter ctx' ppf (var, expr, typ, visibility)
+      | SFunc { var; func; visibility } ->
+        format_global_method ctx' ppf (var, func, visibility)
+      | _ -> assert false
+    in
+    pp_skip_line ppf ();
+    fprintf ppf "@[<v 4>@[<hov 4>public static class Globals@ {@]%a%a%a@]@\n}"
+      (pp_print_list_padded ~pp_sep:pp_skip_line pp_item)
+      globals
+      (pp_print_list_padded ~pp_sep:pp_skip_line
+         (format_external_parameter ctx'))
+      externals_vars
+      (pp_print_list_padded ~pp_sep:pp_skip_line (format_external_method ctx'))
+      externals_funcs;
+    let vars, funcs =
+      List.partition_map
+        (let open Either in
+         function
+         | SVar { var; _ } -> Left var
+         | SFunc { var; _ } -> Right var
+         | SScope _ -> assert false)
+        globals
+    in
+    {
+      ctx with
+      global_vars = VarName.Set.of_list vars;
+      global_funcs = FuncName.Set.of_list funcs;
+    }
+
+let format_program ctx ppf p =
+  let scopes, globals =
+    List.partition_map
+      (let open Either in
+       function
+       | SScope body ->
+         let out_struct_name =
+           match body.scope_body_func.func_return_typ with
+           | TStruct name, _ -> name
+           | _ -> assert false
+         in
+         let body =
+           {
+             body with
+             scope_body_name =
+               ScopeName.map_info
+                 (fun (ml, (_, p)) ->
+                   ml, (StructName.get_info out_struct_name |> fst, p))
+                 body.scope_body_name;
+           }
+         in
+         Left body
+       | x -> Right x)
+      p.code_items
+  in
+  let ctx = format_globals ctx ppf globals in
+  format_abstract_types ctx ppf;
+  format_structs ctx ppf;
+  format_enums ctx ppf;
+  let ctx =
+    List.fold_left
+      (fun ctx { scope_body_var; scope_body_name; _ } ->
+        {
+          ctx with
+          scope_func_names =
+            FuncName.Map.add scope_body_var scope_body_name ctx.scope_func_names;
+        })
+      ctx scopes
+  in
+  pp_print_list_padded ~pp_sep:pp_skip_line
+    (fun ppf s -> format_scope ctx ppf s)
+    ppf scopes;
+  if snd p.tests <> [] then format_tests ctx ppf p
+
+let format_program ~is_stdlib ~class_name output_file ppf (p : Ast.program) :
+    unit =
+  Format.pp_open_vbox ppf 0;
+  let header =
+    (if is_stdlib then ["package catala.stdlib;"; ""] else [])
+    @ (if Global.options.gen_external then
+         [
+           "/* This is a template file following the expected interface and \
+            declarations to";
+           " * implement the corresponding Catala module.";
+           " *";
+           " * You should replace all `Error.Impossible` place-holders with \
+            your";
+           " * implementation and rename it to remove the \".template\" \
+            suffix. */";
+         ]
+       else
+         [
+           "/* This file has been generated by the Catala compiler, do not \
+            edit! */";
+         ])
+    @ [
+        "";
+        "import catala.runtime.*;";
+        "import catala.runtime.exception.*;";
+        "import catala.stdlib.*;";
+        "";
+      ]
+  in
+  let ctx = populate_context p in
+  pp_print_list pp_print_string ppf header;
+  pp_print_newline ppf ();
+  fprintf ppf "@[<v 4>public class %s {%a@ @]@\n}@\n" class_name
+    (format_program ctx) p;
+  if Global.options.gen_external then
+    output_file
+    |> Option.iter
+         (Message.result "Generated template external implementations:@ %a"
+            File.format)

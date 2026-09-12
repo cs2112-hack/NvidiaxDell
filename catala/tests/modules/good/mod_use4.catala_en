@@ -1,0 +1,23 @@
+> Using Mod_def2
+
+```catala
+#[test]
+declaration scope T:
+    output r content Mod_def2.S
+
+scope T:
+    definition r equals (output of Mod_def2.S)
+```
+
+```catala-test-cli
+$ catala test-scope T
+┌─[RESULT]─ T ─
+│ r = S {
+│       -- x: [
+│         Si {
+│           -- x: 1
+│         };
+│       ]
+│     }
+└─
+```

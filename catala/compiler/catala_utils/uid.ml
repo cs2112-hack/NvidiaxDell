@@ -1,0 +1,242 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2020 Inria, contributor:
+   Denis Merigoux <denis.merigoux@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+module type Info = sig
+  type info
+
+  val to_string : info -> string
+  val format : Format.formatter -> info -> unit
+  val equal : info -> info -> bool
+  val compare : info -> info -> int
+  val hash : info -> Hash.t
+end
+
+module type Id = sig
+  type t
+  type info
+
+  val fresh : ?from:t -> info -> t
+  val get_info : t -> info
+  val map_info : (info -> info) -> t -> t
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
+  val format : Format.formatter -> t -> unit
+  val to_string : t -> string
+  val id : t -> int
+  val hash : t -> Hash.t
+  val original_info : t -> info
+  val original_string : t -> string
+  val format_original : Format.formatter -> t -> unit
+
+  module Set : Set.S with type elt = t
+  module Map : Map.S with type key = t
+end
+
+module type Style = sig
+  val style : Ocolor_types.style
+end
+
+module Make (X : Info) (S : Style) () : Id with type info = X.info = struct
+  module Ordering = struct
+    type t = { id : int; info : X.info; orig_info : X.info option }
+
+    let compare (x : t) (y : t) : int = Int.compare x.id y.id
+    let equal x y = Int.equal x.id y.id
+
+    let format ppf t =
+      Format.pp_open_stag ppf (Ocolor_format.Ocolor_style_tag S.style);
+      X.format ppf t.info;
+      (* Format.pp_print_int ppf t.id; (* uncomment for precise uid debug *) *)
+      Format.pp_close_stag ppf ()
+
+    let format_original ppf t =
+      Format.pp_open_stag ppf (Ocolor_format.Ocolor_style_tag S.style);
+      X.format ppf (Option.value ~default:t.info t.orig_info);
+      (* Format.pp_print_int ppf t.id; (* uncomment for precise uid debug *) *)
+      Format.pp_close_stag ppf ()
+
+    let original_string t =
+      X.to_string (Option.value ~default:t.info t.orig_info)
+  end
+
+  include Ordering
+
+  type info = X.info
+
+  let counter = ref 0
+
+  let original_info t =
+    match t.orig_info with Some info -> info | None -> t.info
+
+  let fresh ?(from : t option) (info : X.info) : t =
+    incr counter;
+    { id = !counter; info; orig_info = Option.map original_info from }
+
+  let get_info (uid : t) : X.info = uid.info
+
+  let map_info f t =
+    {
+      id = t.id;
+      info = f t.info;
+      orig_info = Some (Option.value ~default:t.info t.orig_info);
+    }
+
+  let id (x : t) : int = x.id
+  let to_string t = X.to_string t.info
+  let hash t = X.hash t.info
+
+  module Set = Set.Make (Ordering)
+  module Map = Map.Make (Ordering)
+end
+
+(* - Raw idents - *)
+
+module MarkedString = struct
+  module M = struct
+    type info = string Mark.pos
+    type t = info
+
+    let to_string (s, _) = s
+    let format fmt i = String.format fmt (to_string i)
+    let equal = Mark.equal String.equal
+    let compare = Mark.compare String.compare
+    let hash = Mark.hash String.hash
+  end
+
+  include M
+  module Map = Map.Make (M)
+end
+
+module Gen (S : Style) () = Make (MarkedString) (S) ()
+
+(* - Modules, paths and qualified idents - *)
+
+module Module = struct
+  include
+    Gen
+      (struct
+        let style = Ocolor_types.(Fg (C4 blue))
+      end)
+      ()
+
+  let normalise t = map_info (Mark.map String.to_id) t
+end
+
+module Path = struct
+  type t = Module.t list
+
+  let format ppf p =
+    Format.pp_print_list
+      ~pp_sep:(fun _ () -> ())
+      (fun ppf m -> Format.fprintf ppf "%a@{<cyan>.@}" Module.format m)
+      ppf p
+
+  let to_string p = String.concat "." (List.map Module.to_string p)
+  let equal = List.equal Module.equal
+  let compare = List.compare Module.compare
+
+  let strip prefix p0 =
+    let rec aux prefix p =
+      match prefix, p with
+      | pfx1 :: pfx, p1 :: p -> if Module.equal pfx1 p1 then aux pfx p else p0
+      | [], p -> p
+      | _ -> p0
+    in
+    aux prefix p0
+
+  let strip_up_to modname p0 =
+    let rec aux p =
+      match p with
+      | p1 :: p -> if Module.equal modname p1 then p else aux p
+      | [] -> p0
+    in
+    aux p0
+
+  let rec last_member = function
+    | [m] -> Some m
+    | _ :: p -> last_member p
+    | [] -> None
+end
+
+module QualifiedMarkedString = struct
+  type info = Path.t * MarkedString.info
+
+  let to_string (p, i) =
+    Format.asprintf "%a%a" Path.format p MarkedString.format i
+
+  let format fmt (p, i) =
+    Path.format fmt p;
+    MarkedString.format fmt i
+
+  let equal (p1, i1) (p2, i2) = Path.equal p1 p2 && MarkedString.equal i1 i2
+
+  let compare (p1, i1) (p2, i2) =
+    match Path.compare p1 p2 with 0 -> MarkedString.compare i1 i2 | n -> n
+
+  let hash (p, i) =
+    let open Hash.Op in
+    match List.rev p with
+    | [] -> MarkedString.hash i
+    | m :: _ -> Module.hash m % MarkedString.hash i
+
+  let format_shortpath ppf (p, i) =
+    Path.format ppf (Option.to_list (Path.last_member p));
+    MarkedString.format ppf i
+end
+
+module type Qualified = sig
+  include Id with type info = Path.t * MarkedString.info
+
+  val fresh : ?from:t -> Path.t -> MarkedString.info -> t
+  val path : t -> Path.t
+  val get_info : t -> MarkedString.info
+  val original_info : t -> MarkedString.info
+  val base : t -> string
+  val original_base : t -> string
+  val hash : strip:Module.t option -> t -> Hash.t
+  val format_shortpath : Format.formatter -> t -> unit
+  val canonical_str : Module.t option -> t -> string
+end
+
+module Gen_qualified (S : Style) () : Qualified = struct
+  include Make (QualifiedMarkedString) (S) ()
+
+  let fresh ?from path t = fresh ?from (path, t)
+
+  let hash ~strip t =
+    let p, i = get_info t in
+    let p = match strip with Some m -> Path.strip_up_to m p | None -> p in
+    QualifiedMarkedString.hash (p, i)
+
+  let format_shortpath ppf t =
+    Format.pp_open_stag ppf (Ocolor_format.Ocolor_style_tag S.style);
+    QualifiedMarkedString.format_shortpath ppf (get_info t);
+    Format.pp_close_stag ppf ()
+
+  let path t = fst (get_info t)
+  let get_info t = snd (get_info t)
+  let original_info t = snd (original_info t)
+  let base t = Mark.remove (get_info t)
+  let original_base t = Mark.remove (original_info t)
+
+  let canonical_str cur_modname t =
+    let modl =
+      match Path.last_member (path t) with None -> cur_modname | some -> some
+    in
+    match modl with
+    | Some m -> Format.sprintf "%s.%s" (Module.to_string m) (original_base t)
+    | None -> base t
+end

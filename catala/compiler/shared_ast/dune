@@ -1,0 +1,17 @@
+(library
+ (name shared_ast)
+ (public_name catala.shared_ast)
+ (flags
+  (:standard -short-paths))
+ (libraries
+  dynlink
+  bindlib
+  catala_utils
+  catala.runtime_ocaml
+  alcotest
+  hex
+  json-data-encoding))
+
+(documentation
+ (package catala)
+ (mld_files shared_ast))

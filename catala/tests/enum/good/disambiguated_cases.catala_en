@@ -1,0 +1,43 @@
+## Article
+
+```catala
+declaration enumeration E:
+  -- Case1
+
+declaration enumeration F:
+  -- Case1 content integer
+  -- Case2
+
+#[test] declaration scope A:
+  context output e content E
+  context output f content F
+  context output x content integer
+
+scope A:
+  definition e equals E.Case1
+  definition f equals F.Case1 content 2
+  definition x equals match f with pattern
+    -- F.Case1 content i : i
+    -- Case2 : 3
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[RESULT]─ A ─
+│ e = Case1
+│ f = Case1 content 2
+│ x = 2
+└─
+```

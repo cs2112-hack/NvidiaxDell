@@ -1,0 +1,31 @@
+## Article
+
+```catala
+#[test]
+déclaration champ d'application A:
+  résultat x contenu argent
+  résultat y contenu argent
+
+champ d'application A:
+  définition x égal à 0,15€ * 2,0
+  définition y égal à -0,3€
+  assertion x = -y
+```
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[RESULT]─ A ─
+│ x = 0,30 €
+│ y = -0,30 €
+└─
+```

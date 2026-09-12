@@ -1,0 +1,43 @@
+```catala
+
+declaration scope CheckAgeIsLessThan:
+  input bday content date
+  input today content date
+  input age content duration
+  output r content boolean
+
+scope CheckAgeIsLessThan:
+  definition r equals bday + age <= today
+  date round up
+  assertion |2018-05-31| - 1 month = |2018-05-01|
+
+#[test] declaration scope Test:
+  output r content boolean
+
+scope Test:
+  definition r equals (output of CheckAgeIsLessThan with
+                      { -- bday: |2000-02-29|
+                        -- today: |2018-03-01|
+                        -- age: 18 year}).r
+  assertion r
+
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope Test
+┌─[RESULT]─ Test ─
+│ r = true
+└─
+```
