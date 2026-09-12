@@ -90,6 +90,19 @@ An open-ended engagement has no end date, which is why `service_end` is
 optional; an Employee still in service has not terminated and so completes
 every month from the month after commencement onwards.
 
+Where there is an end date it cannot precede the start date, and C-9 is what
+fixes that. Accrual under C-9.1 is "for each completed calendar month **of
+service**", and C-9.2 pro-rates by "the number of days **of service** in that
+month" where the Employee "commences or terminates employment" part-way through
+it: the quantity both clauses measure is a period of service running from
+commencement to termination. Employment cannot terminate before it commences,
+so a `service_end` earlier than `service_start` bounds no period of service and
+neither clause has anything to measure. The scope refuses it instead of
+answering nought days, which is what the arithmetic would otherwise return —
+an answer indistinguishable from the lawful case of a month falling wholly
+outside a real period of service. The bound is the clauses', not a programming
+convenience.
+
 The boundary is made explicit as `month_is_completed`, and it is this variable
 alone that separates C-9.1 from C-9.2. A month in which service begins on the
 second day, or ends on the penultimate day, is not a completed month and
@@ -98,6 +111,11 @@ accrues under C-9.2 even where the pro-rated figure happens to round back to
 
 ```catala
 scope MonthlyAccrual:
+  assertion
+    match service_end with pattern
+    -- Absent: true
+    -- Present content ending: ending >= service_start
+
   definition month_is_completed equals
     service_start <= month_first_day
     and (match service_end with pattern

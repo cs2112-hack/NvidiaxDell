@@ -16,6 +16,13 @@ run) and at 99.89%. L-6.2's 30-day exercise window is tested at day 30 and day
 no right ever arose is tested with a far-future assessment date: a right that
 does not exist cannot lapse.
 
+L-6.2's window has two ends and lapses per occurrence, so both are tested in
+their own right. The `CE0007_` tests put two occurrences fifteen months apart
+in one history and require the lapse of the first to leave the second intact.
+The `CE0008_` tests put the notice outside the window at the lower end —
+dated before the third failing period had even ended, so before any right
+existed — and require that it does not exercise anything.
+
 > Using ChronicFailure
 
 ## Helper
@@ -579,4 +586,239 @@ scope TestL6_1_EmptyHistory:
   assertion r.trigger_period_end = Absent
   assertion r.right_lapsed = false
   assertion r.right_exercisable = false
+```
+
+## CE0007_LapseOfOneOccurrenceLeavesTheNextIntact
+
+L-6.2 lapses the right "in respect of that occurrence", which leaves every
+later occurrence untouched. CE-0007's facts: three failing Measurement Periods
+in early 2024, whose 30-day window closed unexercised on 30 April 2024,
+fifteen months at the Service Level, then three more failing periods in July,
+August and September 2025. Notice of termination was served on 5 October 2025
+and the position is assessed on 10 October 2025. The occurrence live on that
+date is the September 2025 one; its deadline is 30 October 2025, and notice
+five days into the window is in time. Assessing the earliest occurrence
+instead produced a deadline of 30 April 2024 and destroyed the 2025 right.
+
+The two clusters are more than twelve months apart, so only the
+three-consecutive-periods limb of L-6.1 is engaged.
+
+```catala
+#[test]
+declaration scope TestCE0007_LapseOfOneOccurrenceLeavesTheNextIntact:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestCE0007_LapseOfOneOccurrenceLeavesTheNextIntact:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2024-01-01|, |2024-01-31|, 99.80;
+           mp of |2024-02-01|, |2024-02-29|, 99.80;
+           mp of |2024-03-01|, |2024-03-31|, 99.80;
+           mp of |2024-04-01|, |2024-04-30|, 99.95;
+           mp of |2024-05-01|, |2024-05-31|, 99.95;
+           mp of |2024-06-01|, |2024-06-30|, 99.95;
+           mp of |2024-07-01|, |2024-07-31|, 99.95;
+           mp of |2024-08-01|, |2024-08-31|, 99.95;
+           mp of |2024-09-01|, |2024-09-30|, 99.95;
+           mp of |2024-10-01|, |2024-10-31|, 99.95;
+           mp of |2024-11-01|, |2024-11-30|, 99.95;
+           mp of |2024-12-01|, |2024-12-31|, 99.95;
+           mp of |2025-01-01|, |2025-01-31|, 99.95;
+           mp of |2025-02-01|, |2025-02-28|, 99.95;
+           mp of |2025-03-01|, |2025-03-31|, 99.95;
+           mp of |2025-04-01|, |2025-04-30|, 99.95;
+           mp of |2025-05-01|, |2025-05-31|, 99.95;
+           mp of |2025-06-01|, |2025-06-30|, 99.95;
+           mp of |2025-07-01|, |2025-07-31|, 99.80;
+           mp of |2025-08-01|, |2025-08-31|, 99.80;
+           mp of |2025-09-01|, |2025-09-30|, 99.80
+         ]
+      -- assessment_date: |2025-10-10|
+      -- notice_given: true
+      -- notice_date: |2025-10-05|
+    }
+  assertion (number of r.failing_periods) = 6
+  assertion r.consecutive_trigger = true
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = true
+  assertion (number of r.completing_periods) = 2
+  assertion (number of r.arisen_occurrences) = 2
+  assertion (number of r.live_occurrences) = 1
+  assertion r.trigger_period_end = Present content |2025-09-30|
+  assertion r.exercise_deadline = Present content |2025-10-30|
+  assertion r.notice_exercises_the_right = true
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = true
+```
+
+## CE0007_ALiveEarlierOccurrenceIsNotDisplacedByALaterOne
+
+The converse of the same rule. On the same history assessed on 20 April 2024,
+the only occurrence that has arisen is the March 2024 one — the 2025 periods
+had not ended — and its window is still open, so it is the occurrence
+assessed. A later completing period in the record does not take the
+assessment away from an occurrence that is live.
+
+```catala
+#[test]
+declaration scope TestCE0007_ALiveEarlierOccurrenceIsNotDisplacedByALaterOne:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestCE0007_ALiveEarlierOccurrenceIsNotDisplacedByALaterOne:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2024-01-01|, |2024-01-31|, 99.80;
+           mp of |2024-02-01|, |2024-02-29|, 99.80;
+           mp of |2024-03-01|, |2024-03-31|, 99.80;
+           mp of |2025-07-01|, |2025-07-31|, 99.80;
+           mp of |2025-08-01|, |2025-08-31|, 99.80;
+           mp of |2025-09-01|, |2025-09-30|, 99.80
+         ]
+      -- assessment_date: |2024-04-20|
+      -- notice_given: false
+      -- notice_date: |2024-04-20|
+    }
+  assertion (number of r.completing_periods) = 2
+  assertion (number of r.arisen_occurrences) = 1
+  assertion (number of r.live_occurrences) = 1
+  assertion r.trigger_period_end = Present content |2024-03-31|
+  assertion r.exercise_deadline = Present content |2024-04-30|
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = true
+```
+
+## CE0007_WhereEveryWindowHasClosedTheLatestOccurrenceGovernsTheLapse
+
+Where no occurrence is live the latest one to have arisen governs, so the
+lapse is reported against the occurrence it actually belongs to rather than
+against the oldest failure in the record. The same two clusters, assessed on
+1 December 2025 with no notice ever served: the September 2025 window closed
+on 30 October 2025 and the right has lapsed in respect of that occurrence.
+
+```catala
+#[test]
+declaration scope TestCE0007_WhereEveryWindowHasClosedTheLatestOccurrenceGovernsTheLapse:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestCE0007_WhereEveryWindowHasClosedTheLatestOccurrenceGovernsTheLapse:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2024-01-01|, |2024-01-31|, 99.80;
+           mp of |2024-02-01|, |2024-02-29|, 99.80;
+           mp of |2024-03-01|, |2024-03-31|, 99.80;
+           mp of |2025-07-01|, |2025-07-31|, 99.80;
+           mp of |2025-08-01|, |2025-08-31|, 99.80;
+           mp of |2025-09-01|, |2025-09-30|, 99.80
+         ]
+      -- assessment_date: |2025-12-01|
+      -- notice_given: false
+      -- notice_date: |2025-12-01|
+    }
+  assertion (number of r.arisen_occurrences) = 2
+  assertion (number of r.live_occurrences) = 0
+  assertion r.trigger_period_end = Present content |2025-09-30|
+  assertion r.exercise_deadline = Present content |2025-10-30|
+  assertion r.right_lapsed = true
+  assertion r.right_exercisable = false
+```
+
+## CE0008_NoticeBeforeTheRightAroseDoesNotExerciseIt
+
+CE-0008's facts. The Availability Percentage was below 99.90% in July, August
+and September 2025, so the right arose on the expiry of September 2025. The
+only notice ever served was dated 15 August 2025, in the middle of the failing
+run, before the third consecutive period had ended and therefore before any
+right existed. Nothing was served in the window, so on an assessment made on
+1 December 2025 — after the window closed on 30 October 2025 — the right has
+lapsed. Testing only the upper bound of the window treated that notice as a
+good exercise and reported the right as exercisable indefinitely.
+
+```catala
+#[test]
+declaration scope TestCE0008_NoticeBeforeTheRightAroseDoesNotExerciseIt:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestCE0008_NoticeBeforeTheRightAroseDoesNotExerciseIt:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-07-01|, |2025-07-31|, 99.80;
+           mp of |2025-08-01|, |2025-08-31|, 99.80;
+           mp of |2025-09-01|, |2025-09-30|, 99.80
+         ]
+      -- assessment_date: |2025-12-01|
+      -- notice_given: true
+      -- notice_date: |2025-08-15|
+    }
+  assertion r.right_arisen = true
+  assertion r.trigger_period_end = Present content |2025-09-30|
+  assertion r.exercise_deadline = Present content |2025-10-30|
+  assertion r.notice_exercises_the_right = false
+  assertion r.right_lapsed = true
+  assertion r.right_exercisable = false
+```
+
+## CE0008_TheWindowOpensWhenTheTriggeringPeriodEnds
+
+The lower bound of the L-6.2 window, tested on both sides. The right is
+conferred by L-6.1 only on the expiry of the third failing Measurement Period,
+so a notice dated 30 September 2025 — the last day of that period — is not
+given "after the end" of it and exercises nothing; a notice dated 1 October
+2025 is day one of the thirty and is good. A premature notice does not lapse
+the right while the window is still open: the right simply remains
+unexercised, and lapses only once the window closes.
+
+```catala
+#[test]
+declaration scope TestCE0008_TheWindowOpensWhenTheTriggeringPeriodEnds:
+  output on_the_period_end content ChronicFailure.ChronicFailureRight
+  output on_day_one content ChronicFailure.ChronicFailureRight
+  output premature_and_window_closed content ChronicFailure.ChronicFailureRight
+
+scope TestCE0008_TheWindowOpensWhenTheTriggeringPeriodEnds:
+  definition on_the_period_end equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-07-01|, |2025-07-31|, 99.80;
+           mp of |2025-08-01|, |2025-08-31|, 99.80;
+           mp of |2025-09-01|, |2025-09-30|, 99.80
+         ]
+      -- assessment_date: |2025-10-15|
+      -- notice_given: true
+      -- notice_date: |2025-09-30|
+    }
+  definition on_day_one equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-07-01|, |2025-07-31|, 99.80;
+           mp of |2025-08-01|, |2025-08-31|, 99.80;
+           mp of |2025-09-01|, |2025-09-30|, 99.80
+         ]
+      -- assessment_date: |2025-10-15|
+      -- notice_given: true
+      -- notice_date: |2025-10-01|
+    }
+  definition premature_and_window_closed equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-07-01|, |2025-07-31|, 99.80;
+           mp of |2025-08-01|, |2025-08-31|, 99.80;
+           mp of |2025-09-01|, |2025-09-30|, 99.80
+         ]
+      -- assessment_date: |2025-11-01|
+      -- notice_given: true
+      -- notice_date: |2025-09-30|
+    }
+  assertion on_the_period_end.notice_exercises_the_right = false
+  assertion on_the_period_end.right_lapsed = false
+  assertion on_the_period_end.right_exercisable = true
+  assertion on_day_one.notice_exercises_the_right = true
+  assertion on_day_one.right_lapsed = false
+  assertion on_day_one.right_exercisable = true
+  assertion premature_and_window_closed.notice_exercises_the_right = false
+  assertion premature_and_window_closed.right_lapsed = true
+  assertion premature_and_window_closed.right_exercisable = false
 ```

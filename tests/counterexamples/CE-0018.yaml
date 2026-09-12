@@ -51,7 +51,7 @@ inputs:
   assessment_date: '2025-06-01'
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: N-5.3 with status lapsed, assessed during the term (this finding); N-5.3 with status
   live, assessment 2099-01-01 (obligations subsist indefinitely, survival_end_date Absent
   - correct, no expiry date manufactured); N-5.3 with status lapsed, assessed after expiry

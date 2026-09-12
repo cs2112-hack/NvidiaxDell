@@ -1,4 +1,4 @@
-# Tests — DATA-RET R-4 Legal Hold
+# Tests — DATA-RET R-4 Legal Hold and R-6 backup purge
 
 Assertion-based tests for `LegalHold.HoldEffect`. Every branch of the
 exception chain on `deletion_due_date` (`r3_ordinary` ← `r4_3` ← `r4_1`) and
@@ -6,6 +6,13 @@ of the chain on `erasure_blocked_by_hold` is covered, and both sides of every
 date threshold are tested: the issue date, the release date, and the point at
 which the retention period counts as having "already expired" when the hold
 was released.
+
+R-6.1 is tested here too, because it is encoded here: its 90 days run from
+deletion from production systems, which is what this module's R-4 chain
+determines. The three `R6_1_*` tests pin the counterexample CE-0020 recorded
+against the old encoding in `Retention` — one per state of
+`deletion_due_date`: deferred by a released hold, absent under a live hold,
+and ordinary R-3 expiry with no hold at all.
 
 The tests that matter most are the ones that would pass under a wrong
 encoding of the precedence:
@@ -386,4 +393,86 @@ scope TestR4_2_ReleasedHoldNoLongerBlocks:
   assertion r.hold_in_force = false
   assertion r.erasure_blocked_by_hold = false
   assertion r.deletion_due_date = Present content |2025-07-15|
+```
+
+## R6_1_BackupRunsFromHoldDeferredProductionDeletion
+
+**CE-0020.** The whole point of encoding R-6.1 here. Employment ended on
+2018-01-01 so R-3.1(a) expired on 2024-01-01, but a Legal Hold issued on
+2023-01-01 ran until 2030-01-01, and R-4.3 therefore fixes production
+deletion at 30 days from release, 2030-01-31. R-6.1's cycle runs from *that*
+date, so the backup purge deadline is 2030-05-01. The old encoding measured
+the 90 days from the retention expiry and answered 2024-03-31 — a deadline
+that had already passed nearly six years before the record could lawfully
+leave production.
+
+```catala
+#[test]
+declaration scope TestR6_1_BackupRunsFromHoldDeferredProductionDeletion:
+  output r content LegalHold.HoldEffect
+
+scope TestR6_1_BackupRunsFromHoldDeferredProductionDeletion:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2023-01-01|
+      -- hold_released_date: Present content |2030-01-01|
+      -- retention_end_date: |2024-01-01|
+      -- assessment_date: |2030-01-02|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = false
+  assertion r.deletion_due_date = Present content |2030-01-31|
+  assertion r.backup_purge_deadline = Present content |2030-05-01|
+```
+
+## R6_1_NoBackupDeadlineWhileHoldInForce
+
+R-4.1 leaves no production-deletion date, and R-6.1 measures from that date,
+so no backup deadline falls due either. Answering
+`retention_end_date + 90 day` here would name a purge deadline for a record
+the Standard forbids deleting at all.
+
+```catala
+#[test]
+declaration scope TestR6_1_NoBackupDeadlineWhileHoldInForce:
+  output r content LegalHold.HoldEffect
+
+scope TestR6_1_NoBackupDeadlineWhileHoldInForce:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2023-01-01|
+      -- hold_released_date: Absent
+      -- retention_end_date: |2024-01-01|
+      -- assessment_date: |2026-01-02|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = true
+  assertion r.deletion_due_date = Absent
+  assertion r.backup_purge_deadline = Absent
+```
+
+## R6_1_BackupRunsFromOrdinaryExpiryWhereNoHold
+
+With no hold, production deletion falls due on the ordinary R-3 expiry and
+the 90 days run from there. 28 February 2026 plus 90 days is 29 May 2026 —
+the answer the old encoding in `Retention` also gave, which is why that
+encoding looked right until a hold deferred the production date.
+
+```catala
+#[test]
+declaration scope TestR6_1_BackupRunsFromOrdinaryExpiryWhereNoHold:
+  output r content LegalHold.HoldEffect
+
+scope TestR6_1_BackupRunsFromOrdinaryExpiryWhereNoHold:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Absent
+      -- hold_released_date: Absent
+      -- retention_end_date: |2026-02-28|
+      -- assessment_date: |2026-03-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = false
+  assertion r.deletion_due_date = Present content |2026-02-28|
+  assertion r.backup_purge_deadline = Present content |2026-05-29|
 ```

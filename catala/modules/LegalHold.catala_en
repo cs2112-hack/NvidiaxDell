@@ -2,8 +2,9 @@
 
 > Module LegalHold
 
-This module answers two questions: does a Legal Hold suspend deletion of a
-record, and when does deletion fall due once the hold is released?
+This module answers three questions: does a Legal Hold suspend deletion of a
+record, when does deletion fall due once the hold is released, and by when
+must the record then be purged from backups?
 
 R-4.1 is expressed as "notwithstanding R-3", so the hold override cannot live
 inside `Retention`: it must defeat whatever R-3 limb produced the retention
@@ -17,6 +18,12 @@ date falls due**, which is the only correct answer while a hold is in force:
 R-4.1 forbids deletion irrespective of expiry of the retention period, so
 reporting the expired retention date as a due date would invite exactly the
 deletion the clause prohibits.
+
+The third question is R-6.1's, and it lives here rather than in `Retention`
+because R-6.1 measures its cycle from deletion from production systems, which
+is precisely what R-4.1 and R-4.3 displace. `backup_purge_deadline` is
+therefore computed from `deletion_due_date` and is `Absent` whenever that is
+(CE-0020; the reasoning is under R-6 below).
 
 ## Prologue — declarations
 
@@ -41,6 +48,7 @@ declaration scope HoldEffect:
   input retention_under_hold_permitted_by_data_protection_law content boolean
   output hold_in_force content boolean
   output deletion_due_date content optional of date
+  output backup_purge_deadline content optional of date
   output erasure_blocked_by_hold content boolean
 ```
 
@@ -75,8 +83,29 @@ A hold is in force as at the assessment date if it has been issued on or
 before that date and not yet released by it. A hold is spent on the day it is
 released, which is what makes R-4.3's 30 days start running.
 
+The two dates are ordered, and R-2.3 read with R-4.3 is what orders them. A
+Legal Hold comes into existence by being "issued by the General Counsel or
+their delegate"; R-4.3 then speaks of what happens "on release **of a Legal
+Hold**". There is nothing to release until something has been issued, and a
+release cannot precede the issue it releases. So a release date with no issue
+date, or a release date earlier than the issue date, describes no Legal Hold
+this Standard recognises — and the answers the scope would otherwise give are
+confident and wrong: `hold_in_force` comes out false at every assessment date,
+including dates on which a real hold would have been in force, and R-4.3 still
+runs its 30 days from the phantom release. The scope declines instead. The
+bound is the Standard's, not a programming convenience: it is what makes
+"release" mean anything.
+
 ```catala
 scope HoldEffect:
+  assertion
+    match hold_released_date with pattern
+    -- Absent: true
+    -- Present content released:
+         (match hold_issued_date with pattern
+          -- Absent: false
+          -- Present content issued: released >= issued)
+
   label r2_3 definition hold_in_force equals
     match hold_issued_date with pattern
     -- Absent: false
@@ -188,4 +217,58 @@ scope HoldEffect:
       hold_in_force
       and not retention_under_hold_permitted_by_data_protection_law
     consequence equals false
+```
+
+## R-6 Deletion of backups
+
+| DATA-RET R-6.1 (006-data-retention-standard.md:90)
+|
+| Records deleted from production systems are deleted from backups at the
+| expiry of the backup rotation cycle, which must not exceed 90 days.
+
+**CE-0020.** This clause used to be encoded in `Retention`, as
+`retention_end_date + 90 day`. That substituted R-3's expiry for the event
+R-6.1 actually names: deletion **from production systems**. The two come
+apart exactly where R-4 bites. A record under a Legal Hold must not be
+deleted while the hold is in force (R-4.1) and is then deleted within 30 days
+of release if its period has already expired (R-4.3), which can fall years
+after the R-3 date — so the old encoding produced a backup deadline that had
+already passed before the record could lawfully leave production, an
+instruction compliable with on no facts at all. R-2.4 confirms the two dates
+are distinct steps of one deletion: a record is deleted when it is gone from
+production *and*, at the expiry of the rotation cycle, from backups.
+
+So R-6.1 belongs here, immediately below the clauses that fix the
+production-deletion date, and it takes that date from `deletion_due_date`
+rather than from any input of its own. That is deliberate. The date R-6.1
+depends on is the output of the whole R-3-then-R-4 chain — the R-3 limb that
+fixed the period, defeated by R-4.3 on release of a hold, defeated in turn by
+R-4.1 while one is in force — and a caller who had to supply it as an input
+could silently supply the R-3 expiry, which is the very error CE-0020
+records. Composed this way the wrong date cannot be passed in, because no
+date is passed in: `Retention.RetentionEnd.retention_end_date` feeds this
+scope's `retention_end_date`, and R-6.1 reads what R-4 made of it.
+
+`Absent` propagates for the same reason it arises: while a hold is in force
+no deletion date falls due, so no backup deadline can be computed either.
+Manufacturing one from the expired retention period would report a deadline
+for a purge R-4.1 forbids.
+
+The Standard fixes only the ceiling of the rotation cycle, not its length, so
+what this computes is the outer bound: a record deleted from production when
+deletion falls due must be gone from backups 90 days later. Where a business
+unit exercises the R-1.2 expectation and deletes earlier than it must, R-6.1
+runs its cycle from that earlier actual deletion and the deadline moves
+earlier with it. That actual date is not among the records this Standard
+defines — `deletion_due_date` is when deletion *falls due* — so the value
+here is the latest permissible purge deadline and never a licence to hold a
+backup for 90 days beyond a deletion that has already happened.
+
+```catala
+scope HoldEffect:
+  label r6_1 definition backup_purge_deadline equals
+    match deletion_due_date with pattern
+    -- Absent: Absent
+    -- Present content deleted_from_production:
+         Present content (deleted_from_production + 90 day)
 ```

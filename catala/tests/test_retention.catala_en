@@ -1,9 +1,15 @@
-# Tests — DATA-RET R-3 retention periods and R-6 backup bound
+# Tests — DATA-RET R-3 retention periods
 
 Assertion-based tests for `Retention.RetentionEnd`. All six limbs of the
 R-3.1 table are covered, both limb-specific exceptions are covered on both
 sides, and the month-end cases where Catala date addition would raise are
 tested explicitly.
+
+R-6.1's backup bound is no longer asserted here, because it is no longer
+computed here: CE-0020 established that R-6.1 runs from deletion from
+production systems, which R-4 can defer and R-1.2 can bring forward, so the
+clause moved to `LegalHold.HoldEffect` alongside the clauses that fix that
+date. Its tests moved with it, to `test_legal_hold.catala_en`.
 
 Three families of test exist specifically to catch encoding defects the type
 checker cannot see:
@@ -30,8 +36,7 @@ is false: the input must still be supplied, and no limb reads it.
 
 ## R3_1_a_EmployeeRecord
 
-R-3.1(a): 6 years from the end of employment. R-6.1 then adds the 90-day
-backup bound.
+R-3.1(a): 6 years from the end of employment.
 
 ```catala
 #[test]
@@ -50,7 +55,6 @@ scope TestR3_1_a_EmployeeRecord:
       -- statutory_retention_period: 0 day
     }
   assertion r.retention_end_date = |2025-08-31|
-  assertion r.backup_purge_deadline = |2025-11-29|
 ```
 
 ## R3_1_a_EmployeeRecordMonthEnd
@@ -75,7 +79,6 @@ scope TestR3_1_a_EmployeeRecordMonthEnd:
       -- statutory_retention_period: 0 day
     }
   assertion r.retention_end_date = |2026-02-28|
-  assertion r.backup_purge_deadline = |2026-05-29|
 ```
 
 ## R3_1_b_CustomerContract
@@ -146,7 +149,6 @@ scope TestR3_1_d_MarketingEngagementLater:
       -- statutory_retention_period: 0 day
     }
   assertion r.retention_end_date = |2026-11-20|
-  assertion r.backup_purge_deadline = |2027-02-18|
 ```
 
 ## R3_1_d_MarketingCollectionLater
@@ -417,7 +419,6 @@ scope TestR3_3_StatutoryPeriodLonger:
       -- statutory_retention_period: 10 year
     }
   assertion r.retention_end_date = |2029-08-31|
-  assertion r.backup_purge_deadline = |2029-11-29|
 ```
 
 ## R3_3_StatutoryPeriodShorter
@@ -519,27 +520,32 @@ scope TestR3_3_StatutoryIgnoredForCandidateRecordWithConsent:
   assertion r.retention_end_date = |2027-06-30|
 ```
 
-## R6_1_BackupBoundOnShortestPeriod
+## R3_3_StatutoryPeriodMonthEndRoundsUp
 
-R-6.1 bounds the backup purge at 90 days after production deletion, whatever
-limb fixed the production date.
+The rounding direction of R-3.3, which is the opposite of every other limb's.
+Ten years from 29 February 2020 has no corresponding day, and R-3.3's period
+is a statutory **floor** — "the period so required" — so it resolves forwards
+to 1 March 2030 via `Date.add_round_up`. Rounding it down with the rest of
+the scope would destroy the record a day before the legislation permits.
+Limb (a)'s own six years still round down, to 2026-02-28, because R-1.2 makes
+that period a maximum; the later of the two governs, so one record exercises
+both directions at once.
 
 ```catala
 #[test]
-declaration scope TestR6_1_BackupBoundOnShortestPeriod:
+declaration scope TestR3_3_StatutoryPeriodMonthEndRoundsUp:
   output r content Retention.RetentionEnd
 
-scope TestR6_1_BackupBoundOnShortestPeriod:
+scope TestR3_3_StatutoryPeriodMonthEndRoundsUp:
   definition r equals
     output of Retention.RetentionEnd with {
-      -- data_class: Retention.DataClass.SecurityLog
-      -- retention_trigger_date: |2025-01-31|
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2020-02-29|
       -- most_recent_engagement_date: Absent
       -- talent_pool_consent_date: Absent
       -- consent_renewal_dates: []
-      -- statutory_retention_applies: false
-      -- statutory_retention_period: 0 day
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 10 year
     }
-  assertion r.retention_end_date = |2026-02-28|
-  assertion r.backup_purge_deadline = |2026-05-29|
+  assertion r.retention_end_date = |2030-03-01|
 ```

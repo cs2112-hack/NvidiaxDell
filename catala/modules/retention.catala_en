@@ -1,13 +1,22 @@
-# Data Retention and Deletion Standard — R-2, R-3 and R-6 retention periods
+# Data Retention and Deletion Standard — R-2 and R-3 retention periods
 
 > Module Retention
 
 This module answers: for how long is a record retained, absent a Legal Hold?
-It encodes the R-3.1 period table, its two limb-specific exceptions, and the
-R-6.1 backup bound. The Legal Hold override in R-4 lives in `Legal_hold`,
-which consumes `retention_end_date` from here — R-4.1 is expressed as
-"notwithstanding R-3", so it must sit below the whole of this module's output
-rather than inside it.
+It encodes the R-3.1 period table and its two limb-specific exceptions. The
+Legal Hold override in R-4 lives in `Legal_hold`, which consumes
+`retention_end_date` from here — R-4.1 is expressed as "notwithstanding R-3",
+so it must sit below the whole of this module's output rather than inside it.
+
+**CE-0020.** R-6.1's backup bound used to be computed here, as
+`retention_end_date + 90 day`. That was the wrong trigger. R-6.1 runs its
+90-day cycle from deletion **from production systems**, and this scope cannot
+see that event: R-4.1 and R-4.3 can defer production deletion for years past
+the R-3 expiry, and R-1.2 lets a business unit bring it forward. R-6.1 is now
+encoded once, in `Legal_hold`, immediately below the clauses that fix the
+production-deletion date — see the R-6 section of that module for the full
+reasoning. This scope answers only the R-3 question it can answer, and offers
+no backup date that a reader could mistake for one.
 
 R-1.2 (PROSE) makes every period here a **maximum**: a computed
 `retention_end_date` is a ceiling, never an instruction to keep. R-2.4 and
@@ -63,7 +72,6 @@ declaration scope RetentionEnd:
   input statutory_retention_applies content boolean
   input statutory_retention_period content duration
   output retention_end_date content date
-  output backup_purge_deadline content date
 ```
 
 | NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Catala
@@ -75,6 +83,13 @@ declaration scope RetentionEnd:
 | ceiling, so resolving an ambiguous month-end to the previous existing day
 | never authorises retention for a day the Standard does not allow.
 | Rounding up would extend every such period by a day.
+|
+| That justification is about the Standard's own periods, and R-3.3's period
+| is not one of them: it is imposed by pensions or payroll legislation and is
+| a floor, not a maximum. So R-3.3 rounds the other way, by calling
+| `Date.add_round_up` explicitly rather than relying on the scope mode; the
+| reasoning is with the clause. The scope mode stays `date round down`
+| because every other limb here is an R-1.2 maximum.
 
 ```catala
 scope RetentionEnd:
@@ -199,6 +214,20 @@ end of employment. The clause bites only where the statutory period is the
 *longer*, so the result is the later of the two dates — which also means a
 supplied period shorter than six years cannot cut limb (a) down.
 
+This is the one period in this scope that is a **floor rather than a
+maximum**, and it is therefore the one that must round *up*. Everywhere else
+`date round down` is right because R-1.2 makes the Standard's periods
+ceilings, so an ambiguous month-end resolved backwards can only delete
+earlier than permitted — which R-1.2 positively encourages. Here the period
+is "the period so required" by legislation: resolving ten years from 29
+February backwards to 28 February would have the Company destroy the record
+a day before the statute permits, which is a breach in the one direction
+rounding must not err in. `Date.add_round_up` is called explicitly so this
+limb rounds against the scope mode, for the same reason `NdaSurvival` rounds
+its periods of protection up throughout. Limb (a)'s own six years keep
+rounding down inside their maximum, so one record can see both directions —
+correctly, because the two periods are different kinds of thing.
+
 ```catala
 scope RetentionEnd:
   label r3_3 exception r3_1_a definition retention_end_date
@@ -208,24 +237,6 @@ scope RetentionEnd:
     consequence equals
       Date.max of
         (retention_trigger_date + 6 year),
-        (retention_trigger_date + statutory_retention_period)
-```
-
-## R-6 Deletion of backups
-
-| DATA-RET R-6.1 (006-data-retention-standard.md:90)
-|
-| Records deleted from production systems are deleted from backups at the
-| expiry of the backup rotation cycle, which must not exceed 90 days.
-
-The Standard does not state the length of the rotation cycle, only its
-ceiling, so the only date this clause determines is the outer bound: a record
-deleted from production on `retention_end_date` must be gone from backups by
-90 days later. `backup_purge_deadline` is that bound, not a prediction of
-when the cycle will actually turn over.
-
-```catala
-scope RetentionEnd:
-  label r6_1 definition backup_purge_deadline
-    equals retention_end_date + 90 day
+        (Date.add_round_up of
+           retention_trigger_date, statutory_retention_period)
 ```

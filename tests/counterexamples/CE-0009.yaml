@@ -57,7 +57,7 @@ inputs:
   next_invoice_date: '2026-04-01'
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'L-5.1 day 30 (claim 2026-03-02 on a 2026-01-31 period end) -- error; L-5.1 day 31
   (claim 2026-03-03) -- error; L-5.1 claim well inside the window (2026-02-05) -- error; L-5.1
   claim before the deadline but with claim_made false (credit never claimed, window still

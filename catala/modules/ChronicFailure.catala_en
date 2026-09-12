@@ -42,10 +42,19 @@ declaration scope ChronicFailureRight:
   output rolling_trigger content boolean
   output right_arisen content boolean
   output completing_periods content list of PeriodAvailability
+  # L-6.2 confines a lapse to "that occurrence", so the occurrence being
+  # assessed has to be identified before any deadline is computed: those that
+  # have arisen by the assessment date, those of them whose window is still
+  # open, and the one the assessment actually rests on.
+  output arisen_occurrences content list of PeriodAvailability
+  output live_occurrences content list of PeriodAvailability
+  output assessed_occurrences content list of PeriodAvailability
   output trigger_period_end content optional of date
   output notice_period_days content integer
   output early_termination_charges_payable content boolean
   output exercise_deadline content optional of date
+  # Whether the notice of record falls inside both ends of the L-6.2 window.
+  output notice_exercises_the_right content boolean
   output right_lapsed content boolean
   output right_exercisable content boolean
 ```
@@ -117,7 +126,7 @@ scope ChronicFailureRight:
   definition early_termination_charges_payable equals false
 ```
 
-## L-6.2 The exercise window
+## L-6.2 Which occurrence is assessed
 
 | MSA-SCH4 L-6.2 (004-msa-sla-credits.md:108)
 |
@@ -125,26 +134,48 @@ scope ChronicFailureRight:
 | Measurement Period which gives rise to it, failing which it lapses in respect of
 | that occurrence.
 
-"The Measurement Period which gives rise to it" is a completing period. Where
-a history contains more than one, each is its own occurrence with its own
-window, which is why `completing_periods` is an output; the occurrence this
-scope assesses is the earliest, and `trigger_period_end` is `Absent` where no
-right has arisen at all, so that no deadline is ever manufactured for a right
-that does not exist.
+"The Measurement Period which gives rise to it" is a completing period. A
+history can contain more than one, and the closing words of L-6.2 confine the
+lapse to "that occurrence" — the occurrence whose own window expired — and so
+expressly preserve every later one.
 
-"Within 30 days" is inclusive of the thirtieth, as in L-5.1. The right lapses
-where the window has closed: measured against the notice date if notice was
-given, and against the assessment date if it has not been given yet. The
-exception repeats the parent's condition `right_arisen`, since a right that
-never arose cannot lapse — a Catala exception does not inherit its parent's
-condition, and the base case here is the unconditional "has not lapsed".
+An earlier version took `trigger_period_end` as the **minimum** period end
+over all completing periods, so the whole scope answered about the earliest
+occurrence ever recorded. A cluster of failures in early 2024 whose window
+closed on 30 April 2024 therefore destroyed the right arising from a fresh
+cluster in 2025, and notice served five days after that 2025 occurrence arose
+was reported out of time by fifteen months. Found by the adversarial
+reviewer; see tests/counterexamples/CE-0007.yaml.
+
+The occurrence assessed is the one live at the assessment date. An occurrence
+arises only when its completing period ends, so `arisen_occurrences` drops
+completing periods ending after the assessment date, and `live_occurrences`
+keeps those of them whose 30-day window has not closed. The latest live
+occurrence governs, being the one with a window still to run; failing that
+the latest occurrence to have arisen, so a lapse is reported against the
+occurrence it belongs to; failing that the latest completing period, so that
+no deadline is manufactured for a right that has not yet arisen.
+`completing_periods` stays an output, so every occurrence remains visible.
 
 ```catala
 scope ChronicFailureRight:
+  definition arisen_occurrences equals
+    list of p among completing_periods such that
+      p.period_end <= assessment_date
+
+  definition live_occurrences equals
+    list of p among arisen_occurrences such that
+      (p.period_end + 30 day) >= assessment_date
+
+  definition assessed_occurrences equals
+    if (number of live_occurrences) > 0 then live_occurrences
+    else if (number of arisen_occurrences) > 0 then arisen_occurrences
+    else completing_periods
+
   definition trigger_period_end equals
     if right_arisen then
       Present content
-        (minimum of (map each p among completing_periods to p.period_end)
+        (maximum of (map each p among assessed_occurrences to p.period_end)
          or if list empty then assessment_date)
     else Absent
 
@@ -152,16 +183,58 @@ scope ChronicFailureRight:
     match trigger_period_end with pattern
     -- Absent: Absent
     -- Present content d: Present content (d + 30 day)
+```
+
+## L-6.2 Exercise inside the window, and lapse
+
+| MSA-SCH4 L-6.2 (004-msa-sla-credits.md:108)
+|
+| The right in L-6.1 must be exercised within 30 days after the end of the
+| Measurement Period which gives rise to it, failing which it lapses in respect of
+| that occurrence.
+
+L-6.2 fixes a window with two ends, not just a deadline. The right "must be
+exercised within 30 days after the end of the Measurement Period which gives
+rise to it": the window opens when that period ends, because L-6.1 confers the
+right only on the expiry of the third failing period, and closes on the
+thirtieth day after it. "Within 30 days" is inclusive of the thirtieth, as in
+L-5.1, so the window is days 1 to 30 after the end of that period.
+
+An earlier version tested only the upper bound — `if notice_given then
+notice_date > deadline else assessment_date > deadline` — so any notice
+bearing a date on or before the deadline was treated as a good exercise,
+including one dated before the third failing period had even ended, and the
+right was then reported as exercisable indefinitely. A notice cannot exercise
+a right that did not exist when it was served. Found by the adversarial
+reviewer; see tests/counterexamples/CE-0008.yaml.
+
+So `notice_exercises_the_right` requires the notice to fall inside both ends
+of the window, and the right lapses where no such exercise occurred and the
+window has since closed, measured against the assessment date. The exception
+repeats the parent's condition `right_arisen`, since a right that never arose
+cannot lapse — a Catala exception does not inherit its parent's condition,
+and the base case here is the unconditional "has not lapsed".
+
+```catala
+scope ChronicFailureRight:
+  definition notice_exercises_the_right equals
+    notice_given
+    and (match trigger_period_end with pattern
+         -- Absent: false
+         -- Present content t: notice_date > t)
+    and (match exercise_deadline with pattern
+         -- Absent: false
+         -- Present content d: notice_date <= d)
 
   label l6_2_not_lapsed definition right_lapsed equals false
 
   label l6_2_lapsed exception l6_2_not_lapsed definition right_lapsed
     under condition
       right_arisen
+      and (not notice_exercises_the_right)
       and (match exercise_deadline with pattern
            -- Absent: false
-           -- Present content d:
-               (if notice_given then notice_date > d else assessment_date > d))
+           -- Present content d: assessment_date > d)
     consequence equals true
 
   definition right_exercisable equals right_arisen and (not right_lapsed)

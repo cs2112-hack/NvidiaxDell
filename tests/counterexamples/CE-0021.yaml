@@ -206,7 +206,7 @@ inputs:
   has_standing_shift_allowance: false
 round: 3
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'rounding: per-hour money conversion vs aggregate (C-6.1); rounding: same defect via
   C-4.1 at 48 hours, 201.00 vs 201.04 observed; rounding: rates that are exact in cents (20.00)
   produce no error, confirming the cause; exception boundary C-6.2: standing shift allowance

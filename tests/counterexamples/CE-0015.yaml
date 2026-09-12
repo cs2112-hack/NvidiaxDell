@@ -54,7 +54,7 @@ inputs:
   annual_base_salary: 100000
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'rounding at exact and near-midpoint cents of the S-3.1 product, at accelerators 1.5,
   1.75 and 2.25 (all three off by one cent); marginal vs whole-revenue accelerator: NBR $1,200,000
   / Quota $1,000,000 gives $144,000 (whole) not $104,000 (marginal), so S-4.2 is correctly

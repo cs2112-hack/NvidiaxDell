@@ -86,10 +86,22 @@ declaration scope ScheduledMaintenance:
   output excluded_minutes content integer
 
 declaration scope AvailabilityPercentage:
+  # L-2.3: the total number of minutes in the Measurement Period.
   input total_minutes content integer
+  # L-2.4: every whole minute during which the Service was not Available,
+  # before any exclusion is applied.
   input minutes_not_available content integer
+  # L-2.5: the Excluded Minutes, as the Schedule leaves them once L-4.5 has
+  # withdrawn any Scheduled Maintenance excess. The excess is NOT part of this
+  # figure: L-4.5 says in terms that the excess minutes "are not Excluded
+  # Minutes". See the L-2.4 section below and CE-0010.
   input excluded_minutes content integer
+  # L-4.5: the minutes by which Scheduled Maintenance exceeded 8 hours in
+  # aggregate, as computed by ScheduledMaintenance above.
   input scheduled_maintenance_excess_minutes content integer
+  # L-2.5(a) as it stood before L-4.5 operated on it, derived from the two
+  # inputs above rather than taken from the caller.
+  output excluded_minutes_before_l4_5 content integer
   output unavailable_minutes content integer
   output availability_percentage_unrounded content decimal
   output availability_percentage content decimal
@@ -101,6 +113,10 @@ declaration scope ServiceAvailability:
   input business_day_calendar content list of date
   output total_minutes content integer
   output minutes_not_available content integer
+  # The L-2.5 exclusion as each limb confers it, and the Excluded Minutes that
+  # survive L-4.5. The second is the defined term; the first is reported so
+  # that the L-4.5 withdrawal is inspectable.
+  output excluded_minutes_before_l4_5 content integer
   output excluded_minutes content integer
   output scheduled_maintenance_aggregate_minutes content integer
   output scheduled_maintenance_excess_minutes content integer
@@ -293,11 +309,30 @@ scope ScheduledMaintenance:
 | "Unavailable Minutes" means each whole minute during which the Service
 | is not Available, excluding Excluded Minutes.
 
-The `excluded_minutes` input is the L-2.5 figure taken at face value — every
-minute of Scheduled Maintenance counts under limb (a), because L-2.5(a) itself
-draws no distinction between maintenance inside and outside the 8-hour
-aggregate. L-4.5 is what withdraws the excess, and it does so here, as an
-exception to L-2.4, by adding those minutes back into the count.
+`excluded_minutes` is the Excluded Minutes of L-2.5 as the Schedule leaves
+them once L-4.5 has operated: the maintenance excess is not Excluded Minutes
+at all, because L-4.5 says so in terms, and a field named after a defined term
+can only mean that term at its legally correct value.
+
+An earlier version of this scope required the opposite. Its arithmetic was
+`minutes_not_available - excluded_minutes + scheduled_maintenance_excess_minutes`,
+which is self-consistent only if the caller supplies the figure *before* L-4.5
+withdraws the excess. A caller who passed the actual Excluded Minutes — the
+only value the name admits — was charged the excess twice: on facts of 600
+minutes not Available, 480 Excluded Minutes and a 120-minute excess it
+returned 240 Unavailable Minutes and 99.46% instead of 120 and 99.73%, which
+is the difference between L-4.1(a)'s 5% and L-4.1(b)'s 10% of the Monthly
+Service Charge. Found by the adversarial reviewer; see
+tests/counterexamples/CE-0010.yaml.
+
+The scope now derives the pre-L-4.5 figure itself instead of trusting a caller
+to supply it under the name of the defined term, in the same way that
+`Overtime.WeeklyOvertime` derives each hour's position in the Payroll Week
+rather than reading a label off a timesheet row. Both quantities the
+derivation needs are unambiguous: the Excluded Minutes, and the L-4.5 excess
+that `ScheduledMaintenance` above computes. Adding the excess back to the
+Excluded Minutes reconstructs what L-2.5(a) would have excluded on its own
+terms, which is the figure L-2.4 subtracts before L-4.5 speaks.
 
 | MSA-SCH4 L-4.5 (004-msa-sla-credits.md:86)
 |
@@ -305,18 +340,26 @@ exception to L-2.4, by adding those minutes back into the count.
 | Measurement Period, the excess minutes are not Excluded Minutes and count as
 | Unavailable Minutes.
 
+L-4.5 does two things and the encoding must do each exactly once. Its first
+limb takes the excess out of the exclusion, which is why the base case
+subtracts the reconstructed pre-L-4.5 figure rather than the Excluded Minutes;
+its second limb returns those minutes to the count, which is the exception.
+
 The exception repeats no condition from L-2.4, which is unconditional; it is
 guarded on its own condition, that there is an excess.
 
 ```catala
 scope AvailabilityPercentage:
+  definition excluded_minutes_before_l4_5 equals
+    excluded_minutes + scheduled_maintenance_excess_minutes
+
   label l2_4 definition unavailable_minutes equals
-    minutes_not_available - excluded_minutes
+    minutes_not_available - excluded_minutes_before_l4_5
 
   label l4_5 exception l2_4 definition unavailable_minutes
     under condition scheduled_maintenance_excess_minutes > 0
     consequence equals
-      minutes_not_available - excluded_minutes
+      minutes_not_available - excluded_minutes_before_l4_5
       + scheduled_maintenance_excess_minutes
 ```
 
@@ -370,6 +413,14 @@ scope AvailabilityPercentage:
 | — so that a caller cannot get the L-4.5 feedback edge wrong. All the legal
 | content is in the clause blocks above.
 
+Summing the per-outage `ExcludedMinutes` results gives the exclusion each limb
+of L-2.5 confers on its own terms, which for limb (a) still contains the
+Scheduled Maintenance excess. L-4.5 withdraws that excess, so the Excluded
+Minutes for the Measurement Period — the defined term, and what this scope
+hands to `AvailabilityPercentage` — are that sum less the excess. Both figures
+are reported, because a reader of the answer needs to see the withdrawal
+rather than infer it (CE-0010).
+
 ```catala
 scope ServiceAvailability:
   definition total_minutes equals
@@ -390,7 +441,7 @@ scope ServiceAvailability:
        -- business_day_calendar: business_day_calendar
      }).excess_minutes
 
-  definition excluded_minutes equals
+  definition excluded_minutes_before_l4_5 equals
     Integer.sum of (map each o among outages to
       (output of ExcludedMinutes with {
          -- minutes: o.minutes
@@ -407,6 +458,9 @@ scope ServiceAvailability:
          -- outage_attributable_to_customer: o.outage_attributable_to_customer
          -- is_suspension_under_clause_9: o.is_suspension_under_clause_9
        }).excluded_minutes)
+
+  definition excluded_minutes equals
+    excluded_minutes_before_l4_5 - scheduled_maintenance_excess_minutes
 
   definition unavailable_minutes equals
     (output of AvailabilityPercentage with {

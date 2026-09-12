@@ -57,7 +57,7 @@ inputs:
   assessment_date: '2025-06-01'
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: N-5.4 assessed during the term of the Agreement (this finding); N-5.4 assessed after
   expiry with date_ceased_to_hold after the 3-year tail (survival_end_date 2031-01-01, correct);
   N-5.4 with date_ceased_to_hold Absent (obligations subsist, correct); checked the unconditional

@@ -1,0 +1,243 @@
+#!/usr/bin/env python3
+"""lks — the legal knowledge system's command line.
+
+    lks ask "<question>" [--inputs JSON] [--scope Module.Scope] [--backend mongo|files]
+    lks scopes [--grep TEXT]
+    lks run <Module.Scope> <JSON>
+    lks why <Module.Scope> <variable>
+    lks cite <DOC-ID CLAUSE-ID>
+    lks index build | sync | status
+    lks ingest <document.md> [--candidate FILE ...]
+    lks proposals [--id ID]
+    lks merge <proposal-id>
+    lks counterexamples [--open]
+    lks check
+"""
+import argparse
+import json
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
+
+
+def _store(backend: str):
+    if backend in ("mongo", "auto"):
+        try:
+            from lks.mongo_store import MongoVectorStore
+            return MongoVectorStore.open()
+        except Exception as e:
+            if backend == "mongo":
+                raise
+            print(f"(mongo unavailable: {type(e).__name__}; using the committed files)",
+                  file=sys.stderr)
+    from lks.vector import VectorStore
+    return VectorStore.open()
+
+
+def cmd_ask(a):
+    from lks.chat import Chat
+    c = Chat(store=_store(a.backend))
+    inputs = json.loads(a.inputs) if a.inputs else None
+    print(c.answer(a.question, inputs=inputs, scope=a.scope).render())
+
+
+def cmd_scopes(a):
+    from lks.registry import build_registry, load_registry
+    reg = load_registry() or build_registry()
+    for k, e in sorted(reg.items()):
+        if a.grep and a.grep.lower() not in k.lower() and not any(
+            a.grep.lower() in r.lower() for r in e.encodes
+        ):
+            continue
+        print(f"{k}")
+        print(f"    inputs   {', '.join(e.inputs) or '-'}")
+        print(f"    outputs  {', '.join(e.outputs) or '-'}")
+        if e.judgement_inputs:
+            print(f"    JUDGEMENT (a human must supply): {', '.join(e.judgement_inputs)}")
+        print(f"    encodes  {', '.join(e.encodes) or '-'}")
+
+
+def cmd_run(a):
+    from lks.catala_runner import CatalaError, run_scope
+    from lks.registry import build_registry, load_registry
+    reg = load_registry() or build_registry()
+    e = reg.get(a.target)
+    if e is None:
+        print(f"no such scope: {a.target}. Try: lks scopes", file=sys.stderr)
+        return 1
+    try:
+        print(json.dumps(run_scope(e.path, e.scope, json.loads(a.inputs)), indent=2, sort_keys=True))
+    except CatalaError as ex:
+        print(f"{type(ex).__name__}: {ex.diagnostic}", file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_why(a):
+    """Show the exception hierarchy the compiler actually built."""
+    from lks.catala_runner import exception_tree, tree_signature
+    from lks.registry import build_registry, load_registry
+    reg = load_registry() or build_registry()
+    e = reg.get(a.target)
+    if e is None:
+        print(f"no such scope: {a.target}", file=sys.stderr)
+        return 1
+    trees = exception_tree(e.path, e.scope, a.variable)
+    print(f"{a.target}.{a.variable} — exception hierarchy as compiled:")
+    print(tree_signature(trees))
+    return 0
+
+
+def cmd_cite(a):
+    from lks.segment import load_corpus
+    ref = " ".join(a.ref)
+    for d in load_corpus("corpus"):
+        for c in d.clauses:
+            if c.ref == ref:
+                print(f"{c.cite()}  [{d.title} v{d.version}, effective {d.effective_date}]")
+                print(f"Section {c.section_id} {c.section_title}\n")
+                print(c.body)
+                return 0
+    print(f"no clause {ref!r} in the corpus", file=sys.stderr)
+    return 1
+
+
+def cmd_index(a):
+    if a.action == "build":
+        from lks.vector import build_index
+        print(json.dumps(build_index(), indent=2))
+    elif a.action == "sync":
+        from lks.mongo_store import sync
+        print(json.dumps(sync(), indent=2))
+    else:
+        from lks.vector import VectorStore
+        s = VectorStore.open()
+        print(json.dumps({"files": s.manifest}, indent=2))
+        try:
+            from lks.mongo_store import MongoVectorStore
+            m = MongoVectorStore.open()
+            print(json.dumps({"mongo": m.status()}, indent=2))
+            m.close()
+        except Exception as e:
+            print(f"mongo: unavailable ({type(e).__name__})")
+    return 0
+
+
+def cmd_ingest(a):
+    from lks.ingest import propose_ingestion
+    pr = propose_ingestion(a.document, candidate_paths=a.candidate or [])
+    print(f"proposal {pr.id}: {len(pr.conflicts)} conflict(s), "
+          f"{len(pr.blocking)} blocking, mergeable={pr.mergeable}")
+    for c in pr.conflicts:
+        print(f"  [{c.severity}] {c.kind}  {c.incoming_ref}")
+        print(f"      {c.detail.splitlines()[0]}")
+    print(f"\nwritten to {pr.dir / 'proposal.yaml'}")
+    if not pr.mergeable:
+        print("Merge is refused until a human records a resolution and resolved_by "
+              "against each blocking conflict in that file.")
+    return 0
+
+
+def cmd_proposals(a):
+    from lks.ingest import PROPOSALS, Proposal
+    if not PROPOSALS.exists():
+        print("no proposals")
+        return 0
+    for d in sorted(PROPOSALS.iterdir()):
+        if not (d / "proposal.yaml").exists():
+            continue
+        pr = Proposal.load(d.name)
+        if a.id and a.id != pr.id:
+            continue
+        print(f"{pr.id}  {pr.doc_id}  {'mergeable' if pr.mergeable else 'BLOCKED'}  "
+              f"({len(pr.unresolved)} unresolved of {len(pr.blocking)} blocking)")
+    return 0
+
+
+def cmd_merge(a):
+    from lks.ingest import MergeRefused, merge
+    try:
+        print(json.dumps(merge(a.id), indent=2))
+    except MergeRefused as e:
+        print(str(e), file=sys.stderr)
+        return 1
+    return 0
+
+
+def cmd_counterexamples(a):
+    from lks.counterexample import load_all, summary
+    for ce in load_all():
+        if a.open_only and ce.status != "open":
+            continue
+        print(f"{ce.id}  [{ce.status}]  round {ce.round}  "
+              f"{ce.target.get('module','')}.{ce.target.get('scope','')}")
+        print(f"    {ce.fact_pattern.splitlines()[0][:100]}")
+        print(f"    cites {', '.join(ce.citations)}")
+    print(f"\n{json.dumps(summary())}")
+    return 0
+
+
+def cmd_check(a):
+    import subprocess
+    return subprocess.call([str(ROOT / "scripts" / "check.sh")], cwd=str(ROOT))
+
+
+def main() -> int:
+    p = argparse.ArgumentParser(prog="lks", description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    q = sub.add_parser("ask", help="answer a question over both engines")
+    q.add_argument("question")
+    q.add_argument("--inputs", help="JSON object of scope inputs")
+    q.add_argument("--scope", help="force a scope, e.g. Overtime.HourPremium")
+    q.add_argument("--backend", default="auto", choices=["auto", "mongo", "files"])
+    q.set_defaults(fn=cmd_ask)
+
+    s = sub.add_parser("scopes", help="list rule scopes and what they need")
+    s.add_argument("--grep")
+    s.set_defaults(fn=cmd_scopes)
+
+    r = sub.add_parser("run", help="execute a scope directly")
+    r.add_argument("target"); r.add_argument("inputs")
+    r.set_defaults(fn=cmd_run)
+
+    w = sub.add_parser("why", help="print a variable's exception hierarchy")
+    w.add_argument("target"); w.add_argument("variable")
+    w.set_defaults(fn=cmd_why)
+
+    c = sub.add_parser("cite", help="print a clause verbatim with its citation")
+    c.add_argument("ref", nargs="+")
+    c.set_defaults(fn=cmd_cite)
+
+    i = sub.add_parser("index", help="build, sync or inspect the vector index")
+    i.add_argument("action", choices=["build", "sync", "status"])
+    i.set_defaults(fn=cmd_index)
+
+    g = sub.add_parser("ingest", help="propose ingestion of a new document")
+    g.add_argument("document"); g.add_argument("--candidate", action="append")
+    g.set_defaults(fn=cmd_ingest)
+
+    pl = sub.add_parser("proposals", help="list ingestion proposals")
+    pl.add_argument("--id")
+    pl.set_defaults(fn=cmd_proposals)
+
+    m = sub.add_parser("merge", help="merge a proposal (refused while conflicts remain)")
+    m.add_argument("id")
+    m.set_defaults(fn=cmd_merge)
+
+    ce = sub.add_parser("counterexamples", help="list the permanent regression suite")
+    ce.add_argument("--open", dest="open_only", action="store_true")
+    ce.set_defaults(fn=cmd_counterexamples)
+
+    ck = sub.add_parser("check", help="run the full verification gate")
+    ck.set_defaults(fn=cmd_check)
+
+    a = p.parse_args()
+    return a.fn(a) or 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

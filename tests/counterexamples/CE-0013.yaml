@@ -47,7 +47,7 @@ inputs:
     end_date: '2025-10-30'
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'absence straddling the start of the Plan Year (this finding); absence straddling the
   end of the Plan Year would present the mirror image; boundary: absence of exactly 29 days
   (QualifyingAbsence, parental) -> relief_days 0; exactly 30 days -> relief_days 30. Both

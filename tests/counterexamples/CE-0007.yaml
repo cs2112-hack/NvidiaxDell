@@ -142,7 +142,7 @@ inputs:
   notice_date: '2025-10-05'
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'L-6.1 consecutive trigger: three consecutive failing periods (Jul-Sep 2025) -- fires
   correctly; L-6.1 rolling trigger alone: failures Jan/Apr/Jul/Oct 2025, no three consecutive
   -- rolling_trigger true, consecutive_trigger false, correct; L-6.1 neither-but-close: failures

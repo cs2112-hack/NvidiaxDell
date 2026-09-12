@@ -231,7 +231,7 @@ inputs:
   has_standing_shift_allowance: false
 round: 3
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'exception boundary at exactly 48 hours (C-4.2 must not fire); rounding: per-hour money
   conversion vs aggregate under C-4.1; re-derivation including C-4.2 before recording, per
   the round-2 lesson; 44-hour variant: expected 100.50, observed 100.52 - same defect; rate

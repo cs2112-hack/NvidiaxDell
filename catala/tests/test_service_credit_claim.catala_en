@@ -6,6 +6,15 @@ window is tested on both sides of it: a claim on day 30 is in time, a claim on
 day 31 is waived. Both branches of the L-5.2 settlement hierarchy are covered,
 with their dates.
 
+L-5.2's route is a pair of booleans rather than an enumeration, because Catala
+1.2.1 cannot JSON-encode an enum-typed output and the scope was therefore
+unexecutable through the interface the whole system answers questions with
+(CE-0009). An assertion cannot catch that defect — assertions run under the
+interpreter, which serialises nothing — so the guard against its return is
+`scripts/check_executable.py`, run as step 6 of `scripts/check.sh`. What the
+tests here add is the answer CE-0009 asked for, pinned on its own facts, plus
+the invariant that the two route booleans are always opposites.
+
 > Using ServiceCreditClaim
 
 ## L5_1_ClaimOnDayThirty
@@ -149,7 +158,8 @@ scope TestL5_2_SetOffAgainstNextInvoice:
       -- further_invoice_expected: true
       -- next_invoice_date: |2025-03-01|
     }
-  assertion r.settlement = AppliedAgainstNextInvoice
+  assertion r.applied_against_next_invoice = true
+  assertion r.paid_to_customer = false
   assertion r.settlement_due_date = |2025-03-01|
 ```
 
@@ -173,7 +183,8 @@ scope TestL5_2_PaidWhereNoFurtherInvoice:
       -- further_invoice_expected: false
       -- next_invoice_date: |2025-03-01|
     }
-  assertion r.settlement = PaidToCustomer
+  assertion r.applied_against_next_invoice = false
+  assertion r.paid_to_customer = true
   assertion r.settlement_due_date = |2025-03-12|
 ```
 
@@ -199,6 +210,80 @@ scope TestL5_2_SettlementIsIndependentOfWaiver:
       -- next_invoice_date: |2025-04-01|
     }
   assertion r.waived = true
-  assertion r.settlement = PaidToCustomer
+  assertion r.applied_against_next_invoice = false
+  assertion r.paid_to_customer = true
   assertion r.settlement_due_date = |2025-04-09|
+```
+
+## CE0009_TheFactPatternThatCouldNotBeAnswered
+
+CE-0009's own facts. The Measurement Period ended on 31 January 2026, the
+claim was made in writing on 5 February 2026, the Supplier accepted it on 10
+March 2026 and a further invoice falls due on 1 April 2026. L-5.1 fixes the
+deadline at 2 March 2026, so the claim is in time and the waiver does not
+operate; L-5.2 applies the credit against the 1 April 2026 invoice. Before the
+enum-typed output was removed this scope answered none of it — it raised on
+serialisation instead.
+
+```catala
+#[test]
+declaration scope TestCE0009_TheFactPatternThatCouldNotBeAnswered:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestCE0009_TheFactPatternThatCouldNotBeAnswered:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2026-01-31|
+      -- claim_made: true
+      -- claim_date: |2026-02-05|
+      -- claim_accepted_date: |2026-03-10|
+      -- further_invoice_expected: true
+      -- next_invoice_date: |2026-04-01|
+    }
+  assertion r.claim_deadline = |2026-03-02|
+  assertion r.claim_in_time = true
+  assertion r.waived = false
+  assertion r.applied_against_next_invoice = true
+  assertion r.paid_to_customer = false
+  assertion r.settlement_due_date = |2026-04-01|
+```
+
+## CE0009_TheTwoRoutesAreAlwaysOpposites
+
+L-5.2 admits exactly two routes and no third, so whichever way the exception
+hierarchy resolves, exactly one of the two booleans is true. Asserted on both
+sides of the only condition that decides it.
+
+```catala
+#[test]
+declaration scope TestCE0009_TheTwoRoutesAreAlwaysOpposites:
+  output with_invoice content ServiceCreditClaim.CreditClaim
+  output without_invoice content ServiceCreditClaim.CreditClaim
+
+scope TestCE0009_TheTwoRoutesAreAlwaysOpposites:
+  definition with_invoice equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2026-01-31|
+      -- claim_made: true
+      -- claim_date: |2026-02-05|
+      -- claim_accepted_date: |2026-03-10|
+      -- further_invoice_expected: true
+      -- next_invoice_date: |2026-04-01|
+    }
+  definition without_invoice equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2026-01-31|
+      -- claim_made: true
+      -- claim_date: |2026-02-05|
+      -- claim_accepted_date: |2026-03-10|
+      -- further_invoice_expected: false
+      -- next_invoice_date: |2026-04-01|
+    }
+  assertion with_invoice.applied_against_next_invoice
+    = (not with_invoice.paid_to_customer)
+  assertion without_invoice.applied_against_next_invoice
+    = (not without_invoice.paid_to_customer)
+  assertion with_invoice.applied_against_next_invoice = true
+  assertion without_invoice.paid_to_customer = true
+  assertion without_invoice.settlement_due_date = |2026-04-09|
 ```

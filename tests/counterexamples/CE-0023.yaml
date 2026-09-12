@@ -42,7 +42,7 @@ inputs:
   annual_base_salary: 45000
 round: 3
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'fractional-penny probe across salaries 45000 / 50000 / 33000 / 30000 / 60000 - all
   rounded to the nearest penny, in both directions; exact half-penny probe: salary 24,970.40
   gives an exact 12.005 and the module returns 12.01; round-before-multiply vs round-after-multiply:

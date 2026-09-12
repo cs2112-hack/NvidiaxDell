@@ -48,7 +48,7 @@ inputs:
   scheduled_maintenance_excess_minutes: 120
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'L-2.3 rounding at the exact midpoint: raw 99.895% -> 99.90% (half-up), meets_service_level
   true -- correct; L-2.3 rounding just below: raw 99.894% -> 99.89%, raw 99.8945% -> 99.89%,
   raw 99.8955% -> 99.90%, raw 99.875% -> 99.88% -- rounds (not truncates), half away from

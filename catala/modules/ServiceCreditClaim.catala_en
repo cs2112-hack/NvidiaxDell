@@ -8,13 +8,27 @@ L-5.2 settles it either by set-off against the next invoice or, where there
 will be no next invoice, by payment. This module encodes both. It has no
 judgement inputs: every term is a date or a fact of record.
 
+L-5.2's choice between the two routes was originally an enumeration,
+`Settlement`, exposed as a scope output. Catala 1.2.1 cannot JSON-encode an
+enum-typed output — see the last section of `docs/CATALA-REFERENCE.md` — and
+this architecture answers a rule question by executing a scope and reading its
+JSON. So the scope typechecked and passed every assertion under the
+interpreter, while raising `Invalid_argument` on the serialisation of that one
+field for *every* input: the whole of L-5, including L-5.1's 30-day waiver,
+had no working implementation at all. Found by the adversarial reviewer; see
+`tests/counterexamples/CE-0009.yaml`.
+
+The route is therefore expressed as booleans. L-5.2 states two routes which
+are mutually exclusive and between them exhaustive, so one boolean carries the
+decision and the other reads it back: `applied_against_next_invoice` holds the
+L-5.2 exception hierarchy — set-off as the base case, payment as the exception
+to it, in the order the clause states them — and `paid_to_customer` is its
+negation, so the two cannot drift apart. Nothing about the legal structure
+changes; only the output type does.
+
 ## Prologue — declarations
 
 ```catala-metadata
-declaration enumeration Settlement:
-  -- AppliedAgainstNextInvoice
-  -- PaidToCustomer
-
 declaration scope CreditClaim:
   input measurement_period_end content date
   # Whether a written claim was made at all, and when.
@@ -27,7 +41,11 @@ declaration scope CreditClaim:
   output claim_deadline content date
   output claim_in_time content boolean
   output waived content boolean
-  output settlement content Settlement
+  # L-5.2's two routes, as booleans rather than as an enumeration: an
+  # enum-typed output cannot be JSON-encoded by Catala 1.2.1 and so cannot be
+  # executed. See CE-0009 and scripts/check_executable.py.
+  output applied_against_next_invoice content boolean
+  output paid_to_customer content boolean
   output settlement_due_date content date
 ```
 
@@ -70,7 +88,13 @@ Set-off against the next invoice is the base case and payment is the exception
 to it, in the order the clause states them. The exception's condition is the
 whole of what L-5.2's second sentence requires — that no further invoice will
 be issued — and the base case is unconditional, so there is nothing to repeat
-from it.
+from it. The same hierarchy is stated twice, once for the route and once for
+the date, because L-5.2's second sentence displaces both.
+
+The two routes are exhaustive as well as exclusive: L-5.2 admits no third
+mechanism. So `paid_to_customer` is defined as the negation of the route
+decision rather than as a second hierarchy of its own, which would be free to
+disagree with the first.
 
 The 30 days for payment run from acceptance of the claim, because that is the
 event L-5.2's first sentence uses to fix the settlement date and the second
@@ -78,11 +102,14 @@ sentence displaces only the mechanism, not the trigger.
 
 ```catala
 scope CreditClaim:
-  label l5_2_setoff definition settlement equals AppliedAgainstNextInvoice
+  label l5_2_setoff definition applied_against_next_invoice equals true
 
-  label l5_2_payment exception l5_2_setoff definition settlement
+  label l5_2_payment exception l5_2_setoff
+    definition applied_against_next_invoice
     under condition not further_invoice_expected
-    consequence equals PaidToCustomer
+    consequence equals false
+
+  definition paid_to_customer equals not applied_against_next_invoice
 
   label l5_2_setoff_date definition settlement_due_date equals next_invoice_date
 

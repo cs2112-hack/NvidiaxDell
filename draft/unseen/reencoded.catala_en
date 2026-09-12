@@ -1,0 +1,195 @@
+# Referral bonus rules
+
+This file implements the plain English referral bonus specification.
+
+> Module Reencoded2
+
+## Facts supplied and values to determine
+
+```catala-metadata
+declaration scope ReferralBonus:
+  # Facts supplied
+  input grade content integer
+  input is_hard_to_fill content boolean
+  input agency_introduced content boolean
+  input agency_introduction_date content date
+  input referral_date content date
+  input first_day_of_employment content date
+  input has_ceased content boolean
+  input cessation_date content date
+  input cessation_by_redundancy content boolean
+  input bonus_already_paid_this_year content money
+
+  # Values to determine
+  output qualifying_period_end content date
+  output entitlement content money
+  output payable content boolean
+  output bonus_before_cap content money
+  output bonus_payable content money
+```
+
+## The qualifying period
+
+The qualifying period is 180 days beginning on the referred person's first day
+of employment. The first day is day 1, so the period ends on the 179th day
+after it.
+
+```catala
+scope ReferralBonus:
+  # Advancing a date by 12 months onto a day that does not exist rounds down
+  # to the last day of the month.
+  date round down
+
+  label qualifying_period definition qualifying_period_end equals
+    first_day_of_employment + 179 day
+```
+
+## Rules for the entitlement
+
+The hierarchy runs, from most general to most specific: the standard rule, then
+the senior-grade rule, then the hard-to-fill rule, then the agency rule, then
+the stale-agency rule. Each is an exception to the one before it. Each rule
+states its own condition in full.
+
+### Standard rule
+
+By default the entitlement is 1,000.
+
+```catala
+scope ReferralBonus:
+  label standard_rule definition entitlement equals $1,000.00
+```
+
+### Senior-grade rule
+
+As an exception to the standard rule: where the grade is 5 or more, the
+entitlement is 2,500.
+
+```catala
+scope ReferralBonus:
+  label senior_grade_rule exception standard_rule
+  definition entitlement
+    under condition grade >= 5
+    consequence equals $2,500.00
+```
+
+### Hard-to-fill rule
+
+As an exception to the senior-grade rule: where the role is hard-to-fill, the
+entitlement is 4,000.
+
+```catala
+scope ReferralBonus:
+  label hard_to_fill_rule exception senior_grade_rule
+  definition entitlement
+    under condition is_hard_to_fill
+    consequence equals $4,000.00
+```
+
+### Agency rule
+
+As an exception to the hard-to-fill rule: where an agency introduced the
+candidate AND that introduction happened strictly before the referral was
+submitted, the entitlement is nil.
+
+```catala
+scope ReferralBonus:
+  label agency_rule exception hard_to_fill_rule
+  definition entitlement
+    under condition
+      agency_introduced and agency_introduction_date < referral_date
+    consequence equals $0.00
+```
+
+### Stale-agency rule
+
+As an exception to the agency rule: where an agency introduced the candidate,
+that introduction happened strictly before the referral was submitted, AND the
+introduction was more than 12 months before the referral, the entitlement is
+re-derived as it would have been under the standard, senior-grade and
+hard-to-fill rules.
+
+"More than 12 months before" means the introduction date advanced by 12 months
+is strictly earlier than the referral date.
+
+```catala
+scope ReferralBonus:
+  label stale_agency_rule exception agency_rule
+  definition entitlement
+    under condition
+      agency_introduced
+      and agency_introduction_date < referral_date
+      and agency_introduction_date + 12 month < referral_date
+    consequence equals
+      if is_hard_to_fill then $4,000.00
+      else if grade >= 5 then $2,500.00
+      else $1,000.00
+```
+
+## Rules for payability
+
+### Payable rule
+
+By default the bonus is payable.
+
+```catala
+scope ReferralBonus:
+  label payable_rule definition payable equals true
+```
+
+### Early-cessation rule
+
+As an exception to the payable rule: where the referred person has ceased
+employment and the cessation date is on or before the last day of the
+qualifying period, the bonus is not payable.
+
+```catala
+scope ReferralBonus:
+  label early_cessation_rule exception payable_rule
+  definition payable
+    under condition
+      has_ceased and cessation_date <= qualifying_period_end
+    consequence equals false
+```
+
+### Redundancy rule
+
+As an exception to the early-cessation rule: where the referred person has
+ceased employment on or before the last day of the qualifying period AND the
+cessation was by reason of redundancy, the bonus is payable.
+
+```catala
+scope ReferralBonus:
+  label redundancy_rule exception early_cessation_rule
+  definition payable
+    under condition
+      has_ceased
+      and cessation_date <= qualifying_period_end
+      and cessation_by_redundancy
+    consequence equals true
+```
+
+## Combining entitlement and payability
+
+`bonus_before_cap` is the entitlement where the bonus is payable, and nil
+otherwise. There is no exception to this.
+
+```catala
+scope ReferralBonus:
+  label combination definition bonus_before_cap equals
+    if payable then entitlement else $0.00
+```
+
+## The annual limit
+
+The total payable to a worker in any financial year must not exceed 10,000, and
+that limit is applied after everything above.
+
+```catala
+scope ReferralBonus:
+  label annual_limit definition bonus_payable equals
+    if $10,000.00 - bonus_already_paid_this_year <= $0.00 then $0.00
+    else if bonus_before_cap > $10,000.00 - bonus_already_paid_this_year then
+      $10,000.00 - bonus_already_paid_this_year
+    else bonus_before_cap
+```

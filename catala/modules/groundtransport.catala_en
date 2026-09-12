@@ -59,8 +59,18 @@ standard, and E-5.2 supplies the definition for the other value of the
 enumeration. The two conditions are exhaustive and mutually exclusive over
 `RailClass`, so exactly one applies and no `Conflict` can arise.
 
+"At actual cost" makes the ticket cost the measure of the reimbursement, and
+the cost of a ticket is a sum spent: it is nought or more. A negative ticket
+cost is not a cost E-5.1 could be reimbursing, and on the definition below it
+would be reimbursed as a negative amount — the Employee owing the Company for
+having travelled. The scope therefore refuses it rather than paying it
+backwards. The bound is E-5.1's own ("actual cost"), not a convenience: the
+same figure is what E-5.2 measures against the standard class fare.
+
 ```catala
 scope RailFare:
+  assertion ticket_cost >= $0.00
+
   definition is_standard_class equals class_of_travel with pattern StandardClass
 
   label e5_1 definition reimbursable_amount
@@ -85,11 +95,21 @@ two nested ones.
 `does not exceed` is `<=`: a first class ticket costing exactly the same-day
 standard class fare is reimbursable.
 
+The counterfactual fare E-5.2 names — "the standard class fare for the same
+journey booked on the day of travel" — is a price, and a price is nought or
+more. A negative figure describes no fare that could have been booked, so the
+comparison E-5.2 requires cannot be made against it and the scope declines
+rather than answering. The bound comes from the clause: it is the *fare* that
+the ticket cost must not exceed, and the release E-5.2 grants turns on that
+comparison alone.
+
 The exception repeats its parent's condition `is_first_class`. Without it the
 exception would fire for standard class travel too and conflict with E-5.1.
 
 ```catala
 scope RailFare:
+  assertion standard_class_fare_same_day >= $0.00
+
   definition is_first_class equals class_of_travel with pattern FirstClass
 
   definition pre_approval_obtained equals
@@ -130,8 +150,37 @@ The boundaries are read strictly as the words run. "Before 06:00" excludes
 exactly either time is capped at £60. That leaves the interval from 06:00 to
 22:00 inclusive inside the cap.
 
+**The hour and the minute are clock components and E-5.3 fixes their range.**
+The carve-out is stated as two times of day, "before 06:00 or after 22:00", so
+the operative fact is the clock time at which the journey began. A clock hour
+of the day runs from 00 to 23 and a minute within the hour from 00 to 59;
+`24:17` and `10:5000` are not times, and a journey cannot have started at one.
+The bound is therefore a requirement of the clause — it is what makes
+`minutes_after_midnight` a position within one day, which is the only thing the
+comparison against 06:00 and 22:00 can mean — and not a programming
+convenience. It is asserted on each component rather than on the derived total,
+because it is each component that the clock constrains and because the
+diagnostic then names the component the caller got wrong.
+
+Unguarded, the composed figure escaped the day entirely: hour 10 with minute
+5000 gives 5,600 minutes after midnight, which satisfies "after 22:00" and
+reimburses an airport journey at noon without limit, and hour -1 likewise
+satisfies "before 06:00". The reviewer recorded both against CE-0011 as the
+same class of defect — an unguarded input domain — rather than as a separate
+counterexample, because no prose fact pattern states a journey time in that
+form.
+
+The journey cost carries the same bound as the rail ticket cost above, for the
+same reason: E-5.3 reimburses "actual cost", and a negative cost is not one.
+
 ```catala
 scope TaxiFare:
+  assertion journey_start_hour >= 0 and journey_start_hour <= 23
+
+  assertion journey_start_minute >= 0 and journey_start_minute <= 59
+
+  assertion journey_cost >= $0.00
+
   definition minutes_after_midnight equals
     journey_start_hour * 60 + journey_start_minute
 

@@ -49,7 +49,7 @@ inputs:
     end_date: '2025-12-15'
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'exception stacking: two qualifying absences in the same Plan Year; overlapping absence
   records of different qualifying categories (this finding); two disjoint 20-day absences
   -> correctly nil; aggregation check: whether S-6.1 aggregates separate short absences to

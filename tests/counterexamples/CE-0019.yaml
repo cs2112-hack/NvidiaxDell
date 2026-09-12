@@ -50,7 +50,7 @@ inputs:
   assessment_date: '2025-01-01'
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: notice whose 30 days expire exactly on the 2nd anniversary (2026-06-01 -> 2026-07-01,
   correct); notice whose 30 days expire one day before the 2nd anniversary (2026-05-31 ->
   2026-06-30, correct; survival moves earlier to 2029-06-30, so N-5.1/N-5.2 do compose); notice

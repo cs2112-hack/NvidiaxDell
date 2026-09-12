@@ -51,8 +51,20 @@ conditioned on the contract having become a Churned Contract. The amount is the
 commission attributable to that contract, which the caller supplies as
 `commission_paid`.
 
+The amount recoverable is bounded below by the clause that creates the right.
+S-7.1 operates "where commission **has been paid**", and what it permits the
+Company to recover is "the commission attributable to that contract" — a sum
+that has actually been paid out. A sum paid is nought or more, so a negative
+`commission_paid` describes no payment the Plan could be recovering; recovered,
+it would be a payment *to* the employee dressed as a clawback, made by the one
+clause in the Plan that confers no entitlement to anything. The bound is
+therefore S-7.1's own and not a programming convenience, and the scope declines
+rather than computing a negative recovery.
+
 ```catala
 scope RecoverableCommission:
+  assertion commission_paid >= $0
+
   label no_recovery definition recoverable_amount equals $0
 
   label s7_1 exception no_recovery definition recoverable_amount

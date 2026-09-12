@@ -76,7 +76,7 @@ inputs:
   commission_already_paid: 200000
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'S-8.1 boundary: contract signed exactly on the last day of employment is correctly
   included ($140,000); a contract signed the day after is correctly excluded (nil); S-8.2
   with commission already paid: gross-misconduct leaver with $40,000 already paid and a $140,000

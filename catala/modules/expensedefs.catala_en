@@ -107,8 +107,21 @@ and a return on the same calendar day involve no night away, so no Travel Day
 arises; the two limbs are grouped under one label because they are mutually
 exclusive readings of the same clause, not an exception to one another.
 
+The clause also bounds the pair of dates it is given. A Travel Day is a day on
+which the Employee "is away from their principal place of work overnight", and
+the second sentence names the two ends of that absence — "the day of departure
+and the day of return". The day of return cannot precede the day of departure:
+there is no absence to be away for, and no set of calendar days for the count
+to run over. So a return date earlier than the departure date describes nothing
+E-2.3 recognises and the scope refuses it rather than returning a count. The
+bound is the clause's own, and it is not the same point as the same-day case
+below: a departure and a return on the *same* day is a real trip that E-2.3
+answers with nought Travel Days, because no night was spent away.
+
 ```catala
 scope TravelDayCount:
+  assertion return_date >= departure_date
+
   label e2_3 definition travel_days
     under condition return_date <= departure_date
     consequence equals 0
@@ -142,8 +155,23 @@ E-5.2 are RULE and not HYBRID — nothing here is a judgement.
 | obtained after the spend qualify. Resolving this needs a timestamp the corpus
 | does not define.
 
+Two of the three conjuncts compare money, and E-2.4 fixes the sign of both
+quantities it compares. "The threshold of the expense" is the amount of the
+expense for which approval is sought — a sum to be spent, and so nought or
+more — and the "delegated financial authority" held by the approver is the
+ceiling up to which that person may approve, which is likewise nought or more
+(nought being the authority of a person who holds none). A negative figure on
+either side describes no expense and no delegation, and the comparison E-2.4
+requires cannot be made on it, so the scope declines. These bounds are the
+clause's: the whole content of the third conjunct is that one of these amounts
+is at or above the other.
+
 ```catala
 scope PreApprovalValid:
+  assertion expense_amount >= $0.00
+
+  assertion pre_approval.approver_authority_limit >= $0.00
+
   definition valid equals
     pre_approval.obtained
     and pre_approval.in_writing

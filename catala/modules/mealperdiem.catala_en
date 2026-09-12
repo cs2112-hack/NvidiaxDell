@@ -207,8 +207,30 @@ has no meaning: it would be a cap that requires the Employee to repay money,
 and E-3.4's operation is a "reduction" of an entitlement, which exhausts itself
 when the entitlement reaches zero.
 
+**The count of free meals cannot be negative, and that is a requirement of
+E-3.4 rather than a programming convenience.** The clause's operative fact is
+"a meal ... provided at no cost to the Employee", and it reduces the per diem
+"in respect of each such meal": the number of such meals on a Travel Day is
+nought or more, because a meal either was or was not provided at no cost and
+there is no third thing that a negative count could be counting. The clause is
+also reduction-only in its terms — the per diem "is reduced by £15" — so no
+reading of it can add to the per diem. A count below nought therefore does not
+describe any state of affairs E-3.4 recognises, and the scope refuses it
+instead of computing on it: the assertion raises `AssertionFailed`, and an
+error is the right answer to an impossible question.
+
+Without the guard the sign of the reduction was never checked and E-3.4 ran
+backwards as an uplift, paying £190 on a Tier 3 Travel Day against the £40
+ceiling E-3.1(c) fixes — unbounded in magnitude, silent, with no error raised.
+Found by the adversarial reviewer; see `tests/counterexamples/CE-0011.yaml`.
+The same guard was already in use in the sibling module `ClaimWindow`, which
+asserts that a claim was not submitted before the expense was incurred; it was
+simply not applied here.
+
 ```catala
 scope MealPerDiemForDay:
+  assertion meals_provided_free >= 0
+
   definition e3_4_reduction equals $15.00 * decimal of meals_provided_free
 
   definition adjusted_per_diem equals
@@ -232,8 +254,20 @@ of what was spent and that per diem.
 |   (b) Tier 2 city: £55 per Travel Day;
 |   (c) Tier 3 city: £40 per Travel Day.
 
+The expenditure is nought or more, and E-3.1 read with E-3.5 is what fixes
+that. What is reimbursed is "meal expenses" the Employee has incurred on the
+Travel Day — a sum spent — and E-3.5 puts the floor beyond argument by
+legislating for the case where the Employee "does not incur any meal expense",
+which is the least that can be incurred. A negative figure describes no
+expenditure at all, and taken as the lesser of itself and the per diem it would
+be reimbursed as a negative sum: the Employee paying the Company for having
+eaten. The scope refuses it. The bound is the clause's, not a convenience — it
+is the same quantity E-3.5 tests against nil.
+
 ```catala
 scope MealPerDiemForDay:
+  assertion meal_expense_incurred >= $0.00
+
   label e3_1_reimbursement definition reimbursable_amount equals
     Money.min of meal_expense_incurred, adjusted_per_diem
 ```

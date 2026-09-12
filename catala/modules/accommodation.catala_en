@@ -53,6 +53,12 @@ cap" without restating the figures.
 `accommodation_reimbursable` is compared against `cost_against_cap`, which is
 the composite quantity E-4.3 defines below — not against `room_cost`.
 
+"At actual cost" is also a bound on the input. The room cost is the sum the
+Employee actually paid for the night, so it is nought or more; a negative room
+cost is not a cost E-4.1 could reimburse, and it is the clause's own words that
+fix this rather than any programming convenience. Asserted here because E-4.1
+is the clause that makes the actual cost operative.
+
 ```catala
 declaration tier_night_cap content money
   depends on tier content ExpenseDefs.CityTier
@@ -63,6 +69,8 @@ declaration tier_night_cap content money
     -- Tier3: $120.00
 
 scope NightlyAccommodation:
+  assertion room_cost >= $0.00
+
   definition base_cap equals tier_night_cap of city_tier
 
   label e4_1 definition applicable_cap equals base_cap
@@ -118,8 +126,33 @@ excluded from that sum.
 | separate (`accommodation_reimbursable`, `parking_reimbursable`) so that a
 | caller taking the narrower view can read the capped figure alone.
 
+**Each of the three sums E-4.3 sorts is nought or more, and the clause is what
+fixes that.** E-4.3 names "local taxes", "any mandatory resort or city charge"
+and "the cost of parking": a tax, a mandatory charge and a cost are each an
+amount levied or paid, and none of them can be a negative amount. The bounds
+are not conveniences, because each of the three does specific work under this
+clause — the first two are added into the quantity measured against the cap and
+the third is kept out of it — and a negative figure would make that work run
+backwards. Nothing in E-4 contemplates a credit, a refund or a rebate; a night
+that cost less is a smaller cost, not a negative one.
+
+The parking bound is the load-bearing one. Parking sits *outside* the cap, so
+it is added to the capped accommodation figure rather than measured against it,
+and a negative parking cost was therefore able to pull the reimbursable total
+below the cap the module had itself computed under E-4.1 — a Tier 1 room of
+£400 with parking of -£100 was reimbursed at £120 against a £220 cap. Recorded
+by the adversarial reviewer as the unguarded-input-domain class of
+`tests/counterexamples/CE-0011.yaml` rather than as a counterexample of its
+own, because no prose fact pattern states a cost in that form.
+
 ```catala
 scope NightlyAccommodation:
+  assertion local_taxes >= $0.00
+
+  assertion mandatory_resort_or_city_charge >= $0.00
+
+  assertion parking_cost >= $0.00
+
   definition cost_against_cap equals
     room_cost + local_taxes + mandatory_resort_or_city_charge
 

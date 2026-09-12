@@ -18,6 +18,13 @@ more Unavailable Minute takes it to an unrounded 99.8935%, which rounds to
 tests `L2_3_RoundsUpToTheServiceLevel` and `L2_3_RoundsBelowTheServiceLevel`
 sit either side of that single minute.
 
+The other trap with money attached is the L-4.5 interface. `excluded_minutes`
+is the L-2.5 defined term as L-4.5 leaves it, so the Scheduled Maintenance
+excess is not in it and cannot be charged twice; the pre-L-4.5 figure is
+derived by the scope and reported as `excluded_minutes_before_l4_5`. The
+`CE0010_` tests pin that, on the facts of CE-0010 and on the invariant it
+turns on.
+
 > Using Availability
 
 ## L2_1_ThirtyOneDayMonth
@@ -668,10 +675,13 @@ scope TestL2_4_ExcludedMinutesComeOff:
 
 ## L4_5_ExcessCountsAsUnavailable
 
-L-4.5, as an exception to L-2.4: the same facts but with 120 minutes of the
-Scheduled Maintenance beyond the 8-hour aggregate. Those 120 minutes are added
-back into Unavailable Minutes, so 400 becomes 520 and the Availability
-Percentage falls from 99.07% to 98.80%.
+L-4.5, as an exception to L-2.4: the same 600 minutes that L-2.5 would have
+excluded on its own terms, but with 120 of them beyond the 8-hour aggregate.
+L-4.5 withdraws those 120 from the exclusion, so the Excluded Minutes are 480,
+and returns them to the count: Unavailable Minutes are 520 rather than 400 and
+the Availability Percentage falls from 99.07% to 98.80%. The 480 is what a
+caller passes as `excluded_minutes`, because that is what the defined term is
+worth once L-4.5 has spoken; the scope reconstructs the 600 itself.
 
 ```catala
 #[test]
@@ -683,12 +693,81 @@ scope TestL4_5_ExcessCountsAsUnavailable:
     output of Availability.AvailabilityPercentage with {
       -- total_minutes: 43200
       -- minutes_not_available: 1000
-      -- excluded_minutes: 600
+      -- excluded_minutes: 480
       -- scheduled_maintenance_excess_minutes: 120
     }
+  assertion r.excluded_minutes_before_l4_5 = 600
   assertion r.unavailable_minutes = 520
   assertion r.availability_percentage = 98.80
   assertion r.meets_service_level = false
+```
+
+## CE0010_TheExcessIsChargedOnceOnly
+
+CE-0010's own facts: January 2026 (44,640 minutes), 600 whole minutes not
+Available, all of them inside properly notified Scheduled Maintenance windows
+totalling 10 hours. L-4.5 fixes the excess at 120 minutes and the Excluded
+Minutes at 480. L-2.4 gives 600 − 480 = 120 Unavailable Minutes and L-2.3
+gives 99.73%, which falls in L-4.1 band (a) at 5% of the Monthly Service
+Charge. Charging the excess twice would give 240 minutes and 99.46%, which is
+band (b) at 10% — the defect this test exists to keep out.
+
+```catala
+#[test]
+declaration scope TestCE0010_TheExcessIsChargedOnceOnly:
+  output r content Availability.AvailabilityPercentage
+
+scope TestCE0010_TheExcessIsChargedOnceOnly:
+  definition r equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 44640
+      -- minutes_not_available: 600
+      -- excluded_minutes: 480
+      -- scheduled_maintenance_excess_minutes: 120
+    }
+  assertion r.excluded_minutes_before_l4_5 = 600
+  assertion r.unavailable_minutes = 120
+  assertion r.availability_percentage = 99.73
+  assertion r.meets_service_level = false
+```
+
+## CE0010_ExcludedMinutesMeanTheSameThingEitherWay
+
+The interface property CE-0010 turned on: `excluded_minutes` means the L-2.5
+defined term whether or not Scheduled Maintenance overran, so the excess can
+never be charged on top of it. Two runs over the same 600 minutes not
+Available and the same 480 Excluded Minutes — one where 480 minutes of
+maintenance stayed inside the 8-hour aggregate and 120 minutes were never
+excluded at all, one where 600 minutes of maintenance overran the aggregate by
+120 — must give the same 120 Unavailable Minutes, because on both sets of
+facts exactly 480 minutes are excluded. Only the reconstructed pre-L-4.5
+figure differs, and it is derived rather than supplied.
+
+```catala
+#[test]
+declaration scope TestCE0010_ExcludedMinutesMeanTheSameThingEitherWay:
+  output without_excess content Availability.AvailabilityPercentage
+  output with_excess content Availability.AvailabilityPercentage
+
+scope TestCE0010_ExcludedMinutesMeanTheSameThingEitherWay:
+  definition without_excess equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 44640
+      -- minutes_not_available: 600
+      -- excluded_minutes: 480
+      -- scheduled_maintenance_excess_minutes: 0
+    }
+  definition with_excess equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 44640
+      -- minutes_not_available: 600
+      -- excluded_minutes: 480
+      -- scheduled_maintenance_excess_minutes: 120
+    }
+  assertion without_excess.excluded_minutes_before_l4_5 = 480
+  assertion without_excess.unavailable_minutes = 120
+  assertion with_excess.excluded_minutes_before_l4_5 = 600
+  assertion with_excess.unavailable_minutes = 120
 ```
 
 ## L3_1_ExactlyAtTheServiceLevel
@@ -813,9 +892,11 @@ scope TestL2_3_PerfectMonth:
 
 The whole chain over one Measurement Period: April 2025 (43,200 minutes) with
 600 minutes of properly notified Scheduled Maintenance, 100 minutes of
-certified Force Majeure and 200 minutes of plain outage. L-2.5 excludes 700
-minutes; L-2.6's aggregate ceiling is exceeded by 120; L-4.5 returns those 120
-to Unavailable Minutes, giving 320 rather than 200, and 99.26%.
+certified Force Majeure and 200 minutes of plain outage. L-2.5's limbs exclude
+700 minutes on their own terms; L-2.6's aggregate ceiling is exceeded by 120,
+so L-4.5 withdraws those 120 from the exclusion — the Excluded Minutes for the
+period are 580 — and returns them to Unavailable Minutes, giving 320 rather
+than 200, and 99.26%. The excess moves the figure exactly once.
 
 ```catala
 #[test]
@@ -868,7 +949,8 @@ scope TestIntegration_MaintenanceOverrun:
     }
   assertion r.total_minutes = 43200
   assertion r.minutes_not_available = 900
-  assertion r.excluded_minutes = 700
+  assertion r.excluded_minutes_before_l4_5 = 700
+  assertion r.excluded_minutes = 580
   assertion r.scheduled_maintenance_aggregate_minutes = 600
   assertion r.scheduled_maintenance_excess_minutes = 120
   assertion r.unavailable_minutes = 320
@@ -921,6 +1003,7 @@ scope TestIntegration_NoOverrun:
          ]
     }
   assertion r.minutes_not_available = 680
+  assertion r.excluded_minutes_before_l4_5 = 480
   assertion r.excluded_minutes = 480
   assertion r.scheduled_maintenance_excess_minutes = 0
   assertion r.unavailable_minutes = 200

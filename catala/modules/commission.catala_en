@@ -10,9 +10,10 @@ Attainment into an accelerator, S-3.1 multiplies, and S-5 caps the product —
 and S-5.2 says in terms that the cap comes last. Each step is a scope so that
 an executed answer says which step produced which number.
 
-Quota relief under S-6 is *upstream* of everything here: `Quota_relief` computes
-the Quota that `Attainment` divides by. Clawback under S-7 is *downstream*, in
-`Clawback`. Neither is re-encoded here.
+Quota relief under S-6 is *upstream* of everything here: `QuotaRelief` computes
+the Quota that `Attainment` divides by, and `QuotaRelief.CommissionAfterRelief`
+composes the two in the order S-6.2 fixes. Clawback under S-7 is *downstream*,
+in `Clawback`. Neither is re-encoded here.
 
 `Attainment` is carried as a `decimal`. Catala's percentage literals make that
 exact and let the band tests be written with the same numerals the Plan uses:
@@ -104,6 +105,7 @@ declaration scope LeaverCommission:
   output revenue scope NetBookedRevenue
   output entitlement scope CommissionPayable
   output commission_payable content money
+  output overpaid_amount content money
 ```
 
 ## S-1 Introduction
@@ -120,7 +122,13 @@ window is inclusive at both ends: the financial year *commences* on 1 October
 2025 and *ends* on 30 September 2026, so a contract signed on either day is
 signed during the Plan Year.
 
-```catala
+The block is `catala-metadata`, and so public, because S-6.1's relief is a
+proration of this same window and `QuotaRelief` has to confine its day-counting
+to it. A clause stated once in the Plan is encoded once and imported; the
+alternative is a second copy of the window in another module, which is the
+shape of defect this repo exists to prevent.
+
+```catala-metadata
 declaration plan_year_start content date equals |2025-10-01|
 declaration plan_year_end content date equals |2026-09-30|
 
@@ -249,9 +257,15 @@ scope NetBookedRevenue:
 | Quota.
 
 The `quota` supplied here must already be the S-6.1-relieved Quota, because
-S-6.2 says relief is applied before Attainment is calculated. The assertion
-records the precondition the quotient needs: a quota-bearing role has a Quota,
-and the scope refuses to answer for a zero Quota rather than inventing a value.
+S-6.2 says relief is applied before Attainment is calculated. That is a
+precondition on the input, and `QuotaRelief.CommissionAfterRelief` is the scope
+that discharges it structurally: it takes the *assigned* Quota with the absence
+records and can reach this scope only through `QuotaRelief.RelievedQuota`.
+Calling `Attainment` or `CommissionPayable` with a bare `quota` is still
+possible — the caller then carries the S-6.2 obligation itself. The assertion
+records the other precondition the quotient needs: a quota-bearing role has a
+Quota, and the scope refuses to answer for a zero Quota rather than inventing a
+value.
 
 ```catala
 scope Attainment:
@@ -272,10 +286,28 @@ Net Booked Revenue, and the accelerator is the one the `Accelerator` sub-scope
 determines — that is, after S-4.3 and S-4.4 have had their effect. This product
 is pre-cap: S-5 operates on it, never on any part of it.
 
+S-3.1 prescribes *one* product of three factors, and it is computed as one.
+Catala fixes the precision of `money` at the cent, so a `money`-typed
+intermediate is rounded there: multiplying Net Booked Revenue by the Base
+Commission Rate first produced a rounded sum of money which the accelerator then
+magnified. On Net Booked Revenue of $10,000.44 that paid $1,200.06 where S-3.1's
+product, $10,000.44 x 0.08 x 1.5 = $1,200.0528, is $1,200.05 (CE-0015). The
+error is systematic across accelerators — half a cent at the first step becomes
+0.75 of a cent at 1.5, a whole cent at 2.0 — and S-2.5 gives no warrant for the
+intermediate: it defines the Base Commission Rate as a rate to be applied, not
+as a separately payable sum, and S-5.1 caps this figure rather than rebuilding
+it, so the discrepancy survives into what is paid. The product is therefore
+carried as an exact `decimal` — Catala decimals are exact rationals, not floats
+— and converted to `money` once, at the end, which is the only point at which
+the Plan produces a sum of money.
+
 ```catala
 scope CommissionPayable:
   definition commission_before_cap equals
-    accelerator_base * base_commission_rate * accelerator_calc.accelerator
+    money of
+      (decimal of accelerator_base
+       * base_commission_rate
+       * accelerator_calc.accelerator)
 ```
 
 ## S-4 Accelerators
@@ -492,9 +524,31 @@ scope CommissionPayable:
 qualifies. The qualifying contracts are fed to `NetBookedRevenue`, so S-2.3's
 churn deduction and the whole S-3 to S-5 computation apply to them unchanged —
 S-8.1 narrows the population of contracts and changes nothing else. What is
-payable is the entitlement less what has already been paid; a negative figure
-would mean commission already paid exceeds the leaver's entitlement, which S-8
-does not address and S-7 governs, so it is not floored here.
+payable is the entitlement less what has already been paid.
+
+That figure is floored at nil, and the floor is part of what S-8.1 confers
+rather than a separate rule defeating it. S-8.1 creates an entitlement running
+one way only: the leaver "is entitled to commission ... payable in the ordinary
+payment cycle" — a sum payable *to* the Employee, which is exhausted, not
+reversed, once what has been paid equals the entitlement. The Plan contains
+exactly one provision that can make a sum run the other way, S-7.1, and it
+operates only where commission was paid on a contract that has become a Churned
+Contract within S-2.4, only over the commission attributable to that contract,
+only at the Company's option, and subject to the S-7.2 material-breach bar and
+the S-7.3 24-month long-stop. Where no contract has churned, none of that can be
+tested and no debt exists; reporting a negative `commission_payable` asserted
+one anyway (CE-0016). The module's own S-8.2 branch confirms the reading: it
+returns $0 for a gross-misconduct leaver instead of the negative of the sum
+already paid, so this field means "amount payable to the Employee", not a net
+balance. The floor is written into the S-8.1 expression rather than as an
+exception to it, because an exception would be a sibling of `s8_2` and the two
+would conflict for an overpaid gross-misconduct leaver.
+
+The excess is not discarded, only denied the status of a payable: it is reported
+as `overpaid_amount`, so an answer states the fact without asserting a right.
+The Plan confers no recovery power over that sum — S-7 is the only recovery
+power and it is unavailable absent a Churned Contract — and whether it is
+recoverable at all is a question outside this instrument.
 
 ```catala
 scope LeaverCommission:
@@ -511,7 +565,12 @@ scope LeaverCommission:
   definition entitlement.annual_base_salary equals annual_base_salary
 
   label s8_1 definition commission_payable equals
-    entitlement.commission_payable - commission_already_paid
+    Money.positive of
+      (entitlement.commission_payable - commission_already_paid)
+
+  definition overpaid_amount equals
+    Money.positive of
+      (commission_already_paid - entitlement.commission_payable)
 ```
 
 | COMM-PLAN S-8.2 (003-sales-commission-plan.md:110)

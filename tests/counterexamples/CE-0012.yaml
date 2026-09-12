@@ -50,7 +50,7 @@ inputs:
     end_date: '2027-06-30'
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'date/duration boundary at 29 vs 30 days of absence; absence wholly outside the Plan
   Year (this finding); absence wholly before the Plan Year (2024-01-01..2024-06-30, 182 days)
   -> relief $498,630.14, same defect, same clauses; boundary: absence of exactly 29 days (QualifyingAbsence,
