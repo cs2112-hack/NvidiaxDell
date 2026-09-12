@@ -90,10 +90,14 @@ cumulative with any multiplier determined under C-4, C-5.2 or C-7.
 
 ```catala-metadata
 declaration structure HourWorked:
-  data ordinal content integer
   data is_public_holiday content boolean
   data is_critical_incident content boolean
   data is_night content boolean
+
+declaration structure WeekTally:
+  data hours_counted content integer
+  data payment content money
+  data toil content decimal
 
 declaration scope HourPremium:
   input ordinal content integer
@@ -103,6 +107,8 @@ declaration scope HourPremium:
   input grade content integer
   input has_standing_shift_allowance content boolean
   output multiplier content decimal
+  output salaried_element content decimal
+  output additional_payable content decimal
   output night_premium content decimal
   output total_rate content decimal
   output accrues_toil content boolean
@@ -112,6 +118,8 @@ declaration scope WeeklyOvertime:
   input base_hourly_rate content money
   input grade content integer
   input has_standing_shift_allowance content boolean
+  internal tally content WeekTally
+  output hours_worked content integer
   output overtime_payment content money
   output toil_hours content decimal
 ```
@@ -242,6 +250,23 @@ scope HourPremium:
     consequence equals 0.0
 ```
 
+## What the base salary already pays for
+
+| EMP-ANNEX-C C-3.1 (001-employment-terms-annex-c.md:51)
+|
+| The ordinary working week is 40 hours.
+
+```catala
+scope HourPremium:
+  definition salaried_element equals
+    if ordinal > 40 then 0.0 else 1.0
+
+  definition additional_payable equals
+    if multiplier = 0.0 then 0.0
+    else if multiplier > salaried_element then multiplier - salaried_element
+    else 0.0
+```
+
 ## C-8 Precedence
 
 | EMP-ANNEX-C C-8.1 (001-employment-terms-annex-c.md:96)
@@ -256,7 +281,7 @@ scope HourPremium:
 
 ```catala
 scope HourPremium:
-  definition total_rate equals multiplier + night_premium
+  definition total_rate equals additional_payable + night_premium
 ```
 
 | EMP-ANNEX-C C-5.1 (001-employment-terms-annex-c.md:64)
@@ -284,32 +309,40 @@ scope HourPremium:
 
 | NO-CLAUSE: Annex C states no weekly aggregation rule. Summing the per-hour
 | entitlements that C-4 to C-8 confer adds no law of its own; the legal content
-| is entirely in HourPremium above.
+| is entirely in HourPremium above. What this block does add is the derivation
+| of each hour's position in the Payroll Week, which C-4.1 makes operative.
 
 ```catala
 scope WeeklyOvertime:
-  definition overtime_payment equals
-    Money.sum of (map each h among hours to
-      (output of HourPremium with {
-         -- ordinal: h.ordinal
-         -- is_public_holiday: h.is_public_holiday
-         -- is_critical_incident: h.is_critical_incident
-         -- is_night: h.is_night
-         -- grade: grade
-         -- has_standing_shift_allowance: has_standing_shift_allowance
-       }).total_rate * base_hourly_rate)
+  definition tally equals
+    combine all h among hours in acc
+    initially WeekTally {
+      -- hours_counted: 0
+      -- payment: $0.00
+      -- toil: 0.0
+    }
+    with (
+      let n equals acc.hours_counted + 1 in
+      let hp equals
+        output of HourPremium with {
+          -- ordinal: n
+          -- grade: grade
+          -- is_public_holiday: h.is_public_holiday
+          -- is_critical_incident: h.is_critical_incident
+          -- is_night: h.is_night
+          -- has_standing_shift_allowance: has_standing_shift_allowance
+        }
+      in
+      WeekTally {
+        -- hours_counted: n
+        -- payment: acc.payment + hp.total_rate * base_hourly_rate
+        -- toil: acc.toil + (if hp.accrues_toil then 1.0 else 0.0)
+      }
+    )
 
-  definition toil_hours equals
-    Decimal.sum of (map each h among hours to
-      (if (output of HourPremium with {
-             -- ordinal: h.ordinal
-             -- is_public_holiday: h.is_public_holiday
-             -- is_critical_incident: h.is_critical_incident
-             -- is_night: h.is_night
-             -- grade: grade
-             -- has_standing_shift_allowance: has_standing_shift_allowance
-           }).accrues_toil
-       then 1.0 else 0.0))
+  definition hours_worked equals tally.hours_counted
+  definition overtime_payment equals tally.payment
+  definition toil_hours equals tally.toil
 ```
 
 ```
@@ -331,6 +364,8 @@ scope WeeklyOvertime:
       ],
       "output": [
         "multiplier",
+        "salaried_element",
+        "additional_payable",
         "night_premium",
         "total_rate",
         "accrues_toil"
@@ -346,10 +381,13 @@ scope WeeklyOvertime:
         "has_standing_shift_allowance"
       ],
       "output": [
+        "hours_worked",
         "overtime_payment",
         "toil_hours"
       ],
-      "internal": [],
+      "internal": [
+        "tally"
+      ],
       "context": []
     }
   }

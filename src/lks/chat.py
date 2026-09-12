@@ -145,6 +145,9 @@ class RouteIndex:
 
     def candidates(self, question: str, k: int = 3) -> list[tuple[str, float, list[str]]]:
         """(scope_key, best_score, supporting_clause_refs), best first."""
+        return self._ranked(question, k)
+
+    def _ranked(self, question: str, k: int = 3) -> list[tuple[str, float, list[str]]]:
         if not self.keys:
             return []
         q = np.asarray(_load_model().encode([question]), dtype=np.float32)[0]
@@ -169,8 +172,33 @@ class RouteIndex:
 
 # --- the answerer ----------------------------------------------------------
 
-CATALA_THRESHOLD = 0.42
+CATALA_THRESHOLD = 0.40
 VECTOR_THRESHOLD = 0.30
+
+ROUTE_MARGIN = 0.06
+"""How far the best-matching scope must beat the runner-up before the router
+will name it.
+
+Absolute score alone is a bad test. Measured on this corpus, a correct route
+beats its runner-up by 0.12 to 0.17, while a *wrong* route scraped in at 0.446
+against 0.430 -- sending "can the General Counsel stop a record being deleted"
+to the sales-commission leaver scope, one place above the legal-hold scope that
+actually answers it. Both scores clear any threshold you could set without
+also excluding good routes, so the margin is what separates them.
+
+When the margin is thin the honest output is the candidate list, not a
+confident wrong scope: a legal answer attributed to the wrong rule is worse
+than an answer that says which rules might govern.
+"""
+
+MAX_CAVEATS = 3
+"""Cap on prose caveats attached to one answer.
+
+Uncapped, an executed NdaSurvival answer arrived with eleven caveats -- every
+prose clause in the agreement names that module in its `qualifies`, and rightly
+so, but eleven blockquotes around one date is not an answer anyone reads. The
+caveats shown are the ones closest to the question asked.
+"""
 
 
 class Chat:
@@ -204,7 +232,7 @@ class Chat:
     def _catala_part(
         self, question: str, inputs: dict[str, Any] | None, scope_hint: str | None
     ) -> AnswerPart | None:
-        cands = self.route.candidates(question, k=3)
+        cands = self.route.candidates(question, k=4)
         if scope_hint:
             cands = [c for c in cands if c[0] == scope_hint] or [(scope_hint, 1.0, [])]
         if not cands:
@@ -212,6 +240,26 @@ class Chat:
         key, score, support = cands[0]
         if score < CATALA_THRESHOLD and not scope_hint:
             return None
+
+        # Thin margin: name the candidates instead of asserting one of them.
+        if not scope_hint and len(cands) > 1 and (score - cands[1][1]) < ROUTE_MARGIN:
+            close = [c for c in cands if score - c[1] < ROUTE_MARGIN]
+            lines = [
+                f"      {k2}  (from {', '.join(sup2[:2])})" for k2, _s2, sup2 in close
+            ]
+            return AnswerPart(
+                engine=Engine.CATALA, kind="ambiguous-route",
+                text=(
+                    "This looks like a rule question, but more than one rule module "
+                    "matches it about equally well, so naming one would be a guess:\n"
+                    + "\n".join(lines)
+                    + "\n    Ask again naming the module, or supply its inputs, and "
+                    "that scope will be executed. Nothing has been computed."
+                ),
+                citations=sorted({r for _k, _s, sup2 in close for r in sup2[:2]}),
+                score=score,
+            )
+
         entry = self.registry.get(key)
         if entry is None:
             return None
@@ -245,7 +293,7 @@ class Chat:
             )
 
         try:
-            outputs = run_scope(entry.path, entry.scope, {k: supplied[k] for k in required})
+            outputs = run_scope(entry.path, entry.scope, {k2: supplied[k2] for k2 in required})
         except ScopeConflict as e:
             return AnswerPart(
                 engine=Engine.CATALA, kind="error",
@@ -274,7 +322,7 @@ class Chat:
                 citations=support or entry.encodes[:4], scope=key, inputs=supplied, score=score,
             )
 
-        rendered = ", ".join(f"{k} = {_fmt(v)}" for k, v in sorted(outputs.items()))
+        rendered = ", ".join(f"{k2} = {_fmt(v)}" for k2, v in sorted(outputs.items()))
         return AnswerPart(
             engine=Engine.CATALA, kind="computed",
             text=f"{rendered}\n    Computed by executing {key} on the supplied facts.",
@@ -300,22 +348,62 @@ class Chat:
             )
         return parts
 
-    def _caveats(self, module: str) -> list[AnswerPart]:
+    def _caveats(self, module: str, question: str) -> list[AnswerPart]:
+        """Prose clauses qualifying `module`, closest to the question first.
+
+        Capped at MAX_CAVEATS. Every prose clause of an agreement may
+        legitimately qualify its one rule module -- an executed NdaSurvival
+        answer arrived with eleven of them -- and showing all of them buries
+        the answer the caveats are meant to qualify.
+        """
         if self.store is None:
             return []
+        chunks = self.store.qualifying(module)
+        if not chunks:
+            return []
+        if len(chunks) > MAX_CAVEATS:
+            q = np.asarray(_load_model().encode([question]), dtype=np.float32)[0]
+            n = float(np.linalg.norm(q))
+            if n:
+                q = q / n
+            m = np.asarray(
+                _load_model().encode([c.embed_text() for c in chunks]), dtype=np.float32
+            )
+            norms = np.linalg.norm(m, axis=1, keepdims=True)
+            norms[norms == 0] = 1.0
+            scores = (m / norms) @ q
+            order = np.argsort(-scores)[:MAX_CAVEATS]
+            chosen = [(chunks[int(i)], float(scores[int(i)])) for i in order]
+        else:
+            chosen = [(c, None) for c in chunks]
+
         out = []
-        for c in self.store.qualifying(module):
+        for c, sc in chosen:
             out.append(
                 AnswerPart(
-                    engine=Engine.VECTOR, kind="caveat",
+                    engine=Engine.VECTOR,
+                    kind="caveat",
                     text=(
                         f"This prose clause qualifies {module} and is not part of "
-                        f"the computation above:\n    “{c.text}”"
+                        f"the computation above:\n    \u201c{c.text}\u201d"
                     ),
                     citations=[c.cite()],
+                    score=sc,
+                )
+            )
+        if len(chunks) > MAX_CAVEATS:
+            out.append(
+                AnswerPart(
+                    engine=Engine.VECTOR,
+                    kind="caveat",
+                    text=(
+                        f"{len(chunks) - MAX_CAVEATS} further prose clause(s) also "
+                        f"qualify {module} and are not shown."
+                    ),
                 )
             )
         return out
+
 
     # -- entry point --------------------------------------------------------
 
@@ -333,13 +421,13 @@ class Chat:
             ans.parts.append(cat)
             if with_caveats and cat.scope:
                 module = cat.scope.split(".")[0]
-                ans.parts.extend(self._caveats(module))
+                ans.parts.extend(self._caveats(module, question))
 
         vec = self._vector_parts(question)
         # A rule question that executed cleanly does not need prose padding;
         # quoting loosely-related prose beside a computed figure is how the two
         # engines start to look like one.
-        if cat is None or cat.kind in ("needs-input", "error"):
+        if cat is None or cat.kind in ("needs-input", "error", "ambiguous-route"):
             ans.parts.extend(vec)
         elif vec and vec[0].score and vec[0].score > 0.55:
             ans.parts.append(vec[0])

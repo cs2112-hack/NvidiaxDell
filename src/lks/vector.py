@@ -178,6 +178,25 @@ def corpus_fingerprint(corpus_dir: str | Path = "corpus") -> dict[str, str]:
     return {"aggregate": agg, "clauses": per}
 
 
+def triage_fingerprint() -> dict[str, Any]:
+    """Fingerprint of the triage decisions, which govern what belongs in the
+    index at all.
+
+    Pinning the corpus text alone is not enough, and the gap is a silent one.
+    Re-adjudicating triage changes no clause text, so the corpus hash still
+    matches -- yet a clause relabelled PROSE -> RULE must LEAVE the index and a
+    clause relabelled RULE -> HYBRID must ENTER it. Without this pin the store
+    happily serves an index containing rule clauses, and the chat layer can
+    then quote a rule as prose. That is exactly the silent blending of the two
+    engines the architecture forbids, arrived at through a stale index rather
+    than a bad answer.
+    """
+    led = load_ledger()
+    per = {ref: d.label.value for ref, d in sorted(led.items())}
+    agg = content_hash("|".join(f"{k}={v}" for k, v in per.items()))
+    return {"aggregate": agg, "labels": per}
+
+
 def build_index(
     corpus_dir: str | Path = "corpus", index_dir: str | Path = INDEX_DIR
 ) -> dict[str, Any]:
@@ -201,8 +220,9 @@ def build_index(
     np.save(index_dir / EMBEDDINGS, vectors)
 
     fp = corpus_fingerprint(corpus_dir)
+    tfp = triage_fingerprint()
     manifest = {
-        "schema": 1,
+        "schema": 2,
         "n_chunks": len(chunks),
         "dim": int(vectors.shape[1]),
         "model": {
@@ -215,6 +235,10 @@ def build_index(
             "aggregate": fp["aggregate"],
             "n_clauses": len(fp["clauses"]),
             "indexed_refs": sorted(c.ref for c in chunks),
+        },
+        "triage": {
+            "aggregate": tfp["aggregate"],
+            "n_decisions": len(tfp["labels"]),
         },
         "labels": {
             lab: sum(1 for c in chunks if c.label == lab) for lab in ("PROSE", "HYBRID")
@@ -269,7 +293,51 @@ class VectorStore:
         return store
 
     def verify(self, corpus_dir: str | Path = "corpus") -> None:
-        """Refuse to serve an index that does not match this checkout."""
+        """Refuse to serve an index that does not match this checkout.
+
+        Checks BOTH the corpus text and the triage decisions. Either can change
+        without the other, and each independently invalidates the index.
+        """
+        # -- triage labels -------------------------------------------------
+        tfp = triage_fingerprint()
+        pinned = (self.manifest.get("triage") or {}).get("aggregate")
+        if pinned is None:
+            raise IndexStaleError(
+                "this index predates triage pinning (manifest schema "
+                f"{self.manifest.get('schema')}); it cannot be shown to match the "
+                "triage decisions in this checkout. Rebuild with: "
+                "python scripts/build_index.py"
+            )
+        if pinned != tfp["aggregate"]:
+            should = {
+                r for r, lab in tfp["labels"].items() if lab in ("PROSE", "HYBRID")
+            }
+            have = {c.ref for c in self.chunks}
+            wrong = sorted(have - should)
+            missing = sorted(should - have)
+            detail = []
+            if wrong:
+                detail.append(
+                    f"{len(wrong)} clause(s) in the index are no longer PROSE or "
+                    f"HYBRID and must not be quotable: {wrong[:5]}"
+                )
+            if missing:
+                detail.append(
+                    f"{len(missing)} PROSE/HYBRID clause(s) are absent from the "
+                    f"index: {missing[:5]}"
+                )
+            if not detail:
+                detail.append(
+                    "a triage label changed without changing which clauses are "
+                    "indexed (a RULE/HYBRID move)"
+                )
+            raise IndexStaleError(
+                "vector index does not match the triage decisions in this "
+                "checkout -- " + "; ".join(detail)
+                + ". Rebuild with: python scripts/build_index.py"
+            )
+
+        # -- corpus text ---------------------------------------------------
         fp = corpus_fingerprint(corpus_dir)
         if fp["aggregate"] == self.manifest["corpus"]["aggregate"]:
             return
@@ -277,11 +345,7 @@ class VectorStore:
         indexed = {c.ref: c.clause_hash for c in self.chunks}
         changed = [r for r, h in indexed.items() if r in live and live[r] != h]
         gone = [r for r in indexed if r not in live]
-        # A newly-RULE clause legitimately leaves the index, so only report
-        # additions that triage says belong in it.
-        from .triage import load_ledger as _ll
-
-        ledger = _ll()
+        ledger = load_ledger()
         added = [
             r
             for r in live
@@ -298,7 +362,7 @@ class VectorStore:
         if not detail:
             detail.append(
                 "aggregate corpus hash differs though no per-clause change was "
-                "localised (a RULE/PROSE label likely moved)"
+                "localised"
             )
         raise IndexStaleError(
             "vector index does not match the corpus in this checkout -- "

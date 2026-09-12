@@ -142,6 +142,7 @@ def sync(uri: str = DEFAULT_URI, index_dir: Path = INDEX_DIR) -> dict[str, Any]:
             "dim": manifest["dim"],
             "n_chunks": manifest["n_chunks"],
             "labels": manifest["labels"],
+            "triage_aggregate": (manifest.get("triage") or {}).get("aggregate"),
             "synced_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         },
         upsert=True,
@@ -250,6 +251,17 @@ class MongoVectorStore:
                 f"(mongo {mongo_agg}, corpus {live}). This is what happens after "
                 f"checking out another commit without re-syncing. "
                 f"Run: python scripts/sync_mongo.py"
+            )
+        from .vector import triage_fingerprint
+
+        live_triage = triage_fingerprint()["aggregate"]
+        mongo_triage = self.manifest.get("triage_aggregate")
+        if mongo_triage != live_triage:
+            raise IndexStaleError(
+                f"MongoDB holds an index built against different triage decisions "
+                f"(mongo {mongo_triage}, live {live_triage}). A relabelled clause "
+                f"changes what may be quoted at all. Run: "
+                f"python scripts/build_index.py && python scripts/sync_mongo.py"
             )
         n_mongo = self.db[COLL].count_documents({})
         if n_mongo != self.manifest.get("n_chunks"):

@@ -614,6 +614,8 @@ scopes:
     - has_standing_shift_allowance
     outputs:
     - multiplier
+    - salaried_element
+    - additional_payable
     - night_premium
     - total_rate
     - accrues_toil
@@ -642,9 +644,11 @@ scopes:
     - grade
     - has_standing_shift_allowance
     outputs:
+    - hours_worked
     - overtime_payment
     - toil_hours
-    internals: []
+    internals:
+    - tally
     encodes: []
     judgement_inputs: []
     law_headings: []
