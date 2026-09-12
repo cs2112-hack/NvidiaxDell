@@ -1,0 +1,929 @@
+# Tests — MSA Schedule 4 availability measurement
+
+Assertion-based tests for `Availability`. Every branch of every exception
+hierarchy is covered, and every threshold is tested on both sides:
+
+  * L-2.6's "not less than 5 Business Days" at 4 and 5 clear Business Days;
+  * L-2.5(b)'s "at least 60 minutes' notice" at 59 and 60 minutes;
+  * L-2.6/L-4.5's 8-hour aggregate at 479, 480 and 481 minutes;
+  * L-3.1's "not less than 99.90%" at exactly 99.90%;
+  * L-2.3's rounding to two decimal places at the point where it decides
+    whether a credit is due at all.
+
+That last one is the trap with money attached. L-2.3 makes the Availability
+Percentage the *rounded* figure, so an unrounded 99.8958% is an Availability
+Percentage of 99.90%, the Service Level is met, and L-4.1 never engages. One
+more Unavailable Minute takes it to an unrounded 99.8935%, which rounds to
+99.89%, and the Customer is owed 5% of the Monthly Service Charge. The two
+tests `L2_3_RoundsUpToTheServiceLevel` and `L2_3_RoundsBelowTheServiceLevel`
+sit either side of that single minute.
+
+> Using Availability
+
+## L2_1_ThirtyOneDayMonth
+
+L-2.1: the denominator is the calendar month, so January has 44,640 minutes.
+
+```catala
+#[test]
+declaration scope TestL2_1_ThirtyOneDayMonth:
+  output r content Availability.MeasurementPeriod
+
+scope TestL2_1_ThirtyOneDayMonth:
+  definition r equals
+    output of Availability.MeasurementPeriod with {
+      -- period_start: |2025-01-01|
+    }
+  assertion r.period_end = |2025-01-31|
+  assertion r.total_minutes = 44640
+```
+
+## L2_1_ShortMonth
+
+L-2.1: February 2025 has 28 days, so 40,320 minutes.
+
+```catala
+#[test]
+declaration scope TestL2_1_ShortMonth:
+  output r content Availability.MeasurementPeriod
+
+scope TestL2_1_ShortMonth:
+  definition r equals
+    output of Availability.MeasurementPeriod with {
+      -- period_start: |2025-02-01|
+    }
+  assertion r.period_end = |2025-02-28|
+  assertion r.total_minutes = 40320
+```
+
+## L2_1_LeapFebruary
+
+L-2.1: February 2024 has 29 days, so 41,760 minutes. The denominator must be
+read off the calendar and not assumed.
+
+```catala
+#[test]
+declaration scope TestL2_1_LeapFebruary:
+  output r content Availability.MeasurementPeriod
+
+scope TestL2_1_LeapFebruary:
+  definition r equals
+    output of Availability.MeasurementPeriod with {
+      -- period_start: |2024-02-15|
+    }
+  assertion r.period_end = |2024-02-29|
+  assertion r.total_minutes = 41760
+```
+
+## L2_2_Available
+
+L-2.2: a well-formed request answered at the documented endpoint within the
+latency threshold.
+
+```catala
+#[test]
+declaration scope TestL2_2_Available:
+  output r content Availability.RequestAvailable
+
+scope TestL2_2_Available:
+  definition r equals
+    output of Availability.RequestAvailable with {
+      -- is_well_formed: true
+      -- responded_at_documented_endpoint: true
+      -- responded_within_latency_threshold: true
+    }
+  assertion r.is_available = true
+```
+
+## L2_2_LatencyBreach
+
+L-2.2: a response outside the latency threshold is not Available.
+
+```catala
+#[test]
+declaration scope TestL2_2_LatencyBreach:
+  output r content Availability.RequestAvailable
+
+scope TestL2_2_LatencyBreach:
+  definition r equals
+    output of Availability.RequestAvailable with {
+      -- is_well_formed: true
+      -- responded_at_documented_endpoint: true
+      -- responded_within_latency_threshold: false
+    }
+  assertion r.is_available = false
+```
+
+## L2_2_WrongEndpoint
+
+L-2.2: the response must come at the Service's documented endpoint.
+
+```catala
+#[test]
+declaration scope TestL2_2_WrongEndpoint:
+  output r content Availability.RequestAvailable
+
+scope TestL2_2_WrongEndpoint:
+  definition r equals
+    output of Availability.RequestAvailable with {
+      -- is_well_formed: true
+      -- responded_at_documented_endpoint: false
+      -- responded_within_latency_threshold: true
+    }
+  assertion r.is_available = false
+```
+
+## L2_2_MalformedRequest
+
+L-2.2 speaks of a well-formed request, so a malformed one does not establish
+availability.
+
+```catala
+#[test]
+declaration scope TestL2_2_MalformedRequest:
+  output r content Availability.RequestAvailable
+
+scope TestL2_2_MalformedRequest:
+  definition r equals
+    output of Availability.RequestAvailable with {
+      -- is_well_formed: false
+      -- responded_at_documented_endpoint: true
+      -- responded_within_latency_threshold: true
+    }
+  assertion r.is_available = false
+```
+
+## L2_6_FiveBusinessDaysNotice
+
+L-2.6: notice of exactly 5 clear Business Days is "not less than 5", so the
+window is Scheduled Maintenance.
+
+```catala
+#[test]
+declaration scope TestL2_6_FiveBusinessDaysNotice:
+  output r content Availability.ScheduledMaintenanceWindow
+
+scope TestL2_6_FiveBusinessDaysNotice:
+  definition r equals
+    output of Availability.ScheduledMaintenanceWindow with {
+      -- is_maintenance: true
+      -- notified_at: |2025-02-28|
+      -- window_start: |2025-03-10|
+      -- business_day_calendar: [
+           |2025-02-28|; |2025-03-03|; |2025-03-04|; |2025-03-05|;
+           |2025-03-06|; |2025-03-07|; |2025-03-10|
+         ]
+    }
+  assertion r.business_days_notice = 5
+  assertion r.is_scheduled_maintenance = true
+```
+
+## L2_6_FourBusinessDaysNotice
+
+L-2.6: one Business Day less and the window is not Scheduled Maintenance at
+all, so its minutes are not Excluded Minutes under L-2.5(a).
+
+```catala
+#[test]
+declaration scope TestL2_6_FourBusinessDaysNotice:
+  output r content Availability.ScheduledMaintenanceWindow
+
+scope TestL2_6_FourBusinessDaysNotice:
+  definition r equals
+    output of Availability.ScheduledMaintenanceWindow with {
+      -- is_maintenance: true
+      -- notified_at: |2025-03-03|
+      -- window_start: |2025-03-10|
+      -- business_day_calendar: [
+           |2025-02-28|; |2025-03-03|; |2025-03-04|; |2025-03-05|;
+           |2025-03-06|; |2025-03-07|; |2025-03-10|
+         ]
+    }
+  assertion r.business_days_notice = 4
+  assertion r.is_scheduled_maintenance = false
+```
+
+## L2_6_NotMaintenanceAtAll
+
+L-2.6 qualifies maintenance. An ordinary outage with the same dates is not
+Scheduled Maintenance however much notice happens to precede it.
+
+```catala
+#[test]
+declaration scope TestL2_6_NotMaintenanceAtAll:
+  output r content Availability.ScheduledMaintenanceWindow
+
+scope TestL2_6_NotMaintenanceAtAll:
+  definition r equals
+    output of Availability.ScheduledMaintenanceWindow with {
+      -- is_maintenance: false
+      -- notified_at: |2025-02-28|
+      -- window_start: |2025-03-10|
+      -- business_day_calendar: [
+           |2025-02-28|; |2025-03-03|; |2025-03-04|; |2025-03-05|;
+           |2025-03-06|; |2025-03-07|; |2025-03-10|
+         ]
+    }
+  assertion r.business_days_notice = 5
+  assertion r.is_scheduled_maintenance = false
+```
+
+## L2_5_NoLimbApplies
+
+L-2.5: an outage answering to none of the five limbs yields no Excluded
+Minutes.
+
+```catala
+#[test]
+declaration scope TestL2_5_NoLimbApplies:
+  output r content Availability.ExcludedMinutes
+
+scope TestL2_5_NoLimbApplies:
+  definition r equals
+    output of Availability.ExcludedMinutes with {
+      -- minutes: 120
+      -- is_scheduled_maintenance: false
+      -- is_emergency_maintenance: false
+      -- emergency_notice_minutes: 0
+      -- force_majeure_event_certified: false
+      -- outage_attributable_to_customer: false
+      -- is_suspension_under_clause_9: false
+    }
+  assertion r.limb_a_scheduled_maintenance = false
+  assertion r.limb_b_emergency_maintenance = false
+  assertion r.limb_c_force_majeure = false
+  assertion r.limb_d_customer_act = false
+  assertion r.limb_e_suspension = false
+  assertion r.is_excluded = false
+  assertion r.excluded_minutes = 0
+```
+
+## L2_5_LimbA
+
+L-2.5(a): Scheduled Maintenance.
+
+```catala
+#[test]
+declaration scope TestL2_5_LimbA:
+  output r content Availability.ExcludedMinutes
+
+scope TestL2_5_LimbA:
+  definition r equals
+    output of Availability.ExcludedMinutes with {
+      -- minutes: 120
+      -- is_scheduled_maintenance: true
+      -- is_emergency_maintenance: false
+      -- emergency_notice_minutes: 0
+      -- force_majeure_event_certified: false
+      -- outage_attributable_to_customer: false
+      -- is_suspension_under_clause_9: false
+    }
+  assertion r.limb_a_scheduled_maintenance = true
+  assertion r.is_excluded = true
+  assertion r.excluded_minutes = 120
+```
+
+## L2_5_LimbB_SixtyMinutesNotice
+
+L-2.5(b): "at least 60 minutes' notice", so exactly 60 qualifies.
+
+```catala
+#[test]
+declaration scope TestL2_5_LimbB_SixtyMinutesNotice:
+  output r content Availability.ExcludedMinutes
+
+scope TestL2_5_LimbB_SixtyMinutesNotice:
+  definition r equals
+    output of Availability.ExcludedMinutes with {
+      -- minutes: 90
+      -- is_scheduled_maintenance: false
+      -- is_emergency_maintenance: true
+      -- emergency_notice_minutes: 60
+      -- force_majeure_event_certified: false
+      -- outage_attributable_to_customer: false
+      -- is_suspension_under_clause_9: false
+    }
+  assertion r.limb_b_emergency_maintenance = true
+  assertion r.is_excluded = true
+  assertion r.excluded_minutes = 90
+```
+
+## L2_5_LimbB_FiftyNineMinutesNotice
+
+L-2.5(b): 59 minutes' notice is not "at least 60", so the Emergency
+Maintenance minutes are Unavailable Minutes.
+
+```catala
+#[test]
+declaration scope TestL2_5_LimbB_FiftyNineMinutesNotice:
+  output r content Availability.ExcludedMinutes
+
+scope TestL2_5_LimbB_FiftyNineMinutesNotice:
+  definition r equals
+    output of Availability.ExcludedMinutes with {
+      -- minutes: 90
+      -- is_scheduled_maintenance: false
+      -- is_emergency_maintenance: true
+      -- emergency_notice_minutes: 59
+      -- force_majeure_event_certified: false
+      -- outage_attributable_to_customer: false
+      -- is_suspension_under_clause_9: false
+    }
+  assertion r.limb_b_emergency_maintenance = false
+  assertion r.is_excluded = false
+  assertion r.excluded_minutes = 0
+```
+
+## L2_5_LimbB_NoticeButNotEmergency
+
+L-2.5(b) attaches to an Emergency Maintenance event. Ample notice of an
+ordinary fault excludes nothing.
+
+```catala
+#[test]
+declaration scope TestL2_5_LimbB_NoticeButNotEmergency:
+  output r content Availability.ExcludedMinutes
+
+scope TestL2_5_LimbB_NoticeButNotEmergency:
+  definition r equals
+    output of Availability.ExcludedMinutes with {
+      -- minutes: 90
+      -- is_scheduled_maintenance: false
+      -- is_emergency_maintenance: false
+      -- emergency_notice_minutes: 240
+      -- force_majeure_event_certified: false
+      -- outage_attributable_to_customer: false
+      -- is_suspension_under_clause_9: false
+    }
+  assertion r.limb_b_emergency_maintenance = false
+  assertion r.is_excluded = false
+  assertion r.excluded_minutes = 0
+```
+
+## L2_5_LimbC_ForceMajeure
+
+L-2.5(c): the judgement input `force_majeure_event_certified` is applied, not
+inferred.
+
+```catala
+#[test]
+declaration scope TestL2_5_LimbC_ForceMajeure:
+  output r content Availability.ExcludedMinutes
+
+scope TestL2_5_LimbC_ForceMajeure:
+  definition r equals
+    output of Availability.ExcludedMinutes with {
+      -- minutes: 300
+      -- is_scheduled_maintenance: false
+      -- is_emergency_maintenance: false
+      -- emergency_notice_minutes: 0
+      -- force_majeure_event_certified: true
+      -- outage_attributable_to_customer: false
+      -- is_suspension_under_clause_9: false
+    }
+  assertion r.limb_c_force_majeure = true
+  assertion r.is_excluded = true
+  assertion r.excluded_minutes = 300
+```
+
+## L2_5_LimbD_CustomerAct
+
+L-2.5(d): the judgement input `outage_attributable_to_customer` is applied,
+not inferred.
+
+```catala
+#[test]
+declaration scope TestL2_5_LimbD_CustomerAct:
+  output r content Availability.ExcludedMinutes
+
+scope TestL2_5_LimbD_CustomerAct:
+  definition r equals
+    output of Availability.ExcludedMinutes with {
+      -- minutes: 45
+      -- is_scheduled_maintenance: false
+      -- is_emergency_maintenance: false
+      -- emergency_notice_minutes: 0
+      -- force_majeure_event_certified: false
+      -- outage_attributable_to_customer: true
+      -- is_suspension_under_clause_9: false
+    }
+  assertion r.limb_d_customer_act = true
+  assertion r.is_excluded = true
+  assertion r.excluded_minutes = 45
+```
+
+## L2_5_LimbE_Suspension
+
+L-2.5(e): suspension in accordance with clause 9.
+
+```catala
+#[test]
+declaration scope TestL2_5_LimbE_Suspension:
+  output r content Availability.ExcludedMinutes
+
+scope TestL2_5_LimbE_Suspension:
+  definition r equals
+    output of Availability.ExcludedMinutes with {
+      -- minutes: 600
+      -- is_scheduled_maintenance: false
+      -- is_emergency_maintenance: false
+      -- emergency_notice_minutes: 0
+      -- force_majeure_event_certified: false
+      -- outage_attributable_to_customer: false
+      -- is_suspension_under_clause_9: true
+    }
+  assertion r.limb_e_suspension = true
+  assertion r.is_excluded = true
+  assertion r.excluded_minutes = 600
+```
+
+## L2_5_TwoLimbsAtOnce
+
+L-2.5's limbs are alternatives, not exceptions: an outage that answers to two
+of them is excluded once, not twice.
+
+```catala
+#[test]
+declaration scope TestL2_5_TwoLimbsAtOnce:
+  output r content Availability.ExcludedMinutes
+
+scope TestL2_5_TwoLimbsAtOnce:
+  definition r equals
+    output of Availability.ExcludedMinutes with {
+      -- minutes: 200
+      -- is_scheduled_maintenance: false
+      -- is_emergency_maintenance: false
+      -- emergency_notice_minutes: 0
+      -- force_majeure_event_certified: true
+      -- outage_attributable_to_customer: true
+      -- is_suspension_under_clause_9: false
+    }
+  assertion r.limb_c_force_majeure = true
+  assertion r.limb_d_customer_act = true
+  assertion r.is_excluded = true
+  assertion r.excluded_minutes = 200
+```
+
+## L2_6_AggregateJustUnderEightHours
+
+L-2.6/L-4.5: 479 minutes of Scheduled Maintenance across two windows is under
+the 8-hour ceiling, so there is no excess and all of it stays excluded.
+
+```catala
+#[test]
+declaration scope TestL2_6_AggregateJustUnderEightHours:
+  output r content Availability.ScheduledMaintenance
+
+scope TestL2_6_AggregateJustUnderEightHours:
+  definition r equals
+    output of Availability.ScheduledMaintenance with {
+      -- outages: [
+           Availability.Outage {
+             -- minutes: 239
+             -- is_maintenance: true
+             -- notified_at: |2025-02-28|
+             -- window_start: |2025-03-10|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           };
+           Availability.Outage {
+             -- minutes: 240
+             -- is_maintenance: true
+             -- notified_at: |2025-02-28|
+             -- window_start: |2025-03-10|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           }
+         ]
+      -- business_day_calendar: [
+           |2025-03-03|; |2025-03-04|; |2025-03-05|;
+           |2025-03-06|; |2025-03-07|
+         ]
+    }
+  assertion r.cap_minutes = 480
+  assertion r.aggregate_minutes = 479
+  assertion r.excess_minutes = 0
+  assertion r.excluded_minutes = 479
+```
+
+## L2_6_AggregateExactlyEightHours
+
+L-4.5 bites where Scheduled Maintenance "exceeds" 8 hours, which is strict, so
+exactly 480 minutes produces no excess.
+
+```catala
+#[test]
+declaration scope TestL2_6_AggregateExactlyEightHours:
+  output r content Availability.ScheduledMaintenance
+
+scope TestL2_6_AggregateExactlyEightHours:
+  definition r equals
+    output of Availability.ScheduledMaintenance with {
+      -- outages: [
+           Availability.Outage {
+             -- minutes: 240
+             -- is_maintenance: true
+             -- notified_at: |2025-02-28|
+             -- window_start: |2025-03-10|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           };
+           Availability.Outage {
+             -- minutes: 240
+             -- is_maintenance: true
+             -- notified_at: |2025-02-28|
+             -- window_start: |2025-03-10|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           }
+         ]
+      -- business_day_calendar: [
+           |2025-03-03|; |2025-03-04|; |2025-03-05|;
+           |2025-03-06|; |2025-03-07|
+         ]
+    }
+  assertion r.aggregate_minutes = 480
+  assertion r.excess_minutes = 0
+  assertion r.excluded_minutes = 480
+```
+
+## L4_5_AggregateJustOverEightHours
+
+L-4.5: one minute over the ceiling and that one minute stops being an Excluded
+Minute.
+
+```catala
+#[test]
+declaration scope TestL4_5_AggregateJustOverEightHours:
+  output r content Availability.ScheduledMaintenance
+
+scope TestL4_5_AggregateJustOverEightHours:
+  definition r equals
+    output of Availability.ScheduledMaintenance with {
+      -- outages: [
+           Availability.Outage {
+             -- minutes: 240
+             -- is_maintenance: true
+             -- notified_at: |2025-02-28|
+             -- window_start: |2025-03-10|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           };
+           Availability.Outage {
+             -- minutes: 241
+             -- is_maintenance: true
+             -- notified_at: |2025-02-28|
+             -- window_start: |2025-03-10|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           }
+         ]
+      -- business_day_calendar: [
+           |2025-03-03|; |2025-03-04|; |2025-03-05|;
+           |2025-03-06|; |2025-03-07|
+         ]
+    }
+  assertion r.aggregate_minutes = 481
+  assertion r.excess_minutes = 1
+  assertion r.excluded_minutes = 480
+```
+
+## L2_6_UnnotifiedWindowIsNotInTheAggregate
+
+L-2.6: a maintenance window notified only 4 Business Days in advance is not
+Scheduled Maintenance, so its minutes never enter the 8-hour aggregate — and
+they are not Excluded Minutes either.
+
+```catala
+#[test]
+declaration scope TestL2_6_UnnotifiedWindowIsNotInTheAggregate:
+  output r content Availability.ScheduledMaintenance
+
+scope TestL2_6_UnnotifiedWindowIsNotInTheAggregate:
+  definition r equals
+    output of Availability.ScheduledMaintenance with {
+      -- outages: [
+           Availability.Outage {
+             -- minutes: 600
+             -- is_maintenance: true
+             -- notified_at: |2025-03-03|
+             -- window_start: |2025-03-10|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           }
+         ]
+      -- business_day_calendar: [
+           |2025-03-03|; |2025-03-04|; |2025-03-05|;
+           |2025-03-06|; |2025-03-07|
+         ]
+    }
+  assertion r.aggregate_minutes = 0
+  assertion r.excess_minutes = 0
+  assertion r.excluded_minutes = 0
+```
+
+## L2_4_ExcludedMinutesComeOff
+
+L-2.4: Unavailable Minutes are the minutes not Available less the Excluded
+Minutes. With no maintenance overrun, the L-2.4 base case governs.
+
+```catala
+#[test]
+declaration scope TestL2_4_ExcludedMinutesComeOff:
+  output r content Availability.AvailabilityPercentage
+
+scope TestL2_4_ExcludedMinutesComeOff:
+  definition r equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 43200
+      -- minutes_not_available: 1000
+      -- excluded_minutes: 600
+      -- scheduled_maintenance_excess_minutes: 0
+    }
+  assertion r.unavailable_minutes = 400
+  assertion r.availability_percentage = 99.07
+  assertion r.meets_service_level = false
+```
+
+## L4_5_ExcessCountsAsUnavailable
+
+L-4.5, as an exception to L-2.4: the same facts but with 120 minutes of the
+Scheduled Maintenance beyond the 8-hour aggregate. Those 120 minutes are added
+back into Unavailable Minutes, so 400 becomes 520 and the Availability
+Percentage falls from 99.07% to 98.80%.
+
+```catala
+#[test]
+declaration scope TestL4_5_ExcessCountsAsUnavailable:
+  output r content Availability.AvailabilityPercentage
+
+scope TestL4_5_ExcessCountsAsUnavailable:
+  definition r equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 43200
+      -- minutes_not_available: 1000
+      -- excluded_minutes: 600
+      -- scheduled_maintenance_excess_minutes: 120
+    }
+  assertion r.unavailable_minutes = 520
+  assertion r.availability_percentage = 98.80
+  assertion r.meets_service_level = false
+```
+
+## L3_1_ExactlyAtTheServiceLevel
+
+L-3.1: "not less than 99.90%" is inclusive, so an Availability Percentage of
+exactly 99.90% meets the Service Level. A 30-day month with 43.2 Unavailable
+Minutes would be exactly 99.90%; 43 minutes rounds to 99.90% from above.
+
+```catala
+#[test]
+declaration scope TestL3_1_ExactlyAtTheServiceLevel:
+  output r content Availability.AvailabilityPercentage
+
+scope TestL3_1_ExactlyAtTheServiceLevel:
+  definition r equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 43200
+      -- minutes_not_available: 43
+      -- excluded_minutes: 0
+      -- scheduled_maintenance_excess_minutes: 0
+    }
+  assertion r.availability_percentage = 99.90
+  assertion r.meets_service_level = true
+```
+
+## L2_3_RoundsUpToTheServiceLevel
+
+L-2.3: 45 Unavailable Minutes in a 30-day month is an unrounded 99.895833%,
+which rounds to an Availability Percentage of 99.90%. The Service Level is met
+and L-4.1 never engages, because the defined term is the rounded figure.
+
+```catala
+#[test]
+declaration scope TestL2_3_RoundsUpToTheServiceLevel:
+  output r content Availability.AvailabilityPercentage
+
+scope TestL2_3_RoundsUpToTheServiceLevel:
+  definition r equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 43200
+      -- minutes_not_available: 45
+      -- excluded_minutes: 0
+      -- scheduled_maintenance_excess_minutes: 0
+    }
+  assertion r.unavailable_minutes = 45
+  assertion r.availability_percentage_unrounded < 99.90
+  assertion r.availability_percentage = 99.90
+  assertion r.meets_service_level = true
+```
+
+## L2_3_RoundsBelowTheServiceLevel
+
+L-2.3: one further Unavailable Minute gives an unrounded 99.893518%, which
+rounds to 99.89% — below the Service Level, and inside L-4.1 band (a). One
+minute is the whole distance between nothing and 5% of the Monthly Service
+Charge.
+
+```catala
+#[test]
+declaration scope TestL2_3_RoundsBelowTheServiceLevel:
+  output r content Availability.AvailabilityPercentage
+
+scope TestL2_3_RoundsBelowTheServiceLevel:
+  definition r equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 43200
+      -- minutes_not_available: 46
+      -- excluded_minutes: 0
+      -- scheduled_maintenance_excess_minutes: 0
+    }
+  assertion r.unavailable_minutes = 46
+  assertion r.availability_percentage = 99.89
+  assertion r.meets_service_level = false
+```
+
+## L2_3_RoundingIsNotTruncation
+
+L-2.3 rounds to two decimal places rather than truncating: an unrounded
+99.8958% is 99.90%, not 99.89%.
+
+```catala
+#[test]
+declaration scope TestL2_3_RoundingIsNotTruncation:
+  output r content Availability.AvailabilityPercentage
+
+scope TestL2_3_RoundingIsNotTruncation:
+  definition r equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 40320
+      -- minutes_not_available: 42
+      -- excluded_minutes: 0
+      -- scheduled_maintenance_excess_minutes: 0
+    }
+  assertion r.availability_percentage_unrounded < 99.90
+  assertion r.availability_percentage = 99.90
+  assertion r.meets_service_level = true
+```
+
+## L2_3_PerfectMonth
+
+L-2.3: no Unavailable Minutes gives 100.00%.
+
+```catala
+#[test]
+declaration scope TestL2_3_PerfectMonth:
+  output r content Availability.AvailabilityPercentage
+
+scope TestL2_3_PerfectMonth:
+  definition r equals
+    output of Availability.AvailabilityPercentage with {
+      -- total_minutes: 44640
+      -- minutes_not_available: 0
+      -- excluded_minutes: 0
+      -- scheduled_maintenance_excess_minutes: 0
+    }
+  assertion r.unavailable_minutes = 0
+  assertion r.availability_percentage = 100.00
+  assertion r.meets_service_level = true
+```
+
+## Integration_MaintenanceOverrun
+
+The whole chain over one Measurement Period: April 2025 (43,200 minutes) with
+600 minutes of properly notified Scheduled Maintenance, 100 minutes of
+certified Force Majeure and 200 minutes of plain outage. L-2.5 excludes 700
+minutes; L-2.6's aggregate ceiling is exceeded by 120; L-4.5 returns those 120
+to Unavailable Minutes, giving 320 rather than 200, and 99.26%.
+
+```catala
+#[test]
+declaration scope TestIntegration_MaintenanceOverrun:
+  output r content Availability.ServiceAvailability
+
+scope TestIntegration_MaintenanceOverrun:
+  definition r equals
+    output of Availability.ServiceAvailability with {
+      -- period_start: |2025-04-01|
+      -- business_day_calendar: [
+           |2025-03-25|; |2025-03-26|; |2025-03-27|;
+           |2025-03-28|; |2025-03-31|
+         ]
+      -- outages: [
+           Availability.Outage {
+             -- minutes: 600
+             -- is_maintenance: true
+             -- notified_at: |2025-03-24|
+             -- window_start: |2025-04-01|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           };
+           Availability.Outage {
+             -- minutes: 100
+             -- is_maintenance: false
+             -- notified_at: |2025-04-10|
+             -- window_start: |2025-04-10|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: true
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           };
+           Availability.Outage {
+             -- minutes: 200
+             -- is_maintenance: false
+             -- notified_at: |2025-04-20|
+             -- window_start: |2025-04-20|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           }
+         ]
+    }
+  assertion r.total_minutes = 43200
+  assertion r.minutes_not_available = 900
+  assertion r.excluded_minutes = 700
+  assertion r.scheduled_maintenance_aggregate_minutes = 600
+  assertion r.scheduled_maintenance_excess_minutes = 120
+  assertion r.unavailable_minutes = 320
+  assertion r.availability_percentage = 99.26
+  assertion r.meets_service_level = false
+```
+
+## Integration_NoOverrun
+
+The same month with 480 rather than 600 minutes of Scheduled Maintenance: the
+aggregate is exactly at the ceiling, nothing is returned to Unavailable
+Minutes, and the Service Level is still missed but by less.
+
+```catala
+#[test]
+declaration scope TestIntegration_NoOverrun:
+  output r content Availability.ServiceAvailability
+
+scope TestIntegration_NoOverrun:
+  definition r equals
+    output of Availability.ServiceAvailability with {
+      -- period_start: |2025-04-01|
+      -- business_day_calendar: [
+           |2025-03-25|; |2025-03-26|; |2025-03-27|;
+           |2025-03-28|; |2025-03-31|
+         ]
+      -- outages: [
+           Availability.Outage {
+             -- minutes: 480
+             -- is_maintenance: true
+             -- notified_at: |2025-03-24|
+             -- window_start: |2025-04-01|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           };
+           Availability.Outage {
+             -- minutes: 200
+             -- is_maintenance: false
+             -- notified_at: |2025-04-20|
+             -- window_start: |2025-04-20|
+             -- is_emergency_maintenance: false
+             -- emergency_notice_minutes: 0
+             -- force_majeure_event_certified: false
+             -- outage_attributable_to_customer: false
+             -- is_suspension_under_clause_9: false
+           }
+         ]
+    }
+  assertion r.minutes_not_available = 680
+  assertion r.excluded_minutes = 480
+  assertion r.scheduled_maintenance_excess_minutes = 0
+  assertion r.unavailable_minutes = 200
+  assertion r.availability_percentage = 99.54
+  assertion r.meets_service_level = false
+```

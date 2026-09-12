@@ -1,0 +1,657 @@
+# Tests — Annex C defined terms (C-2)
+
+Assertion-based tests for the six definitions of C-2. Each definition is a
+boundary: a Payroll Week starts on one particular day, a Night Hour starts
+within one particular window, a Grade is read as at one particular date, and a
+Critical Incident Response falls inside one particular period. Every one of
+those boundaries is tested from both sides, because a definition that is off
+by one day or one hour silently mis-prices every entitlement computed from it.
+
+Counterexamples found by the adversarial reviewer are kept separately, in
+`tests/counterexamples/`, and are re-run by `scripts/check.sh`.
+
+> Using Working_time_defs as WTD
+
+## C2_1_BaseHourlyRate
+
+C-2.1: an annual salary that is an exact multiple of 2,080 cents divides
+without remainder.
+
+```catala
+#[test]
+declaration scope TestC2_1_BaseHourlyRate:
+  output r content WTD.BaseHourlyRate
+
+scope TestC2_1_BaseHourlyRate:
+  definition r equals
+    output of WTD.BaseHourlyRate with {
+      -- annual_base_salary: $52,000.00
+    }
+  assertion r.base_hourly_rate = $25.00
+```
+
+## C2_1_BaseHourlyRateCentRounding
+
+C-2.1: 50,000 / 2,080 = 24.0384615..., and `money` is fixed at the cent, so
+the rate is the nearest cent. The clause states no rounding; this pins the
+behaviour the type imposes so that a change to it is visible.
+
+```catala
+#[test]
+declaration scope TestC2_1_BaseHourlyRateCentRounding:
+  output r content WTD.BaseHourlyRate
+
+scope TestC2_1_BaseHourlyRateCentRounding:
+  definition r equals
+    output of WTD.BaseHourlyRate with {
+      -- annual_base_salary: $50,000.00
+    }
+  assertion r.base_hourly_rate = $24.04
+```
+
+## C2_1_BaseHourlyRateZero
+
+C-2.1: a zero salary yields a zero rate rather than an error.
+
+```catala
+#[test]
+declaration scope TestC2_1_BaseHourlyRateZero:
+  output r content WTD.BaseHourlyRate
+
+scope TestC2_1_BaseHourlyRateZero:
+  definition r equals
+    output of WTD.BaseHourlyRate with {
+      -- annual_base_salary: $0.00
+    }
+  assertion r.base_hourly_rate = $0.00
+```
+
+## C2_2_WeekFromItsMonday
+
+C-2.2: a Monday is the first day of its own Payroll Week.
+
+```catala
+#[test]
+declaration scope TestC2_2_WeekFromItsMonday:
+  output r content WTD.PayrollWeekOf
+
+scope TestC2_2_WeekFromItsMonday:
+  definition r equals
+    output of WTD.PayrollWeekOf with { -- calendar_day: |2024-01-08| }
+  assertion r.days_since_monday = 0
+  assertion r.payroll_week.first_day = |2024-01-08|
+  assertion r.payroll_week.last_day = |2024-01-14|
+```
+
+## C2_2_WeekFromItsSunday
+
+C-2.2: the Sunday is the last day of the week that began six days earlier, not
+the first day of a new one. This is the other side of the week boundary.
+
+```catala
+#[test]
+declaration scope TestC2_2_WeekFromItsSunday:
+  output r content WTD.PayrollWeekOf
+
+scope TestC2_2_WeekFromItsSunday:
+  definition r equals
+    output of WTD.PayrollWeekOf with { -- calendar_day: |2024-01-07| }
+  assertion r.days_since_monday = 6
+  assertion r.payroll_week.first_day = |2024-01-01|
+  assertion r.payroll_week.last_day = |2024-01-07|
+```
+
+## C2_2_WeekFromMidWeek
+
+C-2.2: a Wednesday resolves to the same week as its Monday.
+
+```catala
+#[test]
+declaration scope TestC2_2_WeekFromMidWeek:
+  output r content WTD.PayrollWeekOf
+
+scope TestC2_2_WeekFromMidWeek:
+  definition r equals
+    output of WTD.PayrollWeekOf with { -- calendar_day: |2024-01-10| }
+  assertion r.days_since_monday = 2
+  assertion r.payroll_week.first_day = |2024-01-08|
+  assertion r.payroll_week.last_day = |2024-01-14|
+```
+
+## C2_2_WeekSpansMonthAndLeapDay
+
+C-2.2: seven consecutive days, so a Payroll Week may straddle a month end. The
+week containing Friday 1 March 2024 begins on 26 February and contains the
+leap day.
+
+```catala
+#[test]
+declaration scope TestC2_2_WeekSpansMonthAndLeapDay:
+  output r content WTD.PayrollWeekOf
+
+scope TestC2_2_WeekSpansMonthAndLeapDay:
+  definition r equals
+    output of WTD.PayrollWeekOf with { -- calendar_day: |2024-03-01| }
+  assertion r.days_since_monday = 4
+  assertion r.payroll_week.first_day = |2024-02-26|
+  assertion r.payroll_week.last_day = |2024-03-03|
+```
+
+## C2_3_NightHour21
+
+C-2.3: the hour beginning at 21:00 ends at 22:00 and is not a Night Hour. This
+is the lower boundary from below.
+
+```catala
+#[test]
+declaration scope TestC2_3_NightHour21:
+  output r content WTD.NightHours
+
+scope TestC2_3_NightHour21:
+  definition r equals
+    output of WTD.NightHours with { -- hour_beginning: 21 }
+  assertion r.is_night_hour = false
+```
+
+## C2_3_NightHour22
+
+C-2.3: the hour beginning at 22:00 is the first Night Hour.
+
+```catala
+#[test]
+declaration scope TestC2_3_NightHour22:
+  output r content WTD.NightHours
+
+scope TestC2_3_NightHour22:
+  definition r equals
+    output of WTD.NightHours with { -- hour_beginning: 22 }
+  assertion r.is_night_hour = true
+```
+
+## C2_3_NightHourMidnight
+
+C-2.3: 'and 06:00 on the following day' carries the window across midnight.
+
+```catala
+#[test]
+declaration scope TestC2_3_NightHourMidnight:
+  output r content WTD.NightHours
+
+scope TestC2_3_NightHourMidnight:
+  definition r equals
+    output of WTD.NightHours with { -- hour_beginning: 0 }
+  assertion r.is_night_hour = true
+```
+
+## C2_3_NightHour5
+
+C-2.3: the hour beginning at 05:00 ends at 06:00 and is the last Night Hour.
+
+```catala
+#[test]
+declaration scope TestC2_3_NightHour5:
+  output r content WTD.NightHours
+
+scope TestC2_3_NightHour5:
+  definition r equals
+    output of WTD.NightHours with { -- hour_beginning: 5 }
+  assertion r.is_night_hour = true
+```
+
+## C2_3_NightHour6
+
+C-2.3: the hour beginning at 06:00 is outside the window. This is the upper
+boundary from above.
+
+```catala
+#[test]
+declaration scope TestC2_3_NightHour6:
+  output r content WTD.NightHours
+
+scope TestC2_3_NightHour6:
+  definition r equals
+    output of WTD.NightHours with { -- hour_beginning: 6 }
+  assertion r.is_night_hour = false
+```
+
+## C2_3_NightHourNoon
+
+C-2.3: the middle of the day is not a Night Hour.
+
+```catala
+#[test]
+declaration scope TestC2_3_NightHourNoon:
+  output r content WTD.NightHours
+
+scope TestC2_3_NightHourNoon:
+  definition r equals
+    output of WTD.NightHours with { -- hour_beginning: 12 }
+  assertion r.is_night_hour = false
+```
+
+## C2_4_GradeLatestRecordingInForce
+
+C-2.4: where two recordings are in force at the first day of the week, the
+later one governs.
+
+```catala
+#[test]
+declaration scope TestC2_4_GradeLatestRecordingInForce:
+  output r content WTD.GradeForPayrollWeek
+
+scope TestC2_4_GradeLatestRecordingInForce:
+  definition r equals
+    output of WTD.GradeForPayrollWeek with {
+      -- grade_records: [
+           WTD.GradeRecord { -- grade: 3 -- recorded_from: |2023-01-01| };
+           WTD.GradeRecord { -- grade: 5 -- recorded_from: |2024-01-01| }
+         ]
+      -- payroll_week: WTD.PayrollWeek {
+           -- first_day: |2024-01-08|
+           -- last_day: |2024-01-14|
+         }
+    }
+  assertion r.grade = Present content 5
+```
+
+## C2_4_GradeRecordedOnFirstDayOfWeek
+
+C-2.4: 'at the first day of the Payroll Week' includes that day, so a
+recording made on the Monday governs that Monday's week.
+
+```catala
+#[test]
+declaration scope TestC2_4_GradeRecordedOnFirstDayOfWeek:
+  output r content WTD.GradeForPayrollWeek
+
+scope TestC2_4_GradeRecordedOnFirstDayOfWeek:
+  definition r equals
+    output of WTD.GradeForPayrollWeek with {
+      -- grade_records: [
+           WTD.GradeRecord { -- grade: 3 -- recorded_from: |2023-01-01| };
+           WTD.GradeRecord { -- grade: 5 -- recorded_from: |2024-01-08| }
+         ]
+      -- payroll_week: WTD.PayrollWeek {
+           -- first_day: |2024-01-08|
+           -- last_day: |2024-01-14|
+         }
+    }
+  assertion r.grade = Present content 5
+```
+
+## C2_4_GradeRecordedAfterFirstDayOfWeek
+
+C-2.4: the other side of the as-of boundary. A promotion recorded on the
+Tuesday does not govern the week that began on the Monday, even though it
+takes effect during that week.
+
+```catala
+#[test]
+declaration scope TestC2_4_GradeRecordedAfterFirstDayOfWeek:
+  output r content WTD.GradeForPayrollWeek
+
+scope TestC2_4_GradeRecordedAfterFirstDayOfWeek:
+  definition r equals
+    output of WTD.GradeForPayrollWeek with {
+      -- grade_records: [
+           WTD.GradeRecord { -- grade: 3 -- recorded_from: |2023-01-01| };
+           WTD.GradeRecord { -- grade: 5 -- recorded_from: |2024-01-09| }
+         ]
+      -- payroll_week: WTD.PayrollWeek {
+           -- first_day: |2024-01-08|
+           -- last_day: |2024-01-14|
+         }
+    }
+  assertion r.grade = Present content 3
+```
+
+## C2_4_GradeNoRecordingInForce
+
+C-2.4: where the system of record holds nothing in force at the first day of
+the week, the Annex supplies no Grade. The result is `Absent`; it is not zero.
+
+```catala
+#[test]
+declaration scope TestC2_4_GradeNoRecordingInForce:
+  output r content WTD.GradeForPayrollWeek
+
+scope TestC2_4_GradeNoRecordingInForce:
+  definition r equals
+    output of WTD.GradeForPayrollWeek with {
+      -- grade_records: [
+           WTD.GradeRecord { -- grade: 5 -- recorded_from: |2024-02-01| }
+         ]
+      -- payroll_week: WTD.PayrollWeek {
+           -- first_day: |2024-01-08|
+           -- last_day: |2024-01-14|
+         }
+    }
+  assertion r.grade = Absent
+```
+
+## C2_4_GradeEmptySystemOfRecord
+
+C-2.4: an empty record is the same case.
+
+```catala
+#[test]
+declaration scope TestC2_4_GradeEmptySystemOfRecord:
+  output r content WTD.GradeForPayrollWeek
+
+scope TestC2_4_GradeEmptySystemOfRecord:
+  definition r equals
+    output of WTD.GradeForPayrollWeek with {
+      -- grade_records: []
+      -- payroll_week: WTD.PayrollWeek {
+           -- first_day: |2024-01-08|
+           -- last_day: |2024-01-14|
+         }
+    }
+  assertion r.grade = Absent
+```
+
+## C2_5_Severity1WithinPeriod
+
+C-2.5: all three limbs satisfied.
+
+```catala
+#[test]
+declaration scope TestC2_5_Severity1WithinPeriod:
+  output r content WTD.CriticalIncidentResponse
+
+scope TestC2_5_Severity1WithinPeriod:
+  definition r equals
+    output of WTD.CriticalIncidentResponse with {
+      -- incident: WTD.CriticalIncident {
+           -- severity: 1
+           -- declared_at: |2024-05-06|
+           -- closed_at: Present content |2024-05-09|
+         }
+      -- work_performed_at: |2024-05-07|
+      -- performed_in_response_to_incident: true
+    }
+  assertion r.within_incident_period = true
+  assertion r.is_critical_incident_response = true
+```
+
+## C2_5_Severity2NotCritical
+
+C-2.5: the severity threshold. Severity 2 is not Severity 1, even though the
+work falls squarely inside the incident period.
+
+```catala
+#[test]
+declaration scope TestC2_5_Severity2NotCritical:
+  output r content WTD.CriticalIncidentResponse
+
+scope TestC2_5_Severity2NotCritical:
+  definition r equals
+    output of WTD.CriticalIncidentResponse with {
+      -- incident: WTD.CriticalIncident {
+           -- severity: 2
+           -- declared_at: |2024-05-06|
+           -- closed_at: Present content |2024-05-09|
+         }
+      -- work_performed_at: |2024-05-07|
+      -- performed_in_response_to_incident: true
+    }
+  assertion r.within_incident_period = true
+  assertion r.is_critical_incident_response = false
+```
+
+## C2_5_DayBeforeDeclaration
+
+C-2.5: the period runs 'from declaration', so the day before is outside it.
+
+```catala
+#[test]
+declaration scope TestC2_5_DayBeforeDeclaration:
+  output r content WTD.CriticalIncidentResponse
+
+scope TestC2_5_DayBeforeDeclaration:
+  definition r equals
+    output of WTD.CriticalIncidentResponse with {
+      -- incident: WTD.CriticalIncident {
+           -- severity: 1
+           -- declared_at: |2024-05-06|
+           -- closed_at: Present content |2024-05-09|
+         }
+      -- work_performed_at: |2024-05-05|
+      -- performed_in_response_to_incident: true
+    }
+  assertion r.within_incident_period = false
+  assertion r.is_critical_incident_response = false
+```
+
+## C2_5_DayOfDeclaration
+
+C-2.5: the declaration day itself is inside the period.
+
+```catala
+#[test]
+declaration scope TestC2_5_DayOfDeclaration:
+  output r content WTD.CriticalIncidentResponse
+
+scope TestC2_5_DayOfDeclaration:
+  definition r equals
+    output of WTD.CriticalIncidentResponse with {
+      -- incident: WTD.CriticalIncident {
+           -- severity: 1
+           -- declared_at: |2024-05-06|
+           -- closed_at: Present content |2024-05-09|
+         }
+      -- work_performed_at: |2024-05-06|
+      -- performed_in_response_to_incident: true
+    }
+  assertion r.within_incident_period = true
+  assertion r.is_critical_incident_response = true
+```
+
+## C2_5_DayOfClosure
+
+C-2.5: the period runs 'until its formal closure', and the closure day is
+treated as inside it.
+
+```catala
+#[test]
+declaration scope TestC2_5_DayOfClosure:
+  output r content WTD.CriticalIncidentResponse
+
+scope TestC2_5_DayOfClosure:
+  definition r equals
+    output of WTD.CriticalIncidentResponse with {
+      -- incident: WTD.CriticalIncident {
+           -- severity: 1
+           -- declared_at: |2024-05-06|
+           -- closed_at: Present content |2024-05-09|
+         }
+      -- work_performed_at: |2024-05-09|
+      -- performed_in_response_to_incident: true
+    }
+  assertion r.within_incident_period = true
+  assertion r.is_critical_incident_response = true
+```
+
+## C2_5_DayAfterClosure
+
+C-2.5: the other side of the closure boundary.
+
+```catala
+#[test]
+declaration scope TestC2_5_DayAfterClosure:
+  output r content WTD.CriticalIncidentResponse
+
+scope TestC2_5_DayAfterClosure:
+  definition r equals
+    output of WTD.CriticalIncidentResponse with {
+      -- incident: WTD.CriticalIncident {
+           -- severity: 1
+           -- declared_at: |2024-05-06|
+           -- closed_at: Present content |2024-05-09|
+         }
+      -- work_performed_at: |2024-05-10|
+      -- performed_in_response_to_incident: true
+    }
+  assertion r.within_incident_period = false
+  assertion r.is_critical_incident_response = false
+```
+
+## C2_5_IncidentNotYetClosed
+
+C-2.5: an incident that has been declared but not formally closed has an open
+period, so work performed long after declaration is still inside it.
+
+```catala
+#[test]
+declaration scope TestC2_5_IncidentNotYetClosed:
+  output r content WTD.CriticalIncidentResponse
+
+scope TestC2_5_IncidentNotYetClosed:
+  definition r equals
+    output of WTD.CriticalIncidentResponse with {
+      -- incident: WTD.CriticalIncident {
+           -- severity: 1
+           -- declared_at: |2024-05-06|
+           -- closed_at: Absent
+         }
+      -- work_performed_at: |2024-06-30|
+      -- performed_in_response_to_incident: true
+    }
+  assertion r.within_incident_period = true
+  assertion r.is_critical_incident_response = true
+```
+
+## C2_5_NotYetClosedButBeforeDeclaration
+
+C-2.5: an open period still has a start. Work before declaration is outside it
+whether or not the incident has been closed.
+
+```catala
+#[test]
+declaration scope TestC2_5_NotYetClosedButBeforeDeclaration:
+  output r content WTD.CriticalIncidentResponse
+
+scope TestC2_5_NotYetClosedButBeforeDeclaration:
+  definition r equals
+    output of WTD.CriticalIncidentResponse with {
+      -- incident: WTD.CriticalIncident {
+           -- severity: 1
+           -- declared_at: |2024-05-06|
+           -- closed_at: Absent
+         }
+      -- work_performed_at: |2024-05-05|
+      -- performed_in_response_to_incident: true
+    }
+  assertion r.within_incident_period = false
+  assertion r.is_critical_incident_response = false
+```
+
+## C2_5_WorkNotInResponseToIncident
+
+C-2.5: 'work performed in response to an incident'. Ordinary work done during
+a Severity 1 incident is not Critical Incident Response.
+
+```catala
+#[test]
+declaration scope TestC2_5_WorkNotInResponseToIncident:
+  output r content WTD.CriticalIncidentResponse
+
+scope TestC2_5_WorkNotInResponseToIncident:
+  definition r equals
+    output of WTD.CriticalIncidentResponse with {
+      -- incident: WTD.CriticalIncident {
+           -- severity: 1
+           -- declared_at: |2024-05-06|
+           -- closed_at: Present content |2024-05-09|
+         }
+      -- work_performed_at: |2024-05-07|
+      -- performed_in_response_to_incident: false
+    }
+  assertion r.within_incident_period = true
+  assertion r.is_critical_incident_response = false
+```
+
+## C2_6_GazettedForThisPlaceOfWork
+
+C-2.6: the day is gazetted for the Employee's principal place of work.
+
+```catala
+#[test]
+declaration scope TestC2_6_GazettedForThisPlaceOfWork:
+  output r content WTD.GazettedPublicHolidays
+
+scope TestC2_6_GazettedForThisPlaceOfWork:
+  definition r equals
+    output of WTD.GazettedPublicHolidays with {
+      -- gazette: [
+           WTD.GazettedHoliday { -- place_of_work: 1 -- holiday_date: |2024-05-06| };
+           WTD.GazettedHoliday { -- place_of_work: 2 -- holiday_date: |2024-07-04| }
+         ]
+      -- principal_place_of_work: 1
+      -- calendar_day: |2024-05-06|
+    }
+  assertion r.is_gazetted_public_holiday = true
+```
+
+## C2_6_GazettedForAnotherPlaceOfWork
+
+C-2.6: 'in the Employee's principal place of work'. A day gazetted elsewhere
+is not a Gazetted Public Holiday for this Employee.
+
+```catala
+#[test]
+declaration scope TestC2_6_GazettedForAnotherPlaceOfWork:
+  output r content WTD.GazettedPublicHolidays
+
+scope TestC2_6_GazettedForAnotherPlaceOfWork:
+  definition r equals
+    output of WTD.GazettedPublicHolidays with {
+      -- gazette: [
+           WTD.GazettedHoliday { -- place_of_work: 1 -- holiday_date: |2024-05-06| };
+           WTD.GazettedHoliday { -- place_of_work: 2 -- holiday_date: |2024-07-04| }
+         ]
+      -- principal_place_of_work: 1
+      -- calendar_day: |2024-07-04|
+    }
+  assertion r.is_gazetted_public_holiday = false
+```
+
+## C2_6_DayNotGazettedAnywhere
+
+C-2.6: a day absent from the gazette is an ordinary day.
+
+```catala
+#[test]
+declaration scope TestC2_6_DayNotGazettedAnywhere:
+  output r content WTD.GazettedPublicHolidays
+
+scope TestC2_6_DayNotGazettedAnywhere:
+  definition r equals
+    output of WTD.GazettedPublicHolidays with {
+      -- gazette: [
+           WTD.GazettedHoliday { -- place_of_work: 1 -- holiday_date: |2024-05-06| }
+         ]
+      -- principal_place_of_work: 1
+      -- calendar_day: |2024-05-07|
+    }
+  assertion r.is_gazetted_public_holiday = false
+```
+
+## C2_6_EmptyGazette
+
+C-2.6: an empty gazette designates nothing.
+
+```catala
+#[test]
+declaration scope TestC2_6_EmptyGazette:
+  output r content WTD.GazettedPublicHolidays
+
+scope TestC2_6_EmptyGazette:
+  definition r equals
+    output of WTD.GazettedPublicHolidays with {
+      -- gazette: []
+      -- principal_place_of_work: 1
+      -- calendar_day: |2024-05-06|
+    }
+  assertion r.is_gazetted_public_holiday = false
+```

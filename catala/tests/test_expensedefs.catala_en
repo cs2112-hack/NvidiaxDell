@@ -1,0 +1,298 @@
+# Tests — EXP-POL E-2 defined terms
+
+Assertion-based tests for `ExpenseDefs.TravelDayCount` (E-2.3) and
+`ExpenseDefs.PreApprovalValid` (E-2.4).
+
+E-2.3's trap is the inclusive count: the day of departure and the day of return
+are *each* a Travel Day, so the tests pin the shortest possible overnight trip
+(two days), a same-day trip (no night away, so none), and a trip crossing a
+month end.
+
+E-2.4 is a conjunction of three decidable conditions, so each conjunct is
+tested failing on its own, and the two numeric/date boundaries are tested on
+both sides: approval on the day before the expense against approval on the same
+day, and authority exactly at the threshold against a penny below it.
+
+Counterexamples found by the adversarial reviewer are kept separately, in
+`tests/counterexamples/`, and are re-run by `scripts/check.sh`.
+
+> Using ExpenseDefs
+
+## E2_3_DepartureAndReturnEachCount
+
+A trip leaving on the 10th and returning on the 12th is three Travel Days.
+Counting `return - departure` would give two.
+
+```catala
+#[test]
+declaration scope TestE2_3_DepartureAndReturnEachCount:
+  output r content ExpenseDefs.TravelDayCount
+
+scope TestE2_3_DepartureAndReturnEachCount:
+  definition r equals
+    output of ExpenseDefs.TravelDayCount with {
+      -- departure_date: |2025-03-10|
+      -- return_date: |2025-03-12|
+    }
+  assertion r.travel_days = 3
+```
+
+## E2_3_ShortestOvernightTrip
+
+Boundary: the shortest trip that involves a night away is two Travel Days.
+
+```catala
+#[test]
+declaration scope TestE2_3_ShortestOvernightTrip:
+  output r content ExpenseDefs.TravelDayCount
+
+scope TestE2_3_ShortestOvernightTrip:
+  definition r equals
+    output of ExpenseDefs.TravelDayCount with {
+      -- departure_date: |2025-03-10|
+      -- return_date: |2025-03-11|
+    }
+  assertion r.travel_days = 2
+```
+
+## E2_3_SameDayIsNotATravelDay
+
+Boundary, other side: departure and return on the same calendar day involves no
+night away from the principal place of work, so E-2.3 is not engaged.
+
+```catala
+#[test]
+declaration scope TestE2_3_SameDayIsNotATravelDay:
+  output r content ExpenseDefs.TravelDayCount
+
+scope TestE2_3_SameDayIsNotATravelDay:
+  definition r equals
+    output of ExpenseDefs.TravelDayCount with {
+      -- departure_date: |2025-03-10|
+      -- return_date: |2025-03-10|
+    }
+  assertion r.travel_days = 0
+```
+
+## E2_3_AcrossMonthEnd
+
+The count is in calendar days and does not care about month lengths.
+
+```catala
+#[test]
+declaration scope TestE2_3_AcrossMonthEnd:
+  output r content ExpenseDefs.TravelDayCount
+
+scope TestE2_3_AcrossMonthEnd:
+  definition r equals
+    output of ExpenseDefs.TravelDayCount with {
+      -- departure_date: |2025-03-31|
+      -- return_date: |2025-04-02|
+    }
+  assertion r.travel_days = 3
+```
+
+## E2_4_AllThreeConditionsMet
+
+Written, obtained the day before the expense, approver authorised above the
+amount.
+
+```catala
+#[test]
+declaration scope TestE2_4_AllThreeConditionsMet:
+  output r content ExpenseDefs.PreApprovalValid
+
+scope TestE2_4_AllThreeConditionsMet:
+  definition r equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $500.00
+           -- specified_amount: Present content $150.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $150.00
+    }
+  assertion r.valid = true
+```
+
+## E2_4_NoApprovalAtAll
+
+`obtained` false defeats the predicate whatever the remaining fields say.
+
+```catala
+#[test]
+declaration scope TestE2_4_NoApprovalAtAll:
+  output r content ExpenseDefs.PreApprovalValid
+
+scope TestE2_4_NoApprovalAtAll:
+  definition r equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: false
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $500.00
+           -- specified_amount: Present content $150.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $150.00
+    }
+  assertion r.valid = false
+```
+
+## E2_4_NotInWriting
+
+E-2.4 requires *written* approval.
+
+```catala
+#[test]
+declaration scope TestE2_4_NotInWriting:
+  output r content ExpenseDefs.PreApprovalValid
+
+scope TestE2_4_NotInWriting:
+  definition r equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: false
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $500.00
+           -- specified_amount: Present content $150.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $150.00
+    }
+  assertion r.valid = false
+```
+
+## E2_4_ObtainedDayBefore
+
+Date boundary, admitted side: the day before the expense is "before the expense
+is incurred".
+
+```catala
+#[test]
+declaration scope TestE2_4_ObtainedDayBefore:
+  output r content ExpenseDefs.PreApprovalValid
+
+scope TestE2_4_ObtainedDayBefore:
+  definition r equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $150.00
+           -- specified_amount: Present content $150.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $150.00
+    }
+  assertion r.valid = true
+```
+
+## E2_4_ObtainedSameDay
+
+Date boundary, refused side. At date granularity an approval bearing the same
+date as the expense cannot be shown to precede it, and this encoding treats it
+as too late — see the NOTE on E-2.4 in the module.
+
+```catala
+#[test]
+declaration scope TestE2_4_ObtainedSameDay:
+  output r content ExpenseDefs.PreApprovalValid
+
+scope TestE2_4_ObtainedSameDay:
+  definition r equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-10|
+           -- approver_authority_limit: $500.00
+           -- specified_amount: Present content $150.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $150.00
+    }
+  assertion r.valid = false
+```
+
+## E2_4_ObtainedAfterTheExpense
+
+An approval given after the spend is not Pre-Approval.
+
+```catala
+#[test]
+declaration scope TestE2_4_ObtainedAfterTheExpense:
+  output r content ExpenseDefs.PreApprovalValid
+
+scope TestE2_4_ObtainedAfterTheExpense:
+  definition r equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-11|
+           -- approver_authority_limit: $500.00
+           -- specified_amount: Present content $150.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $150.00
+    }
+  assertion r.valid = false
+```
+
+## E2_4_AuthorityExactlyAtTheThreshold
+
+Numeric boundary, admitted side: "at or above the threshold" is `>=`, so an
+approver authorised to exactly the amount qualifies.
+
+```catala
+#[test]
+declaration scope TestE2_4_AuthorityExactlyAtTheThreshold:
+  output r content ExpenseDefs.PreApprovalValid
+
+scope TestE2_4_AuthorityExactlyAtTheThreshold:
+  definition r equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $150.00
+           -- specified_amount: Present content $150.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $150.00
+    }
+  assertion r.valid = true
+```
+
+## E2_4_AuthorityAPennyBelowTheThreshold
+
+Numeric boundary, refused side.
+
+```catala
+#[test]
+declaration scope TestE2_4_AuthorityAPennyBelowTheThreshold:
+  output r content ExpenseDefs.PreApprovalValid
+
+scope TestE2_4_AuthorityAPennyBelowTheThreshold:
+  definition r equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $149.99
+           -- specified_amount: Present content $150.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $150.00
+    }
+  assertion r.valid = false
+```

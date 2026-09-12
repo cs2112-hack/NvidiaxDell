@@ -100,21 +100,16 @@ scope RetentionEnd:
 |   (f) Candidate Record: 12 months from the date on which the recruitment
 |       process concluded.
 
-Each limb gets its own label rather than one shared label for the table,
-because R-3.2 and R-3.3 are exceptions to *named limbs* — (f) and (a)
-respectively — and not to the table as a whole. Labelling the limbs
-separately lets each exception attach at exactly the depth the text states.
+Each limb gets its own label, because R-3.2 and R-3.3 are exceptions to
+*named limbs* — (f) and (a) — and not to the table as a whole.
 
-Limb (d) is the only one whose trigger is a maximum over two dates: "the
-later of the date of collection and the date of the most recent engagement".
-`retention_trigger_date` carries the collection date and
-`most_recent_engagement_date` the engagement, and the 24 months run from
-whichever is later. Running them from the collection date alone would
-under-retain every contact who has since engaged.
+Limb (d) is the only one whose trigger is a maximum over two dates: the 24
+months run from whichever of `retention_trigger_date` (collection) and
+`most_recent_engagement_date` is later. Running them from the collection date
+alone would under-retain every contact who has since engaged.
 
-The durations are written in the units the clause uses — `6 year`, `24
-month`, `13 month` — because Catala days and months are incomparable and
-`24 month` is not `730 day`.
+Durations keep the clause's own units — `6 year`, `24 month`, `13 month` —
+because Catala days and months are incomparable.
 
 ```catala
 scope RetentionEnd:
