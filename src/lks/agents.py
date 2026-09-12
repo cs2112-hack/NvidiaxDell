@@ -152,8 +152,27 @@ REVIEWER = Role(
     reads=["reviewer/PROTOCOL.md", "reviewer/packets", "corpus", "scripts/probe.py"],
     forbidden=["docs", "src", "catala", "tests", "triage", "reviewer/findings"],
     temperature=0.7,
-    num_predict=6144,
-    think=True,
+    # 1,400 tokens and a schema, measured rather than chosen. With 6,144 in
+    # plain JSON mode every round ran to the limit -- 8m41s and 8m45s, the two
+    # rounds on record -- because this model does not stop when its object is
+    # complete, and the truncated reply was thrown away. `propose_attack` now
+    # passes a JSON Schema whose string lengths the runtime enforces (verified
+    # on this Ollama: told to write 500 words into a field capped at 40
+    # characters, it stopped at 40, in 50 tokens, with valid JSON), and the
+    # client stops reading when the object closes. The whole reply fits in
+    # about 800 tokens, so a round takes a minute or two and cannot end
+    # mid-string.
+    num_predict=1400,
+    # think=False is measured, not chosen. This role ran with think=True and
+    # had never produced a finding: on qwen3.6 under this Ollama build,
+    # thinking and JSON mode together return an empty completion with
+    # done_reason "stop" -- the deliberation is generated and the answer never
+    # is. Dropping JSON mode to recover the reasoning spends the whole
+    # 6,144-token budget on deliberation and still returns nothing. Both were
+    # verified directly against this model. Until the runtime stops swallowing
+    # the answer, this role reasons in its output rather than before it; the
+    # harness re-executes its findings either way.
+    think=False,
     system=(
         "You are an adversarial reviewer of legal software. You do not approve "
         "anything. There is no 'looks correct' outcome available to you.\n\n"
@@ -179,12 +198,25 @@ REVIEWER = Role(
         "was wrong.\n\n"
         "If the clause genuinely does not decide the question, that is a finding "
         "about the DOCUMENT and is valuable: say so with verdict AMBIGUITY.\n\n"
-        "Reply with JSON only, one object: "
-        '{"verdict": "BREAK|AMBIGUITY|NO_BREAK_FOUND", "fact_pattern": "<prose, '
-        'as a lawyer would state it>", "inputs": {<exact machine inputs>}, '
-        '"expected": <what the clause requires>, "citations": ["DOC CLAUSE", ...], '
-        '"source_reasoning": "<which clause defeats which>", '
-        '"attacks_tried": ["...", ...]}'
+        "Write for two readers. `fact_pattern` and `reasoning` are for a lawyer: "
+        "exact, and citing clauses. `headline` and `why_it_matters` are for a "
+        "manager with no legal or technical training: plain words, no variable "
+        "names, no clause numbers, no code -- who is affected and what goes "
+        "wrong for them.\n\n"
+        "In `inputs`, give every input the rule needs, by its exact name. In "
+        "`expected`, name only the results you are making a claim about, by "
+        "their exact names. Be brief: every field has a length limit and the "
+        "reply is cut off at it.\n\n"
+        "Reply with JSON only, one object, with the fields in this order: "
+        '{"attacks_tried": ["<a few words each>", ...], '
+        '"fact_pattern": "<the situation, as a lawyer would state it>", '
+        '"inputs": {<name>: <value>, ...}, '
+        '"reasoning": "<which clause requires what, and which clause defeats which>", '
+        '"expected": {<result name>: <what the clause requires>, ...}, '
+        '"citations": ["DOC CLAUSE", ...], '
+        '"verdict": "BREAK|AMBIGUITY|NO_BREAK_FOUND", '
+        '"headline": "<one plain sentence: what goes wrong, and for whom>", '
+        '"why_it_matters": "<one or two plain sentences>"}'
     ),
 )
 
@@ -231,7 +263,264 @@ SLOTFILL = Role(
     ),
 )
 
-ROLES = {r.name: r for r in (TRIAGE, REVIEWER, REENCODER, SLOTFILL)}
+# --- document generation ----------------------------------------------------
+#
+# Five roles, all proposal roles like the four above. The drafter and encoder
+# write; the three screens attack. What checks each: the drafter by the house
+# convention parser and then everything downstream of it; the encoder by the
+# Catala gate (`lks.gates`); the screens by re-execution where a claim can be
+# executed and by a consensus rule where it cannot (`lks.screen`).
+
+_HOUSE_CONVENTION = (
+    "The document MUST follow this exact convention or it is rejected by the "
+    "parser before anyone reads it:\n"
+    "  * YAML front matter between two `---` lines with exactly these keys: "
+    "doc_id (UPPER-CASE-WITH-HYPHENS), title (quoted), version (quoted), "
+    "effective_date (YYYY-MM-DD, and only a date the request states; otherwise \"TO BE CONFIRMED\"), jurisdiction (quoted), owner (quoted).\n"
+    "  * Then one `# Title` line.\n"
+    "  * Sections: `## P-1 Section title`, where P is 1-4 capital letters used "
+    "for the whole document and the number increments.\n"
+    "  * Clauses: a line starting `**P-1.1** ` followed by the clause text. A "
+    "clause id MUST begin with its section's id and a dot: `**P-2.3**` lives "
+    "under `## P-2`. Never reuse an id.\n"
+    "  * Sub-paragraphs belong to the clause above them and are indented two "
+    "spaces: `  (a) ...`.\n"
+    "  * Cross-references name a clause id that exists in this document.\n"
+)
+
+DRAFTER = Role(
+    name="drafter",
+    purpose="Draft a legal document in the house convention from a request and "
+            "retrieved precedent.",
+    reads=["generated/<workspace>/context.json"],
+    forbidden=["docs", "src", "tests", "triage", "reviewer"],
+    as_json=False,
+    num_predict=8192,
+    think=True,
+    temperature=0.2,
+    system=(
+        "You draft legal documents for a company whose rules are compiled into "
+        "executable code and then attacked by adversarial reviewers. A document "
+        "that reads well but cannot be executed unambiguously will be sent back.\n\n"
+        + _HOUSE_CONVENTION + "\n"
+        "Draft for execution:\n"
+        "  * State every figure exactly, with its unit. Never 'approximately', "
+        "'around', or 'a reasonable amount'.\n"
+        "  * State whether every threshold is inclusive or exclusive: 'more than "
+        "40 hours', 'at least 12 months'. 'Over' and 'within' are ambiguous.\n"
+        "  * Where two provisions could apply to the same facts, say which "
+        "prevails, by clause id. 'By way of exception to P-4.1' or "
+        "'Notwithstanding P-3.2'.\n"
+        "  * Define every capitalised term in a Definitions section: "
+        "'\"Payroll Week\" means ...'. Use each defined term identically "
+        "everywhere.\n"
+        "  * Never write a clause that cannot change any outcome. A 'greater of' "
+        "whose second limb can never exceed its first is a defect.\n"
+        "  * Where a rule genuinely turns on a human judgement ('good reason', "
+        "'material breach'), keep the judgement and say explicitly who makes "
+        "it. Do not disguise it as a computation, and do not delete it.\n\n"
+        "You will be shown precedent from the company's existing documents and "
+        "their encodings. Follow their structure and drafting habits. Do not "
+        "copy their figures unless the request asks for them.\n\n"
+        "Reply with the complete markdown file and nothing else."
+    ),
+)
+
+CATALA_SYNTAX_NOTES = (
+    "Syntax the reference does not spell out, verified against the Catala 1.2.1 "
+    "compiler in this repo:\n"
+    "  * A function is applied with `of`, arguments separated by commas, never "
+    "with parentheses: `Date.add_round_down of payment_date, 6 month`, "
+    "`Date.max of a, b`. Writing `f(a, b)` is a syntax error.\n"
+    "  * Adding months or years to a date needs a rounding mode. Put the line "
+    "`date round down` (or `date round up`) inside the scope body, before its "
+    "definitions. `down` and `up` are the only accepted words.\n\n"
+)
+"""Catala syntax the encoding roles got wrong in practice, stated as the
+compiler settled it.
+
+The first real encoding that reached the compiler wrote
+`Date.add_round_down(payment_date, 6 month)` three times and failed G1 with
+nine errors. `draft/roundtrips/overtime/catala-reference.md` names
+`Date.add_round_down` but never shows how to apply it, and its only `of`
+examples are casts, so a model encoding without reasoning guessed a
+parenthesised call. Each line here was checked with a probe module before it
+was written down: `of` application compiles and computes 31 Jan + 6 months as
+31 Jul; `date round down` inside the scope body compiles; `date round
+decreasing` is rejected with "valid at this point: down, up".
+"""
+
+
+ENCODER = Role(
+    name="encoder",
+    purpose="Encode the computational clauses of a drafted document as a "
+            "literate Catala module.",
+    reads=["generated/<workspace>/document.md",
+           "draft/roundtrips/overtime/catala-reference.md"],
+    forbidden=["catala/modules", "docs", "src", "tests", "triage", "reviewer"],
+    as_json=False,
+    num_predict=8192,
+    # think=False is measured, not chosen -- the same lesson as REVIEWER. The
+    # first real generation run gave this role think=True and 8,192 tokens: it
+    # spent the entire budget deliberating over a 4.4 KB document and returned
+    # no module at all ("the token budget (8192) was consumed by reasoning").
+    # The budget cannot simply grow: the prompt (the document, the Catala
+    # reference and a precedent module) already takes about half of the
+    # 16,384-token context, and at ~12 tok/s a longer deliberation costs 25+
+    # minutes per attempt. An unreasoned module is rougher, but G1-G4 and the
+    # repair loop exist to catch rough; nothing can repair a reply that never
+    # arrives. The drafter keeps think=True, with `lks.generate`'s fallback: it fit its budget in the first real run and exhausted it in the second, so a deliberation that eats the budget is repeated at once without reasoning.
+    think=False,
+    system=(
+        "You encode legal rules in Catala 1.2.1, which expresses law as "
+        "prioritised default logic. You are given one document and a reference "
+        "to the language. Encode every clause that states a computation or a "
+        "yes/no rule. Do not encode clauses that state no computation.\n\n"
+        "The file you write:\n"
+        "  1. `# <document title>`, then `> Module <CamelCaseName>`. No `> Using` "
+        "and no `> Include`: the module must be self-contained.\n"
+        "  2. Declarations in ```catala-metadata blocks; definitions in ```catala "
+        "blocks. Fences at column 0.\n"
+        "  3. Directly above EVERY ```catala block, on its own line, write which "
+        "clauses it encodes:\n"
+        "       | ENCODES: P-4.1, P-4.2\n"
+        "     The harness replaces that line with the verbatim clause text. Do "
+        "not quote clauses yourself. A block that encodes no clause must "
+        "instead carry `| NO-CLAUSE: <why>`.\n\n"
+        "Make it testable, or it will be rejected:\n"
+        "  * Scope INPUTS may only be boolean, integer, decimal, money, date, or "
+        "an enumeration you declare whose constructors carry no content. Never "
+        "a list, structure or duration as an input.\n"
+        "  * Give every definition in a hierarchy an explicit `label`, and every "
+        "exception an explicit parent. A Catala exception does NOT inherit its "
+        "parent's condition: restate it in full.\n"
+        "  * Sibling exceptions must have mutually exclusive conditions, or the "
+        "scope raises Conflict at runtime.\n"
+        "  * Every output must have a value for every input: write an "
+        "unconditional base case.\n"
+        "  * Where a clause turns on a judgement the document does not define, "
+        "make that judgement a boolean INPUT named for it in snake_case. Never "
+        "compute it.\n"
+        "  * Use `assertion` only to exclude facts that cannot exist (a negative "
+        "number of hours). Never to exclude inconvenient cases.\n\n"
+        + CATALA_SYNTAX_NOTES
+        + "Reply with the contents of the .catala_en file and nothing else."
+    ),
+)
+
+_SCREEN_COMMON = (
+    "You are one of three independent reviewers of a newly drafted legal "
+    "document. The others are attacking different things and you will not see "
+    "what they find. You do not approve documents; there is no 'looks fine' "
+    "outcome. If you find nothing, return an empty findings list and list what "
+    "you tried.\n\n"
+    "Every clause id you cite must exist in the document. Every `quote` must be "
+    "copied exactly from the clause you cite; a finding whose quote is not in "
+    "that clause is discarded unread. Report at most 4 findings, the most "
+    "consequential first, and keep each field short: a reply that runs past the "
+    "token budget is truncated and discarded whole.\n\n"
+)
+
+SCREEN_LOGIC = Role(
+    name="screen-logic",
+    purpose="Find a fact pattern on which the document's executable encoding "
+            "gives an answer the document's words do not.",
+    reads=["generated/<workspace>/document.md", "generated/<workspace>/packet-logic.md"],
+    forbidden=["docs", "src", "tests", "triage", "corpus", "catala/modules"],
+    temperature=0.7,
+    num_predict=2400,
+    think=False,        # think+JSON returns empty on this runtime; see REVIEWER
+    system=(
+        _SCREEN_COMMON
+        + "Your target is LOGIC. You are given the document and the compiled "
+        "rule that encodes it, with its exact inputs. Find concrete facts on "
+        "which the rule's answer differs from what the document's words require.\n\n"
+        "Attack, in order of yield: exact threshold boundaries, probing both "
+        "sides and the boundary itself; two exceptions applying at once; "
+        "'in addition to' against 'in substitution for'; the order of caps, "
+        "multipliers and rounding; greater-of and lesser-of; inclusive and "
+        "exclusive dates; a base case reached when an exception should have "
+        "applied.\n\n"
+        "Derive `expected` FROM THE DOCUMENT'S WORDS, citing the clauses that "
+        "compel it. The rule is re-executed on your inputs; a finding whose "
+        "expected value matches what the rule actually produces is discarded. "
+        "`inputs` must name exactly the rule's inputs with values of their types. "
+        "If the words genuinely do not decide the case, use verdict AMBIGUITY.\n\n"
+        "Reply with JSON only: "
+        '{"findings": [{"verdict": "BREAK|AMBIGUITY", "clause_ids": ["P-1.1"], '
+        '"scope": "<ScopeName>", "inputs": {...}, "expected": {<output>: <value>}, '
+        '"quote": "<exact words>", "summary": "<one sentence>", '
+        '"reasoning": "<which clause requires what>"}], '
+        '"attacks_tried": ["..."]}'
+    ),
+)
+
+SCREEN_LANGUAGE = Role(
+    name="screen-language",
+    purpose="Find wording in the document that a court could read two ways.",
+    reads=["generated/<workspace>/document.md"],
+    forbidden=["docs", "src", "tests", "triage", "corpus", "catala"],
+    temperature=0.3,
+    num_predict=2400,
+    think=False,
+    system=(
+        _SCREEN_COMMON
+        + "Your target is LANGUAGE. You see only the document, never its code. "
+        "Find wording two competent lawyers would read differently.\n\n"
+        "Kinds, and use exactly these names:\n"
+        "  UNDEFINED_TERM         a capitalised or technical term used but never defined\n"
+        "  INCONSISTENT_TERM      one concept named two ways, or one name used for two concepts\n"
+        "  AMBIGUOUS_REFERENT     'it', 'such', 'the relevant period' with more than one candidate\n"
+        "  UNQUANTIFIED_STANDARD  'reasonable', 'promptly', 'material' with no measure or decider\n"
+        "  DANGLING_REFERENCE     a cross-reference to a clause that does not exist\n"
+        "  CIRCULAR_DEFINITION    a definition that depends on itself\n"
+        "  UNSTATED_PRECEDENCE    two clauses reach the same facts and neither says which wins\n"
+        "  INOPERATIVE_CLAUSE     a clause that can never change any outcome\n\n"
+        "Reply with JSON only: "
+        '{"findings": [{"kind": "<KIND>", "clause_ids": ["P-1.1"], '
+        '"quote": "<exact words>", "summary": "<one sentence>", '
+        '"fix": "<the smallest wording change that removes it>"}], '
+        '"attacks_tried": ["..."]}'
+    ),
+)
+
+SCREEN_CONSISTENCY = Role(
+    name="screen-consistency",
+    purpose="Find where the document contradicts the company's existing "
+            "documents or itself, or leaves a case it reaches undecided.",
+    reads=["generated/<workspace>/document.md", "generated/<workspace>/packet-consistency.md"],
+    forbidden=["docs", "src", "tests", "triage", "catala/modules"],
+    temperature=0.4,
+    num_predict=2400,
+    think=False,
+    system=(
+        _SCREEN_COMMON
+        + "Your target is CONSISTENCY. You are given the new document, the "
+        "company's existing clauses closest to it, and the new document's "
+        "compiled rule and inputs.\n\n"
+        "Kinds, and use exactly these names:\n"
+        "  CONTRADICTS_CORPUS      the same facts get a different answer here than "
+        "under an existing clause, and neither says which prevails\n"
+        "  INTERNAL_CONTRADICTION  two clauses of this document require incompatible things\n"
+        "  UNDECIDED_CASE          facts the document plainly reaches but does not decide\n\n"
+        "For CONTRADICTS_CORPUS cite the existing clause in `corpus_refs` by its "
+        "full reference ('EMP-ANNEX-C C-4.1'). Where a case can be put to the "
+        "compiled rule, give `scope`, `inputs` naming exactly its inputs, and "
+        "`expected`: it will be executed.\n\n"
+        "Reply with JSON only: "
+        '{"findings": [{"kind": "<KIND>", "clause_ids": ["P-1.1"], '
+        '"corpus_refs": ["DOC CLAUSE"], "quote": "<exact words>", '
+        '"summary": "<one sentence>", "scope": "<ScopeName or empty>", '
+        '"inputs": {...}, "expected": {...}}], "attacks_tried": ["..."]}'
+    ),
+)
+
+SCREENS = (SCREEN_LOGIC, SCREEN_LANGUAGE, SCREEN_CONSISTENCY)
+
+ROLES = {
+    r.name: r
+    for r in (TRIAGE, REVIEWER, REENCODER, SLOTFILL, DRAFTER, ENCODER, *SCREENS)
+}
 
 
 # --- OpenShell ------------------------------------------------------------
@@ -368,7 +657,8 @@ class Sandbox:
         return r.returncode, r.stdout, r.stderr
 
     def delete(self) -> None:
-        self._run(["sandbox", "delete", "--yes", self.name], timeout=300)
+        # openshell 0.0.106 has no --yes on delete; passing it made this a no-op
+        self._run(["sandbox", "delete", self.name], timeout=300)
 
 
 def open_sandbox(role: Role, suffix: str = "") -> Sandbox | None:
@@ -438,6 +728,11 @@ class RoleResult:
     enforcement: str = Enforcement.PROMPT
     usage: llm.Usage = field(default_factory=llm.Usage)
     raw: str = ""
+    kind: str = ""
+    """Why a failed run failed, so it can be worded for a person: `timeout`
+    (the model was busy or went silent), `unavailable`, `truncated` (the reply
+    hit the token limit before it was complete), `invalid` (complete, but not
+    the shape the role requires) or `refused` (empty)."""
 
     def __str__(self) -> str:
         head = f"[{self.role}/{self.enforcement}] {'ok' if self.ok else 'FAILED'}"
@@ -451,12 +746,21 @@ def run_role(
     model: str = llm.DEFAULT_MODEL,
     validate: Callable[[Any], Any] | None = None,
     seed: int | None = llm.DEFAULT_SEED,
+    schema: dict[str, Any] | None = None,
 ) -> RoleResult:
     """Run one role once and validate its output.
 
     A role that returns malformed output fails rather than returning something
     approximate, because every consumer of these results treats them as
     candidate legal content.
+
+    `schema` constrains a JSON role's reply at generation time. It is how a
+    caller that knows the target -- a scope's exact inputs, the lengths that
+    fit the token budget -- makes a malformed or truncated reply impossible
+    rather than merely discouraged.
+
+    Nothing the model client raises escapes: a timeout or a dropped connection
+    is one failed run, reported with its `kind`, not a crashed loop.
     """
     enforcement = role.enforcement()
     try:
@@ -467,20 +771,33 @@ def run_role(
             temperature=role.temperature,
             seed=seed,
             as_json=role.as_json,
+            schema=schema if role.as_json else None,
             num_predict=role.num_predict,
             think=role.think,
         )
-    except (llm.ModelUnavailable, llm.ModelRefused) as e:
-        return RoleResult(role.name, False, error=str(e), enforcement=enforcement)
+    except llm.ModelTimedOut as e:
+        return RoleResult(role.name, False, error=str(e), enforcement=enforcement,
+                          kind="timeout")
+    except llm.ModelUnavailable as e:
+        return RoleResult(role.name, False, error=str(e), enforcement=enforcement,
+                          kind="unavailable")
+    except llm.ModelRefused as e:
+        return RoleResult(role.name, False, error=str(e), enforcement=enforcement,
+                          kind="refused")
 
     try:
         value = reply.json() if role.as_json else reply.text
         if validate is not None:
             value = validate(value)
     except Exception as e:
+        error = f"{type(e).__name__}: {e}"
+        if reply.truncated:
+            error = (f"the reply reached the {role.num_predict}-token limit before it "
+                     f"was complete; {error}")
         return RoleResult(
-            role.name, False, error=f"{type(e).__name__}: {e}",
+            role.name, False, error=error,
             enforcement=enforcement, usage=reply.usage, raw=reply.text[:1200],
+            kind="truncated" if reply.truncated else "invalid",
         )
     return RoleResult(
         role.name, True, value=value, enforcement=enforcement,
@@ -592,8 +909,35 @@ def _validate_finding(v: Any) -> dict[str, Any]:
             raise ValueError("inputs must be an object")
         if not isinstance(v["citations"], list) or not v["citations"]:
             raise ValueError("a BREAK must cite the clauses that compel its expected value")
+    if "reasoning" in v and not v.get("source_reasoning"):
+        v["source_reasoning"] = v.pop("reasoning")
     v["verdict"] = verdict
     return v
+
+
+def finding_schema(io: Any = None) -> dict[str, Any]:
+    """The reviewer's reply: this rule's exact inputs and results, and field
+    lengths that together fit inside `REVIEWER.num_predict`.
+
+    `reasoning` comes before `expected` and `verdict` on purpose. The role
+    cannot deliberate before answering on this runtime (D-10), so the order of
+    the fields is the order it thinks in."""
+    def text(n: int) -> dict[str, Any]:
+        return {"type": "string", "maxLength": n}
+
+    props: dict[str, Any] = {
+        "attacks_tried": {"type": "array", "maxItems": 4, "items": text(100)},
+        "fact_pattern": text(600),
+        "inputs": io.input_schema if io is not None else {"type": "object"},
+        "reasoning": text(900),
+        "expected": io.output_schema if io is not None else {"type": "object"},
+        "citations": {"type": "array", "maxItems": 6, "items": text(40)},
+        "verdict": {"type": "string", "enum": ["BREAK", "AMBIGUITY", "NO_BREAK_FOUND"]},
+        "headline": text(160),
+        "why_it_matters": text(300),
+    }
+    return {"type": "object", "properties": props, "required": list(props),
+            "additionalProperties": False}
 
 
 def propose_attack(
@@ -611,7 +955,17 @@ def propose_attack(
     `seed=None` lets the round vary: an adversarial reviewer that proposes the
     same attack every time has stopped being adversarial. The output is
     validated by re-execution regardless, so variety costs nothing.
+
+    The rule's exact inputs and results go into the prompt and into the reply
+    schema, so the reviewer cannot name an input the rule lacks or give a value
+    of the wrong type -- the commonest way an attempt used to be wasted.
     """
+    from .interface import scope_io
+
+    try:
+        io = scope_io(module_path, scope)
+    except Exception:                                           # noqa: BLE001
+        io = None
     tried = ""
     if already_tried:
         tried = (
@@ -619,15 +973,28 @@ def propose_attack(
             "were rejected. Do not repeat them; go somewhere else:\n"
             + "\n".join(f"  - {t}" for t in already_tried[-25:])
         )
+    interface = ""
+    if io is not None:
+        interface = (
+            "\n\nThe rule's inputs (* = required):\n"
+            + "\n".join(f"  {n}: {t}{' *' if n in io.required else ''}"
+                        + (f" (one of {', '.join(io.enums[n])})" if n in io.enums else "")
+                        for n, t in io.inputs.items())
+            + "\nThe rule's results:\n"
+            + "\n".join(f"  {n}: {t}" for n, t in io.outputs.items())
+        )
     prompt = (
         f"{packet}\n\n"
         f"To execute the rule, the harness will run scope {scope!r} of "
         f"{module_path!r} on the `inputs` object you return, so those inputs "
-        f"must match the declaration block above exactly.{tried}\n"
+        f"must match the declaration block above exactly.{interface}{tried}\n"
     )
-    res = run_role(REVIEWER, prompt, model=model, validate=_validate_finding, seed=seed)
+    res = run_role(REVIEWER, prompt, model=model, validate=_validate_finding, seed=seed,
+                   schema=finding_schema(io))
     if res.ok and isinstance(res.value, dict):
-        res.value.setdefault("component", "catala")
+        # assigned, not defaulted: this role attacks a compiled rule, and a
+        # finding claiming another component would not be re-executed
+        res.value["component"] = "catala"
         res.value["target"] = {
             "module": Path(module_path).stem, "path": module_path, "scope": scope,
         }

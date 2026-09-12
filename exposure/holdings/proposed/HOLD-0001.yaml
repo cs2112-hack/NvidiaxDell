@@ -1,0 +1,24 @@
+id: HOLD-0001
+scope: Overtime.HourPremium
+title: Marchetti v Northbank Systems Ltd [2026] EAT 118 (hours 41 to 48)
+holding: A precedence provision that selects the highest applicable multiplier reaches a
+  grade-based exclusion, which confers no multiplier, so the exclusion cannot defeat the
+  general overtime entitlement. An employee of grade 5 or above is owed the general overtime
+  rate for each hour in excess of 40 and up to 48, unless the exclusion is expressly drafted
+  to operate notwithstanding the precedence rule.
+when:
+- grade >= 5
+- ordinal > 40
+- ordinal <= 48
+- multiplier < 1.25
+citations:
+- 'Marchetti v Northbank Systems Ltd [2026] EAT 118, paras 1-3 and the Disposal: sums due
+  at the general overtime rate for hours between 40 and 48, notwithstanding a grade exclusion,
+  where a precedence rule selects the single highest applicable multiplier.'
+- 'EMP-ANNEX-C C-4.1, C-5.1 and C-8.1: the general rate, the grade exclusion, and the precedence
+  rule the ruling reads together.'
+contends_output: multiplier
+contends_value: 1.25
+source_file: exposure/holdings/incoming/2026-marchetti-v-northbank.md
+proposed: '2026-09-12'
+status: proposed

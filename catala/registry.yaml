@@ -176,13 +176,17 @@ scopes:
     - notice_date
     outputs:
     - failing_periods
+    - failing_measurement_periods
     - consecutive_trigger
     - rolling_trigger
     - right_arisen
     - completing_periods
+    - occurrences
     - arisen_occurrences
     - live_occurrences
-    - assessed_occurrences
+    - exercised_occurrences
+    - lapsed_occurrences
+    - governing_occurrences
     - trigger_period_end
     - notice_period_days
     - early_termination_charges_payable
@@ -708,11 +712,15 @@ scopes:
     - absence_periods
     outputs:
     - relief_days
+    - relief_exact
     - relief
+    - relieved_quota_exact
     - relieved_quota
+    - quota_for_attainment_exact
     - quota_for_attainment
     internals:
-    - qualifying_absences
+    - qualifying_category_absences
+    - continuous_absence_windows
     encodes:
     - COMM-PLAN S-6.1
     - COMM-PLAN S-6.2

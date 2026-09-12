@@ -27,7 +27,8 @@ expected:
   claim_deadline: '2026-03-02'
   claim_in_time: true
   waived: false
-  settlement: AppliedAgainstNextInvoice
+  applied_against_next_invoice: true
+  paid_to_customer: false
   settlement_due_date: '2026-04-01'
 observed:
   __error__: CatalaError

@@ -3,83 +3,344 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Legal Knowledge System</title>
+<title>Ross</title>
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#080E21">
+<link rel="icon" href="/brand/icon-transparent-blue.png">
+<link rel="apple-touch-icon" href="/brand/icon-next-to-text-blue-square.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Libre+Caslon+Text:ital,wght@0,400;0,700;1,400&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="/tokens.css">
 <link rel="stylesheet" href="/app.css">
 </head>
 <body>
+<a class="skip" href="#main">Skip to content</a>
 
-<header class="topbar">
-  <div class="wordmark">Legal <span>knowledge</span></div>
-  <nav class="nav" id="nav">
-    <button class="navlink" data-view="ask" aria-current="page">Ask</button>
-    <button class="navlink" data-view="rules">Rules</button>
-    <button class="navlink" data-view="clause">Clause</button>
-    <button class="navlink" data-view="intake">Intake</button>
-    <button class="navlink" data-view="verify">Verification</button>
-  </nav>
-  <div class="statusline" id="statusline">Loading…</div>
-</header>
+<div class="shell">
 
-<div class="frame">
-  <aside class="rail">
-    <div class="railhead">The corpus, as ingested</div>
-    <div id="rail"></div>
+  <!-- Sidebar: the three tools, the documents, and the declared stack -->
+  <aside class="side" id="side" aria-label="Ross">
+    <a class="side-brand" href="#ask" data-view="ask" aria-label="Ross">
+      <img src="/brand/icon-next-to-text-white-transparent.png" alt="Ross" width="2045" height="816">
+    </a>
+
+    <nav class="side-nav" id="toolsnav" aria-label="Tools">
+      <div class="side-label">Tools</div>
+      <button class="nav-item" type="button" data-view="ask" data-icon="message-square-text">
+        <span class="nav-text"><span>Ask</span><span class="nav-sub">Questions about your documents</span></span>
+      </button>
+      <button class="nav-item" type="button" data-view="check" data-icon="shield-check">
+        <span class="nav-text"><span>Risk check</span><span class="nav-sub">Agents look for claims against you</span></span>
+        <span class="nav-count" id="navcount"></span>
+      </button>
+      <button class="nav-item" type="button" data-view="draft" data-icon="file-pen-line">
+        <span class="nav-text"><span>Draft</span><span class="nav-sub">Write a new document</span></span>
+      </button>
+      <button class="nav-item" type="button" data-view="watch" data-icon="eye">
+        <span class="nav-text"><span>Document watch</span><span class="nav-sub">New documents, checked 24/7</span></span>
+        <span class="nav-count" id="watchcount"></span>
+      </button>
+    </nav>
+
+    <div class="side-docs" id="sidedocs">
+      <div class="side-label">Your documents</div>
+      <ul id="doclist"><li class="side-empty">Loading…</li></ul>
+    </div>
+
+    <div class="side-tour">
+      <button class="nav-item" type="button" data-tour data-icon="compass">
+        <span class="nav-text"><span>Take the tour</span><span class="nav-sub">A one-minute walkthrough</span></span>
+      </button>
+    </div>
+
+    <div class="side-foot" id="sidefoot"></div>
   </aside>
 
-  <main class="main">
+  <div class="main">
+    <header class="top">
+      <button class="icon-btn menu-btn" id="menubtn" type="button" aria-label="Open the menu" aria-controls="side" aria-expanded="false"></button>
+      <div class="top-title">
+        <h1 id="toptitle">Ross</h1>
+        <p id="topsub"></p>
+      </div>
+      <button class="status" id="status" type="button"><span class="dot"></span><span class="status-text">Connecting</span></button>
+      <button class="btn btn-ghost btn-sm tour-btn" type="button" data-tour data-icon="compass" aria-label="Take the tour"><span class="tour-btn-text">Take the tour</span></button>
+    </header>
 
-    <section class="view" id="view-ask">
-      <h1 class="lede">What does the policy require?</h1>
-      <p class="subhead">A question about a rule is answered by executing that rule. A question
-        about wording is answered by quoting the clause. Both may appear, and each is labelled
-        with the engine that produced it.</p>
-      <form class="askrow" id="askform">
-        <input class="askfield" id="askfield" autocomplete="off"
-               placeholder="How much service credit do we owe at 98.5% uptime?">
-        <button class="askbtn" id="askbtn" type="submit">Ask</button>
-      </form>
-      <div class="answer" id="answer"></div>
-    </section>
+    <main id="main" tabindex="-1">
 
-    <section class="view" id="view-rules" hidden>
-      <h1 class="lede">Rules the system can execute</h1>
-      <p class="subhead">Each scope encodes named clauses and computes a result from facts you
-        supply. Where a clause turns on a judgement the documents do not define, that judgement is
-        an input a person fills in — the rule never decides it.</p>
-      <div id="rulesbody"></div>
-    </section>
+      <!-- ================================================================ Ask -->
+      <section class="view" id="view-ask" hidden aria-label="Ask your documents">
+        <div class="ask">
+          <div class="ask-main">
+            <div class="ask-scroll" id="askscroll">
+              <div class="ask-col">
+                <div class="tip" data-tip="ask" hidden>
+                  <span data-icon="info" data-size="16"></span>
+                  <p><strong>New here?</strong> Type a question in plain English. If the answer depends on
+                    your situation, Ross asks for the facts it needs instead of guessing. Select any clause
+                    reference to read the clause in full.</p>
+                  <button class="btn btn-ghost btn-sm" type="button" data-tip-close>Got it</button>
+                </div>
+                <div id="thread"></div>
+              </div>
+            </div>
+            <form class="composer" id="askform">
+              <div class="composer-in">
+                <label class="sr" for="askfield">Your question</label>
+                <textarea class="field" id="askfield" rows="1" autocomplete="off"
+                  placeholder="Ask about your documents, for example: what is the overtime rate beyond 48 hours?"></textarea>
+                <button class="btn btn-primary composer-btn" id="askbtn" type="submit">Ask</button>
+              </div>
+              <p class="composer-note">Enter to send &middot; Shift+Enter for a new line &middot; worked out on this machine, no remote calls</p>
+            </form>
+          </div>
+          <aside class="ask-panel" id="askpanel" aria-label="How this answer was produced"></aside>
+        </div>
+      </section>
 
-    <section class="view" id="view-clause" hidden>
-      <h1 class="lede">Clauses</h1>
-      <p class="subhead">Pick a clause from the corpus on the left. Each shows its verbatim text,
-        how it was triaged, and which rule encodes it.</p>
-      <div id="clausebody"><p class="empty">Nothing selected.</p></div>
-    </section>
+      <!-- ========================================================= Risk check -->
+      <section class="view" id="view-check" hidden aria-labelledby="check-title">
+        <div class="page">
+          <header class="page-head">
+            <p class="eyebrow">Risk check</p>
+            <h2 class="display" id="check-title">Find where your documents could cost you</h2>
+            <p class="lede">Five AI agents each play someone who might bring a claim. Every claim they
+              propose is run against your own rules. Only the claims that really land become findings;
+              the rest are discarded without anyone having to read them.</p>
+          </header>
 
-    <section class="view" id="view-intake" hidden>
-      <h1 class="lede">Documents awaiting a decision</h1>
-      <p class="subhead">An incoming document becomes a proposal, never a merge. Every blocking
-        conflict needs a person to record how it is resolved and who resolved it before the
-        document can join the corpus.</p>
-      <div id="intakebody"></div>
-    </section>
+          <div class="tip" data-tip="check" hidden>
+            <span data-icon="info" data-size="16"></span>
+            <p><strong>New here?</strong> Start a check and let it run. You can leave the page and come
+              back. A finding only appears when a claim holds up under your documents, so an empty list
+              is good news.</p>
+            <button class="btn btn-ghost btn-sm" type="button" data-tip-close>Got it</button>
+          </div>
 
-    <section class="view" id="view-verify" hidden>
-      <h1 class="lede">What has been checked</h1>
-      <p class="subhead">Every way this system has been shown to be wrong is kept here as a test
-        and re-run. Defects found in the source documents themselves are listed separately,
-        because those need amending rather than fixing.</p>
-      <div id="verifybody"></div>
-    </section>
+          <div class="check-top">
+            <div class="card launch" id="checklaunch"></div>
+            <div class="stats" id="checkstats"></div>
+          </div>
 
-  </main>
+          <div class="check-grid">
+            <section class="card pad" id="checkpipecard" aria-labelledby="checkpipe-title">
+              <div class="panel-h">
+                <div><p class="eyebrow">The pipeline</p><h3 id="checkpipe-title">What each check does, in order</h3></div>
+                <p class="panel-h-meta" id="checkpipemeta"></p>
+              </div>
+              <ol class="pipe" id="checkpipe"></ol>
+            </section>
+
+            <div class="stack">
+              <section class="card pad" id="nowcard" aria-labelledby="now-title">
+                <div class="panel-h">
+                  <div><p class="eyebrow">Watch an attack</p><h3 id="now-title">Propose, execute, verdict</h3></div>
+                </div>
+                <div id="checknow"></div>
+              </section>
+              <section class="card pad" id="fleetcard" aria-labelledby="fleet-title">
+                <div class="panel-h">
+                  <div><p class="eyebrow">The agent fleet</p><h3 id="fleet-title">Who is attacking</h3></div>
+                </div>
+                <p class="panel-note">Each agent sees your clauses and what a rule needs, but never what counts
+                  as a bad outcome. An agent that knew what to look for would simply produce it, and a
+                  finding would mean nothing.</p>
+                <div class="fleet" id="fleet"></div>
+              </section>
+            </div>
+          </div>
+
+          <section class="card findings-card" aria-labelledby="findings-title">
+            <div class="findings-head">
+              <div><p class="eyebrow">Findings</p><h3 id="findings-title">Claims that hold up</h3></div>
+              <label class="findings-filter"><span class="sr">Show one kind of finding</span>
+                <select class="field" id="findfilter"></select></label>
+            </div>
+            <div id="findings"></div>
+          </section>
+        </div>
+      </section>
+
+      <!-- ============================================================== Draft -->
+      <section class="view" id="view-draft" hidden aria-labelledby="draft-title">
+        <div class="page">
+          <header class="page-head">
+            <p class="eyebrow">Draft</p>
+            <h2 class="display" id="draft-title">Draft a new document</h2>
+            <p class="lede">Describe the document you need. Agents draft it from the closest documents you
+              already have, then the draft must pass the rule checks and an independent review before a
+              PDF is issued. A draft that fails is never presented as a document.</p>
+          </header>
+
+          <div class="tip" data-tip="draft" hidden>
+            <span data-icon="info" data-size="16"></span>
+            <p><strong>New here?</strong> Describe the document in a few sentences, as you would brief a
+              colleague: who it covers, the amounts, and the exceptions. If a check fails, Ross tells you
+              which one and why.</p>
+            <button class="btn btn-ghost btn-sm" type="button" data-tip-close>Got it</button>
+          </div>
+
+          <div class="draft-grid">
+            <div class="stack">
+              <form class="card draft-form" id="draftform">
+                <div>
+                  <label class="field-label" for="draftrequest">What the document has to do</label>
+                  <textarea class="field" id="draftrequest" rows="5"
+                    placeholder="A remote working allowance policy: a monthly payment for employees who work from home at least three days a week, capped, pro-rated for part-time staff, and not payable during unpaid leave."></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="field-wrap">
+                    <label class="field-label" for="draftdate">Effective date <span class="optional">optional</span></label>
+                    <input class="field field-date" id="draftdate" type="date">
+                  </div>
+                  <p class="field-help">Leave it blank and the document says <em>to be confirmed</em>. The date
+                    decides which facts a rule covers, so Ross never guesses it.</p>
+                </div>
+                <details class="adv">
+                  <summary><span data-icon="chevron-down" data-size="14"></span>Advanced options</summary>
+                  <div class="adv-body">
+                    <label class="adv-opt">Encoding attempts per draft
+                      <input class="field field-num" id="draftattempts" type="number" min="1" max="6" value="3"></label>
+                    <label class="adv-opt">Review rounds
+                      <input class="field field-num" id="draftrounds" type="number" min="1" max="4" value="2"></label>
+                    <label class="check-opt"><input type="checkbox" id="draftskiprt"> Skip the roundtrip check (G5). The omission is stamped on the PDF.</label>
+                    <label class="check-opt"><input type="checkbox" id="draftfailedpdf"> Produce a PDF even if the draft fails, stamped as failing</label>
+                  </div>
+                </details>
+                <div class="form-actions">
+                  <button class="btn btn-primary btn-lg" id="draftbtn" type="submit">Start drafting</button>
+                  <p class="field-help" id="drafthint"></p>
+                </div>
+                <p class="form-error" id="drafterror" role="alert"></p>
+              </form>
+
+              <section class="card pad" id="draftlivecard" aria-live="polite" aria-labelledby="draftlive-title">
+                <div class="panel-h">
+                  <div><p class="eyebrow" id="draftlive-eyebrow">The pipeline</p><h3 id="draftlive-title">How a request becomes a document</h3></div>
+                  <p class="panel-h-meta" id="draftlivemeta"></p>
+                </div>
+                <div id="drafthead"></div>
+                <ol class="pipe" id="draftpipe"></ol>
+                <div id="draftout"></div>
+              </section>
+            </div>
+
+            <aside class="card runs-card" id="runscard" aria-labelledby="runs-title">
+              <div class="runs-head"><p class="eyebrow">History</p><h3 id="runs-title">Past drafts</h3></div>
+              <div id="draftruns"></div>
+            </aside>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================== Document watch -->
+      <section class="view" id="view-watch" hidden aria-labelledby="watch-title">
+        <div class="page">
+          <header class="page-head">
+            <p class="eyebrow">Document watch</p>
+            <h2 class="display" id="watch-title">Every new document, checked against all the others</h2>
+            <p class="lede">Whenever a document is added to MongoDB, two AI agents read it against every
+              clause of every document you already have, looking for places where the two cannot both be
+              followed. A contradiction is kept only if its quotes appear word for word. A person decides
+              what it means.</p>
+          </header>
+
+          <div class="tip" data-tip="watch" hidden>
+            <span data-icon="info" data-size="16"></span>
+            <p><strong>New here?</strong> This runs by itself, day and night, while the system is running.
+              You do not need to start anything. Check back here to see what arrived and whether any of it
+              contradicts what you already have.</p>
+            <button class="btn btn-ghost btn-sm" type="button" data-tip-close>Got it</button>
+          </div>
+
+          <div id="watchnotice"></div>
+
+          <div class="check-top">
+            <div class="card launch" id="watchstatus" aria-live="polite"></div>
+            <div class="stats" id="watchstats"></div>
+          </div>
+
+          <div class="check-grid">
+            <section class="card pad" id="watchpipecard" aria-labelledby="watchpipe-title">
+              <div class="panel-h">
+                <div><p class="eyebrow">The pipeline</p><h3 id="watchpipe-title">How a document is checked</h3></div>
+                <p class="panel-h-meta" id="watchpipemeta"></p>
+              </div>
+              <ol class="pipe" id="watchpipe"></ol>
+            </section>
+            <section class="card pad" id="watchnowcard" aria-labelledby="watchnow-title">
+              <div class="panel-h">
+                <div><p class="eyebrow">Right now</p><h3 id="watchnow-title">What the watch is doing</h3></div>
+              </div>
+              <div id="watchnow"></div>
+            </section>
+          </div>
+
+          <section class="card findings-card" aria-labelledby="watchchecks-title">
+            <div class="findings-head">
+              <div><p class="eyebrow">History</p><h3 id="watchchecks-title">Past checks</h3></div>
+            </div>
+            <div id="watchchecks"></div>
+          </section>
+
+          <section class="card findings-card" aria-labelledby="watchdocs-title">
+            <div class="findings-head">
+              <div><p class="eyebrow">Documents</p><h3 id="watchdocs-title">What the watch is tracking</h3></div>
+              <label class="findings-filter"><span class="sr">Show some documents</span>
+                <select class="field" id="watchfilter"></select></label>
+            </div>
+            <div id="watchdocs"></div>
+          </section>
+
+          <details class="card pad watch-admin">
+            <summary><span data-icon="chevron-down" data-size="14"></span>For administrators: how documents reach the watch</summary>
+            <div class="watch-admin-body">
+              <p>The watch reads two collections in the <span class="mono">lks</span> MongoDB database.
+                <strong>chunks</strong> is the index of the corpus: a document there is watched once it has
+                been merged and re-indexed. <strong>documents</strong> is the intake: any system may add a
+                document to it, and it is split into clauses automatically.</p>
+              <pre class="diag">db.documents.insertOne({ "text": "…the document…", "doc_id": "TRAVEL-2026", "title": "Travel Policy 2026" })</pre>
+              <p>Only <span class="mono">text</span> is required. A document counts as new when it has not
+                been seen, and as changed when its clauses change, so re-indexing the same corpus on a restart
+                checks nothing again. The documents already in MongoDB the first time the watch runs are
+                recorded as the baseline and are not checked unless someone asks.</p>
+              <p>The watch runs inside the web server. <span class="mono">LKS_DOC_WATCH=0</span> turns it
+                off; <span class="mono">LKS_WATCH_INTERVAL</span> sets how many seconds it waits between
+                looks. From a terminal, <span class="mono">lks watch status</span> and
+                <span class="mono">lks watch results</span> show the same information as this page.</p>
+            </div>
+          </details>
+        </div>
+      </section>
+
+    </main>
+  </div>
 </div>
 
-<aside class="drawer" id="drawer" hidden aria-label="Clause detail">
-  <button class="drawerclose" id="drawerclose" aria-label="Close">×</button>
-  <div id="drawerbody"></div>
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" hidden role="dialog" aria-modal="true" aria-labelledby="drawertitle">
+  <header class="drawer-head">
+    <button class="icon-btn" id="drawerback" type="button" aria-label="Back" hidden></button>
+    <div class="drawer-titles">
+      <p class="eyebrow" id="drawereyebrow"></p>
+      <h2 id="drawertitle"></h2>
+    </div>
+    <button class="icon-btn" id="drawerclose" type="button" aria-label="Close"></button>
+  </header>
+  <div class="drawer-body" id="drawerbody"></div>
 </aside>
 
+<!-- The tour runs over the live interface: a spotlight on the real control,
+     and a card beside it. -->
+<div class="tour" id="tour" hidden>
+  <div class="tour-block"></div>
+  <div class="tour-spot" id="tourspot"></div>
+  <section class="tour-card" id="tourcard" role="dialog" aria-modal="true" aria-labelledby="tourtitle" tabindex="-1"></section>
+</div>
+
+<script src="/icons.js"></script>
 <script src="/app.js"></script>
 </body>
 </html>

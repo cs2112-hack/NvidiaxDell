@@ -49,6 +49,7 @@ refuses to copy a document whose front matter still carries the
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -126,6 +127,8 @@ class Proposal:
     notes: list[str] = field(default_factory=list)
     original_path: str = ""                   # before conversion, if converted
     conversion: dict[str, Any] | None = None  # lks.structure.Conversion.to_dict()
+    source_sha256: str = ""                   # pinned at ingest; merge refuses on drift
+    candidate_sha256: dict[str, str] = field(default_factory=dict)
 
     @property
     def dir(self) -> Path:
@@ -156,6 +159,8 @@ class Proposal:
             "status": "mergeable" if self.mergeable else "blocked",
             "triage": self.triage,
             "candidate_modules": self.candidate_modules,
+            "source_sha256": self.source_sha256,
+            "candidate_sha256": self.candidate_sha256,
             "notes": self.notes,
             "conflicts": [c.to_dict() for c in self.conflicts],
         }
@@ -178,6 +183,8 @@ class Proposal:
             notes=d.get("notes") or [],
             original_path=d.get("original_path") or "",
             conversion=d.get("conversion"),
+            source_sha256=d.get("source_sha256") or "",
+            candidate_sha256=d.get("candidate_sha256") or {},
         )
         pr.conflicts = [Conflict(**c) for c in (d.get("conflicts") or [])]
         return pr
@@ -344,6 +351,31 @@ def _dedupe(cs: list[Conflict]) -> list[Conflict]:
         seen.add(key)
         out.append(c)
     return out
+
+
+def _sha256(path: str | Path) -> str:
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _words(text: str | None) -> int:
+    return len(re.findall(r"[A-Za-z]{2,}", text or ""))
+
+
+def _substantive(c: Conflict) -> bool:
+    """A resolution a person could act on. `"."` passes `resolved`'s truthiness
+    test and records nothing. This judges only that something was said and by
+    whom, never whether it was right."""
+    return c.resolved and _words(c.resolution) >= 3 and _words(c.resolved_by) >= 1
+
+
+def _conflict_key(c: Conflict) -> tuple[str, str]:
+    # Conversion conflicts lead with the doc_id, which an override may have
+    # supplied at ingest and a re-conversion here cannot know, so they are
+    # matched on what follows it ("paragraph 7").
+    ref = c.incoming_ref
+    if c.kind.startswith("conversion"):
+        ref = ref.split(" ", 1)[1] if " " in ref else ""
+    return c.kind, ref
 
 
 # --- compiler-proven conflicts --------------------------------------------
@@ -702,8 +734,30 @@ def propose_ingestion(
         )
 
     pr.conflicts = _dedupe(pr.conflicts)
+    # Pinned here and re-verified by merge: every resolution is recorded against
+    # these bytes, and text edited afterwards is text nobody resolved.
+    pr.source_sha256 = _sha256(pr.source_path)
+    pr.candidate_sha256 = {str(p): _sha256(p) for p in cps}
     pr.save()
     return pr
+
+
+def _redetect(pr: Proposal, doc: Document, corpus_dir: str | Path) -> list[Conflict]:
+    """Every detector that ran at ingest, run again on the pinned text."""
+    found: list[Conflict] = []
+    if pr.conversion is not None and pr.original_path and Path(pr.original_path).exists():
+        with tempfile.TemporaryDirectory() as td:
+            conv = convert_file(pr.original_path, out_dir=td)
+            # metadata gaps are refused on the sentinel itself, and an override
+            # supplied at ingest legitimately closes them
+            found += [c for c in detect_conversion_conflicts(conv)
+                      if c.kind != ConflictKind.CONVERSION_METADATA]
+    found += detect_static_conflicts(doc, corpus_dir)
+    cps = [Path(p) for p in pr.candidate_modules]
+    if cps:
+        found += detect_compiler_conflicts(cps)
+        found += detect_regressions(cps)
+    return _dedupe(found)
 
 
 def merge(pid: str, corpus_dir: str | Path = "corpus") -> dict[str, Any]:
@@ -715,6 +769,15 @@ def merge(pid: str, corpus_dir: str | Path = "corpus") -> dict[str, Any]:
     stated must be supplied as a value, not resolved as a comment -- a corpus
     document whose effective date reads `NEEDS-HUMAN-INPUT` would date every
     rule in it to nothing at all.
+
+    `proposal.yaml` is the human's worksheet, not the finding, so nothing in it
+    is taken on trust. Merge also refuses when: a resolution is a placeholder;
+    the document or a candidate module changed after ingest (both are pinned
+    by hash); the effective date is not a date; the file or its doc_id is
+    already in the corpus -- a merge adds a document and never replaces one;
+    or re-running every detector on the pinned text finds a blocking conflict
+    the worksheet does not carry a resolution for, however it came to be
+    missing, downgraded or deleted there.
     """
     pr = Proposal.load(pid)
     if pr.unresolved:
@@ -730,11 +793,38 @@ def merge(pid: str, corpus_dir: str | Path = "corpus") -> dict[str, Any]:
             f"that gate."
         )
 
+    thin = [c for c in pr.blocking if not _substantive(c)]
+    if thin:
+        raise MergeRefused(
+            f"refusing to merge {pid}: {len(thin)} resolution(s) record nothing a "
+            f"person could act on: "
+            + "; ".join(f"[{c.kind}] {c.incoming_ref}: {c.resolution!r} by "
+                        f"{c.resolved_by!r}" for c in thin[:5])
+            + ". State what was decided and who decided it."
+        )
+
     src = Path(pr.source_path)
     if not src.exists():
         raise MergeRefused(
             f"refusing to merge {pid}: its document {src} no longer exists. Re-run "
             f"`lks ingest` on the source."
+        )
+    if not pr.source_sha256:
+        raise MergeRefused(
+            f"refusing to merge {pid}: it predates integrity pinning, so nothing "
+            f"shows {src} is the text its conflicts were resolved against. Re-run "
+            f"`lks ingest`."
+        )
+    drifted = [str(src)] if _sha256(src) != pr.source_sha256 else []
+    for m in pr.candidate_modules:
+        want = pr.candidate_sha256.get(m)
+        if want is None or not Path(m).exists() or _sha256(m) != want:
+            drifted.append(m)
+    if drifted:
+        raise MergeRefused(
+            f"refusing to merge {pid}: {drifted} changed after it was proposed. Its "
+            f"conflicts were detected, and resolved, against different text. Re-run "
+            f"`lks ingest`."
         )
     head = src.read_text(encoding="utf-8")[:2000]
     if NEEDS_HUMAN in head:
@@ -747,7 +837,42 @@ def merge(pid: str, corpus_dir: str | Path = "corpus") -> dict[str, Any]:
             f"`lks convert <file> --effective-date YYYY-MM-DD`, or edit {src}) and "
             f"re-ingest. This refusal is not clearable by a resolution."
         )
+    doc = parse_document(src)
+    try:
+        date.fromisoformat(str(doc.effective_date))
+    except ValueError:
+        raise MergeRefused(
+            f"refusing to merge {pid}: effective_date {doc.effective_date!r} in {src} "
+            f"is not a date (YYYY-MM-DD). Every rule in the document is dated by it."
+        ) from None
     dest = Path(corpus_dir) / src.name
+    if dest.exists() or any(d.doc_id == doc.doc_id for d in load_corpus(corpus_dir)):
+        raise MergeRefused(
+            f"refusing to merge {pid}: the corpus already has {dest.name if dest.exists() else doc.doc_id}. "
+            f"A merge adds a document and never replaces one; an amendment is a "
+            f"document of its own, with its own doc_id and file."
+        )
+
+    found = _redetect(pr, doc, corpus_dir)
+    have: dict[tuple[str, str], int] = {}
+    for c in pr.conflicts:
+        if _substantive(c):
+            have[_conflict_key(c)] = have.get(_conflict_key(c), 0) + 1
+    need: dict[tuple[str, str], int] = {}
+    for c in found:
+        if c.severity == "blocking":
+            need[_conflict_key(c)] = need.get(_conflict_key(c), 0) + 1
+    short = [f"[{k}] {ref or '(document)'}: {n - have.get((k, ref), 0)} of {n}"
+             for (k, ref), n in need.items() if have.get((k, ref), 0) < n]
+    if short:
+        raise MergeRefused(
+            f"refusing to merge {pid}: re-running detection on the pinned text finds "
+            f"blocking conflict(s) with no recorded resolution: {'; '.join(short[:8])}. "
+            f"The proposal file is a worksheet, not the finding -- a conflict "
+            f"removed or downgraded there is still a conflict. Re-run `lks ingest` "
+            f"and resolve what it reports."
+        )
+
     shutil.copy(src, dest)
     moved = []
     for m in pr.candidate_modules:

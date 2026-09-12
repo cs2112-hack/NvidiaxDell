@@ -1,0 +1,41 @@
+id: EXP-0007
+klass: DIVERGENCE
+scope: ClaimWindow.ClaimAdmissible
+archetype: auditor reconciling the record against the policy
+headline: admissible was recorded as True, more than the False the policy computes
+facts:
+  expense_incurred_date: '2026-01-15'
+  submission_date: '2026-03-31'
+  delay_certified_for_good_reason: false
+why: 'On 2026-03-31 the company decided this case for a departing engineer''s rail claim submitted
+  75 days after travel, never put to his manager. Its own written policy, executed on the
+  same facts, does not produce that decision. Source: expense system 2026-03. The decision
+  was MORE favourable than the policy provides. That is not a loss and there is nobody to
+  pay; it is evidence. The company is not applying the construction of this clause that it
+  would have to rely on to refuse somebody else, and the first person it does refuse will
+  put its own records to it. Where an exposure on this queue turns on that construction, this
+  is what the other side cites.'
+predicate: ''
+citations:
+- EXP-POL E-6.1
+clause_chain:
+- variable: admissible
+  line: null
+  clause_refs:
+  - EXP-POL E-6.1
+  law_headings: []
+outputs:
+  admissible: false
+amount: null
+amount_basis: ClaimWindow.ClaimAdmissible declares no measured output for 'admissible', so
+  this divergence is reported without a figure
+population: an expense claim
+diagnostic: ''
+narrative: a departing engineer's rail claim submitted 75 days after travel, never put to
+  his manager (OPS-0012, decided 2026-03-31)
+demand_letter: ''
+closing_edit: {}
+origin: operations:OPS-0012
+headline_direction: more
+found: '2026-09-12'
+status: open

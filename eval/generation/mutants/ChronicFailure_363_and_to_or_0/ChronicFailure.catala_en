@@ -1,0 +1,370 @@
+# MSA Schedule 4 — Chronic failure
+
+> Module ChronicFailure
+
+L-6.1 gives the Customer a termination right on a **pattern** of failures
+rather than on any single one, and the pattern has two independent triggers:
+three consecutive Measurement Periods below 99.90%, or any four Measurement
+Periods in a rolling twelve-month period. Either suffices, so a history can
+satisfy the second without ever satisfying the first. L-6.2 then puts a 30-day
+exercise window on the right, running from the end of the Measurement Period
+which gives rise to it, and lapses it per occurrence.
+
+A history can complete the pattern many times over, and L-6.2 lapses the right
+"in respect of **that occurrence**". The unit of both the window and the lapse
+is therefore the individual occurrence, so this scope assesses **every**
+occurrence the history contains, each against its own window, and reports the
+aggregate answers as facts about that list rather than about one chosen
+occurrence.
+
+The history is a list of Measurement Periods. Because L-2.1 makes a
+Measurement Period a calendar month, each period is identified by the first
+day of its month, which makes "consecutive" and "rolling twelve months" exact
+month arithmetic rather than an approximation in days — and adding a month to
+the first day of a month is never ambiguous, so no rounding mode is needed.
+The availability figure on each period is the L-2.3 figure, already rounded to
+two decimal places.
+
+There are no judgement inputs. Every term is arithmetic over the history, a
+date of record, or the fact of whether notice was given.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration structure PeriodAvailability:
+  # L-2.1: the calendar month, identified by its first and last day.
+  data period_start content date
+  data period_end content date
+  # L-2.3: the Availability Percentage, rounded to two decimal places, on the
+  # 0-100 scale.
+  data availability_percentage content decimal
+
+declaration structure OccurrenceAssessment:
+  # One occurrence of the L-6.1 right: the Measurement Period which gave rise
+  # to it, that occurrence's own L-6.2 window, and that occurrence's own
+  # state as at the assessment date. L-6.2 lapses the right "in respect of
+  # that occurrence", so every one of these fields is per-occurrence.
+  data trigger_period_start content date
+  data trigger_period_end content date
+  # The window opens the day after the triggering period ends and closes on
+  # the thirtieth day after it.
+  data window_opens content date
+  data exercise_deadline content date
+  data arisen content boolean
+  data window_open content boolean
+  data exercised_by_notice content boolean
+  data lapsed content boolean
+  data exercisable content boolean
+
+declaration scope ChronicFailureRight:
+  input availability_history content list of PeriodAvailability
+  input assessment_date content date
+  input notice_given content boolean
+  input notice_date content date
+  # Every entry of the history below the Service Level, as given.
+  output failing_periods content list of PeriodAvailability
+  # Those entries reduced to one per Measurement Period, which is the unit
+  # L-6.1 counts in.
+  output failing_measurement_periods content list of PeriodAvailability
+  output consecutive_trigger content boolean
+  output rolling_trigger content boolean
+  output right_arisen content boolean
+  output completing_periods content list of PeriodAvailability
+  # L-6.2 confines a lapse to "that occurrence", so every occurrence is
+  # assessed in its own right and the lists below are views of that
+  # assessment rather than a single chosen occurrence.
+  output occurrences content list of OccurrenceAssessment
+  output arisen_occurrences content list of OccurrenceAssessment
+  output live_occurrences content list of OccurrenceAssessment
+  output exercised_occurrences content list of OccurrenceAssessment
+  output lapsed_occurrences content list of OccurrenceAssessment
+  # The occurrence whose dates the reported window describes; a reporting
+  # convenience only, since no legal conclusion below rests on it.
+  output governing_occurrences content list of OccurrenceAssessment
+  output trigger_period_end content optional of date
+  output notice_period_days content integer
+  output early_termination_charges_payable content boolean
+  output exercise_deadline content optional of date
+  # Whether the notice of record falls inside both ends of the L-6.2 window
+  # of some occurrence.
+  output notice_exercises_the_right content boolean
+  output right_lapsed content boolean
+  output right_exercisable content boolean
+```
+
+## L-6.1 The two triggers
+
+| MSA-SCH4 L-6.1 (004-msa-sla-credits.md:102)
+|
+| Where the Availability Percentage is less than 99.90% in each of three
+| consecutive Measurement Periods, or in any four Measurement Periods in a rolling
+| twelve-month period, the Customer may terminate the Agreement in respect of the
+| affected Service on 30 days' written notice, without liability for early
+| termination charges.
+
+"Less than 99.90%" is strict on both triggers, matching L-3.1: a period at
+exactly 99.90% is not a failing period and breaks a run.
+
+Both limbs of L-6.1 count **Measurement Periods**, and L-2.1 makes a
+Measurement Period a calendar month. A calendar month is one Measurement
+Period however many availability reports describe it, so the history has to be
+reduced to one entry per month before anything is counted. A Supplier that
+issues a report and then restates it leaves two entries for the same month in
+the Customer's record, and nothing in Schedule 4 makes a restated month a
+second Measurement Period.
+
+An earlier version counted list **entries** in the rolling limb — the number
+of failing entries whose `period_start` fell in the twelve-month window — so
+two failing months, each reported twice, satisfied the four-period limb and
+handed the Customer a right to terminate without early termination charges on
+facts that give none. The consecutive limb was never affected, because it
+matches on `period_start - 1 month` and `- 2 month` and so is insensitive to
+duplicates; the two limbs therefore disagreed about the same facts, which is
+what exposed it. Found by the adversarial reviewer; see
+tests/counterexamples/CE-0025.yaml.
+
+`failing_measurement_periods` is that reduction, keeping the first entry
+recorded for each month. Which entry survives cannot change any answer below:
+every field used downstream — `period_start` and `period_end` — is a property
+of the calendar month itself, and the only field that varies between
+restatements, `availability_percentage`, has already done its work in the
+filter. `failing_periods` remains an output so that the full record the
+Customer supplied stays visible next to the reduction of it.
+
+Both triggers are expressed as tests on a single **completing** period — the
+period at whose end the pattern is complete. That is the period L-6.2 calls
+"the Measurement Period which gives rise to it", so computing the triggers
+this way yields the exercise window as well as the right.
+
+  * consecutive: the period fails, and so do the two calendar months
+    immediately before it. Three is the stated number, so two consecutive
+    failures are not enough and a gap of one good month resets the run.
+  * rolling: the period fails, and counting back across the twelve months
+    ending with it there are at least four failing periods. Four is the stated
+    number, and eleven months back from the completing month is the first
+    month of the twelve-month window.
+
+The two are independent disjuncts, not exceptions to one another, so
+`right_arisen` is a disjunction. The remaining limbs of L-6.1 — 30 days'
+written notice and no liability for early termination charges — are stated
+constants.
+
+```catala
+scope ChronicFailureRight:
+  definition failing_periods equals
+    list of p among availability_history such that
+      p.availability_percentage < 99.90
+
+  definition failing_measurement_periods equals
+    combine all p among failing_periods in acc
+    initially []
+    with (if (exists q among acc such that q.period_start = p.period_start)
+          then acc
+          else acc ++ [p])
+
+  definition consecutive_trigger equals
+    number of (list of p among failing_measurement_periods such that
+      ((exists q among failing_measurement_periods such that
+          q.period_start = p.period_start - 1 month)
+       and (exists r among failing_measurement_periods such that
+          r.period_start = p.period_start - 2 month))) > 0
+
+  definition rolling_trigger equals
+    number of (list of p among failing_measurement_periods such that
+      (number of (list of q among failing_measurement_periods such that
+         ((q.period_start <= p.period_start)
+          and (q.period_start >= p.period_start - 11 month)))) >= 4) > 0
+
+  definition right_arisen equals consecutive_trigger or rolling_trigger
+
+  definition completing_periods equals
+    list of p among failing_measurement_periods such that
+      (((exists q among failing_measurement_periods such that
+           q.period_start = p.period_start - 1 month)
+        and (exists r among failing_measurement_periods such that
+           r.period_start = p.period_start - 2 month))
+       or (number of (list of q among failing_measurement_periods such that
+             ((q.period_start <= p.period_start)
+              and (q.period_start >= p.period_start - 11 month)))) >= 4)
+
+  definition notice_period_days equals 30
+
+  definition early_termination_charges_payable equals false
+```
+
+## L-6.2 Every occurrence has its own window
+
+| MSA-SCH4 L-6.2 (004-msa-sla-credits.md:108)
+|
+| The right in L-6.1 must be exercised within 30 days after the end of the
+| Measurement Period which gives rise to it, failing which it lapses in respect of
+| that occurrence.
+
+"The Measurement Period which gives rise to it" is a completing period. A
+history can contain more than one, and the closing words of L-6.2 confine the
+lapse to "that occurrence" — the occurrence whose own window expired — and so
+expressly preserve every other one.
+
+An earlier version took `trigger_period_end` as the **minimum** period end
+over all completing periods, so the whole scope answered about the earliest
+occurrence ever recorded. A cluster of failures in early 2024 whose window
+closed on 30 April 2024 therefore destroyed the right arising from a fresh
+cluster in 2025, and notice served five days after that 2025 occurrence arose
+was reported out of time by fifteen months. Found by the adversarial
+reviewer; see tests/counterexamples/CE-0007.yaml.
+
+The version after that collapsed the occurrences differently but still
+collapsed them: it chose one occurrence — the latest live one, failing that
+the latest arisen one — and tested the notice against that occurrence alone.
+Four consecutive months below the Service Level produce two occurrences, one
+completing in March and one in April. A notice inside the March occurrence's
+window exercised the March right when the question was asked in April, and
+then stopped having exercised anything once the March window closed and the
+April occurrence became the one chosen. The answer moved with the date the
+question was asked rather than with the facts L-6.2 makes relevant, and a
+right that had been validly exercised was reported as lapsed. Found by the
+adversarial reviewer; see tests/counterexamples/CE-0024.yaml.
+
+So there is no chosen occurrence. `occurrences` assesses each completing
+period against its own window:
+
+  * `arisen`: the occurrence exists only from the end of its own triggering
+    period, because L-6.1 confers the right on the expiry of that period. An
+    occurrence whose period ends after the assessment date has not arisen and
+    is not assessed.
+  * `window_open`: it has arisen and the assessment date is not past the
+    thirtieth day after its triggering period ended.
+  * `exercised_by_notice`: the notice of record falls inside both ends of
+    **this** occurrence's window.
+  * `lapsed`: it has arisen, its window has closed, and no notice exercised
+    it. This is the lapse L-6.2 confines to "that occurrence".
+  * `exercisable`: it has arisen and either its window is still open or a
+    notice exercised it. An exercised right does not become unexercisable
+    when its window closes; the window governs the act of exercise, not the
+    life of the right once exercised.
+
+`governing_occurrences` exists only so that the scope can still report a
+single window in `trigger_period_end` and `exercise_deadline` for a reader who
+wants one: the occurrences a notice actually exercised, failing that the live
+ones, failing that those that have arisen, and `trigger_period_end` is the
+latest of whichever of those sets is reached. It is a description, not a
+decision — every legal conclusion below is computed over the whole list of
+occurrences, and no answer changes if this ordering is read differently.
+
+```catala
+scope ChronicFailureRight:
+  definition occurrences equals
+    map each p among completing_periods to
+      (let has_arisen equals p.period_end <= assessment_date in
+       let deadline equals p.period_end + 30 day in
+       let is_open equals has_arisen and (assessment_date <= deadline) in
+       let exercised equals
+         has_arisen
+         and notice_given
+         and (notice_date > p.period_end)
+         and (notice_date <= deadline)
+       in
+       OccurrenceAssessment {
+         -- trigger_period_start: p.period_start
+         -- trigger_period_end: p.period_end
+         -- window_opens: p.period_end + 1 day
+         -- exercise_deadline: deadline
+         -- arisen: has_arisen
+         -- window_open: is_open
+         -- exercised_by_notice: exercised
+         -- lapsed: has_arisen and (not is_open) and (not exercised)
+         -- exercisable: has_arisen and (is_open or exercised)
+       })
+
+  definition arisen_occurrences equals
+    list of o among occurrences such that o.arisen
+
+  definition live_occurrences equals
+    list of o among occurrences such that o.window_open
+
+  definition exercised_occurrences equals
+    list of o among occurrences such that o.exercised_by_notice
+
+  definition lapsed_occurrences equals
+    list of o among occurrences such that o.lapsed
+
+  definition governing_occurrences equals
+    if (number of exercised_occurrences) > 0 then exercised_occurrences
+    else if (number of live_occurrences) > 0 then live_occurrences
+    else if (number of arisen_occurrences) > 0 then arisen_occurrences
+    else occurrences
+
+  definition trigger_period_end equals
+    if right_arisen then
+      Present content
+        (maximum of
+           (map each o among governing_occurrences to o.trigger_period_end)
+         or if list empty then assessment_date)
+    else Absent
+
+  definition exercise_deadline equals
+    match trigger_period_end with pattern
+    -- Absent: Absent
+    -- Present content d: Present content (d + 30 day)
+```
+
+## L-6.2 Exercise inside the window, and lapse
+
+| MSA-SCH4 L-6.2 (004-msa-sla-credits.md:108)
+|
+| The right in L-6.1 must be exercised within 30 days after the end of the
+| Measurement Period which gives rise to it, failing which it lapses in respect of
+| that occurrence.
+
+L-6.2 fixes a window with two ends, not just a deadline. The right "must be
+exercised within 30 days after the end of the Measurement Period which gives
+rise to it": the window opens when that period ends, because L-6.1 confers the
+right only on the expiry of the third failing period, and closes on the
+thirtieth day after it. "Within 30 days" is inclusive of the thirtieth, as in
+L-5.1, so the window is days 1 to 30 after the end of that period.
+
+An earlier version tested only the upper bound — `if notice_given then
+notice_date > deadline else assessment_date > deadline` — so any notice
+bearing a date on or before the deadline was treated as a good exercise,
+including one dated before the third failing period had even ended, and the
+right was then reported as exercisable indefinitely. A notice cannot exercise
+a right that did not exist when it was served. Found by the adversarial
+reviewer; see tests/counterexamples/CE-0008.yaml.
+
+The aggregate answers are therefore quantified over the occurrences, and a
+notice is tested against the occurrence whose window contains it (CE-0024):
+
+  * `notice_exercises_the_right`: the notice fell inside the window of **some**
+    occurrence. It exercises that occurrence's right, and L-6.2 says nothing
+    that lets a later occurrence displace it.
+  * `right_lapsed`: the right has lapsed only where every occurrence that has
+    arisen has lapsed. One occurrence lapsing leaves the others untouched,
+    which is exactly what "in respect of that occurrence" provides. Where no
+    occurrence has yet arisen there is nothing that could have lapsed, so the
+    condition also requires at least one.
+  * `right_exercisable`: some occurrence is exercisable — its window is still
+    open, or a notice validly exercised it.
+
+The lapse exception repeats the parent's condition `right_arisen`, since a
+right that never arose cannot lapse — a Catala exception does not inherit its
+parent's condition, and the base case here is the unconditional "has not
+lapsed".
+
+```catala
+scope ChronicFailureRight:
+  definition notice_exercises_the_right equals
+    notice_given and ((number of exercised_occurrences) > 0)
+
+  label l6_2_not_lapsed definition right_lapsed equals false
+
+  label l6_2_lapsed exception l6_2_not_lapsed definition right_lapsed
+    under condition
+      right_arisen
+      or ((number of arisen_occurrences) > 0)
+      and ((number of lapsed_occurrences) = (number of arisen_occurrences))
+    consequence equals true
+
+  definition right_exercisable equals
+    right_arisen
+    and ((number of (list of o among occurrences such that o.exercisable)) > 0)
+```

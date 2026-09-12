@@ -25,15 +25,26 @@ Section S-7 Clawback
 No recovery will be made more than 24 months after the date on which
 the commission was paid.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### COMM-PLAN S-2.4 — Sales Commission Plan — FY26 (v1.3, effective 2025-10-01)
+Section S-2 Definitions
+
+"Churned Contract" means a contract which is terminated by the
+customer, or which is not renewed at its first renewal date, in either case
+within 180 days after its signature date.
+
 
 ## Artefact under review
 
 ```
-# Sales Commission Plan — FY26: clawback
+#
 
 > Module Clawback
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope RecoverableCommission:
@@ -47,7 +58,7 @@ declaration scope RecoverableCommission:
   output recoverable_amount content money
 ```
 
-## S-7 Clawback
+## S-7
 
 | COMM-PLAN S-7.1 (003-sales-commission-plan.md:92)
 |

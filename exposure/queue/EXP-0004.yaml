@@ -1,0 +1,41 @@
+id: EXP-0004
+klass: DIVERGENCE
+scope: Overtime.HourPremium
+archetype: auditor reconciling the record against the policy
+headline: accrues_toil was recorded as False, less than the True the policy computes
+facts:
+  ordinal: 52
+  grade: 6
+  is_public_holiday: false
+  is_critical_incident: false
+  is_night: false
+  has_standing_shift_allowance: false
+why: 'On 2026-03-20 the company decided this case for a Grade 6 incident engineer, 52nd hour
+  of the week beginning 9 March. Its own written policy, executed on the same facts, does
+  not produce that decision. Source: payroll export 2026-03. The decision was less favourable
+  than the policy provides, so it is a claim by the person it was made about, for the difference,
+  and by everyone else the same clause was applied to the same way.'
+predicate: ''
+citations:
+- EMP-ANNEX-C C-5.1
+clause_chain:
+- variable: accrues_toil
+  line: null
+  clause_refs:
+  - EMP-ANNEX-C C-5.1
+  law_headings: []
+outputs:
+  accrues_toil: true
+amount: null
+amount_basis: Overtime.HourPremium declares no measured output for 'accrues_toil', so this
+  divergence is reported without a figure
+population: an employee-hour
+diagnostic: ''
+narrative: a Grade 6 incident engineer, 52nd hour of the week beginning 9 March (OPS-0004,
+  decided 2026-03-20)
+demand_letter: ''
+closing_edit: {}
+origin: operations:OPS-0004
+headline_direction: less
+found: '2026-09-12'
+status: open

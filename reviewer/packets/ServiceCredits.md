@@ -43,15 +43,32 @@ By way of exception to L-4.1, no Service Credit is payable in respect of
 a Measurement Period in which the Customer is in arrears of any undisputed
 invoice for more than 30 days.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### MSA-SCH4 L-2.1 — Master Services Agreement — Schedule 4: Service Levels and Service Credits (v2.1, effective 2025-01-15)
+Section L-2 Definitions
+
+"Measurement Period" means each calendar month.
+
+### MSA-SCH4 L-2.3 — Master Services Agreement — Schedule 4: Service Levels and Service Credits (v2.1, effective 2025-01-15)
+Section L-2 Definitions
+
+"Availability Percentage" means, in respect of a Measurement Period,
+the total number of minutes in the Measurement Period less Unavailable Minutes,
+divided by the total number of minutes in the Measurement Period, expressed as a
+percentage and rounded to two decimal places.
+
 
 ## Artefact under review
 
 ```
-# MSA Schedule 4 — Service Credits
+#
 
 > Module ServiceCredits
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope MonthlyServiceCharge:
@@ -72,7 +89,7 @@ declaration scope ServiceCredit:
   output credit_amount content money
 ```
 
-## L-2.7 Monthly Service Charge
+## L-2.7
 
 | MSA-SCH4 L-2.7 (004-msa-sla-credits.md:55)
 |
@@ -101,7 +118,7 @@ scope MonthlyServiceCharge:
     - pass_through_charges
 ```
 
-## L-4.1 The band table
+## L-4.1
 
 | MSA-SCH4 L-4.1 (004-msa-sla-credits.md:66)
 |
@@ -144,7 +161,7 @@ scope ServiceCredit:
     monthly_service_charge * credit_payable_percentage
 ```
 
-## L-4.2 The aggregate cap
+## L-4.2
 
 | MSA-SCH4 L-4.2 (004-msa-sla-credits.md:75)
 |
@@ -161,7 +178,7 @@ scope ServiceCredit:
     else credit_percentage
 ```
 
-## L-4.3 Below 95.00%
+## L-4.3
 
 | MSA-SCH4 L-4.3 (004-msa-sla-credits.md:78)
 |
@@ -180,7 +197,7 @@ scope ServiceCredit:
     consequence equals 50%
 ```
 
-## L-4.4 Arrears
+## L-4.4
 
 | MSA-SCH4 L-4.4 (004-msa-sla-credits.md:82)
 |

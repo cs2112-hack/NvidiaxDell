@@ -26,7 +26,6 @@ source_reasoning: 'S-6.1 fixes the reduction as ''1/365th of the annual Quota fo
   27,534.25.'
 expected:
   commission_payable: '0.00'
-  accelerator: 0.0
 observed:
   quota_relief:
     relief_days: 30.0

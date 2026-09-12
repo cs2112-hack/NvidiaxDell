@@ -1,0 +1,488 @@
+# MSA Schedule 4 — Service Levels (availability measurement)
+
+> Module Availability
+
+This module encodes the measurement half of Schedule 4: what a Measurement
+Period is, when the Service counts as Available, which minutes are Excluded,
+and the resulting Availability Percentage against the Service Level. The
+credit consequences live in `Service_credits`, which consumes the
+`availability_percentage` computed here.
+
+The unit the Schedule legislates over is the **minute**, grouped into
+**outages**: L-2.4 counts whole minutes, L-2.5 excludes minutes "by reason of"
+a listed cause, and a cause attaches to an outage rather than to a period. So
+`ExcludedMinutes` is a per-outage scope and `ServiceAvailability` aggregates.
+
+L-2.5 is a HYBRID clause. Limbs (c) and (d) — whether an event is a Force
+Majeure Event, and whether an outage arises by reason of the Customer's own
+act or omission or the failure of a Customer system — are causal and legal
+attributions that this module **takes as inputs and never infers**. They are
+the judgement inputs `force_majeure_event_certified` and
+`outage_attributable_to_customer`, and they are visible on the face of the
+`Outage` structure so that every downstream credit figure carries them.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration structure Outage:
+  # L-2.4: whole minutes during which the Service was not Available.
+  data minutes content integer
+  # L-2.5(a) via L-2.6: the outage is maintenance carried out within a
+  # notified window.
+  data is_maintenance content boolean
+  data notified_at content date
+  data window_start content date
+  # L-2.5(b): Emergency Maintenance, and the notice actually given.
+  data is_emergency_maintenance content boolean
+  data emergency_notice_minutes content integer
+  # L-2.5(c): JUDGEMENT INPUT — whether a Force Majeure Event occurred.
+  data force_majeure_event_certified content boolean
+  # L-2.5(d): JUDGEMENT INPUT — causal attribution to the Customer.
+  data outage_attributable_to_customer content boolean
+  # L-2.5(e): suspension under clause 9 of the Agreement.
+  data is_suspension_under_clause_9 content boolean
+
+declaration scope MeasurementPeriod:
+  input period_start content date
+  output period_end content date
+  output total_minutes content integer
+
+declaration scope RequestAvailable:
+  input is_well_formed content boolean
+  input responded_at_documented_endpoint content boolean
+  input responded_within_latency_threshold content boolean
+  output is_available content boolean
+
+declaration scope ScheduledMaintenanceWindow:
+  input is_maintenance content boolean
+  input notified_at content date
+  input window_start content date
+  input business_day_calendar content list of date
+  output business_days_notice content integer
+  output is_scheduled_maintenance content boolean
+
+declaration scope ExcludedMinutes:
+  input minutes content integer
+  input is_scheduled_maintenance content boolean
+  input is_emergency_maintenance content boolean
+  input emergency_notice_minutes content integer
+  input force_majeure_event_certified content boolean
+  input outage_attributable_to_customer content boolean
+  input is_suspension_under_clause_9 content boolean
+  output limb_a_scheduled_maintenance content boolean
+  output limb_b_emergency_maintenance content boolean
+  output limb_c_force_majeure content boolean
+  output limb_d_customer_act content boolean
+  output limb_e_suspension content boolean
+  output is_excluded content boolean
+  output excluded_minutes content integer
+
+declaration scope ScheduledMaintenance:
+  input outages content list of Outage
+  input business_day_calendar content list of date
+  output aggregate_minutes content integer
+  output cap_minutes content integer
+  output excess_minutes content integer
+  output excluded_minutes content integer
+
+declaration scope AvailabilityPercentage:
+  # L-2.3: the total number of minutes in the Measurement Period.
+  input total_minutes content integer
+  # L-2.4: every whole minute during which the Service was not Available,
+  # before any exclusion is applied.
+  input minutes_not_available content integer
+  # L-2.5: the Excluded Minutes, as the Schedule leaves them once L-4.5 has
+  # withdrawn any Scheduled Maintenance excess. The excess is NOT part of this
+  # figure: L-4.5 says in terms that the excess minutes "are not Excluded
+  # Minutes". See the L-2.4 section below and CE-0010.
+  input excluded_minutes content integer
+  # L-4.5: the minutes by which Scheduled Maintenance exceeded 8 hours in
+  # aggregate, as computed by ScheduledMaintenance above.
+  input scheduled_maintenance_excess_minutes content integer
+  # L-2.5(a) as it stood before L-4.5 operated on it, derived from the two
+  # inputs above rather than taken from the caller.
+  output excluded_minutes_before_l4_5 content integer
+  output unavailable_minutes content integer
+  output availability_percentage_unrounded content decimal
+  output availability_percentage content decimal
+  output meets_service_level content boolean
+
+declaration scope ServiceAvailability:
+  input period_start content date
+  input outages content list of Outage
+  input business_day_calendar content list of date
+  output total_minutes content integer
+  output minutes_not_available content integer
+  # The L-2.5 exclusion as each limb confers it, and the Excluded Minutes that
+  # survive L-4.5. The second is the defined term; the first is reported so
+  # that the L-4.5 withdrawal is inspectable.
+  output excluded_minutes_before_l4_5 content integer
+  output excluded_minutes content integer
+  output scheduled_maintenance_aggregate_minutes content integer
+  output scheduled_maintenance_excess_minutes content integer
+  output unavailable_minutes content integer
+  output availability_percentage content decimal
+  output meets_service_level content boolean
+```
+
+## L-2.1 Measurement Period
+
+| MSA-SCH4 L-2.1 (004-msa-sla-credits.md:26)
+|
+| "Measurement Period" means each calendar month.
+
+The computable content of L-2.1 is the length of the window over which minutes
+are counted: the calendar month containing `period_start`. `total_minutes` is
+the "total number of minutes in the Measurement Period" that L-2.3 divides by,
+so a 28-, 29-, 30- and 31-day month give different denominators and the month
+must be read off the calendar rather than assumed.
+
+```catala
+scope MeasurementPeriod:
+  definition period_end equals Date.last_day_of_month of period_start
+
+  definition total_minutes equals
+    (Date.get_day of (Date.last_day_of_month of period_start)) * 1440
+```
+
+## L-2.2 Available
+
+| MSA-SCH4 L-2.2 (004-msa-sla-credits.md:28)
+|
+| "Available" means the Service responds to a well-formed request at the
+| Service's documented endpoint within the applicable latency threshold.
+
+L-2.2 is a per-request predicate, and the latency threshold it refers to is
+fixed by the Agreement rather than by this Schedule, so the threshold test
+arrives as an input rather than as arithmetic. It is encoded because L-2.4
+counts minutes over exactly this predicate: without it the `Outage.minutes`
+input has no stated meaning.
+
+A request that is not well-formed is not probative of availability either way,
+so availability is treated as established only by the response to a
+well-formed request.
+
+```catala
+scope RequestAvailable:
+  definition is_available equals
+    is_well_formed
+    and responded_at_documented_endpoint
+    and responded_within_latency_threshold
+```
+
+## L-2.6 Scheduled Maintenance — the notice limb
+
+| MSA-SCH4 L-2.6 (004-msa-sla-credits.md:50)
+|
+| "Scheduled Maintenance" means maintenance carried out within a window
+| notified to the Customer not less than 5 Business Days in advance, provided that
+| Scheduled Maintenance must not exceed 8 hours in aggregate in any Measurement
+| Period.
+
+The first limb qualifies a window. `business_day_calendar` is the list of
+dates which are Business Days; the notice is counted as the number of clear
+Business Days falling strictly between the date of notification and the start
+of the window. The proviso is an aggregate over the whole Measurement Period
+and so is encoded in `ScheduledMaintenance` below, not here.
+
+```catala
+scope ScheduledMaintenanceWindow:
+  definition business_days_notice equals
+    number of (list of d among business_day_calendar such that
+      ((d > notified_at) and (d < window_start)))
+
+  definition is_scheduled_maintenance equals
+    is_maintenance and (business_days_notice >= 5)
+```
+
+## L-2.5 Excluded Minutes
+
+| MSA-SCH4 L-2.5 (004-msa-sla-credits.md:39)
+|
+| "Excluded Minutes" means minutes during which the Service is not
+| Available by reason of:
+|
+|   (a) Scheduled Maintenance;
+|   (b) an Emergency Maintenance event of which the Customer was given at least 60
+|       minutes' notice;
+|   (c) a Force Majeure Event;
+|   (d) the Customer's own act or omission, or the failure of any Customer
+|       system or network; or
+|   (e) suspension of the Service in accordance with clause 9 of the Agreement.
+
+The five limbs are alternatives, not exceptions to one another: an outage may
+answer to more than one of them at once and is excluded either way. They are
+therefore a disjunction rather than an exception hierarchy, with each limb
+exposed as its own output so that the reason an outage was excluded is
+recoverable from the answer.
+
+Limb (b) carries a hard threshold: "at least 60 minutes' notice", so 60
+minutes qualifies and 59 does not. Limbs (c) and (d) are the judgement inputs
+— this module applies them, it does not decide them.
+
+```catala
+scope ExcludedMinutes:
+  definition limb_a_scheduled_maintenance equals is_scheduled_maintenance
+
+  definition limb_b_emergency_maintenance equals
+    is_emergency_maintenance and (emergency_notice_minutes >= 60)
+
+  definition limb_c_force_majeure equals force_majeure_event_certified
+
+  definition limb_d_customer_act equals outage_attributable_to_customer
+
+  definition limb_e_suspension equals is_suspension_under_clause_9
+
+  definition is_excluded equals
+    limb_a_scheduled_maintenance
+    or limb_b_emergency_maintenance
+    or limb_c_force_majeure
+    or limb_d_customer_act
+    or limb_e_suspension
+
+  definition excluded_minutes equals if is_excluded then minutes else 0
+```
+
+## L-2.6 Scheduled Maintenance — the 8-hour aggregate proviso
+
+| MSA-SCH4 L-2.6 (004-msa-sla-credits.md:50)
+|
+| "Scheduled Maintenance" means maintenance carried out within a window
+| notified to the Customer not less than 5 Business Days in advance, provided that
+| Scheduled Maintenance must not exceed 8 hours in aggregate in any Measurement
+| Period.
+
+The proviso sets a ceiling of 8 hours — 480 minutes — on Scheduled Maintenance
+in aggregate across the Measurement Period. The ceiling is stated here; its
+consequence is stated by L-4.5 below.
+
+The Schedule does not say whether the 8 hours are measured by the length of
+the notified windows or by the minutes inside them during which the Service
+was not Available. Only the second reading connects to anything: L-4.5 makes
+the excess minutes count as Unavailable Minutes, and a minute during which the
+Service was Available cannot become an Unavailable Minute. So the aggregate is
+of unavailable minutes falling inside qualifying windows.
+
+```catala
+scope ScheduledMaintenance:
+  definition cap_minutes equals 8 * 60
+
+  definition aggregate_minutes equals
+    Integer.sum of (map each o among outages to
+      (if (output of ScheduledMaintenanceWindow with {
+             -- is_maintenance: o.is_maintenance
+             -- notified_at: o.notified_at
+             -- window_start: o.window_start
+             -- business_day_calendar: business_day_calendar
+           }).is_scheduled_maintenance
+       then o.minutes else 0))
+```
+
+## L-4.5 Scheduled Maintenance overrun
+
+| MSA-SCH4 L-4.5 (004-msa-sla-credits.md:86)
+|
+| Where Scheduled Maintenance exceeds 8 hours in aggregate in a
+| Measurement Period, the excess minutes are not Excluded Minutes and count as
+| Unavailable Minutes.
+
+"Exceeds 8 hours" is strict, so an aggregate of exactly 480 minutes produces
+no excess. The base case is therefore no excess, with the overrun as an
+exception to it, and `excluded_minutes` is the part of the aggregate that
+survives as Excluded Minutes under L-2.5(a).
+
+```catala
+scope ScheduledMaintenance:
+  label l4_5_no_excess definition excess_minutes equals 0
+
+  label l4_5_excess exception l4_5_no_excess definition excess_minutes
+    under condition aggregate_minutes > cap_minutes
+    consequence equals aggregate_minutes - cap_minutes
+
+  definition excluded_minutes equals aggregate_minutes - excess_minutes
+```
+
+## L-2.4 Unavailable Minutes
+
+| MSA-SCH4 L-2.4 (004-msa-sla-credits.md:36)
+|
+| "Unavailable Minutes" means each whole minute during which the Service
+| is not Available, excluding Excluded Minutes.
+
+`excluded_minutes` is the Excluded Minutes of L-2.5 as the Schedule leaves
+them once L-4.5 has operated: the maintenance excess is not Excluded Minutes
+at all, because L-4.5 says so in terms, and a field named after a defined term
+can only mean that term at its legally correct value.
+
+An earlier version of this scope required the opposite. Its arithmetic was
+`minutes_not_available - excluded_minutes + scheduled_maintenance_excess_minutes`,
+which is self-consistent only if the caller supplies the figure *before* L-4.5
+withdraws the excess. A caller who passed the actual Excluded Minutes — the
+only value the name admits — was charged the excess twice: on facts of 600
+minutes not Available, 480 Excluded Minutes and a 120-minute excess it
+returned 240 Unavailable Minutes and 99.46% instead of 120 and 99.73%, which
+is the difference between L-4.1(a)'s 5% and L-4.1(b)'s 10% of the Monthly
+Service Charge. Found by the adversarial reviewer; see
+tests/counterexamples/CE-0010.yaml.
+
+The scope now derives the pre-L-4.5 figure itself instead of trusting a caller
+to supply it under the name of the defined term, in the same way that
+`Overtime.WeeklyOvertime` derives each hour's position in the Payroll Week
+rather than reading a label off a timesheet row. Both quantities the
+derivation needs are unambiguous: the Excluded Minutes, and the L-4.5 excess
+that `ScheduledMaintenance` above computes. Adding the excess back to the
+Excluded Minutes reconstructs what L-2.5(a) would have excluded on its own
+terms, which is the figure L-2.4 subtracts before L-4.5 speaks.
+
+| MSA-SCH4 L-4.5 (004-msa-sla-credits.md:86)
+|
+| Where Scheduled Maintenance exceeds 8 hours in aggregate in a
+| Measurement Period, the excess minutes are not Excluded Minutes and count as
+| Unavailable Minutes.
+
+L-4.5 does two things and the encoding must do each exactly once. Its first
+limb takes the excess out of the exclusion, which is why the base case
+subtracts the reconstructed pre-L-4.5 figure rather than the Excluded Minutes;
+its second limb returns those minutes to the count, which is the exception.
+
+The exception repeats no condition from L-2.4, which is unconditional; it is
+guarded on its own condition, that there is an excess.
+
+```catala
+scope AvailabilityPercentage:
+  definition excluded_minutes_before_l4_5 equals
+    excluded_minutes + scheduled_maintenance_excess_minutes
+
+  label l2_4 definition unavailable_minutes equals
+    minutes_not_available - excluded_minutes_before_l4_5
+
+  label l4_5 exception l2_4 definition unavailable_minutes
+    under condition scheduled_maintenance_excess_minutes > -1
+    consequence equals
+      minutes_not_available - excluded_minutes_before_l4_5
+      + scheduled_maintenance_excess_minutes
+```
+
+## L-2.3 Availability Percentage
+
+| MSA-SCH4 L-2.3 (004-msa-sla-credits.md:31)
+|
+| "Availability Percentage" means, in respect of a Measurement Period,
+| the total number of minutes in the Measurement Period less Unavailable Minutes,
+| divided by the total number of minutes in the Measurement Period, expressed as a
+| percentage and rounded to two decimal places.
+
+The rounding is part of the definition, not presentation. "Expressed as a
+percentage and rounded to two decimal places" rounds the percentage, so the
+grid is 0.01 percentage points: an unrounded 99.895% **is** an Availability
+Percentage of 99.90%, and every later comparison — L-3.1, the L-4.1 bands,
+L-4.3's 95.00% and L-6.1's 99.90% — is made against the rounded figure,
+because that figure is what the defined term means. The unrounded quotient is
+kept as a separate output so that the rounding step is inspectable, and it is
+never the thing compared.
+
+```catala
+scope AvailabilityPercentage:
+  definition availability_percentage_unrounded equals
+    ((total_minutes - unavailable_minutes) / total_minutes) * 100.0
+
+  definition availability_percentage equals
+    Decimal.round_to_decimal of availability_percentage_unrounded, 2
+```
+
+## L-3.1 The Service Level
+
+| MSA-SCH4 L-3.1 (004-msa-sla-credits.md:61)
+|
+| The Supplier will ensure that the Availability Percentage in each
+| Measurement Period is not less than 99.90%.
+
+"Not less than" is inclusive: exactly 99.90% meets the Service Level.
+
+```catala
+scope AvailabilityPercentage:
+  definition meets_service_level equals availability_percentage >= 99.90
+```
+
+## Period aggregation
+
+| NO-CLAUSE: Schedule 4 states no aggregation rule of its own. This scope only
+| wires the clause-level scopes above together in the order the Schedule
+| requires — L-2.1 for the denominator, L-2.5 per outage for the numerator's
+| deduction, L-2.6 and L-4.5 for the maintenance overrun, then L-2.4 and L-2.3
+| — so that a caller cannot get the L-4.5 feedback edge wrong. All the legal
+| content is in the clause blocks above.
+
+Summing the per-outage `ExcludedMinutes` results gives the exclusion each limb
+of L-2.5 confers on its own terms, which for limb (a) still contains the
+Scheduled Maintenance excess. L-4.5 withdraws that excess, so the Excluded
+Minutes for the Measurement Period — the defined term, and what this scope
+hands to `AvailabilityPercentage` — are that sum less the excess. Both figures
+are reported, because a reader of the answer needs to see the withdrawal
+rather than infer it (CE-0010).
+
+```catala
+scope ServiceAvailability:
+  definition total_minutes equals
+    (output of MeasurementPeriod with { -- period_start: period_start }).total_minutes
+
+  definition minutes_not_available equals
+    Integer.sum of (map each o among outages to o.minutes)
+
+  definition scheduled_maintenance_aggregate_minutes equals
+    (output of ScheduledMaintenance with {
+       -- outages: outages
+       -- business_day_calendar: business_day_calendar
+     }).aggregate_minutes
+
+  definition scheduled_maintenance_excess_minutes equals
+    (output of ScheduledMaintenance with {
+       -- outages: outages
+       -- business_day_calendar: business_day_calendar
+     }).excess_minutes
+
+  definition excluded_minutes_before_l4_5 equals
+    Integer.sum of (map each o among outages to
+      (output of ExcludedMinutes with {
+         -- minutes: o.minutes
+         -- is_scheduled_maintenance:
+             (output of ScheduledMaintenanceWindow with {
+                -- is_maintenance: o.is_maintenance
+                -- notified_at: o.notified_at
+                -- window_start: o.window_start
+                -- business_day_calendar: business_day_calendar
+              }).is_scheduled_maintenance
+         -- is_emergency_maintenance: o.is_emergency_maintenance
+         -- emergency_notice_minutes: o.emergency_notice_minutes
+         -- force_majeure_event_certified: o.force_majeure_event_certified
+         -- outage_attributable_to_customer: o.outage_attributable_to_customer
+         -- is_suspension_under_clause_9: o.is_suspension_under_clause_9
+       }).excluded_minutes)
+
+  definition excluded_minutes equals
+    excluded_minutes_before_l4_5 - scheduled_maintenance_excess_minutes
+
+  definition unavailable_minutes equals
+    (output of AvailabilityPercentage with {
+       -- total_minutes: total_minutes
+       -- minutes_not_available: minutes_not_available
+       -- excluded_minutes: excluded_minutes
+       -- scheduled_maintenance_excess_minutes: scheduled_maintenance_excess_minutes
+     }).unavailable_minutes
+
+  definition availability_percentage equals
+    (output of AvailabilityPercentage with {
+       -- total_minutes: total_minutes
+       -- minutes_not_available: minutes_not_available
+       -- excluded_minutes: excluded_minutes
+       -- scheduled_maintenance_excess_minutes: scheduled_maintenance_excess_minutes
+     }).availability_percentage
+
+  definition meets_service_level equals
+    (output of AvailabilityPercentage with {
+       -- total_minutes: total_minutes
+       -- minutes_not_available: minutes_not_available
+       -- excluded_minutes: excluded_minutes
+       -- scheduled_maintenance_excess_minutes: scheduled_maintenance_excess_minutes
+     }).meets_service_level
+```

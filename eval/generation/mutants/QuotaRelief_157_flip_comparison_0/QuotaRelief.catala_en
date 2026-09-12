@@ -1,0 +1,450 @@
+# Sales Commission Plan — FY26: quota relief
+
+> Module QuotaRelief
+
+> Using Commission
+
+This module computes the Quota against which Attainment is measured, after
+relief for qualifying absence under S-6. The *data* flows relief-first: S-6.2
+says relief is applied before Attainment is calculated, so the relieved Quota is
+an input to `Commission.Attainment` and never a correction applied to a figure
+computed from the assigned Quota.
+
+The *module* dependency runs the other way, which is deliberate. S-6.1 has to
+know the Plan Year, and S-1.1 — which is the only place the Plan Year window is
+stated — is encoded in `Commission`; restating the window here would be a second
+copy of a clause that exists once. `CommissionAfterRelief` below then composes
+the whole chain in the order S-6.2 fixes. Nothing in `Commission` imports this
+module, so there is no cycle.
+
+Nothing here is a judgement input. The three absence categories S-6.1 names are
+legal statuses payroll records, and the 30-day continuous-period threshold is
+what supplies the content of "long-term" — the Plan does not leave that to an
+assessor.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration enumeration AbsenceCategory:
+  -- StatutoryParentalLeave
+  -- AdoptionLeave
+  -- LongTermSicknessAbsence
+  -- OtherAbsence
+
+# One continuous absence, inclusive of both endpoints: an absence recorded as
+# starting and ending on the same day is one day of absence.
+declaration structure AbsencePeriod:
+  data category content AbsenceCategory
+  data start_date content date
+  data end_date content date
+
+declaration scope QualifyingAbsence:
+  input absence content AbsencePeriod
+  output days_of_absence content integer
+  output is_qualifying_category content boolean
+  output is_qualifying content boolean
+  output in_year_days_of_absence content integer
+
+declaration scope RelievedQuota:
+  input annual_quota content money
+  input absence_periods content list of AbsencePeriod
+  internal qualifying_category_absences content list of AbsencePeriod
+  internal continuous_absence_windows content list of date
+  output relief_days content integer
+  output relief_exact content decimal
+  output relief content money
+  output relieved_quota_exact content decimal
+  output relieved_quota content money
+  output quota_for_attainment_exact content decimal
+  output quota_for_attainment content money
+
+declaration scope CommissionAfterRelief:
+  input assigned_quota content money
+  input absence_periods content list of AbsencePeriod
+  input net_booked_revenue content money
+  input new_logo_share content decimal
+  input commencement_date content date
+  input annual_base_salary content money
+  output quota_relief scope RelievedQuota
+  output commission scope Commission.CommissionPayable
+  output quota_for_attainment content money
+  output commission_payable content money
+```
+
+## S-6 Quota relief — the gateway
+
+| COMM-PLAN S-6.1 (003-sales-commission-plan.md:83)
+|
+| Where an Employee is absent on statutory parental leave, adoption leave
+| or long-term sickness absence for a continuous period of 30 days or more, the
+| Employee's Quota is reduced by 1/365th of the annual Quota for each day of such
+| absence.
+
+S-6.1 asks two questions and the whole of this module's correctness depends on
+keeping them apart. The **gateway** question is whether the Employee "is absent
+... for a continuous period of 30 days or more". Two unconnected 20-day
+absences do not combine, and "30 days or more" is inclusive, so a 30-day
+absence qualifies and a 29-day one does not. The **quantum** question — by how
+much the Quota falls — is answered separately below.
+
+Days are counted inclusively of both endpoints, which is the ordinary reading
+of an absence "from" one date "to" another: 1 January to 30 January is 30 days.
+`days_of_absence` is the length of the whole continuous absence, wherever its
+days fall, because that is what the gateway is measured on.
+
+This scope answers the gateway for **one record taken alone**, which is the
+answer where the record is the whole absence. It is not where the gateway is
+finally decided: the clause asks about a continuous period of absence, and one
+continuous absence can be written down as several abutting records, so
+`RelievedQuota` below asks the question of the absence rather than of the
+paperwork (CE-0028). `is_qualifying` remains reportable because the two-question
+structure of the clause is what the rest of the module turns on, and because a
+record that passes the gateway on its own length may still relieve no day of
+the Plan Year (CE-0012, CE-0013). It tests the same threshold as the continuity
+section below, `continuous_period_length`, which is declared there with the
+clause it comes from: the clause states "30 days or more" once, so the module
+holds it once and both readings of the gateway consume it.
+
+```catala
+scope QualifyingAbsence:
+  definition days_of_absence equals
+    integer of ((absence.end_date - absence.start_date) / (1 day)) + 1
+
+  definition is_qualifying_category equals
+    absence.category with pattern StatutoryParentalLeave
+    or absence.category with pattern AdoptionLeave
+    or absence.category with pattern LongTermSicknessAbsence
+
+  definition is_qualifying equals
+    is_qualifying_category
+    and days_of_absence >= continuous_period_length
+```
+
+## S-6.1 Which days can be relieved — the Plan Year confines them
+
+| COMM-PLAN S-6.1 (003-sales-commission-plan.md:83)
+|
+| Where an Employee is absent on statutory parental leave, adoption leave
+| or long-term sickness absence for a continuous period of 30 days or more, the
+| Employee's Quota is reduced by 1/365th of the annual Quota for each day of such
+| absence.
+
+The days S-6.1 can relieve are days of the Plan Year, and only those. S-1.1
+confines the whole Plan to the financial year 1 October 2025 to 30 September
+2026; S-2.1 makes the Quota the annual target assigned for that Plan Year; and
+S-6.1's unit of relief — 1/365th of the annual Quota — is a proration of that
+same 365-day year, there being no other 365-day period in the instrument for the
+fraction to refer to. A day that is not a day of the Plan Year therefore has no
+1/365th of this Quota to consume. An absence lying wholly in another financial
+year relieves nothing (CE-0012), and an absence straddling the boundary passes
+the gateway on its full continuous length while relieving only its in-year days
+(CE-0013) — the two questions of the clause, answered separately.
+
+`in_year_days_of_absence` is this record's days clipped to the Plan Year window,
+which is imported from `Commission` rather than restated. It is not itself a
+quantum of relief: overlapping records would each count the shared days, which
+is what S-6.1 forbids and what `RelievedQuota` below is careful not to do.
+
+```catala
+scope QualifyingAbsence:
+  definition in_year_days_of_absence equals
+    let first_day equals
+      Date.max of absence.start_date, Commission.plan_year_start
+    in
+    let last_day equals
+      Date.min of absence.end_date, Commission.plan_year_end
+    in
+    if last_day <= first_day then 0
+    else integer of ((last_day - first_day) / (1 day)) + 1
+```
+
+## S-6.1 The gateway is a fact about the absence, not about the records
+
+| COMM-PLAN S-6.1 (003-sales-commission-plan.md:83)
+|
+| Where an Employee is absent on statutory parental leave, adoption leave
+| or long-term sickness absence for a continuous period of 30 days or more, the
+| Employee's Quota is reduced by 1/365th of the annual Quota for each day of such
+| absence.
+
+**CE-0028.** One 40-day sickness absence certified by two successive fit notes
+reaches this module as two abutting records — 1 to 20 January and 21 January to
+9 February — with no day of attendance between them. Tested per record, each is
+20 days, neither passes the 30-day gateway, and the Employee gets nothing; the
+identical absence written as a single record relieves 40/365ths. S-6.1 conditions
+relief on the Employee being "absent ... for a continuous period of 30 days or
+more", which is a fact about how long she was absent and not about how many
+entries the HR system holds, so an answer that turns on the filing is wrong. The
+records must therefore be combined into continuous absences **before** the
+gateway is applied.
+
+Combining them needs none of the machinery this module refused when it came to
+the quantum — no sort, no adjacency rule, no clipping rule — because the
+continuity question is local to a day. A day belongs to a continuous period of
+absence of 30 days or more exactly when some run of 30 consecutive days, every
+one of them a day of qualifying absence, contains it. So the module tests runs:
+`continuous_absence_windows` holds each day from which the next 30 days are all
+covered by some record, and a day of the Plan Year is relievable when it lies in
+one of those windows. Abutting records merge under that test because coverage is
+taken over the records **together** (1 to 20 January and 21 January to 9
+February cover 1 January to 9 February with no gap), overlapping and duplicate
+records merge for the same reason, and a single day of attendance between two
+20-day records still breaks the period, because no 30-day run is then fully
+covered. The 30-day figure is the clause's own and is named once,
+`continuous_period_length`, so the gateway and the window length cannot drift
+apart.
+
+The windows are assessed over a span wider than the Plan Year, because the
+gateway is measured on the whole continuous absence wherever its days fall
+(CE-0013): a window containing a day of the Plan Year can start up to 29 days
+before the Plan Year does, and none can start after its last day.
+
+Only the categories S-6.1 names can contribute a covered day. The clause
+relieves absence "on statutory parental leave, adoption leave or long-term
+sickness absence" and its list is disjunctive, so a 20-day parental leave
+abutting a 20-day sickness absence is one continuous period of qualifying
+absence and passes the gateway; whereas a spell of some other absence between
+two sickness records is a day on which the Employee was absent on no ground
+S-6.1 names, and so breaks the period rather than bridging it.
+
+```catala
+# Was the Employee absent on this day, on one of the grounds S-6.1 names,
+# according to some record? This predicate is taken over the records together,
+# which is what merges abutting and overlapping ones.
+declaration day_of_qualifying_absence content boolean
+  depends on d content date, periods content list of AbsencePeriod
+  equals
+    exists p among periods such that p.start_date <= d and d <= p.end_date
+
+# S-6.1's own threshold: "a continuous period of 30 days or more".
+declaration continuous_period_length content integer equals 30
+
+declaration window_is_continuous_absence content boolean
+  depends on w content date, periods content list of AbsencePeriod
+  equals
+    for all i among (List.sequence of 0, continuous_period_length) we have
+      day_of_qualifying_absence of (w + i * (1 day)), periods
+
+# A window that contains a day of the Plan Year starts no earlier than 29 days
+# before the Plan Year and no later than its last day, so those are the
+# candidates. The span is derived from S-1.1's window and from the threshold
+# above rather than written out.
+declaration continuity_window_starts content list of date equals
+  let days_in_plan_year equals
+    integer of
+      ((Commission.plan_year_end - Commission.plan_year_start) / (1 day)) + 1
+  in
+  let n equals days_in_plan_year + continuous_period_length - 1 in
+  map each i among (List.sequence of 0, n)
+  to Commission.plan_year_start
+     - (continuous_period_length - 1) * (1 day)
+     + i * (1 day)
+
+scope RelievedQuota:
+  definition qualifying_category_absences equals
+    list of a among absence_periods
+    such that
+      (output of QualifyingAbsence with { -- absence: a }).is_qualifying_category
+
+  definition continuous_absence_windows equals
+    list of w among continuity_window_starts
+    such that window_is_continuous_absence of w, qualifying_category_absences
+```
+
+## S-6.1 The quantum — one day, one 1/365th
+
+| COMM-PLAN S-6.1 (003-sales-commission-plan.md:83)
+|
+| Where an Employee is absent on statutory parental leave, adoption leave
+| or long-term sickness absence for a continuous period of 30 days or more, the
+| Employee's Quota is reduced by 1/365th of the annual Quota for each day of such
+| absence.
+
+The unit of account in the quantum limb is the **day of absence**, not the
+absence record. A day on which the Employee was absent is one day of absence
+however many leave categories the HR system records against it, so it attracts
+one 1/365th reduction and no more. Summing record lengths double-counts the days
+two overlapping records share (CE-0014) and, worse, lets relief exceed 365/365ths
+and drive the Quota negative — an outcome no reduction "by 1/365th ... for each
+day" of a 365-day year can ever produce.
+
+`relief_days` is therefore the number of days **of the Plan Year** that fall
+within a continuous period of qualifying absence of 30 days or more, as the
+section above determines. Catala has no set type, and the two ways to take a
+union of date ranges are to merge the ranges or to count the days; this module
+counts the days, for three reasons. It is the clause's own unit: "for each day of
+such absence" is a predicate over days, and `plan_year_days` is exactly the
+domain the 1/365th fraction prorates. It needs no machinery the clause does not
+mention — no sort, and no rule for clipping one range against another. And it
+makes both invariants structural rather than argued: a day is counted once
+because it is one day, and the count cannot exceed the days of the window.
+
+That is also what keeps CE-0014's property and CE-0028's fix from pulling
+against each other. The gateway above merges abutting and overlapping records
+into continuous absences, but it never adds a day to the count: the count runs
+over the days of the Plan Year, asking of each whether it lies in some
+continuous absence, so two records that share 47 days contribute those 47 days
+once however many records mention them, and two abutting records contribute
+their 40 distinct days exactly once as well.
+
+```catala
+# Every day of the Plan Year, from S-1.1's window, which is inclusive at both
+# ends and so spans (end - start) + 1 days. `List.sequence` stops one short of
+# its second argument, so the day count is itself that argument. Deriving the
+# list from the window keeps it from drifting from S-1.1.
+declaration plan_year_days content list of date equals
+  let days_in_plan_year equals
+    integer of
+      ((Commission.plan_year_end - Commission.plan_year_start) / (1 day)) + 1
+  in
+  map each i among (List.sequence of 0, days_in_plan_year)
+  to Commission.plan_year_start + i * (1 day)
+
+scope RelievedQuota:
+  definition relief_days equals
+    number of (list of d among plan_year_days
+               such that (exists w among continuous_absence_windows
+                          such that w <= d
+                                and d <= w
+                                     + (continuous_period_length - 1)
+                                       * (1 day)))
+```
+
+## S-6.1 The reduction, and the ceiling the clause implies
+
+| COMM-PLAN S-6.1 (003-sales-commission-plan.md:83)
+|
+| Where an Employee is absent on statutory parental leave, adoption leave
+| or long-term sickness absence for a continuous period of 30 days or more, the
+| Employee's Quota is reduced by 1/365th of the annual Quota for each day of such
+| absence.
+
+The reduction itself is the arithmetic the clause states: 1/365th of the annual
+Quota per relieved day. The assertions record what the day-counting above makes
+true — the window is the 365-day period the 1/365th unit presupposes, and no day
+can be counted twice — so relief can never exceed the annual Quota and the
+relieved Quota can never go negative, an outcome the clause cannot produce.
+
+**CE-0027.** The reduction is carried as an exact `decimal` of pounds, and the
+`money` figures beside it are reports of it rather than steps in it. S-6.1
+reduces the Quota "by 1/365th of the annual Quota for each day of such absence"
+and specifies no rounding of that reduction; the Plan confers no power to round
+it either. Yet 30 days on a £750,000 Quota is £61,643.8356164383..., which no
+`money` value can hold, because Catala fixes `money` at the cent. Rounding it
+there — to £61,643.84, four ten-thousandths of a penny too much — shrank the
+relieved Quota to £688,356.16 and lifted Attainment from 49.99999968% to exactly
+50%, crossing the S-4.1(a)/(b) boundary and moving £27,534.25. So the chain that
+S-6.2 feeds to Attainment is exact throughout (`relief_exact`,
+`relieved_quota_exact`, `quota_for_attainment_exact`), and the conversion to
+`money` happens only where the Plan produces a sum of money: at S-3.1's product,
+in `Commission`. This is the same defect as CE-0015 and CE-0023, and the same
+remedy.
+
+`relief` and `relieved_quota` are kept as `money` because they are what a review
+letter or a payslip states, and they are the figures the earlier
+counterexamples pin (CE-0012 to CE-0014). They are rounded to the nearest penny
+from the exact quantities and are read by nothing: no arithmetic in this module
+or in `Commission` consumes them, so the rounding cannot propagate into an
+answer. The assertion on the exact relieved Quota, not on the rounded one, is
+the invariant that matters.
+
+```catala
+scope RelievedQuota:
+  definition relief_exact equals
+    (decimal of annual_quota) * (decimal of relief_days / 365.0)
+
+  definition relieved_quota_exact equals
+    (decimal of annual_quota) - relief_exact
+
+  definition relief equals money of relief_exact
+
+  definition relieved_quota equals money of relieved_quota_exact
+
+  assertion number of plan_year_days = 365
+  assertion relief_days <= 365
+  assertion relieved_quota_exact >= 0.0
+```
+
+## S-6.2 Relief is applied before Attainment is calculated
+
+| COMM-PLAN S-6.2 (003-sales-commission-plan.md:88)
+|
+| Quota relief under S-6.1 is applied before Attainment is calculated.
+
+S-6.2 is an ordering rule with a concrete consequence: the denominator of the
+S-2.2 quotient is the relieved Quota, not the assigned Quota. That consequence
+is carried across the module boundary by naming the quantity —
+`quota_for_attainment_exact` is what `Commission.Attainment`'s `quota` input is
+fed from, in the exact form CE-0027 requires, with `quota_for_attainment` the
+same quantity rounded for reporting — and a caller that passed `annual_quota`
+instead would be computing a
+different and lower Attainment, a different accelerator under S-4 and, because
+S-5.2 puts the cap last, a different capped figure too. The identity is the
+whole of the clause: S-6.2 adds no arithmetic of its own, it fixes which
+arithmetic comes first.
+
+```catala
+scope RelievedQuota:
+  definition quota_for_attainment_exact equals relieved_quota_exact
+
+  definition quota_for_attainment equals relieved_quota
+```
+
+| COMM-PLAN S-6.2 (003-sales-commission-plan.md:88)
+|
+| Quota relief under S-6.1 is applied before Attainment is calculated.
+
+Naming the quantity is not enough, and the adversarial reviewer was right that
+it was all this module did. `Commission.CommissionPayable` takes `quota` as a
+free input, so until now whether S-6.2 was honoured depended on the caller
+remembering to pass `quota_for_attainment` rather than the assigned figure — and
+no probe could tell the two apart, because both are just a `money` input. On an
+assigned Quota of $1,000,000 with 73 qualifying absence days and Net Booked
+Revenue of $800,000 the difference is the whole of an S-4.1 band: 100% Attainment
+and an accelerator of 1.5 giving $96,000, against 80% and 1.0 giving $64,000.
+
+**CE-0026.** A composition is also where two modules can disagree about what is
+possible, and this one did. S-6.1 reduces the Quota to nil where a qualifying
+absence covers the whole Plan Year — 365 days, each consuming its 1/365th — so
+`RelievedQuota`'s output domain includes £0 on facts the Plan compels; but
+`Commission.Attainment` carried `assertion quota > $0` and its quotient divided
+by that nil Quota, so the composition raised a division by zero on a question
+the Plan answers plainly. S-3.1 fixes commission at £0.00 where Net Booked
+Revenue is £0, whatever the accelerator.
+
+The seam was closed on the `Commission` side, because that is the side that was
+wrong. A nil relieved Quota is lawful — S-6.1 produces it and S-6.2 requires
+Attainment to be taken on it — so a guard refusing it refused an input the
+documents produce, which is a defect in the guard and not in the input. What the
+old guard was really aimed at, a quota-bearing Employee with no assigned Quota
+at all, survives there in narrower form; the reasoning is set out under S-2.2 in
+`Commission`. Nothing needed to change here: this scope already passed on what
+S-6.1 and S-6.2 compel.
+
+`CommissionAfterRelief` closes that gap structurally. It takes the *assigned*
+Quota and the absence records, and there is no path through it that reaches
+`Commission.CommissionPayable` without passing through `RelievedQuota` first:
+the sub-scope's `quota` input is defined here, once, as the exact relieved
+figure (CE-0027), and
+`absence_periods` is a required input that cannot be defaulted away — an
+Employee with no absence is stated as the empty list, affirmatively, rather than
+by omission. The ordering S-6.2 mandates is therefore a fact about the code
+rather than a convention in the prose. Nothing else is re-encoded: S-2.2, S-3.1,
+S-4 and S-5 keep their single encoding in `Commission`, and this scope only
+wires them up in the mandated order.
+
+```catala
+scope CommissionAfterRelief:
+  definition quota_relief.annual_quota equals assigned_quota
+  definition quota_relief.absence_periods equals absence_periods
+
+  definition quota_for_attainment equals quota_relief.quota_for_attainment
+
+  definition commission.quota equals quota_relief.quota_for_attainment_exact
+  definition commission.net_booked_revenue equals net_booked_revenue
+  definition commission.new_logo_share equals new_logo_share
+  definition commission.commencement_date equals commencement_date
+  definition commission.annual_base_salary equals annual_base_salary
+
+  definition commission_payable equals commission.commission_payable
+```

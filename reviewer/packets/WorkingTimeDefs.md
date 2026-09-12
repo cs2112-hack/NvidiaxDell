@@ -47,11 +47,11 @@ holiday in the Employee's principal place of work.
 ## Artefact under review
 
 ```
-# Employment Terms — Annex C: defined terms of working time
+#
 
 > Module WorkingTimeDefs
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration structure PayrollWeek:
@@ -73,7 +73,8 @@ declaration structure GazettedHoliday:
 
 declaration scope BaseHourlyRate:
   input annual_base_salary content money
-  output base_hourly_rate content money
+  output base_hourly_rate content decimal
+  output base_hourly_rate_to_the_penny content money
 
 declaration scope PayrollWeekOf:
   input calendar_day content date
@@ -104,7 +105,7 @@ declaration scope GazettedPublicHolidays:
   output is_gazetted_public_holiday content boolean
 ```
 
-## C-2.1 Base Hourly Rate
+## C-2.1
 
 | EMP-ANNEX-C C-2.1 (001-employment-terms-annex-c.md:28)
 |
@@ -113,10 +114,16 @@ declaration scope GazettedPublicHolidays:
 
 ```catala
 scope BaseHourlyRate:
-  definition base_hourly_rate equals annual_base_salary / 2080.0
+  assertion annual_base_salary >= $0.00
+
+  definition base_hourly_rate equals
+    (annual_base_salary / $1.00) / 2080.0
+
+  definition base_hourly_rate_to_the_penny equals
+    money of base_hourly_rate
 ```
 
-## C-2.2 Payroll Week
+## C-2.2
 
 | EMP-ANNEX-C C-2.2 (001-employment-terms-annex-c.md:31)
 |
@@ -145,7 +152,7 @@ scope PayrollWeekOf:
     }
 ```
 
-## C-2.3 Night Hours
+## C-2.3
 
 | EMP-ANNEX-C C-2.3 (001-employment-terms-annex-c.md:34)
 |
@@ -154,11 +161,13 @@ scope PayrollWeekOf:
 
 ```catala
 scope NightHours:
+  assertion hour_beginning >= 0 and hour_beginning <= 23
+
   definition is_night_hour equals
     hour_beginning >= 22 or hour_beginning < 6
 ```
 
-## C-2.4 Grade
+## C-2.4
 
 | EMP-ANNEX-C C-2.4 (001-employment-terms-annex-c.md:37)
 |
@@ -185,7 +194,7 @@ scope GradeForPayrollWeek:
       ).grade
 ```
 
-## C-2.5 Critical Incident Response
+## C-2.5
 
 | EMP-ANNEX-C C-2.5 (001-employment-terms-annex-c.md:41)
 |
@@ -208,7 +217,7 @@ scope CriticalIncidentResponse:
     and within_incident_period
 ```
 
-## C-2.6 Gazetted Public Holiday
+## C-2.6
 
 | EMP-ANNEX-C C-2.6 (001-employment-terms-annex-c.md:46)
 |
@@ -236,7 +245,8 @@ scope GazettedPublicHolidays:
         "annual_base_salary"
       ],
       "output": [
-        "base_hourly_rate"
+        "base_hourly_rate",
+        "base_hourly_rate_to_the_penny"
       ],
       "internal": [],
       "context": []

@@ -36,11 +36,11 @@ threshold of the expense.
 ## Artefact under review
 
 ```
-# Expense Reimbursement Policy — defined terms
+#
 
 > Module ExpenseDefs
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration enumeration CityTier:
@@ -71,7 +71,7 @@ declaration scope PreApprovalValid:
   output valid content boolean
 ```
 
-## E-2.1 City Tier
+## E-2.1
 
 | EXP-POL E-2.1 (002-expense-reimbursement-policy.md:28)
 |
@@ -79,14 +79,14 @@ declaration scope PreApprovalValid:
 | expenditure is incurred, as published in the Finance intranet schedule, being
 | Tier 1, Tier 2 or Tier 3.
 
-## E-2.2 Client-Billable Travel
+## E-2.2
 
 | EXP-POL E-2.2 (002-expense-reimbursement-policy.md:32)
 |
 | "Client-Billable Travel" means travel which is recoverable from a
 | client under the terms of an executed statement of work.
 
-## E-2.3 Travel Day
+## E-2.3
 
 | EXP-POL E-2.3 (002-expense-reimbursement-policy.md:35)
 |
@@ -109,22 +109,13 @@ scope TravelDayCount:
       integer of ((return_date - departure_date) / (1 day)) + 1
 ```
 
-## E-2.4 Pre-Approval
+## E-2.4
 
 | EXP-POL E-2.4 (002-expense-reimbursement-policy.md:40)
 |
 | "Pre-Approval" means written approval obtained before the expense is
 | incurred from a person holding delegated financial authority at or above the
 | threshold of the expense.
-
-| NOTE: "obtained before the expense is incurred" is encoded as a strict
-| comparison of *dates*, which is the finest granularity the corpus offers.
-| An approval given earlier on the same calendar day as the expense was in fact
-| obtained before the expense, but at date granularity it is indistinguishable
-| from one given afterwards, and this encoding treats it as too late. The
-| alternative — treating same-day approval as valid — would let an approval
-| obtained after the spend qualify. Resolving this needs a timestamp the corpus
-| does not define.
 
 ```catala
 scope PreApprovalValid:

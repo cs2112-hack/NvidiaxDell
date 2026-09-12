@@ -52,11 +52,11 @@ so required.
 ## Artefact under review
 
 ```
-# Data Retention and Deletion Standard — R-2 and R-3 retention periods
+# R-2 R-3
 
 > Module Retention
 
-## Prologue — declarations
+##
 
 | DATA-RET R-2.1 (006-data-retention-standard.md:26)
 |
@@ -90,34 +90,14 @@ declaration scope RetentionEnd:
   output retention_end_date content date
 ```
 
-| NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Catala
-| date addition raises on an ambiguous result, and this scope adds month and
-| year durations to arbitrary trigger dates (6 years from 29 February, 13
-| months from 31 January), so a mode must be declared. `date round down` is
-| chosen because R-1.2 states that where this Standard specifies a maximum
-| period business units are expected to delete earlier: the period is a
-| ceiling, so resolving an ambiguous month-end to the previous existing day
-| never authorises retention for a day the Standard does not allow.
-| Rounding up would extend every such period by a day.
-|
-| That justification is about the Standard's own periods, and R-3.3's period
-| is not one of them: it is imposed by pensions or payroll legislation, and a
-| statutory retention period is a floor rather than a maximum. Rounding it
-| down would have the Company destroy a record a day before the legislation
-| allows — a breach, where rounding an R-1.2 maximum down is at worst early
-| deletion the Standard positively encourages. So R-3.3 rounds the other way,
-| by calling `Date.add_round_up` explicitly rather than relying on the scope
-| mode, exactly as `NdaSurvival` rounds its periods of protection up
-| throughout. The scope mode stays `date round down` because every other
-| period in this scope is an R-1.2 maximum, and limb (a)'s own six years
-| keep rounding down even where R-3.3 displaces the result.
+| NO-CLAUSE
 
 ```catala
 scope RetentionEnd:
   date round down
 ```
 
-## R-3 Retention periods
+## R-3
 
 | DATA-RET R-3.1 (006-data-retention-standard.md:45)
 |
@@ -198,6 +178,12 @@ scope RetentionEnd:
 | longer period under pensions or payroll legislation are retained for the
 | period so required.
 
+| DATA-RET R-3.3 (006-data-retention-standard.md:62)
+|
+| By way of exception to R-3.1(a), records required to be retained for a
+| longer period under pensions or payroll legislation are retained for the
+| period so required.
+
 ```catala
 scope RetentionEnd:
   assertion
@@ -211,6 +197,9 @@ scope RetentionEnd:
     under condition
       (data_class with pattern EmployeeRecord)
       and statutory_retention_applies
+      and (Date.add_round_down of
+             retention_trigger_date, statutory_retention_period)
+          > retention_trigger_date + 6 year
     consequence equals
       Date.max of
         (retention_trigger_date + 6 year),

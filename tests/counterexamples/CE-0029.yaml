@@ -24,7 +24,8 @@ source_reasoning: 'R-3.3 is an exception to R-3.1(a) only for ''records required
   own maximum. The module''s two paths to the same legal quantity disagree: with statutory_retention_applies
   = false the same trigger yields 2026-02-28, and with a statutory period expressed as 72
   months rather than 6 years it again yields 2026-03-01.'
-expected: '2026-02-28'
+expected:
+  retention_end_date: '2026-02-28'
 observed:
   retention_end_date: '2026-03-01'
 target:

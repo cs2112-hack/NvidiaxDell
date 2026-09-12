@@ -3,3 +3,13 @@ __pycache__/
 *.pyc
 .catala_build/
 _build/
+
+# generated cache, rebuilt from the corpus
+.run/surface-cache.json
+reviewer/loop-state.json
+.run/fleet-overtime.log
+.run/tree.lock
+.run/edit-journal/
+
+# document generation workspaces (lks generate); each holds its own report and PDF
+generated/

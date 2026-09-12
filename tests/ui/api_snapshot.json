@@ -1,0 +1,2861 @@
+{
+ "GET /api/agent": [
+  200,
+  {
+   "model": "qwen3.6:27b-q4_K_M",
+   "host": "http://127.0.0.1:11434",
+   "available": true,
+   "models": [
+    "qwen3.6:27b-q4_K_M"
+   ],
+   "isolation": "sandbox-unproven",
+   "openshell": true,
+   "roles": [
+    {
+     "name": "triage",
+     "purpose": "Decide whether a clause is an executable rule, quoted prose, or a rule gated on a human judgement.",
+     "reads": [
+      "corpus"
+     ],
+     "forbidden": [
+      "triage/decisions.yaml",
+      "catala",
+      "src",
+      "docs"
+     ],
+     "enforcement": "sandbox-unproven",
+     "isolation_problems": []
+    },
+    {
+     "name": "reviewer",
+     "purpose": "Find a fact pattern on which the compiled rule and the source clause disagree.",
+     "reads": [
+      "reviewer/PROTOCOL.md",
+      "reviewer/packets",
+      "corpus",
+      "scripts/probe.py"
+     ],
+     "forbidden": [
+      "docs",
+      "src",
+      "catala",
+      "tests",
+      "triage",
+      "reviewer/findings"
+     ],
+     "enforcement": "sandbox-unproven",
+     "isolation_problems": []
+    },
+    {
+     "name": "reencoder",
+     "purpose": "Implement an English specification in Catala, having never seen the original encoding.",
+     "reads": [
+      "draft/unseen/english.md",
+      "draft/roundtrips/overtime/catala-reference.md"
+     ],
+     "forbidden": [
+      "catala",
+      "corpus",
+      "docs",
+      "src",
+      "triage",
+      "reviewer"
+     ],
+     "enforcement": "sandbox-unproven",
+     "isolation_problems": []
+    },
+    {
+     "name": "slotfill",
+     "purpose": "Turn a question in prose into the machine inputs a rule needs.",
+     "reads": [],
+     "forbidden": [
+      "corpus",
+      "catala",
+      "docs",
+      "src"
+     ],
+     "enforcement": "sandbox-unproven",
+     "isolation_problems": []
+    },
+    {
+     "name": "drafter",
+     "purpose": "Draft a legal document in the house convention from a request and retrieved precedent.",
+     "reads": [
+      "generated/<workspace>/context.json"
+     ],
+     "forbidden": [
+      "docs",
+      "src",
+      "tests",
+      "triage",
+      "reviewer"
+     ],
+     "enforcement": "sandbox-unproven",
+     "isolation_problems": [
+      "drafter: reads 'generated/<workspace>/context.json', which does not exist"
+     ]
+    },
+    {
+     "name": "encoder",
+     "purpose": "Encode the computational clauses of a drafted document as a literate Catala module.",
+     "reads": [
+      "generated/<workspace>/document.md",
+      "draft/roundtrips/overtime/catala-reference.md"
+     ],
+     "forbidden": [
+      "catala/modules",
+      "docs",
+      "src",
+      "tests",
+      "triage",
+      "reviewer"
+     ],
+     "enforcement": "sandbox-unproven",
+     "isolation_problems": [
+      "encoder: reads 'generated/<workspace>/document.md', which does not exist"
+     ]
+    },
+    {
+     "name": "screen-logic",
+     "purpose": "Find a fact pattern on which the document's executable encoding gives an answer the document's words do not.",
+     "reads": [
+      "generated/<workspace>/document.md",
+      "generated/<workspace>/packet-logic.md"
+     ],
+     "forbidden": [
+      "docs",
+      "src",
+      "tests",
+      "triage",
+      "corpus",
+      "catala/modules"
+     ],
+     "enforcement": "sandbox-unproven",
+     "isolation_problems": [
+      "screen-logic: reads 'generated/<workspace>/document.md', which does not exist",
+      "screen-logic: reads 'generated/<workspace>/packet-logic.md', which does not exist"
+     ]
+    },
+    {
+     "name": "screen-language",
+     "purpose": "Find wording in the document that a court could read two ways.",
+     "reads": [
+      "generated/<workspace>/document.md"
+     ],
+     "forbidden": [
+      "docs",
+      "src",
+      "tests",
+      "triage",
+      "corpus",
+      "catala"
+     ],
+     "enforcement": "sandbox-unproven",
+     "isolation_problems": [
+      "screen-language: reads 'generated/<workspace>/document.md', which does not exist"
+     ]
+    },
+    {
+     "name": "screen-consistency",
+     "purpose": "Find where the document contradicts the company's existing documents or itself, or leaves a case it reaches undecided.",
+     "reads": [
+      "generated/<workspace>/document.md",
+      "generated/<workspace>/packet-consistency.md"
+     ],
+     "forbidden": [
+      "docs",
+      "src",
+      "tests",
+      "triage",
+      "catala/modules"
+     ],
+     "enforcement": "sandbox-unproven",
+     "isolation_problems": [
+      "screen-consistency: reads 'generated/<workspace>/document.md', which does not exist",
+      "screen-consistency: reads 'generated/<workspace>/packet-consistency.md', which does not exist"
+     ]
+    }
+   ],
+   "fleet": [
+    {
+     "key": "auditor",
+     "name": "fleet-auditor",
+     "purpose": "Auditor reconciling what the policy says against what it pays.",
+     "forbidden": [
+      "exposure/predicates.yaml",
+      "docs",
+      "src",
+      "triage",
+      "tests"
+     ],
+     "enforcement": "sandbox-unproven"
+    },
+    {
+     "key": "contractor",
+     "name": "fleet-contractor",
+     "purpose": "Disgruntled contractor or leaver chasing what they are owed.",
+     "forbidden": [
+      "exposure/predicates.yaml",
+      "docs",
+      "src",
+      "triage",
+      "tests"
+     ],
+     "enforcement": "sandbox-unproven"
+    },
+    {
+     "key": "customer",
+     "name": "fleet-customer",
+     "purpose": "Counsel for a customer under the services agreement.",
+     "forbidden": [
+      "exposure/predicates.yaml",
+      "docs",
+      "src",
+      "triage",
+      "tests"
+     ],
+     "enforcement": "sandbox-unproven"
+    },
+    {
+     "key": "employment",
+     "name": "fleet-employment",
+     "purpose": "Plaintiff's employment lawyer looking for an unpaid entitlement.",
+     "forbidden": [
+      "exposure/predicates.yaml",
+      "docs",
+      "src",
+      "triage",
+      "tests"
+     ],
+     "enforcement": "sandbox-unproven"
+    },
+    {
+     "key": "regulator",
+     "name": "fleet-regulator",
+     "purpose": "Regulator testing whether the policy can be complied with.",
+     "forbidden": [
+      "exposure/predicates.yaml",
+      "docs",
+      "src",
+      "triage",
+      "tests"
+     ],
+     "enforcement": "sandbox-unproven"
+    }
+   ],
+   "writers": [
+    {
+     "name": "fleet-demand",
+     "purpose": "Write the surviving exposure up as the letter it will arrive as.",
+     "forbidden": [
+      "src",
+      "docs",
+      "triage",
+      "tests"
+     ],
+     "enforcement": "sandbox-unproven"
+    },
+    {
+     "name": "remedy",
+     "purpose": "Propose the smallest change that closes one exposure.",
+     "forbidden": [
+      "docs",
+      "src",
+      "tests",
+      "exposure/queue"
+     ],
+     "enforcement": "sandbox-unproven"
+    }
+   ]
+  }
+ ],
+ "GET /api/clause?ref=COMM-PLAN+S-9.1": [
+  200,
+  {
+   "ref": "COMM-PLAN S-9.1",
+   "doc_id": "COMM-PLAN",
+   "doc_title": "Sales Commission Plan — FY26",
+   "version": "1.3",
+   "effective_date": "2025-10-01",
+   "section_id": "S-9",
+   "section_title": "Disputes",
+   "body": "Any question as to the interpretation or operation of this Plan will be\ndetermined by the Chief Revenue Officer, whose determination is final. This\nparagraph does not exclude any statutory right of the Employee.",
+   "file": "003-sales-commission-plan.md",
+   "line": 116,
+   "hash": "3def82096540b5e0",
+   "label": "PROSE",
+   "module": null,
+   "qualifies": [
+    "Commission",
+    "QuotaRelief",
+    "Clawback"
+   ],
+   "judgement_inputs": [],
+   "encoded_by": []
+  }
+ ],
+ "GET /api/clause?ref=MSA-SCH4+L-1.1": [
+  200,
+  {
+   "ref": "MSA-SCH4 L-1.1",
+   "doc_id": "MSA-SCH4",
+   "doc_title": "Master Services Agreement — Schedule 4: Service Levels and Service Credits",
+   "version": "2.1",
+   "effective_date": "2025-01-15",
+   "section_id": "L-1",
+   "section_title": "Interpretation",
+   "body": "This Schedule forms part of the Agreement. Capitalised terms not\ndefined in this Schedule have the meaning given in clause 1 of the Agreement.",
+   "file": "004-msa-sla-credits.md",
+   "line": 14,
+   "hash": "a9ba868fa05cb393",
+   "label": "PROSE",
+   "module": null,
+   "qualifies": [],
+   "judgement_inputs": [],
+   "encoded_by": []
+  }
+ ],
+ "GET /api/exposure/queue": [
+  200,
+  {
+   "summary": {
+    "total": 10,
+    "open": 10,
+    "by_class": {
+     "DIVERGENCE": 8,
+     "ADVERSE": 2
+    },
+    "structural": 0,
+    "costed": 7
+   },
+   "items": [
+    {
+     "id": "EXP-0008",
+     "klass": "DIVERGENCE",
+     "scope": "Clawback.RecoverableCommission",
+     "archetype": "auditor reconciling the record against the policy",
+     "headline": "recoverable_amount was recorded as 18400.0, more than the 0.0 the policy computes",
+     "facts": {
+      "commission_paid": 18400.0,
+      "payment_date": "2024-02-15",
+      "assessment_date": "2026-05-01",
+      "is_churned_contract": true,
+      "terminated_for_company_material_breach": false
+     },
+     "why": "On 2026-05-01 the company decided this case for commission recovered from a former account executive after her contract churned. Its own written policy, executed on the same facts, does not produce that decision. Source: commission adjustments 2026-05. The decision was less favourable than the policy provides, so it is a claim by the person it was made about, for the difference, and by everyone else the same clause was applied to the same way.",
+     "predicate": "",
+     "citations": [
+      "COMM-PLAN S-7.3"
+     ],
+     "clause_chain": [
+      {
+       "variable": "recoverable_amount",
+       "line": null,
+       "clause_refs": [
+        "COMM-PLAN S-7.3"
+       ],
+       "law_headings": []
+      }
+     ],
+     "outputs": {
+      "recoverable_amount": 0.0
+     },
+     "amount": "18400.0",
+     "amount_basis": "recorded 18400.0, policy computes 0.0; difference 18400.0 money on one a paid commission",
+     "population": "a paid commission",
+     "diagnostic": "",
+     "narrative": "commission recovered from a former account executive after her contract churned (OPS-0014, decided 2026-05-01)",
+     "demand_letter": "",
+     "closing_edit": {},
+     "origin": "operations:OPS-0014",
+     "headline_direction": "less",
+     "found": "2026-09-12",
+     "status": "open"
+    },
+    {
+     "id": "EXP-0005",
+     "klass": "DIVERGENCE",
+     "scope": "ServiceCredits.ServiceCredit",
+     "archetype": "auditor reconciling the record against the policy",
+     "headline": "credit_amount was recorded as 14400.0, less than the 24000.0 the policy computes",
+     "facts": {
+      "availability_percentage": 94.2,
+      "monthly_service_charge": 48000.0,
+      "arrears_days": 0,
+      "invoice_undisputed": true
+     },
+     "why": "On 2026-04-08 the company decided this case for the March service month for the same customer, after the regional outage. Its own written policy, executed on the same facts, does not produce that decision. Source: credit notes raised 2026-04. The decision was less favourable than the policy provides, so it is a claim by the person it was made about, for the difference, and by everyone else the same clause was applied to the same way.",
+     "predicate": "",
+     "citations": [
+      "MSA-SCH4 L-4.1"
+     ],
+     "clause_chain": [
+      {
+       "variable": "credit_amount",
+       "line": null,
+       "clause_refs": [
+        "MSA-SCH4 L-4.1"
+       ],
+       "law_headings": []
+      }
+     ],
+     "outputs": {
+      "credit_amount": 24000.0
+     },
+     "amount": "9600.0",
+     "amount_basis": "recorded 14400.0, policy computes 24000.0; difference 9600.0 money on one a customer service-month",
+     "population": "a customer service-month",
+     "diagnostic": "",
+     "narrative": "the March service month for the same customer, after the regional outage (OPS-0007, decided 2026-04-08)",
+     "demand_letter": "We represent the class of customers affected by the regional outage OPS-0007, specifically regarding the March service month. On 2026-04-08, your company issued a decision for this period that did not align with the calculations mandated by your own written policy.\n\nThe relevant provision is MSA-SCH4 L-4.1. This clause governs the credit amount due for service interruptions and dictates the specific computation method for affected service months.\n\nYour records indicate that a credit of 14,400.0 was applied or decided for the March service month. However, executing MSA-SCH4 L-4.1 against the same facts produces a required credit amount of 24,000.0.\n\nThe difference between your decision and the policy requirement is 9,600.0 per customer service-month. This shortfall represents a breach of the agreed terms for every customer to whom this clause was applied in the same manner.\n\nWe seek payment of the outstanding difference of 9,600.0 per affected customer service-month. This amount is derived strictly from your own policy computations, not our estimation.\n\nPlease remit the total class difference by 2026-05-08. Failure to resolve this discrepancy will leave us no choice but to pursue further remedies.",
+     "closing_edit": {},
+     "origin": "operations:OPS-0007",
+     "headline_direction": "less",
+     "found": "2026-09-12",
+     "status": "open"
+    },
+    {
+     "id": "EXP-0006",
+     "klass": "DIVERGENCE",
+     "scope": "GroundTransport.TaxiFare",
+     "archetype": "auditor reconciling the record against the policy",
+     "headline": "reimbursable_amount was recorded as 85.0, more than the 60.0 the policy computes",
+     "facts": {
+      "journey_cost": 85.0,
+      "is_airport_journey": false,
+      "journey_start_hour": 19,
+      "journey_start_minute": 30
+     },
+     "why": "On 2026-02-26 the company decided this case for the same manager's taxi the following week, not to an airport. Its own written policy, executed on the same facts, does not produce that decision. Source: expense system 2026-02. The decision was MORE favourable than the policy provides. That is not a loss and there is nobody to pay; it is evidence. The company is not applying the construction of this clause that it would have to rely on to refuse somebody else, and the first person it does refuse will put its own records to it. Where an exposure on this queue turns on that construction, this is what the other side cites.",
+     "predicate": "",
+     "citations": [
+      "EXP-POL E-5.3"
+     ],
+     "clause_chain": [
+      {
+       "variable": "reimbursable_amount",
+       "line": null,
+       "clause_refs": [
+        "EXP-POL E-5.3"
+       ],
+       "law_headings": []
+      }
+     ],
+     "outputs": {
+      "reimbursable_amount": 60.0
+     },
+     "amount": "25.0",
+     "amount_basis": "recorded 85.0, policy computes 60.0; difference 25.0 money on one a taxi journey",
+     "population": "a taxi journey",
+     "diagnostic": "",
+     "narrative": "the same manager's taxi the following week, not to an airport (OPS-0009, decided 2026-02-26)",
+     "demand_letter": "",
+     "closing_edit": {},
+     "origin": "operations:OPS-0009",
+     "headline_direction": "more",
+     "found": "2026-09-12",
+     "status": "open"
+    },
+    {
+     "id": "EXP-0003",
+     "klass": "DIVERGENCE",
+     "scope": "Overtime.HourPremium",
+     "archetype": "auditor reconciling the record against the policy",
+     "headline": "total_rate was recorded as 1.5, more than the 0.0 the policy computes",
+     "facts": {
+      "ordinal": 52,
+      "grade": 6,
+      "is_public_holiday": false,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+     },
+     "why": "On 2026-03-20 the company decided this case for a Grade 6 incident engineer, 52nd hour of the week beginning 9 March. Its own written policy, executed on the same facts, does not produce that decision. Source: payroll export 2026-03. The decision was MORE favourable than the policy provides. That is not a loss and there is nobody to pay; it is evidence. The company is not applying the construction of this clause that it would have to rely on to refuse somebody else, and the first person it does refuse will put its own records to it. Where an exposure on this queue turns on that construction, this is what the other side cites.",
+     "predicate": "",
+     "citations": [
+      "EMP-ANNEX-C C-8.1",
+      "EMP-ANNEX-C C-8.2"
+     ],
+     "clause_chain": [
+      {
+       "variable": "total_rate",
+       "line": null,
+       "clause_refs": [
+        "EMP-ANNEX-C C-8.1",
+        "EMP-ANNEX-C C-8.2"
+       ],
+       "law_headings": []
+      }
+     ],
+     "outputs": {
+      "total_rate": "0.0"
+     },
+     "amount": "1.5",
+     "amount_basis": "recorded 1.5, policy computes 0.0; difference 1.5 multiple of Base Hourly Rate on one an employee-hour",
+     "population": "an employee-hour",
+     "diagnostic": "",
+     "narrative": "a Grade 6 incident engineer, 52nd hour of the week beginning 9 March (OPS-0004, decided 2026-03-20)",
+     "demand_letter": "",
+     "closing_edit": {},
+     "origin": "operations:OPS-0004",
+     "headline_direction": "more",
+     "found": "2026-09-12",
+     "status": "open"
+    },
+    {
+     "id": "EXP-0001",
+     "klass": "DIVERGENCE",
+     "scope": "Overtime.HourPremium",
+     "archetype": "auditor reconciling the record against the policy",
+     "headline": "total_rate was recorded as 1.25, more than the 0.0 the policy computes",
+     "facts": {
+      "ordinal": 45,
+      "grade": 5,
+      "is_public_holiday": false,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+     },
+     "why": "On 2026-03-13 the company decided this case for a Grade 5 platform lead, 45th hour of the week beginning 2 March. Its own written policy, executed on the same facts, does not produce that decision. Source: payroll export 2026-03. The decision was MORE favourable than the policy provides. That is not a loss and there is nobody to pay; it is evidence. The company is not applying the construction of this clause that it would have to rely on to refuse somebody else, and the first person it does refuse will put its own records to it. Where an exposure on this queue turns on that construction, this is what the other side cites.",
+     "predicate": "",
+     "citations": [
+      "EMP-ANNEX-C C-8.1",
+      "EMP-ANNEX-C C-8.2"
+     ],
+     "clause_chain": [
+      {
+       "variable": "total_rate",
+       "line": null,
+       "clause_refs": [
+        "EMP-ANNEX-C C-8.1",
+        "EMP-ANNEX-C C-8.2"
+       ],
+       "law_headings": []
+      }
+     ],
+     "outputs": {
+      "total_rate": "0.0"
+     },
+     "amount": "1.25",
+     "amount_basis": "recorded 1.25, policy computes 0.0; difference 1.25 multiple of Base Hourly Rate on one an employee-hour",
+     "population": "an employee-hour",
+     "diagnostic": "",
+     "narrative": "a Grade 5 platform lead, 45th hour of the week beginning 2 March (OPS-0003, decided 2026-03-13)",
+     "demand_letter": "",
+     "closing_edit": {},
+     "origin": "operations:OPS-0003",
+     "headline_direction": "more",
+     "found": "2026-09-12",
+     "status": "open"
+    },
+    {
+     "id": "EXP-0002",
+     "klass": "DIVERGENCE",
+     "scope": "Overtime.HourPremium",
+     "archetype": "auditor reconciling the record against the policy",
+     "headline": "accrues_toil was recorded as False, less than the True the policy computes",
+     "facts": {
+      "ordinal": 45,
+      "grade": 5,
+      "is_public_holiday": false,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+     },
+     "why": "On 2026-03-13 the company decided this case for a Grade 5 platform lead, 45th hour of the week beginning 2 March. Its own written policy, executed on the same facts, does not produce that decision. Source: payroll export 2026-03. The decision was less favourable than the policy provides, so it is a claim by the person it was made about, for the difference, and by everyone else the same clause was applied to the same way.",
+     "predicate": "",
+     "citations": [
+      "EMP-ANNEX-C C-5.1"
+     ],
+     "clause_chain": [
+      {
+       "variable": "accrues_toil",
+       "line": null,
+       "clause_refs": [
+        "EMP-ANNEX-C C-5.1"
+       ],
+       "law_headings": []
+      }
+     ],
+     "outputs": {
+      "accrues_toil": true
+     },
+     "amount": null,
+     "amount_basis": "Overtime.HourPremium declares no measured output for 'accrues_toil', so this divergence is reported without a figure",
+     "population": "an employee-hour",
+     "diagnostic": "",
+     "narrative": "a Grade 5 platform lead, 45th hour of the week beginning 2 March (OPS-0003, decided 2026-03-13)",
+     "demand_letter": "",
+     "closing_edit": {},
+     "origin": "operations:OPS-0003",
+     "headline_direction": "less",
+     "found": "2026-09-12",
+     "status": "open"
+    },
+    {
+     "id": "EXP-0004",
+     "klass": "DIVERGENCE",
+     "scope": "Overtime.HourPremium",
+     "archetype": "auditor reconciling the record against the policy",
+     "headline": "accrues_toil was recorded as False, less than the True the policy computes",
+     "facts": {
+      "ordinal": 52,
+      "grade": 6,
+      "is_public_holiday": false,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+     },
+     "why": "On 2026-03-20 the company decided this case for a Grade 6 incident engineer, 52nd hour of the week beginning 9 March. Its own written policy, executed on the same facts, does not produce that decision. Source: payroll export 2026-03. The decision was less favourable than the policy provides, so it is a claim by the person it was made about, for the difference, and by everyone else the same clause was applied to the same way.",
+     "predicate": "",
+     "citations": [
+      "EMP-ANNEX-C C-5.1"
+     ],
+     "clause_chain": [
+      {
+       "variable": "accrues_toil",
+       "line": null,
+       "clause_refs": [
+        "EMP-ANNEX-C C-5.1"
+       ],
+       "law_headings": []
+      }
+     ],
+     "outputs": {
+      "accrues_toil": true
+     },
+     "amount": null,
+     "amount_basis": "Overtime.HourPremium declares no measured output for 'accrues_toil', so this divergence is reported without a figure",
+     "population": "an employee-hour",
+     "diagnostic": "",
+     "narrative": "a Grade 6 incident engineer, 52nd hour of the week beginning 9 March (OPS-0004, decided 2026-03-20)",
+     "demand_letter": "",
+     "closing_edit": {},
+     "origin": "operations:OPS-0004",
+     "headline_direction": "less",
+     "found": "2026-09-12",
+     "status": "open"
+    },
+    {
+     "id": "EXP-0007",
+     "klass": "DIVERGENCE",
+     "scope": "ClaimWindow.ClaimAdmissible",
+     "archetype": "auditor reconciling the record against the policy",
+     "headline": "admissible was recorded as True, more than the False the policy computes",
+     "facts": {
+      "expense_incurred_date": "2026-01-15",
+      "submission_date": "2026-03-31",
+      "delay_certified_for_good_reason": false
+     },
+     "why": "On 2026-03-31 the company decided this case for a departing engineer's rail claim submitted 75 days after travel, never put to his manager. Its own written policy, executed on the same facts, does not produce that decision. Source: expense system 2026-03. The decision was MORE favourable than the policy provides. That is not a loss and there is nobody to pay; it is evidence. The company is not applying the construction of this clause that it would have to rely on to refuse somebody else, and the first person it does refuse will put its own records to it. Where an exposure on this queue turns on that construction, this is what the other side cites.",
+     "predicate": "",
+     "citations": [
+      "EXP-POL E-6.1"
+     ],
+     "clause_chain": [
+      {
+       "variable": "admissible",
+       "line": null,
+       "clause_refs": [
+        "EXP-POL E-6.1"
+       ],
+       "law_headings": []
+      }
+     ],
+     "outputs": {
+      "admissible": false
+     },
+     "amount": null,
+     "amount_basis": "ClaimWindow.ClaimAdmissible declares no measured output for 'admissible', so this divergence is reported without a figure",
+     "population": "an expense claim",
+     "diagnostic": "",
+     "narrative": "a departing engineer's rail claim submitted 75 days after travel, never put to his manager (OPS-0012, decided 2026-03-31)",
+     "demand_letter": "",
+     "closing_edit": {},
+     "origin": "operations:OPS-0012",
+     "headline_direction": "more",
+     "found": "2026-09-12",
+     "status": "open"
+    },
+    {
+     "id": "EXP-0009",
+     "klass": "ADVERSE",
+     "scope": "Overtime.HourPremium",
+     "archetype": "plaintiff's employment lawyer",
+     "headline": "C-8.1 read literally pays a Grade 5+ employee 1.25x for an overtime hour the company pays nothing for",
+     "facts": {
+      "grade": 6,
+      "has_standing_shift_allowance": false,
+      "is_critical_incident": false,
+      "is_night": true,
+      "is_public_holiday": false,
+      "ordinal": 45
+     },
+     "why": "C-8.1 is drafted as a free-standing precedence rule: where two or more provisions of C-4, C-5 or C-7 would apply to the same hour, \"only the single highest applicable multiplier applies\". For a Grade 5 employee working the 45th hour, two provisions bear on the hour. C-4.1 would give 1.25. C-5.1 gives nil. The highest of those is 1.25, so on C-8.1's own words the employee is paid 1.25 and C-5.1 is displaced. The company's encoding takes the opposite view, reading C-5.1's opening words \"by way of exception to C-4\" as taking it outside C-8.1 altogether -- a construction the Annex nowhere states, and one that has to be implied to stop C-8.1 destroying C-5.1 for every senior employee. The claimant does not need to win that argument outright. The company has to run it, on its own document, against a literal reading, for every overtime hour ever worked by a Grade 5 or above. This is AMB-02 in docs/DOCUMENT-DEFECTS.md, recorded there as an open question and quantified here.",
+     "predicate": "EXP-P001",
+     "citations": [
+      "EMP-ANNEX-C C-8.1",
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-5.1"
+     ],
+     "clause_chain": [
+      {
+       "variable": "multiplier",
+       "line": 126,
+       "law_headings": [
+        "C-5 Overtime — grade exceptions",
+        "Employment Terms — Annex C: Working Time and Overtime"
+       ],
+       "clause_refs": [
+        "EMP-ANNEX-C C-5.1"
+       ]
+      },
+      {
+       "variable": "salaried_element",
+       "line": 243,
+       "law_headings": [
+        "What the base salary already pays for",
+        "Employment Terms — Annex C: Working Time and Overtime"
+       ],
+       "clause_refs": [
+        "EMP-ANNEX-C C-3.1"
+       ]
+      },
+      {
+       "variable": "additional_payable",
+       "line": 246,
+       "law_headings": [
+        "What the base salary already pays for",
+        "Employment Terms — Annex C: Working Time and Overtime"
+       ],
+       "clause_refs": [
+        "EMP-ANNEX-C C-3.1"
+       ]
+      },
+      {
+       "variable": "night_premium",
+       "line": 193,
+       "law_headings": [
+        "C-6 Night work premium",
+        "Employment Terms — Annex C: Working Time and Overtime"
+       ],
+       "clause_refs": [
+        "EMP-ANNEX-C C-6.1"
+       ]
+      },
+      {
+       "variable": "total_rate",
+       "line": 274,
+       "law_headings": [
+        "C-8 Precedence",
+        "Employment Terms — Annex C: Working Time and Overtime"
+       ],
+       "clause_refs": [
+        "EMP-ANNEX-C C-8.1",
+        "EMP-ANNEX-C C-8.2"
+       ]
+      },
+      {
+       "variable": "accrues_toil",
+       "line": 305,
+       "law_headings": [
+        "C-8 Precedence",
+        "Employment Terms — Annex C: Working Time and Overtime"
+       ],
+       "clause_refs": [
+        "EMP-ANNEX-C C-5.1"
+       ]
+      }
+     ],
+     "outputs": {
+      "multiplier": "0.0",
+      "salaried_element": "0.0",
+      "additional_payable": "0.0",
+      "night_premium": "0.15",
+      "total_rate": "0.15",
+      "accrues_toil": true
+     },
+     "amount": "1.25",
+     "amount_basis": "multiplier computed as 0.0, contended to be 1.25; difference 1.25 multiple of Base Hourly Rate per an employee-hour, to be multiplied by base_hourly_rate for currency",
+     "population": "an employee-hour",
+     "diagnostic": "",
+     "narrative": "A Grade 6 Incident Engineer in her third year works her 45th hour of the payroll week. This hour falls during a night shift. It is not a public holiday, nor is it part of a critical incident response. Under the company's own rules, because she is Grade 6, she is deemed 'salaried' and denied overtime pay under C-5.1, accruing only time-off-in-lieu. However, C-6.1 explicitly states the night premium is payable 'in addition to, and not in substitution for' amounts payable under C-4 or C-5. Because C-5.1 denies the *payment* but grants *toil*, and C-6.1 mandates the night premium is additive to the C-5 framework, the company is forced to pay the night premium on top of the base rate, despite having zeroed out the overtime multiplier. The documents create a scenario where the 'exception' (C-5.1) swallows the payment mechanism but leaves the additive premium (C-6) intact, resulting in a payable premium for an hour that otherwise yields no cash overtime.",
+     "demand_letter": "",
+     "closing_edit": {},
+     "origin": "fleet:customer",
+     "headline_direction": "",
+     "found": "2026-09-12",
+     "status": "open"
+    },
+    {
+     "id": "EXP-0010",
+     "klass": "ADVERSE",
+     "scope": "ServiceCredits.ServiceCredit",
+     "archetype": "customer's commercial counsel",
+     "headline": "L-4.4 extinguishes a 50% service credit on the company's own view that an invoice is undisputed",
+     "facts": {
+      "availability_percentage": 94.9,
+      "monthly_service_charge": 500000.0,
+      "arrears_days": 31,
+      "invoice_undisputed": true
+     },
+     "why": "L-4.4 removes the credit entirely where the customer is in arrears of an undisputed invoice for more than 30 days. Whether an invoice is disputed is not defined anywhere in the Agreement and is not a fact the supplier gets to find: a customer who has written to query the invoice will say it was disputed, and the entire credit turns on that one word. In the month this fires the service was below 95% availability, so L-4.3 fixes the credit at 50% of the Monthly Service Charge -- the largest number the Schedule can produce -- and L-4.4 is the only thing standing between the customer and it. The customer's counsel will also pair this with L-1.2, which makes credits the sole financial remedy: a supplier arguing that the credit is barred is arguing that a month at under 95% availability carries no remedy at all, which is the argument that gets a sole-remedy clause looked at hard.",
+     "predicate": "EXP-P004",
+     "citations": [
+      "MSA-SCH4 L-4.4",
+      "MSA-SCH4 L-4.3",
+      "MSA-SCH4 L-1.2"
+     ],
+     "clause_chain": [
+      {
+       "variable": "credit_percentage",
+       "line": 255,
+       "law_headings": [
+        "L-4.4 Arrears",
+        "MSA Schedule 4 — Service Credits"
+       ],
+       "clause_refs": [
+        "MSA-SCH4 L-4.4"
+       ]
+      },
+      {
+       "variable": "credit_cap_percentage",
+       "line": 208,
+       "law_headings": [
+        "L-4.3 Below 95.00%",
+        "MSA Schedule 4 — Service Credits"
+       ],
+       "clause_refs": [
+        "MSA-SCH4 L-4.3"
+       ]
+      },
+      {
+       "variable": "credit_payable_percentage",
+       "line": 180,
+       "law_headings": [
+        "L-4.2 The aggregate cap",
+        "MSA Schedule 4 — Service Credits"
+       ],
+       "clause_refs": [
+        "MSA-SCH4 L-4.2"
+       ]
+      },
+      {
+       "variable": "credit_amount",
+       "line": 158,
+       "law_headings": [
+        "L-4.1 The band table",
+        "MSA Schedule 4 — Service Credits"
+       ],
+       "clause_refs": [
+        "MSA-SCH4 L-4.1"
+       ]
+      }
+     ],
+     "outputs": {
+      "credit_percentage": "0.0",
+      "credit_cap_percentage": "0.5",
+      "credit_payable_percentage": "0.0",
+      "credit_amount": 0.0
+     },
+     "amount": "0.5",
+     "amount_basis": "credit_payable_percentage computed as 0.0, contended to be 0.5 (the executed value of credit_cap_percentage); difference 0.5 money per a customer service-month",
+     "population": "a customer service-month",
+     "diagnostic": "",
+     "narrative": "A customer account shows 94.9% availability, triggering the 50% credit under L-4.3. The customer is 31 days in arrears on an undisputed invoice, triggering the exclusion under L-4.4. The documents do not specify which exception prevails. L-4.3 sets the credit to 50%; L-4.4 sets it to 0%. The conflict allows the customer to argue for the 50% credit, as L-4.3 is a specific exception to the cap that also defines the credit amount, while L-4.4 is an exception only to L-4.1. The ambiguity favors the customer in maximizing the credit.",
+     "demand_letter": "",
+     "closing_edit": {},
+     "origin": "fleet:auditor",
+     "headline_direction": "",
+     "found": "2026-09-12",
+     "status": "open"
+    }
+   ]
+  }
+ ],
+ "GET /api/exposure/scopes": [
+  200,
+  {
+   "scopes": [
+    {
+     "key": "Accommodation.NightlyAccommodation",
+     "population": "a night away",
+     "measure": "reimbursable_amount",
+     "unit": "money",
+     "predicates": 0,
+     "encodes": [
+      "EXP-POL E-4.1",
+      "EXP-POL E-4.2",
+      "EXP-POL E-4.3"
+     ]
+    },
+    {
+     "key": "Availability.AvailabilityPercentage",
+     "population": "a Measurement Period",
+     "measure": "",
+     "unit": "",
+     "predicates": 0,
+     "encodes": [
+      "MSA-SCH4 L-2.4",
+      "MSA-SCH4 L-4.5",
+      "MSA-SCH4 L-2.3",
+      "MSA-SCH4 L-3.1"
+     ]
+    },
+    {
+     "key": "ClaimWindow.ClaimAdmissible",
+     "population": "an expense claim",
+     "measure": "",
+     "unit": "",
+     "predicates": 1,
+     "encodes": [
+      "EXP-POL E-6.1",
+      "EXP-POL E-6.2",
+      "EXP-POL E-6.3"
+     ]
+    },
+    {
+     "key": "Clawback.RecoverableCommission",
+     "population": "a paid commission",
+     "measure": "recoverable_amount",
+     "unit": "money",
+     "predicates": 0,
+     "encodes": [
+      "COMM-PLAN S-7.1",
+      "COMM-PLAN S-7.2",
+      "COMM-PLAN S-7.3"
+     ]
+    },
+    {
+     "key": "Commission.CommissionPayable",
+     "population": "a salesperson's commission period",
+     "measure": "commission_payable",
+     "unit": "money",
+     "predicates": 0,
+     "encodes": [
+      "COMM-PLAN S-3.1",
+      "COMM-PLAN S-4.2",
+      "COMM-PLAN S-5.1",
+      "COMM-PLAN S-5.3",
+      "COMM-PLAN S-5.2"
+     ]
+    },
+    {
+     "key": "ErasureRequest.ErasureDeadline",
+     "population": "a data subject's erasure request",
+     "measure": "",
+     "unit": "",
+     "predicates": 0,
+     "encodes": [
+      "DATA-RET R-5.1",
+      "DATA-RET R-5.2"
+     ]
+    },
+    {
+     "key": "GroundTransport.TaxiFare",
+     "population": "a taxi journey",
+     "measure": "reimbursable_amount",
+     "unit": "money",
+     "predicates": 0,
+     "encodes": [
+      "EXP-POL E-5.3"
+     ]
+    },
+    {
+     "key": "LeaveAccrual.CarryForward",
+     "population": "an employee leave year",
+     "measure": "forfeited_days",
+     "unit": "days of annual leave",
+     "predicates": 0,
+     "encodes": [
+      "EMP-ANNEX-C C-9.3",
+      "EMP-ANNEX-C C-9.4",
+      "EMP-ANNEX-C C-9.5"
+     ]
+    },
+    {
+     "key": "MealPerDiem.MealPerDiemForDay",
+     "population": "a day away",
+     "measure": "reimbursable_amount",
+     "unit": "money",
+     "predicates": 0,
+     "encodes": [
+      "EXP-POL E-3.1",
+      "EXP-POL E-3.2",
+      "EXP-POL E-3.3",
+      "EXP-POL E-3.4",
+      "EXP-POL E-3.5",
+      "EXP-POL E-7.2"
+     ]
+    },
+    {
+     "key": "NdaSurvival.SurvivalEnd",
+     "population": "a disclosure under the NDA",
+     "measure": "",
+     "unit": "",
+     "predicates": 0,
+     "encodes": [
+      "NDA-MUT N-3.1",
+      "NDA-MUT N-3.2",
+      "NDA-MUT N-5.1",
+      "NDA-MUT N-5.2",
+      "NDA-MUT N-5.3",
+      "NDA-MUT N-5.4"
+     ]
+    },
+    {
+     "key": "Overtime.HourPremium",
+     "population": "an employee-hour",
+     "measure": "total_rate",
+     "unit": "multiple of Base Hourly Rate",
+     "predicates": 3,
+     "encodes": [
+      "EMP-ANNEX-C C-3.1",
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-4.2",
+      "EMP-ANNEX-C C-5.1",
+      "EMP-ANNEX-C C-5.2",
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-7.2",
+      "EMP-ANNEX-C C-6.1",
+      "EMP-ANNEX-C C-6.2",
+      "EMP-ANNEX-C C-8.1",
+      "EMP-ANNEX-C C-8.2"
+     ]
+    },
+    {
+     "key": "ServiceCredits.ServiceCredit",
+     "population": "a customer service-month",
+     "measure": "credit_amount",
+     "unit": "money",
+     "predicates": 1,
+     "encodes": [
+      "MSA-SCH4 L-4.1",
+      "MSA-SCH4 L-4.2",
+      "MSA-SCH4 L-4.3",
+      "MSA-SCH4 L-4.4"
+     ]
+    }
+   ],
+   "unmapped": [
+    "Availability.ExcludedMinutes",
+    "Availability.MeasurementPeriod",
+    "Availability.RequestAvailable",
+    "Availability.ScheduledMaintenance",
+    "Availability.ScheduledMaintenanceWindow",
+    "Availability.ServiceAvailability",
+    "ChronicFailure.ChronicFailureRight",
+    "Commission.Accelerator",
+    "Commission.AssignedQuota",
+    "Commission.Attainment",
+    "Commission.ChurnedContract",
+    "Commission.LeaverCommission",
+    "Commission.NetBookedRevenue",
+    "Commission.NewLogo",
+    "ExpenseDefs.PreApprovalValid",
+    "ExpenseDefs.TravelDayCount",
+    "GroundTransport.RailFare",
+    "LeaveAccrual.HalfDayRounding",
+    "LeaveAccrual.MonthlyAccrual",
+    "LegalHold.HoldEffect",
+    "Overtime.WeeklyOvertime",
+    "QuotaRelief.CommissionAfterRelief",
+    "QuotaRelief.QualifyingAbsence",
+    "QuotaRelief.RelievedQuota",
+    "Retention.RetentionEnd",
+    "ServiceCreditClaim.CreditClaim",
+    "ServiceCredits.MonthlyServiceCharge",
+    "WorkingTimeDefs.BaseHourlyRate",
+    "WorkingTimeDefs.CriticalIncidentResponse",
+    "WorkingTimeDefs.GazettedPublicHolidays",
+    "WorkingTimeDefs.GradeForPayrollWeek",
+    "WorkingTimeDefs.NightHours",
+    "WorkingTimeDefs.PayrollWeekOf"
+   ],
+   "problems": [],
+   "queue": {
+    "total": 10,
+    "open": 10,
+    "by_class": {
+     "DIVERGENCE": 8,
+     "ADVERSE": 2
+    },
+    "structural": 0,
+    "costed": 7
+   }
+  }
+ ],
+ "GET /api/scope?key=Overtime.HourPremium": [
+  200,
+  {
+   "key": "Overtime.HourPremium",
+   "module": "Overtime",
+   "scope": "HourPremium",
+   "path": "catala/modules/overtime.catala_en",
+   "inputs": [
+    "ordinal",
+    "is_public_holiday",
+    "is_critical_incident",
+    "is_night",
+    "grade",
+    "has_standing_shift_allowance"
+   ],
+   "outputs": [
+    "multiplier",
+    "salaried_element",
+    "additional_payable",
+    "night_premium",
+    "total_rate",
+    "accrues_toil"
+   ],
+   "internals": [],
+   "judgement_inputs": [],
+   "input_schema": {
+    "ordinal": "integer",
+    "is_public_holiday": "boolean",
+    "is_critical_incident": "boolean",
+    "is_night": "boolean",
+    "grade": "integer",
+    "has_standing_shift_allowance": "boolean"
+   },
+   "clauses": [
+    {
+     "ref": "EMP-ANNEX-C C-3.1",
+     "body": "The ordinary working week is 40 hours.",
+     "section": "Ordinary hours",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 51
+    },
+    {
+     "ref": "EMP-ANNEX-C C-4.1",
+     "body": "An Employee is entitled to an overtime payment in respect of each hour\nworked in excess of 40 hours in a Payroll Week, calculated at 1.25 times the\nBase Hourly Rate.",
+     "section": "Overtime — general entitlement",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 55
+    },
+    {
+     "ref": "EMP-ANNEX-C C-4.2",
+     "body": "By way of exception to C-4.1, each hour worked in excess of 48 hours in\na Payroll Week is calculated at 1.5 times the Base Hourly Rate.",
+     "section": "Overtime — general entitlement",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 59
+    },
+    {
+     "ref": "EMP-ANNEX-C C-5.1",
+     "body": "By way of exception to C-4, an Employee of Grade 5 or above is not\nentitled to an overtime payment. Such an Employee accrues time off in lieu at\nthe rate of one hour for each hour worked in excess of 40 hours in a Payroll\nWeek.",
+     "section": "Overtime — grade exceptions",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 64
+    },
+    {
+     "ref": "EMP-ANNEX-C C-5.2",
+     "body": "Notwithstanding C-5.1, an Employee of Grade 5 or above is entitled to\nan overtime payment calculated in accordance with C-4 in respect of hours worked\non Critical Incident Response.",
+     "section": "Overtime — grade exceptions",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 69
+    },
+    {
+     "ref": "EMP-ANNEX-C C-7.1",
+     "body": "Each hour worked on a Gazetted Public Holiday is calculated at 2.0\ntimes the Base Hourly Rate. This rate is payable in substitution for, and not in\naddition to, any amount otherwise payable under C-4.",
+     "section": "Public holidays",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 85
+    },
+    {
+     "ref": "EMP-ANNEX-C C-7.2",
+     "body": "By way of exception to C-7.1, where hours worked on a Gazetted Public\nHoliday are also hours worked in excess of 48 hours in the Payroll Week, the\napplicable rate is the greater of (a) 2.0 times the Base Hourly Rate and (b) the\nrate determined under C-4.2 plus 0.25.",
+     "section": "Public holidays",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 89
+    },
+    {
+     "ref": "EMP-ANNEX-C C-6.1",
+     "body": "A premium of 0.15 times the Base Hourly Rate is payable in respect of\neach Night Hour worked. This premium is payable in addition to, and not in\nsubstitution for, any amount payable under C-4, C-5.2 or C-7.",
+     "section": "Night work premium",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 75
+    },
+    {
+     "ref": "EMP-ANNEX-C C-6.2",
+     "body": "By way of exception to C-6.1, the night premium is not payable in\nrespect of an Employee who receives a standing shift allowance under their\nindividual contract of employment.",
+     "section": "Night work premium",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 79
+    },
+    {
+     "ref": "EMP-ANNEX-C C-8.1",
+     "body": "Where two or more provisions of C-4, C-5 or C-7 would apply to the same\nhour, only the single highest applicable multiplier applies to that hour.",
+     "section": "Precedence",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 96
+    },
+    {
+     "ref": "EMP-ANNEX-C C-8.2",
+     "body": "C-8.1 does not apply to the night premium under C-6, which is\ncumulative with any multiplier determined under C-4, C-5.2 or C-7.",
+     "section": "Precedence",
+     "label": "RULE",
+     "file": "001-employment-terms-annex-c.md",
+     "line": 99
+    }
+   ]
+  }
+ ],
+ "GET /api/scope?key=ServiceCredits.ServiceCredit": [
+  200,
+  {
+   "key": "ServiceCredits.ServiceCredit",
+   "module": "ServiceCredits",
+   "scope": "ServiceCredit",
+   "path": "catala/modules/ServiceCredits.catala_en",
+   "inputs": [
+    "availability_percentage",
+    "monthly_service_charge",
+    "arrears_days",
+    "invoice_undisputed"
+   ],
+   "outputs": [
+    "credit_percentage",
+    "credit_cap_percentage",
+    "credit_payable_percentage",
+    "credit_amount"
+   ],
+   "internals": [],
+   "judgement_inputs": [
+    "invoice_undisputed"
+   ],
+   "input_schema": {
+    "availability_percentage": "decimal",
+    "monthly_service_charge": "money",
+    "arrears_days": "integer",
+    "invoice_undisputed": "boolean"
+   },
+   "clauses": [
+    {
+     "ref": "MSA-SCH4 L-4.1",
+     "body": "Where the Availability Percentage in a Measurement Period is less than\n99.90%, the Customer is entitled to a Service Credit calculated as a percentage\nof the Monthly Service Charge as follows:\n\n  (a) less than 99.90% but not less than 99.50%: 5%;\n  (b) less than 99.50% but not less than 99.00%: 10%;\n  (c) less than 99.00% but not less than 98.00%: 20%;\n  (d) less than 98.00%: 30%.",
+     "section": "Service Credits",
+     "label": "RULE",
+     "file": "004-msa-sla-credits.md",
+     "line": 66
+    },
+    {
+     "ref": "MSA-SCH4 L-4.2",
+     "body": "The maximum aggregate Service Credit in respect of any Measurement\nPeriod is 30% of the Monthly Service Charge.",
+     "section": "Service Credits",
+     "label": "RULE",
+     "file": "004-msa-sla-credits.md",
+     "line": 75
+    },
+    {
+     "ref": "MSA-SCH4 L-4.3",
+     "body": "By way of exception to L-4.2, where the Availability Percentage is less\nthan 95.00%, the maximum aggregate Service Credit in respect of that Measurement\nPeriod is 50% of the Monthly Service Charge and the Service Credit is 50%.",
+     "section": "Service Credits",
+     "label": "RULE",
+     "file": "004-msa-sla-credits.md",
+     "line": 78
+    },
+    {
+     "ref": "MSA-SCH4 L-4.4",
+     "body": "By way of exception to L-4.1, no Service Credit is payable in respect of\na Measurement Period in which the Customer is in arrears of any undisputed\ninvoice for more than 30 days.",
+     "section": "Service Credits",
+     "label": "HYBRID",
+     "file": "004-msa-sla-credits.md",
+     "line": 82
+    }
+   ]
+  }
+ ],
+ "GET /api/state": [
+  200,
+  {
+   "documents": [
+    {
+     "doc_id": "EMP-ANNEX-C",
+     "title": "Employment Terms — Annex C: Working Time, Overtime and Leave",
+     "version": "4.2",
+     "effective_date": "2024-01-01",
+     "owner": "People Operations",
+     "jurisdiction": "England and Wales",
+     "n_clauses": 26,
+     "labels": {
+      "RULE": 21,
+      "PROSE": 4,
+      "HYBRID": 1
+     },
+     "sections": [
+      {
+       "section_id": "C-1",
+       "title": "Purpose and interpretation",
+       "clauses": [
+        {
+         "clause_id": "C-1.1",
+         "ref": "EMP-ANNEX-C C-1.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 14
+        },
+        {
+         "clause_id": "C-1.2",
+         "ref": "EMP-ANNEX-C C-1.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 18
+        },
+        {
+         "clause_id": "C-1.3",
+         "ref": "EMP-ANNEX-C C-1.3",
+         "label": "PROSE",
+         "module": null,
+         "line": 24
+        }
+       ]
+      },
+      {
+       "section_id": "C-2",
+       "title": "Definitions",
+       "clauses": [
+        {
+         "clause_id": "C-2.1",
+         "ref": "EMP-ANNEX-C C-2.1",
+         "label": "RULE",
+         "module": "WorkingTimeDefs",
+         "line": 28
+        },
+        {
+         "clause_id": "C-2.2",
+         "ref": "EMP-ANNEX-C C-2.2",
+         "label": "RULE",
+         "module": "WorkingTimeDefs",
+         "line": 31
+        },
+        {
+         "clause_id": "C-2.3",
+         "ref": "EMP-ANNEX-C C-2.3",
+         "label": "RULE",
+         "module": "WorkingTimeDefs",
+         "line": 34
+        },
+        {
+         "clause_id": "C-2.4",
+         "ref": "EMP-ANNEX-C C-2.4",
+         "label": "RULE",
+         "module": "WorkingTimeDefs",
+         "line": 37
+        },
+        {
+         "clause_id": "C-2.5",
+         "ref": "EMP-ANNEX-C C-2.5",
+         "label": "RULE",
+         "module": "WorkingTimeDefs",
+         "line": 41
+        },
+        {
+         "clause_id": "C-2.6",
+         "ref": "EMP-ANNEX-C C-2.6",
+         "label": "RULE",
+         "module": "WorkingTimeDefs",
+         "line": 46
+        }
+       ]
+      },
+      {
+       "section_id": "C-3",
+       "title": "Ordinary hours",
+       "clauses": [
+        {
+         "clause_id": "C-3.1",
+         "ref": "EMP-ANNEX-C C-3.1",
+         "label": "RULE",
+         "module": "WorkingTimeDefs",
+         "line": 51
+        }
+       ]
+      },
+      {
+       "section_id": "C-4",
+       "title": "Overtime — general entitlement",
+       "clauses": [
+        {
+         "clause_id": "C-4.1",
+         "ref": "EMP-ANNEX-C C-4.1",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 55
+        },
+        {
+         "clause_id": "C-4.2",
+         "ref": "EMP-ANNEX-C C-4.2",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 59
+        }
+       ]
+      },
+      {
+       "section_id": "C-5",
+       "title": "Overtime — grade exceptions",
+       "clauses": [
+        {
+         "clause_id": "C-5.1",
+         "ref": "EMP-ANNEX-C C-5.1",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 64
+        },
+        {
+         "clause_id": "C-5.2",
+         "ref": "EMP-ANNEX-C C-5.2",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 69
+        }
+       ]
+      },
+      {
+       "section_id": "C-6",
+       "title": "Night work premium",
+       "clauses": [
+        {
+         "clause_id": "C-6.1",
+         "ref": "EMP-ANNEX-C C-6.1",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 75
+        },
+        {
+         "clause_id": "C-6.2",
+         "ref": "EMP-ANNEX-C C-6.2",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 79
+        }
+       ]
+      },
+      {
+       "section_id": "C-7",
+       "title": "Public holidays",
+       "clauses": [
+        {
+         "clause_id": "C-7.1",
+         "ref": "EMP-ANNEX-C C-7.1",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 85
+        },
+        {
+         "clause_id": "C-7.2",
+         "ref": "EMP-ANNEX-C C-7.2",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 89
+        }
+       ]
+      },
+      {
+       "section_id": "C-8",
+       "title": "Precedence",
+       "clauses": [
+        {
+         "clause_id": "C-8.1",
+         "ref": "EMP-ANNEX-C C-8.1",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 96
+        },
+        {
+         "clause_id": "C-8.2",
+         "ref": "EMP-ANNEX-C C-8.2",
+         "label": "RULE",
+         "module": "Overtime",
+         "line": 99
+        }
+       ]
+      },
+      {
+       "section_id": "C-9",
+       "title": "Annual leave accrual",
+       "clauses": [
+        {
+         "clause_id": "C-9.1",
+         "ref": "EMP-ANNEX-C C-9.1",
+         "label": "RULE",
+         "module": "LeaveAccrual",
+         "line": 104
+        },
+        {
+         "clause_id": "C-9.2",
+         "ref": "EMP-ANNEX-C C-9.2",
+         "label": "RULE",
+         "module": "LeaveAccrual",
+         "line": 107
+        },
+        {
+         "clause_id": "C-9.3",
+         "ref": "EMP-ANNEX-C C-9.3",
+         "label": "RULE",
+         "module": "LeaveAccrual",
+         "line": 113
+        },
+        {
+         "clause_id": "C-9.4",
+         "ref": "EMP-ANNEX-C C-9.4",
+         "label": "HYBRID",
+         "module": "LeaveAccrual",
+         "line": 116
+        },
+        {
+         "clause_id": "C-9.5",
+         "ref": "EMP-ANNEX-C C-9.5",
+         "label": "RULE",
+         "module": "LeaveAccrual",
+         "line": 120
+        }
+       ]
+      },
+      {
+       "section_id": "C-10",
+       "title": "Variation",
+       "clauses": [
+        {
+         "clause_id": "C-10.1",
+         "ref": "EMP-ANNEX-C C-10.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 126
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "doc_id": "EXP-POL",
+     "title": "Expense Reimbursement Policy",
+     "version": "7.0",
+     "effective_date": "2025-04-01",
+     "owner": "Finance",
+     "jurisdiction": "Group-wide",
+     "n_clauses": 24,
+     "labels": {
+      "RULE": 17,
+      "PROSE": 5,
+      "HYBRID": 2
+     },
+     "sections": [
+      {
+       "section_id": "E-1",
+       "title": "Scope and purpose",
+       "clauses": [
+        {
+         "clause_id": "E-1.1",
+         "ref": "EXP-POL E-1.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 14
+        },
+        {
+         "clause_id": "E-1.2",
+         "ref": "EXP-POL E-1.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 17
+        },
+        {
+         "clause_id": "E-1.3",
+         "ref": "EXP-POL E-1.3",
+         "label": "PROSE",
+         "module": null,
+         "line": 22
+        }
+       ]
+      },
+      {
+       "section_id": "E-2",
+       "title": "Definitions",
+       "clauses": [
+        {
+         "clause_id": "E-2.1",
+         "ref": "EXP-POL E-2.1",
+         "label": "RULE",
+         "module": "ExpenseDefs",
+         "line": 28
+        },
+        {
+         "clause_id": "E-2.2",
+         "ref": "EXP-POL E-2.2",
+         "label": "RULE",
+         "module": "ExpenseDefs",
+         "line": 32
+        },
+        {
+         "clause_id": "E-2.3",
+         "ref": "EXP-POL E-2.3",
+         "label": "RULE",
+         "module": "ExpenseDefs",
+         "line": 35
+        },
+        {
+         "clause_id": "E-2.4",
+         "ref": "EXP-POL E-2.4",
+         "label": "RULE",
+         "module": "ExpenseDefs",
+         "line": 40
+        }
+       ]
+      },
+      {
+       "section_id": "E-3",
+       "title": "Meal per diem",
+       "clauses": [
+        {
+         "clause_id": "E-3.1",
+         "ref": "EXP-POL E-3.1",
+         "label": "RULE",
+         "module": "MealPerDiem",
+         "line": 46
+        },
+        {
+         "clause_id": "E-3.2",
+         "ref": "EXP-POL E-3.2",
+         "label": "RULE",
+         "module": "MealPerDiem",
+         "line": 53
+        },
+        {
+         "clause_id": "E-3.3",
+         "ref": "EXP-POL E-3.3",
+         "label": "RULE",
+         "module": "MealPerDiem",
+         "line": 57
+        },
+        {
+         "clause_id": "E-3.4",
+         "ref": "EXP-POL E-3.4",
+         "label": "RULE",
+         "module": "MealPerDiem",
+         "line": 60
+        },
+        {
+         "clause_id": "E-3.5",
+         "ref": "EXP-POL E-3.5",
+         "label": "RULE",
+         "module": "MealPerDiem",
+         "line": 64
+        }
+       ]
+      },
+      {
+       "section_id": "E-4",
+       "title": "Accommodation",
+       "clauses": [
+        {
+         "clause_id": "E-4.1",
+         "ref": "EXP-POL E-4.1",
+         "label": "RULE",
+         "module": "Accommodation",
+         "line": 69
+        },
+        {
+         "clause_id": "E-4.2",
+         "ref": "EXP-POL E-4.2",
+         "label": "HYBRID",
+         "module": "Accommodation",
+         "line": 73
+        },
+        {
+         "clause_id": "E-4.3",
+         "ref": "EXP-POL E-4.3",
+         "label": "RULE",
+         "module": "Accommodation",
+         "line": 77
+        }
+       ]
+      },
+      {
+       "section_id": "E-5",
+       "title": "Ground transport",
+       "clauses": [
+        {
+         "clause_id": "E-5.1",
+         "ref": "EXP-POL E-5.1",
+         "label": "RULE",
+         "module": "GroundTransport",
+         "line": 82
+        },
+        {
+         "clause_id": "E-5.2",
+         "ref": "EXP-POL E-5.2",
+         "label": "RULE",
+         "module": "GroundTransport",
+         "line": 84
+        },
+        {
+         "clause_id": "E-5.3",
+         "ref": "EXP-POL E-5.3",
+         "label": "RULE",
+         "module": "GroundTransport",
+         "line": 88
+        }
+       ]
+      },
+      {
+       "section_id": "E-6",
+       "title": "Submission and time limits",
+       "clauses": [
+        {
+         "clause_id": "E-6.1",
+         "ref": "EXP-POL E-6.1",
+         "label": "RULE",
+         "module": "ClaimWindow",
+         "line": 94
+        },
+        {
+         "clause_id": "E-6.2",
+         "ref": "EXP-POL E-6.2",
+         "label": "HYBRID",
+         "module": "ClaimWindow",
+         "line": 97
+        },
+        {
+         "clause_id": "E-6.3",
+         "ref": "EXP-POL E-6.3",
+         "label": "RULE",
+         "module": "ClaimWindow",
+         "line": 101
+        }
+       ]
+      },
+      {
+       "section_id": "E-7",
+       "title": "Relationship with other documents",
+       "clauses": [
+        {
+         "clause_id": "E-7.1",
+         "ref": "EXP-POL E-7.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 106
+        },
+        {
+         "clause_id": "E-7.2",
+         "ref": "EXP-POL E-7.2",
+         "label": "RULE",
+         "module": "MealPerDiem",
+         "line": 109
+        }
+       ]
+      },
+      {
+       "section_id": "E-8",
+       "title": "Consequences of misuse",
+       "clauses": [
+        {
+         "clause_id": "E-8.1",
+         "ref": "EXP-POL E-8.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 116
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "doc_id": "COMM-PLAN",
+     "title": "Sales Commission Plan — FY26",
+     "version": "1.3",
+     "effective_date": "2025-10-01",
+     "owner": "Revenue Operations",
+     "jurisdiction": "Group-wide",
+     "n_clauses": 25,
+     "labels": {
+      "RULE": 21,
+      "PROSE": 3,
+      "HYBRID": 1
+     },
+     "sections": [
+      {
+       "section_id": "S-1",
+       "title": "Introduction",
+       "clauses": [
+        {
+         "clause_id": "S-1.1",
+         "ref": "COMM-PLAN S-1.1",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 14
+        },
+        {
+         "clause_id": "S-1.2",
+         "ref": "COMM-PLAN S-1.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 18
+        },
+        {
+         "clause_id": "S-1.3",
+         "ref": "COMM-PLAN S-1.3",
+         "label": "PROSE",
+         "module": null,
+         "line": 21
+        }
+       ]
+      },
+      {
+       "section_id": "S-2",
+       "title": "Definitions",
+       "clauses": [
+        {
+         "clause_id": "S-2.1",
+         "ref": "COMM-PLAN S-2.1",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 26
+        },
+        {
+         "clause_id": "S-2.2",
+         "ref": "COMM-PLAN S-2.2",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 29
+        },
+        {
+         "clause_id": "S-2.3",
+         "ref": "COMM-PLAN S-2.3",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 32
+        },
+        {
+         "clause_id": "S-2.4",
+         "ref": "COMM-PLAN S-2.4",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 36
+        },
+        {
+         "clause_id": "S-2.5",
+         "ref": "COMM-PLAN S-2.5",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 40
+        },
+        {
+         "clause_id": "S-2.6",
+         "ref": "COMM-PLAN S-2.6",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 42
+        }
+       ]
+      },
+      {
+       "section_id": "S-3",
+       "title": "Commission calculation",
+       "clauses": [
+        {
+         "clause_id": "S-3.1",
+         "ref": "COMM-PLAN S-3.1",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 47
+        }
+       ]
+      },
+      {
+       "section_id": "S-4",
+       "title": "Accelerators",
+       "clauses": [
+        {
+         "clause_id": "S-4.1",
+         "ref": "COMM-PLAN S-4.1",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 52
+        },
+        {
+         "clause_id": "S-4.2",
+         "ref": "COMM-PLAN S-4.2",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 59
+        },
+        {
+         "clause_id": "S-4.3",
+         "ref": "COMM-PLAN S-4.3",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 62
+        },
+        {
+         "clause_id": "S-4.4",
+         "ref": "COMM-PLAN S-4.4",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 66
+        }
+       ]
+      },
+      {
+       "section_id": "S-5",
+       "title": "Caps",
+       "clauses": [
+        {
+         "clause_id": "S-5.1",
+         "ref": "COMM-PLAN S-5.1",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 72
+        },
+        {
+         "clause_id": "S-5.2",
+         "ref": "COMM-PLAN S-5.2",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 75
+        },
+        {
+         "clause_id": "S-5.3",
+         "ref": "COMM-PLAN S-5.3",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 78
+        }
+       ]
+      },
+      {
+       "section_id": "S-6",
+       "title": "Quota relief",
+       "clauses": [
+        {
+         "clause_id": "S-6.1",
+         "ref": "COMM-PLAN S-6.1",
+         "label": "RULE",
+         "module": "QuotaRelief",
+         "line": 83
+        },
+        {
+         "clause_id": "S-6.2",
+         "ref": "COMM-PLAN S-6.2",
+         "label": "RULE",
+         "module": "QuotaRelief",
+         "line": 88
+        }
+       ]
+      },
+      {
+       "section_id": "S-7",
+       "title": "Clawback",
+       "clauses": [
+        {
+         "clause_id": "S-7.1",
+         "ref": "COMM-PLAN S-7.1",
+         "label": "RULE",
+         "module": "Clawback",
+         "line": 92
+        },
+        {
+         "clause_id": "S-7.2",
+         "ref": "COMM-PLAN S-7.2",
+         "label": "HYBRID",
+         "module": "Clawback",
+         "line": 97
+        },
+        {
+         "clause_id": "S-7.3",
+         "ref": "COMM-PLAN S-7.3",
+         "label": "RULE",
+         "module": "Clawback",
+         "line": 101
+        }
+       ]
+      },
+      {
+       "section_id": "S-8",
+       "title": "Leavers",
+       "clauses": [
+        {
+         "clause_id": "S-8.1",
+         "ref": "COMM-PLAN S-8.1",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 106
+        },
+        {
+         "clause_id": "S-8.2",
+         "ref": "COMM-PLAN S-8.2",
+         "label": "RULE",
+         "module": "Commission",
+         "line": 110
+        }
+       ]
+      },
+      {
+       "section_id": "S-9",
+       "title": "Disputes",
+       "clauses": [
+        {
+         "clause_id": "S-9.1",
+         "ref": "COMM-PLAN S-9.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 116
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "doc_id": "MSA-SCH4",
+     "title": "Master Services Agreement — Schedule 4: Service Levels and Service Credits",
+     "version": "2.1",
+     "effective_date": "2025-01-15",
+     "owner": "Legal",
+     "jurisdiction": "England and Wales",
+     "n_clauses": 20,
+     "labels": {
+      "RULE": 15,
+      "PROSE": 3,
+      "HYBRID": 2
+     },
+     "sections": [
+      {
+       "section_id": "L-1",
+       "title": "Interpretation",
+       "clauses": [
+        {
+         "clause_id": "L-1.1",
+         "ref": "MSA-SCH4 L-1.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 14
+        },
+        {
+         "clause_id": "L-1.2",
+         "ref": "MSA-SCH4 L-1.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 17
+        },
+        {
+         "clause_id": "L-1.3",
+         "ref": "MSA-SCH4 L-1.3",
+         "label": "PROSE",
+         "module": null,
+         "line": 21
+        }
+       ]
+      },
+      {
+       "section_id": "L-2",
+       "title": "Definitions",
+       "clauses": [
+        {
+         "clause_id": "L-2.1",
+         "ref": "MSA-SCH4 L-2.1",
+         "label": "RULE",
+         "module": "Availability",
+         "line": 26
+        },
+        {
+         "clause_id": "L-2.2",
+         "ref": "MSA-SCH4 L-2.2",
+         "label": "RULE",
+         "module": "Availability",
+         "line": 28
+        },
+        {
+         "clause_id": "L-2.3",
+         "ref": "MSA-SCH4 L-2.3",
+         "label": "RULE",
+         "module": "Availability",
+         "line": 31
+        },
+        {
+         "clause_id": "L-2.4",
+         "ref": "MSA-SCH4 L-2.4",
+         "label": "RULE",
+         "module": "Availability",
+         "line": 36
+        },
+        {
+         "clause_id": "L-2.5",
+         "ref": "MSA-SCH4 L-2.5",
+         "label": "HYBRID",
+         "module": "Availability",
+         "line": 39
+        },
+        {
+         "clause_id": "L-2.6",
+         "ref": "MSA-SCH4 L-2.6",
+         "label": "RULE",
+         "module": "Availability",
+         "line": 50
+        },
+        {
+         "clause_id": "L-2.7",
+         "ref": "MSA-SCH4 L-2.7",
+         "label": "RULE",
+         "module": "ServiceCredits",
+         "line": 55
+        }
+       ]
+      },
+      {
+       "section_id": "L-3",
+       "title": "Service Level",
+       "clauses": [
+        {
+         "clause_id": "L-3.1",
+         "ref": "MSA-SCH4 L-3.1",
+         "label": "RULE",
+         "module": "Availability",
+         "line": 61
+        }
+       ]
+      },
+      {
+       "section_id": "L-4",
+       "title": "Service Credits",
+       "clauses": [
+        {
+         "clause_id": "L-4.1",
+         "ref": "MSA-SCH4 L-4.1",
+         "label": "RULE",
+         "module": "ServiceCredits",
+         "line": 66
+        },
+        {
+         "clause_id": "L-4.2",
+         "ref": "MSA-SCH4 L-4.2",
+         "label": "RULE",
+         "module": "ServiceCredits",
+         "line": 75
+        },
+        {
+         "clause_id": "L-4.3",
+         "ref": "MSA-SCH4 L-4.3",
+         "label": "RULE",
+         "module": "ServiceCredits",
+         "line": 78
+        },
+        {
+         "clause_id": "L-4.4",
+         "ref": "MSA-SCH4 L-4.4",
+         "label": "HYBRID",
+         "module": "ServiceCredits",
+         "line": 82
+        },
+        {
+         "clause_id": "L-4.5",
+         "ref": "MSA-SCH4 L-4.5",
+         "label": "RULE",
+         "module": "Availability",
+         "line": 86
+        }
+       ]
+      },
+      {
+       "section_id": "L-5",
+       "title": "Claiming",
+       "clauses": [
+        {
+         "clause_id": "L-5.1",
+         "ref": "MSA-SCH4 L-5.1",
+         "label": "RULE",
+         "module": "ServiceCreditClaim",
+         "line": 92
+        },
+        {
+         "clause_id": "L-5.2",
+         "ref": "MSA-SCH4 L-5.2",
+         "label": "RULE",
+         "module": "ServiceCreditClaim",
+         "line": 96
+        }
+       ]
+      },
+      {
+       "section_id": "L-6",
+       "title": "Chronic failure",
+       "clauses": [
+        {
+         "clause_id": "L-6.1",
+         "ref": "MSA-SCH4 L-6.1",
+         "label": "RULE",
+         "module": "ChronicFailure",
+         "line": 102
+        },
+        {
+         "clause_id": "L-6.2",
+         "ref": "MSA-SCH4 L-6.2",
+         "label": "RULE",
+         "module": "ChronicFailure",
+         "line": 108
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "doc_id": "NDA-MUT",
+     "title": "Mutual Non-Disclosure Agreement (Standard Form)",
+     "version": "3.4",
+     "effective_date": "2024-07-01",
+     "owner": "Legal",
+     "jurisdiction": "England and Wales",
+     "n_clauses": 22,
+     "labels": {
+      "RULE": 3,
+      "PROSE": 18,
+      "HYBRID": 1
+     },
+     "sections": [
+      {
+       "section_id": "N-1",
+       "title": "Parties and purpose",
+       "clauses": [
+        {
+         "clause_id": "N-1.1",
+         "ref": "NDA-MUT N-1.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 14
+        },
+        {
+         "clause_id": "N-1.2",
+         "ref": "NDA-MUT N-1.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 18
+        }
+       ]
+      },
+      {
+       "section_id": "N-2",
+       "title": "Confidential Information",
+       "clauses": [
+        {
+         "clause_id": "N-2.1",
+         "ref": "NDA-MUT N-2.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 23
+        },
+        {
+         "clause_id": "N-2.2",
+         "ref": "NDA-MUT N-2.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 29
+        },
+        {
+         "clause_id": "N-2.3",
+         "ref": "NDA-MUT N-2.3",
+         "label": "PROSE",
+         "module": null,
+         "line": 32
+        }
+       ]
+      },
+      {
+       "section_id": "N-3",
+       "title": "Obligations of the Recipient",
+       "clauses": [
+        {
+         "clause_id": "N-3.1",
+         "ref": "NDA-MUT N-3.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 45
+        },
+        {
+         "clause_id": "N-3.2",
+         "ref": "NDA-MUT N-3.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 48
+        },
+        {
+         "clause_id": "N-3.3",
+         "ref": "NDA-MUT N-3.3",
+         "label": "PROSE",
+         "module": null,
+         "line": 51
+        },
+        {
+         "clause_id": "N-3.4",
+         "ref": "NDA-MUT N-3.4",
+         "label": "PROSE",
+         "module": null,
+         "line": 55
+        }
+       ]
+      },
+      {
+       "section_id": "N-4",
+       "title": "Compelled disclosure",
+       "clauses": [
+        {
+         "clause_id": "N-4.1",
+         "ref": "NDA-MUT N-4.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 63
+        }
+       ]
+      },
+      {
+       "section_id": "N-5",
+       "title": "Term and survival",
+       "clauses": [
+        {
+         "clause_id": "N-5.1",
+         "ref": "NDA-MUT N-5.1",
+         "label": "RULE",
+         "module": "NdaSurvival",
+         "line": 71
+        },
+        {
+         "clause_id": "N-5.2",
+         "ref": "NDA-MUT N-5.2",
+         "label": "RULE",
+         "module": "NdaSurvival",
+         "line": 75
+        },
+        {
+         "clause_id": "N-5.3",
+         "ref": "NDA-MUT N-5.3",
+         "label": "HYBRID",
+         "module": "NdaSurvival",
+         "line": 79
+        },
+        {
+         "clause_id": "N-5.4",
+         "ref": "NDA-MUT N-5.4",
+         "label": "RULE",
+         "module": "NdaSurvival",
+         "line": 83
+        }
+       ]
+      },
+      {
+       "section_id": "N-6",
+       "title": "Return and destruction",
+       "clauses": [
+        {
+         "clause_id": "N-6.1",
+         "ref": "NDA-MUT N-6.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 88
+        },
+        {
+         "clause_id": "N-6.2",
+         "ref": "NDA-MUT N-6.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 92
+        }
+       ]
+      },
+      {
+       "section_id": "N-7",
+       "title": "No licence, no warranty",
+       "clauses": [
+        {
+         "clause_id": "N-7.1",
+         "ref": "NDA-MUT N-7.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 98
+        },
+        {
+         "clause_id": "N-7.2",
+         "ref": "NDA-MUT N-7.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 101
+        }
+       ]
+      },
+      {
+       "section_id": "N-8",
+       "title": "Remedies",
+       "clauses": [
+        {
+         "clause_id": "N-8.1",
+         "ref": "NDA-MUT N-8.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 106
+        }
+       ]
+      },
+      {
+       "section_id": "N-9",
+       "title": "General",
+       "clauses": [
+        {
+         "clause_id": "N-9.1",
+         "ref": "NDA-MUT N-9.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 112
+        },
+        {
+         "clause_id": "N-9.2",
+         "ref": "NDA-MUT N-9.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 115
+        },
+        {
+         "clause_id": "N-9.3",
+         "ref": "NDA-MUT N-9.3",
+         "label": "PROSE",
+         "module": null,
+         "line": 118
+        }
+       ]
+      }
+     ]
+    },
+    {
+     "doc_id": "DATA-RET",
+     "title": "Data Retention and Deletion Standard",
+     "version": "5.1",
+     "effective_date": "2025-06-01",
+     "owner": "Privacy Office",
+     "jurisdiction": "Group-wide",
+     "n_clauses": 17,
+     "labels": {
+      "RULE": 8,
+      "PROSE": 5,
+      "HYBRID": 4
+     },
+     "sections": [
+      {
+       "section_id": "R-1",
+       "title": "Purpose",
+       "clauses": [
+        {
+         "clause_id": "R-1.1",
+         "ref": "DATA-RET R-1.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 14
+        },
+        {
+         "clause_id": "R-1.2",
+         "ref": "DATA-RET R-1.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 18
+        }
+       ]
+      },
+      {
+       "section_id": "R-2",
+       "title": "Definitions",
+       "clauses": [
+        {
+         "clause_id": "R-2.1",
+         "ref": "DATA-RET R-2.1",
+         "label": "RULE",
+         "module": "Retention",
+         "line": 26
+        },
+        {
+         "clause_id": "R-2.2",
+         "ref": "DATA-RET R-2.2",
+         "label": "RULE",
+         "module": "Retention",
+         "line": 31
+        },
+        {
+         "clause_id": "R-2.3",
+         "ref": "DATA-RET R-2.3",
+         "label": "RULE",
+         "module": "LegalHold",
+         "line": 34
+        },
+        {
+         "clause_id": "R-2.4",
+         "ref": "DATA-RET R-2.4",
+         "label": "PROSE",
+         "module": null,
+         "line": 39
+        }
+       ]
+      },
+      {
+       "section_id": "R-3",
+       "title": "Retention periods",
+       "clauses": [
+        {
+         "clause_id": "R-3.1",
+         "ref": "DATA-RET R-3.1",
+         "label": "RULE",
+         "module": "Retention",
+         "line": 45
+        },
+        {
+         "clause_id": "R-3.2",
+         "ref": "DATA-RET R-3.2",
+         "label": "RULE",
+         "module": "Retention",
+         "line": 58
+        },
+        {
+         "clause_id": "R-3.3",
+         "ref": "DATA-RET R-3.3",
+         "label": "HYBRID",
+         "module": "Retention",
+         "line": 62
+        }
+       ]
+      },
+      {
+       "section_id": "R-4",
+       "title": "Legal Hold",
+       "clauses": [
+        {
+         "clause_id": "R-4.1",
+         "ref": "DATA-RET R-4.1",
+         "label": "RULE",
+         "module": "LegalHold",
+         "line": 68
+        },
+        {
+         "clause_id": "R-4.2",
+         "ref": "DATA-RET R-4.2",
+         "label": "HYBRID",
+         "module": "LegalHold",
+         "line": 72
+        },
+        {
+         "clause_id": "R-4.3",
+         "ref": "DATA-RET R-4.3",
+         "label": "RULE",
+         "module": "LegalHold",
+         "line": 75
+        }
+       ]
+      },
+      {
+       "section_id": "R-5",
+       "title": "Erasure requests",
+       "clauses": [
+        {
+         "clause_id": "R-5.1",
+         "ref": "DATA-RET R-5.1",
+         "label": "HYBRID",
+         "module": "ErasureRequest",
+         "line": 81
+        },
+        {
+         "clause_id": "R-5.2",
+         "ref": "DATA-RET R-5.2",
+         "label": "HYBRID",
+         "module": "ErasureRequest",
+         "line": 84
+        }
+       ]
+      },
+      {
+       "section_id": "R-6",
+       "title": "Deletion of backups",
+       "clauses": [
+        {
+         "clause_id": "R-6.1",
+         "ref": "DATA-RET R-6.1",
+         "label": "RULE",
+         "module": "Retention",
+         "line": 90
+        }
+       ]
+      },
+      {
+       "section_id": "R-7",
+       "title": "Accountability",
+       "clauses": [
+        {
+         "clause_id": "R-7.1",
+         "ref": "DATA-RET R-7.1",
+         "label": "PROSE",
+         "module": null,
+         "line": 95
+        },
+        {
+         "clause_id": "R-7.2",
+         "ref": "DATA-RET R-7.2",
+         "label": "PROSE",
+         "module": null,
+         "line": 99
+        }
+       ]
+      }
+     ]
+    }
+   ],
+   "n_scopes": 45,
+   "n_modules": 19,
+   "counterexamples": {
+    "total": 31,
+    "open": 0,
+    "fixed": 31,
+    "by_component": {
+     "catala": {
+      "open": 0,
+      "fixed": 31
+     }
+    },
+    "max_round": 3
+   },
+   "vector_store": {
+    "kind": "mongo:$vectorSearch (mongot)",
+    "n_chunks": 49
+   }
+  }
+ ],
+ "POST /api/ask {\"inputs\": {\"arrears_days\": 0, \"availability_percentage\": 98.5, \"invoice_undisputed\": true, \"monthly_service_charge\": 10000}, \"question\": \"How much service credit do we owe at 98.5% uptime?\", \"scope\": \"ServiceCredits.ServiceCredit\"}": [
+  200,
+  {
+   "question": "How much service credit do we owe at 98.5% uptime?",
+   "engines": [
+    "CATALA",
+    "VECTOR"
+   ],
+   "parts": [
+    {
+     "engine": "CATALA",
+     "kind": "computed",
+     "text": "credit_amount = 2000.0, credit_cap_percentage = 0.3, credit_payable_percentage = 0.2, credit_percentage = 0.2\n    Computed by executing ServiceCredits.ServiceCredit on the supplied facts.",
+     "citations": [
+      "MSA-SCH4 L-4.3",
+      "MSA-SCH4 L-4.4"
+     ],
+     "scope": "ServiceCredits.ServiceCredit",
+     "outputs": {
+      "credit_percentage": 0.2,
+      "credit_cap_percentage": 0.3,
+      "credit_payable_percentage": 0.2,
+      "credit_amount": 2000.0
+     },
+     "inputs": {
+      "availability_percentage": 98.5,
+      "monthly_service_charge": 10000,
+      "arrears_days": 0,
+      "invoice_undisputed": true
+     },
+     "score": 0.557
+    },
+    {
+     "engine": "VECTOR",
+     "kind": "caveat",
+     "text": "This prose clause qualifies ServiceCredits and is not part of the computation above:\n    “The Service Credits are the Customer's sole financial remedy for a\nfailure to meet a Service Level, save in respect of a failure which constitutes a\nmaterial breach of the Agreement giving rise to a right of termination.”",
+     "citations": [
+      "MSA-SCH4 L-1.2 (004-msa-sla-credits.md:17)"
+     ],
+     "scope": null,
+     "outputs": null,
+     "inputs": null,
+     "score": null
+    }
+   ]
+  }
+ ],
+ "POST /api/ask {\"question\": \"How much service credit do we owe at 98.5% uptime?\"}": [
+  200,
+  {
+   "question": "How much service credit do we owe at 98.5% uptime?",
+   "engines": [
+    "CATALA",
+    "VECTOR"
+   ],
+   "parts": [
+    {
+     "engine": "CATALA",
+     "kind": "needs-input",
+     "text": "This is a rule question. ServiceCredits.ServiceCredit decides it, from the clauses cited below. It cannot be answered without values for: availability_percentage, monthly_service_charge, arrears_days, invoice_undisputed.\n    Of these, invoice_undisputed is a judgement the documents do not define and the system will not decide: a human must supply it.\n    No value is being guessed. Supply the inputs and the scope will be executed.",
+     "citations": [
+      "MSA-SCH4 L-4.3",
+      "MSA-SCH4 L-4.4"
+     ],
+     "scope": "ServiceCredits.ServiceCredit",
+     "outputs": null,
+     "inputs": {
+      "required": [
+       "availability_percentage",
+       "monthly_service_charge",
+       "arrears_days",
+       "invoice_undisputed"
+      ],
+      "missing": [
+       "availability_percentage",
+       "monthly_service_charge",
+       "arrears_days",
+       "invoice_undisputed"
+      ]
+     },
+     "score": 0.557
+    },
+    {
+     "engine": "VECTOR",
+     "kind": "caveat",
+     "text": "This prose clause qualifies ServiceCredits and is not part of the computation above:\n    “The Service Credits are the Customer's sole financial remedy for a\nfailure to meet a Service Level, save in respect of a failure which constitutes a\nmaterial breach of the Agreement giving rise to a right of termination.”",
+     "citations": [
+      "MSA-SCH4 L-1.2 (004-msa-sla-credits.md:17)"
+     ],
+     "scope": null,
+     "outputs": null,
+     "inputs": null,
+     "score": null
+    }
+   ]
+  }
+ ],
+ "POST /api/ask {\"question\": \"What is the capital of France?\"}": [
+  200,
+  {
+   "question": "What is the capital of France?",
+   "engines": [
+    "NONE"
+   ],
+   "parts": [
+    {
+     "engine": "NONE",
+     "kind": "no-coverage",
+     "text": "No rule module and no indexed prose clause covers this question. The corpus does not answer it, and nothing has been inferred.",
+     "citations": [],
+     "scope": null,
+     "outputs": null,
+     "inputs": null,
+     "score": null
+    }
+   ]
+  }
+ ],
+ "POST /api/ask {\"question\": \"Who decides commission disputes? availability_percentage_measured_across_the_calendar_month_excluding_scheduled_maintenance_windows A remote working equipment allowance policy for England and Wales. Employees who work from home on at least 2 days in a normal working week receive a one-off equipment allowance of \\u00a3300 and a monthly utilities allowance of \\u00a325. Part-time employees receive the monthly allowance pro rata to their contracted weekly hours out of 37.5. The one-off allowance is repayable in full if the employee leaves within 6 months of receiving it, and half of it is repayable if they leave after 6 months but within 12 months.\"}": [
+  200,
+  {
+   "question": "Who decides commission disputes? availability_percentage_measured_across_the_calendar_month_excluding_scheduled_maintenance_windows A remote working equipment allowance policy for England and Wales. Employees who work from home on at least 2 days in a normal working week receive a one-off equipment allowance of £300 and a monthly utilities allowance of £25. Part-time employees receive the monthly allowance pro rata to their contracted weekly hours out of 37.5. The one-off allowance is repayable in full if the employee leaves within 6 months of receiving it, and half of it is repayable if they leave after 6 months but within 12 months.",
+   "engines": [
+    "CATALA",
+    "VECTOR"
+   ],
+   "parts": [
+    {
+     "engine": "CATALA",
+     "kind": "needs-input",
+     "text": "This is a rule question. Overtime.HourPremium decides it, from the clauses cited below. It cannot be answered without values for: ordinal, is_public_holiday, is_critical_incident, is_night, grade, has_standing_shift_allowance.\n    No value is being guessed. Supply the inputs and the scope will be executed.",
+     "citations": [
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-6.2",
+      "EMP-ANNEX-C C-7.1"
+     ],
+     "scope": "Overtime.HourPremium",
+     "outputs": null,
+     "inputs": {
+      "required": [
+       "ordinal",
+       "is_public_holiday",
+       "is_critical_incident",
+       "is_night",
+       "grade",
+       "has_standing_shift_allowance"
+      ],
+      "missing": [
+       "ordinal",
+       "is_public_holiday",
+       "is_critical_incident",
+       "is_night",
+       "grade",
+       "has_standing_shift_allowance"
+      ]
+     },
+     "score": 0.526
+    },
+    {
+     "engine": "VECTOR",
+     "kind": "caveat",
+     "text": "This prose clause qualifies Overtime and is not part of the computation above:\n    “The Company may vary this Annex by giving not less than one month's\nwritten notice to affected Employees, save that no variation may reduce an\nentitlement already accrued at the date the notice takes effect.”",
+     "citations": [
+      "EMP-ANNEX-C C-10.1 (001-employment-terms-annex-c.md:126)"
+     ],
+     "scope": null,
+     "outputs": null,
+     "inputs": null,
+     "score": 0.57
+    },
+    {
+     "engine": "VECTOR",
+     "kind": "caveat",
+     "text": "This prose clause qualifies Overtime and is not part of the computation above:\n    “This Annex forms part of the Employment Terms and governs the\ncalculation of working time, overtime premia and annual leave accrual for all\nEmployees engaged under a contract of employment with the Company.”",
+     "citations": [
+      "EMP-ANNEX-C C-1.1 (001-employment-terms-annex-c.md:14)"
+     ],
+     "scope": null,
+     "outputs": null,
+     "inputs": null,
+     "score": 0.49
+    },
+    {
+     "engine": "VECTOR",
+     "kind": "caveat",
+     "text": "This prose clause qualifies Overtime and is not part of the computation above:\n    “Nothing in this Policy affects an Employee's entitlements under Annex C\nof the Employment Terms.”",
+     "citations": [
+      "EXP-POL E-7.1 (002-expense-reimbursement-policy.md:106)"
+     ],
+     "scope": null,
+     "outputs": null,
+     "inputs": null,
+     "score": 0.48
+    },
+    {
+     "engine": "VECTOR",
+     "kind": "caveat",
+     "text": "1 further prose clause(s) also qualify Overtime and are not shown.",
+     "citations": [],
+     "scope": null,
+     "outputs": null,
+     "inputs": null,
+     "score": null
+    }
+   ]
+  }
+ ],
+ "POST /api/ask {\"question\": \"Who decides commission disputes?\"}": [
+  200,
+  {
+   "question": "Who decides commission disputes?",
+   "engines": [
+    "VECTOR"
+   ],
+   "parts": [
+    {
+     "engine": "VECTOR",
+     "kind": "quotation",
+     "text": "“Any question as to the interpretation or operation of this Plan will be\ndetermined by the Chief Revenue Officer, whose determination is final. This\nparagraph does not exclude any statutory right of the Employee.”",
+     "citations": [
+      "COMM-PLAN S-9.1 (003-sales-commission-plan.md:116)"
+     ],
+     "scope": null,
+     "outputs": null,
+     "inputs": null,
+     "score": 0.524
+    }
+   ]
+  }
+ ]
+}

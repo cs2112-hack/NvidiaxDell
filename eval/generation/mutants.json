@@ -1,0 +1,958 @@
+{
+  "generated": "2026-09-12 20:41",
+  "seed": 20260912,
+  "per_module": 6,
+  "cap": 240,
+  "screen_budget": 0,
+  "seconds": 2725,
+  "mutants": [
+    {
+      "id": "ChronicFailure:292:flip_comparison:0",
+      "module": "ChronicFailure.catala_en",
+      "operator": "flip_comparison",
+      "line": 292,
+      "change": "flip_comparison at line 292: 'if (number of exercised_occurrences) > 0 then exercised_occurrences' -> 'if (number of exercised_occurrences) >= 0 then exercised_occurrences'",
+      "class": "untestable",
+      "why": "ChronicFailureRight.availability_history has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; n"
+    },
+    {
+      "id": "ChronicFailure:293:shift_threshold:1",
+      "module": "ChronicFailure.catala_en",
+      "operator": "shift_threshold",
+      "line": 293,
+      "change": "shift_threshold at line 293: 'else if (number of live_occurrences) > 0 then live_occurrences' -> 'else if (number of live_occurrences) > 1 then live_occurrences'",
+      "class": "untestable",
+      "why": "ChronicFailureRight.availability_history has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; n"
+    },
+    {
+      "id": "ChronicFailure:361:negate_condition:1",
+      "module": "ChronicFailure.catala_en",
+      "operator": "negate_condition",
+      "line": 361,
+      "change": "negate_condition at line 361: 'right_arisen\\n      and ((number of arisen_occurrences) > 0)\\n      and ((number of lapsed_occurrences) = (number of arisen_occurrences))' -> 'not (\\n      right_arisen\\n      and ((number of arisen_occurrences) > 0)\\n      and ((number of lapsed_occurrences) = (number of arisen_occurrences))\\n      )'",
+      "class": "untestable",
+      "why": "ChronicFailureRight.availability_history has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; n"
+    },
+    {
+      "id": "ChronicFailure:363:and_to_or:0",
+      "module": "ChronicFailure.catala_en",
+      "operator": "and_to_or",
+      "line": 363,
+      "change": "and_to_or at line 363: 'and ((number of arisen_occurrences) > 0)' -> 'or ((number of arisen_occurrences) > 0)'",
+      "class": "stillborn"
+    },
+    {
+      "id": "ChronicFailure:360:drop_exception:0",
+      "module": "ChronicFailure.catala_en",
+      "operator": "drop_exception",
+      "line": 360,
+      "change": "drop_exception at line 360: 'label l6_2_lapsed exception l6_2_not_lapsed definition right_lapsed\\n    under condition\\n      right_arisen\\n      and ((number of arisen_occurrences) > 0)\\n      and ((number of lapsed_occurrences) = (number of arisen_occurrences))\\n    consequence equals true' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 0,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "ChronicFailure:294:flip_comparison:0",
+      "module": "ChronicFailure.catala_en",
+      "operator": "flip_comparison",
+      "line": 294,
+      "change": "flip_comparison at line 294: 'else if (number of arisen_occurrences) > 0 then arisen_occurrences' -> 'else if (number of arisen_occurrences) >= 0 then arisen_occurrences'",
+      "class": "untestable",
+      "why": "ChronicFailureRight.availability_history has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; n"
+    },
+    {
+      "id": "ErasureRequest:125:negate_condition:1",
+      "module": "ErasureRequest.catala_en",
+      "operator": "negate_condition",
+      "line": 125,
+      "change": "negate_condition at line 125: 'erasure_request_valid\\n      and (retention_required_by_legal_obligation\\n           or retention_required_for_legal_claims\\n           or legal_hold_blocks_erasure)' -> 'not (\\n      erasure_request_valid\\n      and (retention_required_by_legal_obligation\\n           or retention_required_for_legal_claims\\n           or legal_hold_blocks_erasure)\\n      )'",
+      "class": "equivalent"
+    },
+    {
+      "id": "ErasureRequest:127:and_to_or:0",
+      "module": "ErasureRequest.catala_en",
+      "operator": "and_to_or",
+      "line": 127,
+      "change": "and_to_or at line 127: 'and (retention_required_by_legal_obligation' -> 'or (retention_required_by_legal_obligation'",
+      "class": "equivalent"
+    },
+    {
+      "id": "ErasureRequest:94:drop_exception:0",
+      "module": "ErasureRequest.catala_en",
+      "operator": "drop_exception",
+      "line": 94,
+      "change": "drop_exception at line 94: 'label r5_1 exception r5_1_none definition deletion_due_date\\n    under condition erasure_request_valid\\n    consequence equals\\n      match verification_date with pattern\\n      -- Absent: Absent\\n      -- Present content verified: Present content (verified + 30 day)' -> '(deleted)'",
+      "class": "stillborn"
+    },
+    {
+      "id": "ErasureRequest:133:negate_condition:1",
+      "module": "ErasureRequest.catala_en",
+      "operator": "negate_condition",
+      "line": 133,
+      "change": "negate_condition at line 133: 'erasure_request_valid\\n      and (retention_required_by_legal_obligation\\n           or retention_required_for_legal_claims\\n           or legal_hold_blocks_erasure)' -> 'not (\\n      erasure_request_valid\\n      and (retention_required_by_legal_obligation\\n           or retention_required_for_legal_claims\\n           or legal_hold_blocks_erasure)\\n      )'",
+      "class": "live",
+      "behaviour_diffs": 240,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:ErasureDeadline/CatalaError"
+      ]
+    },
+    {
+      "id": "ErasureRequest:135:and_to_or:0",
+      "module": "ErasureRequest.catala_en",
+      "operator": "and_to_or",
+      "line": 135,
+      "change": "and_to_or at line 135: 'and (retention_required_by_legal_obligation' -> 'or (retention_required_by_legal_obligation'",
+      "class": "live",
+      "behaviour_diffs": 120,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "ErasureRequest:124:drop_exception:0",
+      "module": "ErasureRequest.catala_en",
+      "operator": "drop_exception",
+      "line": 124,
+      "change": "drop_exception at line 124: 'label r5_2 exception r5_1 definition deletion_due_date\\n    under condition\\n      erasure_request_valid\\n      and (retention_required_by_legal_obligation\\n           or retention_required_for_legal_claims\\n           or legal_hold_blocks_erasure)\\n    consequence equals Absent' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 0,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "LeaveAccrual:239:flip_comparison:0",
+      "module": "LeaveAccrual.catala_en",
+      "operator": "flip_comparison",
+      "line": 239,
+      "change": "flip_comparison at line 239: 'under condition excess_half_steps > 0.5' -> 'under condition excess_half_steps >= 0.5'",
+      "class": "equivalent"
+    },
+    {
+      "id": "LeaveAccrual:127:change_constant:0",
+      "module": "LeaveAccrual.catala_en",
+      "operator": "change_constant",
+      "line": 127,
+      "change": "change_constant at line 127: 'consequence equals 2.0' -> 'consequence equals 2.25'",
+      "class": "live",
+      "behaviour_diffs": 4,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "LeaveAccrual:242:drop_exception:0",
+      "module": "LeaveAccrual.catala_en",
+      "operator": "drop_exception",
+      "line": 242,
+      "change": "drop_exception at line 242: 'label exact_quarter_up exception nearest_half definition rounded_days\\n    under condition excess_half_steps = 0.5\\n    consequence equals (half_steps_below + 1.0) / 2.0' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 0,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "LeaveAccrual:169:flip_comparison:0",
+      "module": "LeaveAccrual.catala_en",
+      "operator": "flip_comparison",
+      "line": 169,
+      "change": "flip_comparison at line 169: 'if period_end < period_start then 0' -> 'if period_end <= period_start then 0'",
+      "class": "live",
+      "behaviour_diffs": 18,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "LeaveAccrual:240:change_constant:1",
+      "module": "LeaveAccrual.catala_en",
+      "operator": "change_constant",
+      "line": 240,
+      "change": "change_constant at line 240: 'consequence equals (half_steps_below + 1.0) / 2.0' -> 'consequence equals (half_steps_below + 1.0) / 2.25'",
+      "class": "equivalent"
+    },
+    {
+      "id": "LeaveAccrual:290:drop_exception:0",
+      "module": "LeaveAccrual.catala_en",
+      "operator": "drop_exception",
+      "line": 290,
+      "change": "drop_exception at line 290: 'scope CarryForward:\\n  label c9_4 exception c9_3 definition permitted_carry_forward_days\\n    under condition prevented_from_taking_leave_by_long_term_sickness\\n    consequence equals accrued_untaken_days' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 1,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "LegalHold:159:flip_comparison:0",
+      "module": "LegalHold.catala_en",
+      "operator": "flip_comparison",
+      "line": 159,
+      "change": "flip_comparison at line 159: 'if retention_end_date < released' -> 'if retention_end_date <= released'",
+      "class": "live",
+      "behaviour_diffs": 24,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "LegalHold:152:negate_condition:1",
+      "module": "LegalHold.catala_en",
+      "operator": "negate_condition",
+      "line": 152,
+      "change": "negate_condition at line 152: '(hold_issued_date with pattern Present)\\n      and (hold_released_date with pattern Present)' -> 'not (\\n      (hold_issued_date with pattern Present)\\n      and (hold_released_date with pattern Present)\\n      )'",
+      "class": "live",
+      "behaviour_diffs": 58,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "LegalHold:154:and_to_or:0",
+      "module": "LegalHold.catala_en",
+      "operator": "and_to_or",
+      "line": 154,
+      "change": "and_to_or at line 154: 'and (hold_released_date with pattern Present)' -> 'or (hold_released_date with pattern Present)'",
+      "class": "equivalent"
+    },
+    {
+      "id": "LegalHold:151:drop_exception:0",
+      "module": "LegalHold.catala_en",
+      "operator": "drop_exception",
+      "line": 151,
+      "change": "drop_exception at line 151: 'scope HoldEffect:\\n  label r4_3 exception r3_ordinary definition deletion_due_date\\n    under condition\\n      (hold_issued_date with pattern Present)\\n      and (hold_released_date with pattern Present)\\n    consequence equals\\n      match hold_released_date with pattern\\n      -- Absent: Present content retention_end_date\\n      -- Present content released:\\n           if retention_end_date < released\\n           then Present content (released + 30 day)\\n           else Present content retention_end_date' -> '(deleted)'",
+      "class": "stillborn"
+    },
+    {
+      "id": "LegalHold:216:negate_condition:1",
+      "module": "LegalHold.catala_en",
+      "operator": "negate_condition",
+      "line": 216,
+      "change": "negate_condition at line 216: 'hold_in_force\\n      and not retention_under_hold_permitted_by_data_protection_law' -> 'not (\\n      hold_in_force\\n      and not retention_under_hold_permitted_by_data_protection_law\\n      )'",
+      "class": "live",
+      "behaviour_diffs": 40,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "LegalHold:218:and_to_or:0",
+      "module": "LegalHold.catala_en",
+      "operator": "and_to_or",
+      "line": 218,
+      "change": "and_to_or at line 218: 'and not retention_under_hold_permitted_by_data_protection_law' -> 'or not retention_under_hold_permitted_by_data_protection_law'",
+      "class": "live",
+      "behaviour_diffs": 20,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "NdaSurvival:134:flip_comparison:0",
+      "module": "NdaSurvival.catala_en",
+      "operator": "flip_comparison",
+      "line": 134,
+      "change": "flip_comparison at line 134: 'and assessment_date <= agreement_end_date' -> 'and assessment_date < agreement_end_date'",
+      "class": "equivalent"
+    },
+    {
+      "id": "NdaSurvival:132:negate_condition:1",
+      "module": "NdaSurvival.catala_en",
+      "operator": "negate_condition",
+      "line": 132,
+      "change": "negate_condition at line 132: 'assessment_date >= effective_date\\n      and assessment_date <= agreement_end_date' -> 'not (\\n      assessment_date >= effective_date\\n      and assessment_date <= agreement_end_date\\n      )'",
+      "class": "live",
+      "behaviour_diffs": 500,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:SurvivalEnd/NoApplicableRule",
+        "G2:SurvivalEnd/ScopeConflict"
+      ]
+    },
+    {
+      "id": "NdaSurvival:320:and_to_or:0",
+      "module": "NdaSurvival.catala_en",
+      "operator": "and_to_or",
+      "line": 320,
+      "change": "and_to_or at line 320: 'is_personal_data and not information_is_trade_secret' -> 'is_personal_data or not information_is_trade_secret'",
+      "class": "live",
+      "behaviour_diffs": 250,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:SurvivalEnd/ScopeConflict"
+      ]
+    },
+    {
+      "id": "NdaSurvival:278:drop_exception:0",
+      "module": "NdaSurvival.catala_en",
+      "operator": "drop_exception",
+      "line": 278,
+      "change": "drop_exception at line 278: 'label n5_3 exception n5_2 definition survival_end_date\\n    under condition\\n      information_is_trade_secret and not is_personal_data\\n    consequence equals Absent' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 0,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "NdaSurvival:212:flip_comparison:0",
+      "module": "NdaSurvival.catala_en",
+      "operator": "flip_comparison",
+      "line": 212,
+      "change": "flip_comparison at line 212: 'notice >= effective_date' -> 'notice > effective_date'",
+      "class": "live",
+      "behaviour_diffs": 100,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "NdaSurvival:328:negate_condition:1",
+      "module": "NdaSurvival.catala_en",
+      "operator": "negate_condition",
+      "line": 328,
+      "change": "negate_condition at line 328: 'assessment_date > agreement_end_date\\n      and is_personal_data\\n      and not information_is_trade_secret' -> 'not (\\n      assessment_date > agreement_end_date\\n      and is_personal_data\\n      and not information_is_trade_secret\\n      )'",
+      "class": "live",
+      "behaviour_diffs": 494,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:SurvivalEnd/ScopeConflict"
+      ]
+    },
+    {
+      "id": "QuotaRelief:157:flip_comparison:0",
+      "module": "QuotaRelief.catala_en",
+      "operator": "flip_comparison",
+      "line": 157,
+      "change": "flip_comparison at line 157: 'if last_day < first_day then 0' -> 'if last_day <= first_day then 0'",
+      "class": "untestable",
+      "why": "QualifyingAbsence.absence has type 'AbsencePeriod', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no behav"
+    },
+    {
+      "id": "QuotaRelief:354:change_constant:0",
+      "module": "QuotaRelief.catala_en",
+      "operator": "change_constant",
+      "line": 354,
+      "change": "change_constant at line 354: '(decimal of annual_quota) * (decimal of relief_days / 365.0)' -> '(decimal of annual_quota) * (decimal of relief_days / 365.25)'",
+      "class": "untestable",
+      "why": "RelievedQuota.absence_periods has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no behaviour"
+    },
+    {
+      "id": "ServiceCreditClaim:113:drop_exception:0",
+      "module": "ServiceCreditClaim.catala_en",
+      "operator": "drop_exception",
+      "line": 113,
+      "change": "drop_exception at line 113: 'label l5_2_payment_date exception l5_2_setoff_date definition settlement_due_date\\n    under condition not further_invoice_expected\\n    consequence equals Present content (claim_accepted_date + 30 day)' -> '(deleted)'",
+      "class": "stillborn"
+    },
+    {
+      "id": "ServiceCreditClaim:177:drop_exception:0",
+      "module": "ServiceCreditClaim.catala_en",
+      "operator": "drop_exception",
+      "line": 177,
+      "change": "drop_exception at line 177: 'label l5_1_waived_date exception l5_2_payment_date definition settlement_due_date\\n    under condition waived\\n    consequence equals Absent' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 0,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "ServiceCredits:257:flip_comparison:0",
+      "module": "ServiceCredits.catala_en",
+      "operator": "flip_comparison",
+      "line": 257,
+      "change": "flip_comparison at line 257: 'and (arrears_days > 30)' -> 'and (arrears_days >= 30)'",
+      "class": "live",
+      "behaviour_diffs": 14,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "ServiceCredits:257:shift_threshold:1",
+      "module": "ServiceCredits.catala_en",
+      "operator": "shift_threshold",
+      "line": 257,
+      "change": "shift_threshold at line 257: 'and (arrears_days > 30)' -> 'and (arrears_days > 31)'",
+      "class": "live",
+      "behaviour_diffs": 14,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "ServiceCredits:254:negate_condition:1",
+      "module": "ServiceCredits.catala_en",
+      "operator": "negate_condition",
+      "line": 254,
+      "change": "negate_condition at line 254: '(availability_percentage < 99.90)\\n      and invoice_undisputed\\n      and (arrears_days > 30)' -> 'not (\\n      (availability_percentage < 99.90)\\n      and invoice_undisputed\\n      and (arrears_days > 30)\\n      )'",
+      "class": "live",
+      "behaviour_diffs": 112,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G3:l4_1_base[<unconditional>]"
+      ]
+    },
+    {
+      "id": "ServiceCredits:141:and_to_or:0",
+      "module": "ServiceCredits.catala_en",
+      "operator": "and_to_or",
+      "line": 141,
+      "change": "and_to_or at line 141: '(availability_percentage < 99.90) and (availability_percentage >= 99.50)' -> '(availability_percentage < 99.90) or (availability_percentage >= 99.50)'",
+      "class": "live",
+      "behaviour_diffs": 79,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:ServiceCredit/ScopeConflict",
+        "G3:l4_1_base[<unconditional>]"
+      ]
+    },
+    {
+      "id": "ServiceCredits:139:drop_exception:0",
+      "module": "ServiceCredits.catala_en",
+      "operator": "drop_exception",
+      "line": 139,
+      "change": "drop_exception at line 139: 'label l4_1 exception l4_1_base definition credit_percentage\\n    under condition\\n      (availability_percentage < 99.90) and (availability_percentage >= 99.50)\\n    consequence equals 5%' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 21,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "ServiceCredits:141:flip_comparison:1",
+      "module": "ServiceCredits.catala_en",
+      "operator": "flip_comparison",
+      "line": 141,
+      "change": "flip_comparison at line 141: '(availability_percentage < 99.90) and (availability_percentage >= 99.50)' -> '(availability_percentage < 99.90) and (availability_percentage > 99.50)'",
+      "class": "live",
+      "behaviour_diffs": 7,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "WorkingTimeDefs:236:shift_threshold:1",
+      "module": "WorkingTimeDefs.catala_en",
+      "operator": "shift_threshold",
+      "line": 236,
+      "change": "shift_threshold at line 236: 'if number of records_in_force = 0 then Absent' -> 'if number of records_in_force = 1 then Absent'",
+      "class": "untestable",
+      "why": "GradeForPayrollWeek.grade_records has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no behav"
+    },
+    {
+      "id": "WorkingTimeDefs:130:change_constant:0",
+      "module": "WorkingTimeDefs.catala_en",
+      "operator": "change_constant",
+      "line": 130,
+      "change": "change_constant at line 130: '(annual_base_salary / $1.00) / 2080.0' -> '(annual_base_salary / $1.00) / 2080.25'",
+      "class": "equivalent"
+    },
+    {
+      "id": "WorkingTimeDefs:236:shift_threshold:0",
+      "module": "WorkingTimeDefs.catala_en",
+      "operator": "shift_threshold",
+      "line": 236,
+      "change": "shift_threshold at line 236: 'if number of records_in_force = 0 then Absent' -> 'if number of records_in_force = -1 then Absent'",
+      "class": "untestable",
+      "why": "GradeForPayrollWeek.grade_records has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no behav"
+    },
+    {
+      "id": "WorkingTimeDefs:130:change_constant:100",
+      "module": "WorkingTimeDefs.catala_en",
+      "operator": "change_constant",
+      "line": 130,
+      "change": "change_constant at line 130: '(annual_base_salary / $1.00) / 2080.0' -> '(annual_base_salary / $2.00) / 2080.0'",
+      "class": "equivalent"
+    },
+    {
+      "id": "accommodation:103:change_constant:0",
+      "module": "accommodation.catala_en",
+      "operator": "change_constant",
+      "line": 103,
+      "change": "change_constant at line 103: 'consequence equals base_cap * 1.4' -> 'consequence equals base_cap * 1.65'",
+      "class": "live",
+      "behaviour_diffs": 3,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "accommodation:101:drop_exception:0",
+      "module": "accommodation.catala_en",
+      "operator": "drop_exception",
+      "line": 101,
+      "change": "drop_exception at line 101: 'scope NightlyAccommodation:\\n  label e4_2 exception e4_1 definition applicable_cap\\n    under condition no_compliant_accommodation_available_evidenced\\n    consequence equals base_cap * 1.4' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 3,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "availability:360:flip_comparison:0",
+      "module": "availability.catala_en",
+      "operator": "flip_comparison",
+      "line": 360,
+      "change": "flip_comparison at line 360: 'under condition scheduled_maintenance_excess_minutes > 0' -> 'under condition scheduled_maintenance_excess_minutes >= 0'",
+      "class": "equivalent"
+    },
+    {
+      "id": "availability:360:shift_threshold:0",
+      "module": "availability.catala_en",
+      "operator": "shift_threshold",
+      "line": 360,
+      "change": "shift_threshold at line 360: 'under condition scheduled_maintenance_excess_minutes > 0' -> 'under condition scheduled_maintenance_excess_minutes > -1'",
+      "class": "equivalent"
+    },
+    {
+      "id": "availability:387:change_constant:0",
+      "module": "availability.catala_en",
+      "operator": "change_constant",
+      "line": 387,
+      "change": "change_constant at line 387: '((total_minutes - unavailable_minutes) / total_minutes) * 100.0' -> '((total_minutes - unavailable_minutes) / total_minutes) * 100.25'",
+      "class": "equivalent"
+    },
+    {
+      "id": "availability:298:drop_exception:0",
+      "module": "availability.catala_en",
+      "operator": "drop_exception",
+      "line": 298,
+      "change": "drop_exception at line 298: 'label l4_5_excess exception l4_5_no_excess definition excess_minutes\\n    under condition aggregate_minutes > cap_minutes\\n    consequence equals aggregate_minutes - cap_minutes' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 0,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "availability:299:flip_comparison:0",
+      "module": "availability.catala_en",
+      "operator": "flip_comparison",
+      "line": 299,
+      "change": "flip_comparison at line 299: 'under condition aggregate_minutes > cap_minutes' -> 'under condition aggregate_minutes >= cap_minutes'",
+      "class": "untestable",
+      "why": "ScheduledMaintenance.business_day_calendar has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.;"
+    },
+    {
+      "id": "availability:360:shift_threshold:1",
+      "module": "availability.catala_en",
+      "operator": "shift_threshold",
+      "line": 360,
+      "change": "shift_threshold at line 360: 'under condition scheduled_maintenance_excess_minutes > 0' -> 'under condition scheduled_maintenance_excess_minutes > 1'",
+      "class": "equivalent"
+    },
+    {
+      "id": "claimwindow:108:flip_comparison:0",
+      "module": "claimwindow.catala_en",
+      "operator": "flip_comparison",
+      "line": 108,
+      "change": "flip_comparison at line 108: 'under condition days_elapsed > 120' -> 'under condition days_elapsed >= 120'",
+      "class": "untestable",
+      "why": "ClaimAdmissible: 1 of 50 vectors could not be executed at all (\u250c\u2500[ERROR]\u2500 \u2502 \u2502 While loading compiled module from \"_build/libcatala/ocaml/Duration_en.cmxs\": \u2502 error loading shared libr); they are UNTES"
+    },
+    {
+      "id": "claimwindow:79:shift_threshold:1",
+      "module": "claimwindow.catala_en",
+      "operator": "shift_threshold",
+      "line": 79,
+      "change": "shift_threshold at line 79: 'days_elapsed > 60' -> 'days_elapsed > 61'",
+      "class": "untestable",
+      "why": "ClaimAdmissible: 1 of 50 vectors could not be executed at all (\u250c\u2500[ERROR]\u2500 \u2502 \u2502 While loading compiled module from \"_build/libcatala/ocaml/List_en.cmxs\": \u2502 error loading shared library:); they are UNTES"
+    },
+    {
+      "id": "claimwindow:78:negate_condition:1",
+      "module": "claimwindow.catala_en",
+      "operator": "negate_condition",
+      "line": 78,
+      "change": "negate_condition at line 78: 'days_elapsed > 60\\n      and days_elapsed <= 120\\n      and delay_certified_for_good_reason' -> 'not (\\n      days_elapsed > 60\\n      and days_elapsed <= 120\\n      and delay_certified_for_good_reason\\n      )'",
+      "class": "equivalent"
+    },
+    {
+      "id": "claimwindow:80:and_to_or:0",
+      "module": "claimwindow.catala_en",
+      "operator": "and_to_or",
+      "line": 80,
+      "change": "and_to_or at line 80: 'and days_elapsed <= 120' -> 'or days_elapsed <= 120'",
+      "class": "stillborn"
+    },
+    {
+      "id": "claimwindow:77:drop_exception:0",
+      "module": "claimwindow.catala_en",
+      "operator": "drop_exception",
+      "line": 77,
+      "change": "drop_exception at line 77: 'scope ClaimAdmissible:\\n  label e6_2 exception e6_1 definition admissible\\n    under condition\\n      days_elapsed > 60\\n      and days_elapsed <= 120\\n      and delay_certified_for_good_reason\\n    consequence equals true' -> '(deleted)'",
+      "class": "stillborn"
+    },
+    {
+      "id": "claimwindow:80:flip_comparison:0",
+      "module": "claimwindow.catala_en",
+      "operator": "flip_comparison",
+      "line": 80,
+      "change": "flip_comparison at line 80: 'and days_elapsed <= 120' -> 'and days_elapsed < 120'",
+      "class": "equivalent"
+    },
+    {
+      "id": "clawback:68:change_constant:100",
+      "module": "clawback.catala_en",
+      "operator": "change_constant",
+      "line": 68,
+      "change": "change_constant at line 68: 'label no_recovery definition recoverable_amount equals $0' -> 'label no_recovery definition recoverable_amount equals $1'",
+      "class": "live",
+      "behaviour_diffs": 50,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "clawback:96:negate_condition:1",
+      "module": "clawback.catala_en",
+      "operator": "negate_condition",
+      "line": 96,
+      "change": "negate_condition at line 96: 'is_churned_contract and terminated_for_company_material_breach' -> 'not (\\n      is_churned_contract and terminated_for_company_material_breach\\n      )'",
+      "class": "equivalent"
+    },
+    {
+      "id": "clawback:97:and_to_or:0",
+      "module": "clawback.catala_en",
+      "operator": "and_to_or",
+      "line": 97,
+      "change": "and_to_or at line 97: 'is_churned_contract and terminated_for_company_material_breach' -> 'is_churned_contract or terminated_for_company_material_breach'",
+      "class": "equivalent"
+    },
+    {
+      "id": "clawback:70:drop_exception:0",
+      "module": "clawback.catala_en",
+      "operator": "drop_exception",
+      "line": 70,
+      "change": "drop_exception at line 70: 'label s7_1 exception no_recovery definition recoverable_amount\\n    under condition is_churned_contract\\n    consequence equals commission_paid' -> '(deleted)'",
+      "class": "stillborn"
+    },
+    {
+      "id": "clawback:98:change_constant:100",
+      "module": "clawback.catala_en",
+      "operator": "change_constant",
+      "line": 98,
+      "change": "change_constant at line 98: 'consequence equals $0' -> 'consequence equals $1'",
+      "class": "live",
+      "behaviour_diffs": 22,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "clawback:134:and_to_or:0",
+      "module": "clawback.catala_en",
+      "operator": "and_to_or",
+      "line": 134,
+      "change": "and_to_or at line 134: 'under condition is_churned_contract and recovery_time_barred' -> 'under condition is_churned_contract or recovery_time_barred'",
+      "class": "equivalent"
+    },
+    {
+      "id": "commission:331:flip_comparison:0",
+      "module": "commission.catala_en",
+      "operator": "flip_comparison",
+      "line": 331,
+      "change": "flip_comparison at line 331: 'under condition quota <= 0.0' -> 'under condition quota < 0.0'",
+      "class": "live",
+      "behaviour_diffs": 1,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:Attainment/NoApplicableRule",
+        "G2:CommissionPayable/AssertionsRejectBattery",
+        "G2:CommissionPayable/NoApplicableRule"
+      ]
+    },
+    {
+      "id": "commission:412:shift_threshold:0",
+      "module": "commission.catala_en",
+      "operator": "shift_threshold",
+      "line": 412,
+      "change": "shift_threshold at line 412: 'under condition attainment_pct >= 150%' -> 'under condition attainment_pct >= 149%'",
+      "class": "equivalent"
+    },
+    {
+      "id": "commission:172:change_constant:0",
+      "module": "commission.catala_en",
+      "operator": "change_constant",
+      "line": 172,
+      "change": "change_constant at line 172: 'declaration base_commission_rate content decimal equals 8.0%' -> 'declaration base_commission_rate content decimal equals 8.25%'",
+      "class": "equivalent"
+    },
+    {
+      "id": "commission:404:and_to_or:0",
+      "module": "commission.catala_en",
+      "operator": "and_to_or",
+      "line": 404,
+      "change": "and_to_or at line 404: 'under condition attainment_pct >= 50% and attainment_pct < 100%' -> 'under condition attainment_pct >= 50% or attainment_pct < 100%'",
+      "class": "live",
+      "behaviour_diffs": 140,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:Accelerator/ScopeConflict"
+      ]
+    },
+    {
+      "id": "commission:544:drop_exception:0",
+      "module": "commission.catala_en",
+      "operator": "drop_exception",
+      "line": 544,
+      "change": "drop_exception at line 544: 'scope CommissionPayable:\\n  label s5_3 exception s5_1 definition cap\\n    under condition attainment_calc.attainment_pct > 200%\\n    consequence equals annual_base_salary * 400%' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 0,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "commission:404:flip_comparison:0",
+      "module": "commission.catala_en",
+      "operator": "flip_comparison",
+      "line": 404,
+      "change": "flip_comparison at line 404: 'under condition attainment_pct >= 50% and attainment_pct < 100%' -> 'under condition attainment_pct > 50% and attainment_pct < 100%'",
+      "class": "live",
+      "behaviour_diffs": 20,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:Accelerator/NoApplicableRule"
+      ]
+    },
+    {
+      "id": "expensedefs:126:flip_comparison:0",
+      "module": "expensedefs.catala_en",
+      "operator": "flip_comparison",
+      "line": 126,
+      "change": "flip_comparison at line 126: 'under condition return_date <= departure_date' -> 'under condition return_date < departure_date'",
+      "class": "live",
+      "behaviour_diffs": 5,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:TravelDayCount/NoApplicableRule"
+      ]
+    },
+    {
+      "id": "expensedefs:130:flip_comparison:0",
+      "module": "expensedefs.catala_en",
+      "operator": "flip_comparison",
+      "line": 130,
+      "change": "flip_comparison at line 130: 'under condition return_date > departure_date' -> 'under condition return_date >= departure_date'",
+      "class": "live",
+      "behaviour_diffs": 5,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G2:TravelDayCount/ScopeConflict"
+      ]
+    },
+    {
+      "id": "groundtransport:129:flip_comparison:0",
+      "module": "groundtransport.catala_en",
+      "operator": "flip_comparison",
+      "line": 129,
+      "change": "flip_comparison at line 129: 'and (ticket_cost <= standard_class_fare_same_day' -> 'and (ticket_cost < standard_class_fare_same_day'",
+      "class": "untestable",
+      "why": "RailFare.pre_approval has type 'ExpenseDefs.PreApproval', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no"
+    },
+    {
+      "id": "groundtransport:193:shift_threshold:0",
+      "module": "groundtransport.catala_en",
+      "operator": "shift_threshold",
+      "line": 193,
+      "change": "shift_threshold at line 193: 'and (minutes_after_midnight < 6 * 60' -> 'and (minutes_after_midnight < 5 * 60'",
+      "class": "equivalent"
+    },
+    {
+      "id": "groundtransport:124:change_constant:100",
+      "module": "groundtransport.catala_en",
+      "operator": "change_constant",
+      "line": 124,
+      "change": "change_constant at line 124: 'consequence equals $0.00' -> 'consequence equals $1.00'",
+      "class": "untestable",
+      "why": "RailFare.pre_approval has type 'ExpenseDefs.PreApproval', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no"
+    },
+    {
+      "id": "groundtransport:127:negate_condition:1",
+      "module": "groundtransport.catala_en",
+      "operator": "negate_condition",
+      "line": 127,
+      "change": "negate_condition at line 127: 'is_first_class\\n      and (ticket_cost <= standard_class_fare_same_day\\n           or pre_approval_obtained)' -> 'not (\\n      is_first_class\\n      and (ticket_cost <= standard_class_fare_same_day\\n           or pre_approval_obtained)\\n      )'",
+      "class": "untestable",
+      "why": "RailFare.pre_approval has type 'ExpenseDefs.PreApproval', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no"
+    },
+    {
+      "id": "groundtransport:193:and_to_or:0",
+      "module": "groundtransport.catala_en",
+      "operator": "and_to_or",
+      "line": 193,
+      "change": "and_to_or at line 193: 'and (minutes_after_midnight < 6 * 60' -> 'or (minutes_after_midnight < 6 * 60'",
+      "class": "equivalent"
+    },
+    {
+      "id": "groundtransport:190:drop_exception:0",
+      "module": "groundtransport.catala_en",
+      "operator": "drop_exception",
+      "line": 190,
+      "change": "drop_exception at line 190: 'label e5_3_airport exception e5_3 definition reimbursable_amount\\n    under condition\\n      is_airport_journey\\n      and (minutes_after_midnight < 6 * 60\\n           or minutes_after_midnight > 22 * 60)\\n    consequence equals journey_cost' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 0,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "mealperdiem:183:flip_comparison:0",
+      "module": "mealperdiem.catala_en",
+      "operator": "flip_comparison",
+      "line": 183,
+      "change": "flip_comparison at line 183: 'specified > per_diem_apart_from_e3_3)' -> 'specified >= per_diem_apart_from_e3_3)'",
+      "class": "untestable",
+      "why": "MealPerDiemForDay.client_billable has type 'ExpenseDefs.ClientBillable', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported "
+    },
+    {
+      "id": "mealperdiem:237:change_constant:100",
+      "module": "mealperdiem.catala_en",
+      "operator": "change_constant",
+      "line": 237,
+      "change": "change_constant at line 237: 'Money.max of $0.00, (per_diem_cap - e3_4_reduction)' -> 'Money.max of $1.00, (per_diem_cap - e3_4_reduction)'",
+      "class": "untestable",
+      "why": "MealPerDiemForDay.client_billable has type 'ExpenseDefs.ClientBillable', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported "
+    },
+    {
+      "id": "mealperdiem:178:negate_condition:1",
+      "module": "mealperdiem.catala_en",
+      "operator": "negate_condition",
+      "line": 178,
+      "change": "negate_condition at line 178: 'pre_approval_effective\\n      and (match pre_approval.specified_amount with pattern\\n           -- Absent: false\\n           -- Present content specified:\\n             specified > per_diem_apart_from_e3_3)' -> 'not (\\n      pre_approval_effective\\n      and (match pre_approval.specified_amount with pattern\\n           -- Absent: false\\n           -- Present content specified:\\n             specified > per_diem_apart_from_e3_3)\\n      )'",
+      "class": "untestable",
+      "why": "MealPerDiemForDay.client_billable has type 'ExpenseDefs.ClientBillable', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported "
+    },
+    {
+      "id": "mealperdiem:180:and_to_or:0",
+      "module": "mealperdiem.catala_en",
+      "operator": "and_to_or",
+      "line": 180,
+      "change": "and_to_or at line 180: 'and (match pre_approval.specified_amount with pattern' -> 'or (match pre_approval.specified_amount with pattern'",
+      "class": "untestable",
+      "why": "MealPerDiemForDay.client_billable has type 'ExpenseDefs.ClientBillable', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported "
+    },
+    {
+      "id": "mealperdiem:126:drop_exception:0",
+      "module": "mealperdiem.catala_en",
+      "operator": "drop_exception",
+      "line": 126,
+      "change": "drop_exception at line 126: 'scope MealPerDiemForDay:\\n  label e3_2 exception e3_1_cap definition per_diem_cap\\n    under condition client_billable.is_client_billable\\n    consequence equals\\n      client_billable_per_diem of client_billable, per_diem_under_e3_1' -> '(deleted)'",
+      "class": "stillborn"
+    },
+    {
+      "id": "mealperdiem:234:change_constant:100",
+      "module": "mealperdiem.catala_en",
+      "operator": "change_constant",
+      "line": 234,
+      "change": "change_constant at line 234: 'definition e3_4_reduction equals $15.00 * decimal of meals_provided_free' -> 'definition e3_4_reduction equals $16.00 * decimal of meals_provided_free'",
+      "class": "untestable",
+      "why": "MealPerDiemForDay.client_billable has type 'ExpenseDefs.ClientBillable', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported "
+    },
+    {
+      "id": "overtime:248:flip_comparison:0",
+      "module": "overtime.catala_en",
+      "operator": "flip_comparison",
+      "line": 248,
+      "change": "flip_comparison at line 248: 'else if multiplier > salaried_element then multiplier - salaried_element' -> 'else if multiplier >= salaried_element then multiplier - salaried_element'",
+      "class": "equivalent"
+    },
+    {
+      "id": "overtime:126:shift_threshold:3",
+      "module": "overtime.catala_en",
+      "operator": "shift_threshold",
+      "line": 126,
+      "change": "shift_threshold at line 126: 'under condition grade >= 5 and ordinal > 40' -> 'under condition grade >= 5 and ordinal > 41'",
+      "class": "live",
+      "behaviour_diffs": 8,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "overtime:62:change_constant:0",
+      "module": "overtime.catala_en",
+      "operator": "change_constant",
+      "line": 62,
+      "change": "change_constant at line 62: 'label ordinary definition multiplier equals 0.0' -> 'label ordinary definition multiplier equals 0.25'",
+      "class": "live",
+      "behaviour_diffs": 64,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "overtime:142:negate_condition:1",
+      "module": "overtime.catala_en",
+      "operator": "negate_condition",
+      "line": 142,
+      "change": "negate_condition at line 142: 'grade >= 5 and ordinal > 40 and is_critical_incident' -> 'not (\\n      grade >= 5 and ordinal > 40 and is_critical_incident\\n      )'",
+      "class": "live",
+      "behaviour_diffs": 128,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G3:ordinary/c4_1/c4_2[ordinal > 48]",
+        "G3:ordinary/c4_1[ordinal > 40]",
+        "G3:ordinary[<unconditional>]"
+      ]
+    },
+    {
+      "id": "overtime:126:and_to_or:0",
+      "module": "overtime.catala_en",
+      "operator": "and_to_or",
+      "line": 126,
+      "change": "and_to_or at line 126: 'under condition grade >= 5 and ordinal > 40' -> 'under condition grade >= 5 or ordinal > 40'",
+      "class": "live",
+      "behaviour_diffs": 64,
+      "killed_by_gates": true,
+      "gate_kill": [
+        "G3:ordinary/c4_1/c4_2[ordinal > 48]",
+        "G3:ordinary/c4_1[ordinal > 40]"
+      ]
+    },
+    {
+      "id": "overtime:103:drop_exception:0",
+      "module": "overtime.catala_en",
+      "operator": "drop_exception",
+      "line": 103,
+      "change": "drop_exception at line 103: 'scope HourPremium:\\n  label c4_2 exception c4_1 definition multiplier\\n    under condition ordinal > 48\\n    consequence equals 1.5' -> '(deleted)'",
+      "class": "stillborn"
+    },
+    {
+      "id": "retention:318:flip_comparison:0",
+      "module": "retention.catala_en",
+      "operator": "flip_comparison",
+      "line": 318,
+      "change": "flip_comparison at line 318: '> retention_trigger_date + 6 year' -> '>= retention_trigger_date + 6 year'",
+      "class": "untestable",
+      "why": "RetentionEnd.consent_renewal_dates has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no beha"
+    },
+    {
+      "id": "retention:313:negate_condition:1",
+      "module": "retention.catala_en",
+      "operator": "negate_condition",
+      "line": 313,
+      "change": "negate_condition at line 313: '(data_class with pattern EmployeeRecord)\\n      and statutory_retention_applies\\n      and (Date.add_round_down of\\n             retention_trigger_date, statutory_retention_period)\\n          > retention_trigger_date + 6 year' -> 'not (\\n      (data_class with pattern EmployeeRecord)\\n      and statutory_retention_applies\\n      and (Date.add_round_down of\\n             retention_trigger_date, statutory_retention_period)\\n          > retention_trigger_date + 6 year\\n      )'",
+      "class": "untestable",
+      "why": "RetentionEnd.consent_renewal_dates has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no beha"
+    },
+    {
+      "id": "retention:198:and_to_or:0",
+      "module": "retention.catala_en",
+      "operator": "and_to_or",
+      "line": 198,
+      "change": "and_to_or at line 198: 'and (talent_pool_consent_date with pattern Present)' -> 'or (talent_pool_consent_date with pattern Present)'",
+      "class": "untestable",
+      "why": "RetentionEnd.consent_renewal_dates has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no beha"
+    },
+    {
+      "id": "retention:195:drop_exception:0",
+      "module": "retention.catala_en",
+      "operator": "drop_exception",
+      "line": 195,
+      "change": "drop_exception at line 195: 'scope RetentionEnd:\\n  label r3_2 exception r3_1_f definition retention_end_date\\n    under condition\\n      (data_class with pattern CandidateRecord)\\n      and (talent_pool_consent_date with pattern Present)\\n    consequence equals\\n      (match talent_pool_consent_date with pattern\\n       -- Absent: retention_trigger_date\\n       -- Present content consented:\\n            Date.max of\\n              consented,\\n              (maximum of consent_renewal_dates\\n               or if list empty then consented))\\n      + 24 month' -> '(deleted)'",
+      "class": "live",
+      "behaviour_diffs": 0,
+      "killed_by_gates": false,
+      "gate_kill": []
+    },
+    {
+      "id": "retention:196:negate_condition:1",
+      "module": "retention.catala_en",
+      "operator": "negate_condition",
+      "line": 196,
+      "change": "negate_condition at line 196: '(data_class with pattern CandidateRecord)\\n      and (talent_pool_consent_date with pattern Present)' -> 'not (\\n      (data_class with pattern CandidateRecord)\\n      and (talent_pool_consent_date with pattern Present)\\n      )'",
+      "class": "untestable",
+      "why": "RetentionEnd.consent_renewal_dates has type 'array', for which no input battery can be generated. Behavioural equivalence CANNOT be checked for this scope and must not be reported as passing.; no beha"
+    },
+    {
+      "id": "retention:316:and_to_or:0",
+      "module": "retention.catala_en",
+      "operator": "and_to_or",
+      "line": 316,
+      "change": "and_to_or at line 316: 'and (Date.add_round_down of' -> 'or (Date.add_round_down of'",
+      "class": "stillborn"
+    }
+  ],
+  "originals": []
+}

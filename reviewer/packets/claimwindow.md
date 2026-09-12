@@ -27,11 +27,11 @@ will be reimbursed in any circumstances.
 ## Artefact under review
 
 ```
-# Expense Reimbursement Policy — submission and time limits
+#
 
 > Module ClaimWindow
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope ClaimAdmissible:
@@ -42,7 +42,7 @@ declaration scope ClaimAdmissible:
   output admissible content boolean
 ```
 
-## E-6.1 The 60-day window
+## E-6.1
 
 | EXP-POL E-6.1 (002-expense-reimbursement-policy.md:94)
 |
@@ -59,7 +59,7 @@ scope ClaimAdmissible:
   assertion submission_date >= expense_incurred_date
 ```
 
-## E-6.2 Late claim certified for good reason
+## E-6.2
 
 | EXP-POL E-6.2 (002-expense-reimbursement-policy.md:97)
 |
@@ -77,7 +77,7 @@ scope ClaimAdmissible:
     consequence equals true
 ```
 
-## E-6.3 The 120-day long-stop
+## E-6.3
 
 | EXP-POL E-6.3 (002-expense-reimbursement-policy.md:101)
 |

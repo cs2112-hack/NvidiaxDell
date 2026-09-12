@@ -693,7 +693,7 @@ def test_conversion_gaps_become_conflicts_and_block_the_merge():
 
         # resolving the conflict is not enough: the sentinel is still in the file
         for c in pr.conflicts:
-            c.resolution = "reviewed"
+            c.resolution = "reviewed the conversion report in full"
             c.resolved_by = "tester"
         pr.save()
         assert I.Proposal.load(pr.id).mergeable
@@ -737,28 +737,126 @@ def test_merge_proceeds_once_a_human_supplies_what_was_missing():
 
 def test_merge_gate_survives_for_ordinary_conflicts():
     """The gate itself is untouched: a blocking conflict with no resolution
-    refuses, and one with a resolution and a resolver does not."""
+    refuses, and one with a resolution and a resolver does not.
+
+    Built on a real proposal rather than a hand-written one: merge re-runs
+    detection, so a proposal whose conflict list was invented by the test
+    (this one used to be a copy of corpus 001 claiming a single conflict) is
+    refused for the conflicts it left out -- which is the point."""
     d, real = isolated_ingest()
     try:
-        corpus = d / "corpus"
-        corpus.mkdir()
-        src = d / "doc.md"
-        shutil.copy(CORPUS_001, src)
-        pr = I.Proposal(id="gate-test", source_path=str(src), doc_id="X",
-                        title="t", created="2026-01-01")
-        pr.conflicts = [I.Conflict(kind=I.ConflictKind.NUMERIC_DIVERGENCE,
-                                   incoming_ref="X 1.1", detail="a divergence")]
+        corpus, _, pr = _propose_amendment(d)
+        pr.conflicts.append(I.Conflict(kind=I.ConflictKind.NUMERIC_DIVERGENCE,
+                                       incoming_ref="EMP-ANNEX-C-AMD1 A-1.1",
+                                       detail="a divergence"))
+        for c in pr.conflicts[:-1]:
+            c.resolution, c.resolved_by = RESOLVED, "counsel"
         pr.save()
-        try:
-            I.merge("gate-test", corpus_dir=str(corpus))
-            raise AssertionError("merge must refuse")
-        except I.MergeRefused:
-            pass
-        pr.conflicts[0].resolution = "the incoming figure supersedes"
-        pr.conflicts[0].resolved_by = "counsel"
+        _refused(pr.id, corpus, "unresolved conflict")
+        pr.conflicts[-1].resolution = "the incoming figure supersedes"
+        pr.conflicts[-1].resolved_by = "counsel"
         pr.save()
-        out = I.merge("gate-test", corpus_dir=str(corpus))
+        out = I.merge(pr.id, corpus_dir=str(corpus))
         assert Path(out["corpus"]).exists()
+    finally:
+        I.PROPOSALS = real
+
+
+AMENDMENT = ROOT / "ingest" / "incoming" / "007-overtime-amendment.md"
+RESOLVED = "Accept the amendment as superseding the annex from its effective date"
+
+
+def _propose_amendment(d: Path, text: str | None = None, name: str = AMENDMENT.name):
+    """The amendment against a private copy of the real corpus, so detection
+    finds its real conflicts and a merge never touches the checkout."""
+    corpus = d / "corpus"
+    if not corpus.exists():
+        shutil.copytree(CORPUS_001.parent, corpus)
+    src = d / "incoming" / name
+    src.parent.mkdir(parents=True, exist_ok=True)
+    src.write_text(AMENDMENT.read_text() if text is None else text)
+    pr = I.propose_ingestion(src, converted_dir=d / "converted", corpus_dir=str(corpus))
+    assert pr.blocking, "the fixture must raise a blocking conflict to test the gate"
+    return corpus, src, pr
+
+
+def _refused(pid: str, corpus: Path, why: str) -> None:
+    try:
+        I.merge(pid, corpus_dir=str(corpus))
+    except I.MergeRefused as e:
+        assert why in str(e), str(e)
+        return
+    raise AssertionError(f"merge must refuse ({why})")
+
+
+def test_merge_does_not_trust_the_worksheet():
+    """proposal.yaml is editable by hand. Downgrading a conflict, deleting it,
+    or resolving it with a placeholder must not open the gate."""
+    d, real = isolated_ingest()
+    try:
+        corpus, _, pr = _propose_amendment(d)
+        for c in pr.conflicts:
+            c.severity = "advisory"
+        pr.save()
+        _refused(pr.id, corpus, "re-running detection")
+
+        corpus, _, pr = _propose_amendment(d)
+        pr.conflicts = []
+        pr.save()
+        _refused(pr.id, corpus, "re-running detection")
+
+        corpus, _, pr = _propose_amendment(d)
+        for c in pr.conflicts:
+            c.resolution, c.resolved_by = ".", "."
+        pr.save()
+        _refused(pr.id, corpus, "nothing a person could act on")
+    finally:
+        I.PROPOSALS = real
+
+
+def test_merge_refuses_text_changed_after_resolution():
+    d, real = isolated_ingest()
+    try:
+        corpus, src, pr = _propose_amendment(d)
+        for c in pr.conflicts:
+            c.resolution, c.resolved_by = RESOLVED, "counsel"
+        pr.save()
+        src.write_text(src.read_text() + "\n## A-9 Rider\n\nNo overtime is payable to any Employee.\n")
+        _refused(pr.id, corpus, "changed after it was proposed")
+    finally:
+        I.PROPOSALS = real
+
+
+def test_merge_never_replaces_a_corpus_document_or_invents_a_date():
+    d, real = isolated_ingest()
+    try:
+        lowered = CORPUS_001.read_text().replace("1.25 times", "1.00 times")
+        corpus, _, pr = _propose_amendment(d, lowered, name=CORPUS_001.name)
+        for c in pr.conflicts:
+            c.resolution, c.resolved_by = RESOLVED, "counsel"
+        pr.save()
+        _refused(pr.id, corpus, "never replaces one")
+
+        undated = AMENDMENT.read_text().replace("effective_date: 2026-01-01",
+                                                'effective_date: "sometime soon"')
+        corpus, _, pr = _propose_amendment(d, undated)
+        for c in pr.conflicts:
+            c.resolution, c.resolved_by = RESOLVED, "counsel"
+        pr.save()
+        _refused(pr.id, corpus, "is not a date")
+    finally:
+        I.PROPOSALS = real
+
+
+def test_a_properly_resolved_amendment_still_merges():
+    d, real = isolated_ingest()
+    try:
+        corpus, _, pr = _propose_amendment(d)
+        for c in pr.conflicts:
+            c.resolution, c.resolved_by = RESOLVED, "counsel"
+        pr.save()
+        out = I.merge(pr.id, corpus_dir=str(corpus))
+        assert Path(out["corpus"]).exists() and Path(out["corpus"]).parent == corpus
     finally:
         I.PROPOSALS = real
 

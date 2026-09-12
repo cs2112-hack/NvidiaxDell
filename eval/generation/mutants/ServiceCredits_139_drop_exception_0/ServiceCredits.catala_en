@@ -1,0 +1,254 @@
+# MSA Schedule 4 — Service Credits
+
+> Module ServiceCredits
+
+This module encodes the money half of Schedule 4: the credit base (L-2.7), the
+L-4.1 band table, the L-4.2 cap, L-4.3's double override of both, and L-4.4's
+forfeiture. It consumes the `availability_percentage` computed by
+`Availability` as an input, so the two judgement inputs that L-2.5 lifts —
+`force_majeure_event_certified` and `outage_attributable_to_customer` — sit
+upstream of every figure this module produces.
+
+L-4.4 is a HYBRID clause: the arrears test and its consequence are exact, but
+they bite only on an **undisputed** invoice, and whether the Customer's
+assertion of a dispute takes an invoice outside the exception is a
+characterisation the Schedule does not define. It is therefore the judgement
+input `invoice_undisputed`, which this module applies and never infers.
+
+Two things to keep straight about `availability_percentage`. It is the **L-2.3
+figure, already rounded to two decimal places** — every comparison below is
+made against the rounded number because that is what the defined term means,
+so an unrounded 99.895% arrives here as 99.90% and earns nothing. And it is a
+percentage on the 0–100 scale, not a fraction: 99.90, not 0.9990.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration scope MonthlyServiceCharge:
+  input charges_for_the_service content money
+  input one_off_charges content money
+  input professional_services_charges content money
+  input pass_through_charges content money
+  output monthly_service_charge content money
+
+declaration scope ServiceCredit:
+  # The L-2.3 Availability Percentage, rounded to two decimal places, on the
+  # 0-100 scale.
+  input availability_percentage content decimal
+  input monthly_service_charge content money
+  # L-4.4: days for which the Customer has been in arrears of the invoice.
+  input arrears_days content integer
+  # L-4.4: JUDGEMENT INPUT — whether that invoice is undisputed.
+  input invoice_undisputed content boolean
+  output credit_percentage content decimal
+  output credit_cap_percentage content decimal
+  output credit_payable_percentage content decimal
+  output credit_amount content money
+```
+
+## L-2.7 Monthly Service Charge
+
+| MSA-SCH4 L-2.7 (004-msa-sla-credits.md:55)
+|
+| "Monthly Service Charge" means the charges payable by the Customer in
+| respect of the Service for the Measurement Period in question, excluding
+| one-off charges, professional services charges and pass-through charges.
+
+The definition is inclusive of the charges for the Service in the period and
+exclusive of three named categories, so it is a subtraction and not a
+selection: `charges_for_the_service` is the gross figure for the Measurement
+Period and the three exclusions come off it.
+
+L-2.7 also fixes the domain of the four figures it combines, and the bounds are
+the definition's own rather than a programming convenience. Each of the four is
+a *charge* — a sum payable by the Customer — so each is nought or more; there
+is no such thing as a negative charge payable, and nothing in Schedule 4
+contemplates one. And the three excluded categories are categories *within* the
+charges payable for the Measurement Period: the definition works by excluding
+them from that figure, so their total cannot exceed it. If it could, the
+Monthly Service Charge would come out negative, and every Service Credit struck
+as a percentage of it under L-4.1 would run backwards — a credit owed by the
+Customer to the Supplier, which is the opposite of the remedy L-1.2 makes the
+Customer's. So the scope refuses those inputs rather than computing on them.
+
+```catala
+scope MonthlyServiceCharge:
+  assertion charges_for_the_service >= $0.00
+
+  assertion one_off_charges >= $0.00
+
+  assertion professional_services_charges >= $0.00
+
+  assertion pass_through_charges >= $0.00
+
+  assertion
+    one_off_charges + professional_services_charges + pass_through_charges
+      <= charges_for_the_service
+
+  definition monthly_service_charge equals
+    charges_for_the_service
+    - one_off_charges
+    - professional_services_charges
+    - pass_through_charges
+```
+
+## L-4.1 The band table
+
+| MSA-SCH4 L-4.1 (004-msa-sla-credits.md:66)
+|
+| Where the Availability Percentage in a Measurement Period is less than
+| 99.90%, the Customer is entitled to a Service Credit calculated as a percentage
+| of the Monthly Service Charge as follows:
+|
+|   (a) less than 99.90% but not less than 99.50%: 5%;
+|   (b) less than 99.50% but not less than 99.00%: 10%;
+|   (c) less than 99.00% but not less than 98.00%: 20%;
+|   (d) less than 98.00%: 30%.
+
+L-4.1 engages only "where the Availability Percentage ... is less than
+99.90%", so the base case is no credit and the four bands are exceptions to
+it. Exactly 99.90% is outside L-4.1 altogether and earns nothing, because
+L-3.1 is met at 99.90%.
+
+Each band boundary is exclusive above and inclusive below — "less than 99.50%
+but not less than 99.00%" — so exactly 99.50% falls in band (a) and not band
+(b), exactly 99.00% in band (b), exactly 98.00% in band (c). The four
+conditions are mutually exclusive, so they share one label and form a single
+node of the hierarchy rather than competing.
+
+The figure the bands are read against is bounded at both ends, and the defined
+term is what bounds it. L-2.3 constructs the Availability Percentage as the
+total minutes in the Measurement Period less Unavailable Minutes, divided by
+the total minutes in the Measurement Period, expressed as a percentage: the
+Unavailable Minutes are minutes of that same period, so the numerator runs from
+nought to the whole of the denominator and the quotient lies between 0.00 and
+100.00 inclusive. -500 and 200 are not Availability Percentages that L-2.3 can
+produce, and a band table keyed on them answers a question Schedule 4 never
+asks — 200 would read as full availability and earn nothing, while -500 would
+fall through to L-4.3. The scope therefore refuses a figure outside the scale
+rather than banding it. The bound is the defined term's, not a convenience:
+it is the same construction that makes 99.90% the whole of L-3.1.
+
+```catala
+scope ServiceCredit:
+  assertion
+    availability_percentage >= 0.00 and availability_percentage <= 100.00
+
+  label l4_1_base definition credit_percentage equals 0%
+
+  label l4_1 exception l4_1_base definition credit_percentage
+    under condition
+      (availability_percentage < 99.50) and (availability_percentage >= 99.00)
+    consequence equals 10%
+
+  label l4_1 exception l4_1_base definition credit_percentage
+    under condition
+      (availability_percentage < 99.00) and (availability_percentage >= 98.00)
+    consequence equals 20%
+
+  label l4_1 exception l4_1_base definition credit_percentage
+    under condition availability_percentage < 98.00
+    consequence equals 30%
+
+  definition credit_amount equals
+    monthly_service_charge * credit_payable_percentage
+```
+
+## L-4.2 The aggregate cap
+
+| MSA-SCH4 L-4.2 (004-msa-sla-credits.md:75)
+|
+| The maximum aggregate Service Credit in respect of any Measurement
+| Period is 30% of the Monthly Service Charge.
+
+L-4.2 is unconditional — it applies "in respect of any Measurement Period" —
+so the cap has no guard, and the cap is what it operates on
+`credit_payable_percentage` to do: the lesser of the L-4.1 percentage and the
+ceiling. On the L-4.1 table alone the cap never bites, since band (d) is
+already 30%; it bites once L-4.3 raises the credit to 50%, which is why L-4.3
+has to raise the ceiling as well.
+
+```catala
+scope ServiceCredit:
+  label l4_2 definition credit_cap_percentage equals 30%
+
+  definition credit_payable_percentage equals
+    if credit_percentage > credit_cap_percentage
+    then credit_cap_percentage
+    else credit_percentage
+```
+
+## L-4.3 Below 95.00%
+
+| MSA-SCH4 L-4.3 (004-msa-sla-credits.md:78)
+|
+| By way of exception to L-4.2, where the Availability Percentage is less
+| than 95.00%, the maximum aggregate Service Credit in respect of that Measurement
+| Period is 50% of the Monthly Service Charge and the Service Credit is 50%.
+
+L-4.3 does two distinct things and so is two exceptions at once: it displaces
+the L-4.2 ceiling of 30%, and it displaces the L-4.1 percentage — in practice
+band (d)'s 30% — with 50%. Neither alone would produce 50% of the Monthly
+Service Charge: raising only the credit leaves the 30% cap biting, and raising
+only the cap leaves the credit at 30%. It is therefore not folded into the
+L-4.1 table, which continues to govern at and above 95.00%.
+
+"Less than 95.00%" is strict, so exactly 95.00% stays in band (d) at 30% with
+the 30% cap. The condition `availability_percentage < 95.00` entails L-4.1's
+"less than 99.90%", so nothing further needs repeating from the parent.
+
+```catala
+scope ServiceCredit:
+  label l4_3_cap exception l4_2 definition credit_cap_percentage
+    under condition availability_percentage < 95.00
+    consequence equals 50%
+
+  label l4_3_credit exception l4_1 definition credit_percentage
+    under condition availability_percentage < 95.00
+    consequence equals 50%
+```
+
+## L-4.4 Arrears
+
+| MSA-SCH4 L-4.4 (004-msa-sla-credits.md:82)
+|
+| By way of exception to L-4.1, no Service Credit is payable in respect of
+| a Measurement Period in which the Customer is in arrears of any undisputed
+| invoice for more than 30 days.
+
+Two thresholds are strict. "More than 30 days" in arrears means 30 days is not
+enough and 31 days is, and "undisputed" is the judgement input: an invoice the
+Customer disputes does not engage the clause at all, whatever the arrears.
+The clause bites on arrears of "any" undisputed invoice, so `arrears_days` is
+the longest such arrears outstanding and `invoice_undisputed` the
+characterisation of that invoice.
+
+L-4.4 is expressed as an exception to L-4.1 but it forfeits the credit
+outright — "no Service Credit is payable in respect of a Measurement Period" —
+so it must also defeat L-4.3's 50%, and it therefore sits below `l4_3_credit`
+in the chain. Its condition repeats L-4.1's operative condition,
+`availability_percentage < 99.90`: a Catala exception does not inherit its
+parent's condition, and without it this definition would apply in periods
+where L-4.1 never engaged. Since a credit under L-4.3 also requires the
+Availability Percentage to be below 99.90%, repeating that one condition
+suffices to defeat both parents.
+
+The arrears are a period, and L-4.4 fixes its floor: the clause bites where the
+Customer "is in arrears of any undisputed invoice for **more than 30 days**", so
+the input is the number of days an invoice has stood in arrears, which is nought
+or more. A Customer in arrears of nothing is in arrears for nought days, not for
+a negative number of them, and no length of time answers to -5 days. The bound
+is the clause's own — it is the quantity the 30-day threshold measures — so the
+scope declines a negative count rather than reading it as "not in arrears".
+
+```catala
+scope ServiceCredit:
+  assertion arrears_days >= 0
+
+  label l4_4 exception l4_3_credit definition credit_percentage
+    under condition
+      (availability_percentage < 99.90)
+      and invoice_undisputed
+      and (arrears_days > 30)
+    consequence equals 0%
+```

@@ -116,15 +116,32 @@ By way of exception to S-8.1, an Employee whose employment is terminated
 for gross misconduct forfeits any commission not yet paid at the date of
 termination.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### COMM-PLAN S-6.1 — Sales Commission Plan — FY26 (v1.3, effective 2025-10-01)
+Section S-6 Quota relief
+
+Where an Employee is absent on statutory parental leave, adoption leave
+or long-term sickness absence for a continuous period of 30 days or more, the
+Employee's Quota is reduced by 1/365th of the annual Quota for each day of such
+absence.
+
+### COMM-PLAN S-6.2 — Sales Commission Plan — FY26 (v1.3, effective 2025-10-01)
+Section S-6 Quota relief
+
+Quota relief under S-6.1 is applied before Attainment is calculated.
+
 
 ## Artefact under review
 
 ```
-# Sales Commission Plan — FY26: commission earned
+#
 
 > Module Commission
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration enumeration TerminationReason:
@@ -167,7 +184,7 @@ declaration scope NetBookedRevenue:
 
 declaration scope Attainment:
   input net_booked_revenue content money
-  input quota content money
+  input quota content decimal
   output attainment_pct content decimal
 
 declaration scope Accelerator:
@@ -182,7 +199,7 @@ declaration scope Accelerator:
 declaration scope CommissionPayable:
   input net_booked_revenue content money
   input new_logo_share content decimal
-  input quota content money
+  input quota content decimal
   input commencement_date content date
   input annual_base_salary content money
   output attainment_calc scope Attainment
@@ -196,7 +213,7 @@ declaration scope LeaverCommission:
   input contracts content list of Contract
   input last_day_of_employment content date
   input termination_reason content TerminationReason
-  input quota content money
+  input quota content decimal
   input commencement_date content date
   input annual_base_salary content money
   input commission_already_paid content money
@@ -207,7 +224,7 @@ declaration scope LeaverCommission:
   output overpaid_amount content money
 ```
 
-## S-1 Introduction
+## S-1
 
 | COMM-PLAN S-1.1 (003-sales-commission-plan.md:14)
 |
@@ -226,7 +243,7 @@ declaration signed_in_plan_year content boolean
     and c.signature_date <= plan_year_end
 ```
 
-## S-2 Definitions
+## S-2
 
 | COMM-PLAN S-2.1 (003-sales-commission-plan.md:26)
 |
@@ -317,14 +334,26 @@ scope NetBookedRevenue:
 | "Attainment" means Net Booked Revenue expressed as a percentage of
 | Quota.
 
+| COMM-PLAN S-2.2 (003-sales-commission-plan.md:29)
+|
+| "Attainment" means Net Booked Revenue expressed as a percentage of
+| Quota.
+
 ```catala
 scope Attainment:
-  definition attainment_pct equals net_booked_revenue / quota
+  label s2_2 definition attainment_pct
+    under condition quota > 0.0
+    consequence equals (decimal of net_booked_revenue) / quota
 
-  assertion quota > $0
+  label s2_2 definition attainment_pct
+    under condition quota <= 0.0
+    consequence equals 0.0
+
+  assertion quota >= 0.0
+  assertion (quota > 0.0) or (net_booked_revenue = $0)
 ```
 
-## S-3 Commission calculation
+## S-3
 
 | COMM-PLAN S-3.1 (003-sales-commission-plan.md:47)
 |
@@ -340,7 +369,7 @@ scope CommissionPayable:
        * accelerator_calc.accelerator)
 ```
 
-## S-4 Accelerators
+## S-4
 
 | COMM-PLAN S-4.1 (003-sales-commission-plan.md:52)
 |
@@ -437,7 +466,7 @@ scope Accelerator:
     consequence equals Decimal.min of accelerator_before_joiner_cap, 1.5
 ```
 
-## S-5 Caps
+## S-5
 
 | COMM-PLAN S-5.1 (003-sales-commission-plan.md:72)
 |
@@ -481,7 +510,7 @@ scope CommissionPayable:
     Money.min of commission_before_cap, cap
 ```
 
-## S-8 Leavers
+## S-8
 
 | COMM-PLAN S-8.1 (003-sales-commission-plan.md:106)
 |

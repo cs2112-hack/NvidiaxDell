@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ross</title>
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#080E21">
+<link rel="icon" href="/brand/icon-transparent-white.png">
+<link rel="apple-touch-icon" href="/brand/icon-next-to-text-blue-square.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:ital,wdth,wght@0,75..100,400..700;1,75..100,400..700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&display=swap">
+<link rel="stylesheet" href="/classic/app.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="bar">
+  <div class="bar-inner">
+    <a class="brand" href="#exposure" aria-label="Ross, exposure engine">
+      <img src="/brand/icon-next-to-text-white-transparent.png" alt="Ross" width="2045" height="816">
+    </a>
+    <nav class="nav" id="nav" aria-label="Views">
+      <button type="button" data-view="exposure" aria-current="page">Exposure</button>
+      <button type="button" data-view="generate">Generate</button>
+      <button type="button" data-view="ask">Ask</button>
+      <button type="button" data-view="rules">Rules</button>
+      <button type="button" data-view="documents">Documents</button>
+      <button type="button" data-view="intake">Intake</button>
+      <button type="button" data-view="checks">Checks</button>
+    </nav>
+    <button class="pulse" id="pulse" type="button" title="Open the exposure engine">
+      <span class="pulse-dot" aria-hidden="true"></span><span id="pulsetext">Connecting</span>
+    </button>
+  </div>
+</header>
+
+<main id="main">
+
+  <!-- The exposure engine -->
+  <section class="view" id="view-exposure" aria-labelledby="engine-title">
+    <div class="wrap engine" id="engine">
+      <div class="engine-copy">
+        <h1 class="display" id="engine-title">Five agents are ready to sue this company.</h1>
+        <p class="lede">They read your documents and propose claims against you. Each claim
+          is executed against your own encoded policy, and only the ones that land reach the
+          queue. The rest die without anyone having to read them.</p>
+        <div class="launch" id="launch"></div>
+        <p class="modelline" id="modelline"></p>
+      </div>
+      <div class="engine-loop">
+        <h2 class="loop-head" id="loophead">Each sweep runs four stages, in order</h2>
+        <ol class="loop" id="loop"></ol>
+      </div>
+    </div>
+
+    <div class="wrap attacks">
+      <div class="attacks-head">
+        <h2 class="h2">Attacks</h2>
+        <p class="attacks-count" id="attackcount"></p>
+      </div>
+      <div class="colonnade" id="colonnade">
+        <div class="entab" aria-hidden="true"><span></span><span></span></div>
+        <div class="flutes" id="flutes"></div>
+        <div class="plinth" aria-hidden="true"><span></span><span></span></div>
+      </div>
+      <ul class="col-legend" aria-label="Column heights">
+        <li><span class="lg p-died"></span>Died at the executor</li>
+        <li><span class="lg p-malformed"></span>Nothing usable to judge</li>
+        <li><span class="lg p-known"></span>Landed on a hole already queued</li>
+        <li><span class="lg p-landed"></span>Landed and queued</li>
+        <li><span class="lg p-pending"></span>Not yet run</li>
+      </ul>
+      <div class="now" id="now" aria-live="polite"></div>
+    </div>
+
+    <div class="wrap fleet">
+      <div class="fleet-head">
+        <h2 class="h2">The fleet</h2>
+        <p class="fleet-note" id="fleetnote">Each agent reads the clauses and one rule&rsquo;s
+          machine interface. None is shown the file that defines a bad outcome: an agent that
+          knew what counts would reproduce it, and what survived would mean nothing.</p>
+      </div>
+      <div class="roster" id="roster"></div>
+      <div class="writers" id="writers"></div>
+    </div>
+
+    <div class="wrap work">
+      <div class="tabs" role="tablist" id="tabs" aria-label="Exposure workspace"></div>
+      <div id="panes"></div>
+    </div>
+  </section>
+
+  <!-- Generate -->
+  <section class="view" id="view-generate" hidden aria-labelledby="gen-title">
+    <div class="wrap page">
+      <h1 class="display display-s" id="gen-title">Draft a new document</h1>
+      <p class="lede">Describe the document you need. An agent drafts it from the closest
+        precedent in the corpus, then the draft has to pass the Catala gates and a screen of
+        three reviewers before a PDF is issued. A draft that fails any of them is marked not
+        issued, and is never presented as a document.</p>
+      <div class="gen-grid">
+        <div class="gen-main">
+          <form class="genform" id="genform">
+            <label class="plabel" for="genrequest">What the document has to do</label>
+            <textarea class="field genrequest" id="genrequest"
+              placeholder="A remote working allowance policy: a monthly payment for employees who work from home at least three days a week, capped, pro-rated for part-time staff, and not payable during unpaid leave."></textarea>
+            <div class="gen-date">
+              <label class="plabel" for="gendate">Effective date</label>
+              <input class="field field-date" id="gendate" type="date">
+              <p class="launch-hint">Leave it blank and the document says TO BE CONFIRMED. The date decides which facts a rule governs, so it is never guessed.</p>
+            </div>
+            <details class="single">
+              <summary>Run options</summary>
+              <div class="gen-opts">
+                <label class="gen-opt">Encoding attempts per draft
+                  <input class="field field-short" id="genattempts" type="number" min="1" max="6" value="3"></label>
+                <label class="gen-opt">Review screen rounds
+                  <input class="field field-short" id="genrounds" type="number" min="1" max="4" value="2"></label>
+                <label class="check"><input type="checkbox" id="genskiprt"> Skip the roundtrip gate (G5). The omission is stamped on the PDF.</label>
+                <label class="check"><input type="checkbox" id="genfailedpdf"> Render a failing draft as a PDF, stamped as failing</label>
+              </div>
+            </details>
+            <div class="gen-actions">
+              <button class="btn btn-primary btn-l" id="genbtn" type="submit">Start drafting</button>
+              <p class="launch-hint" id="genhint"></p>
+            </div>
+            <p class="launch-error" id="generror"></p>
+          </form>
+          <section class="genlive" id="genlive" aria-live="polite"></section>
+          <section class="gendetail" id="gendetail"></section>
+        </div>
+        <aside class="gen-runs" aria-labelledby="genruns-title">
+          <h2 class="h3" id="genruns-title">Past drafts</h2>
+          <div id="genruns"></div>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <!-- Ask -->
+  <section class="view" id="view-ask" hidden aria-labelledby="ask-title">
+    <div class="wrap page">
+      <h1 class="display display-s" id="ask-title">Ask what the documents require.</h1>
+      <p class="lede">A question about a rule is answered by running that rule. A question
+        about wording is answered by quoting the clause. Each part of the answer says which
+        it is, and the two are never blended.</p>
+      <form class="askrow" id="askform">
+        <input class="field askfield" id="askfield" autocomplete="off" aria-label="Your question"
+               placeholder="How much service credit do we owe at 98.5% uptime?">
+        <button class="btn btn-primary" id="askbtn" type="submit">Ask</button>
+      </form>
+      <div class="answer" id="answer"></div>
+    </div>
+  </section>
+
+  <!-- Rules -->
+  <section class="view" id="view-rules" hidden aria-labelledby="rules-title">
+    <div class="wrap page">
+      <h1 class="display display-s" id="rules-title">Rules Ross can run</h1>
+      <p class="lede">Each rule encodes named clauses and computes a result from facts you
+        give it. Where a clause turns on a judgement the documents don&rsquo;t define, that
+        judgement is a field a person fills in. The rule never decides it.</p>
+      <div id="rulesbody"></div>
+    </div>
+  </section>
+
+  <!-- Documents -->
+  <section class="view" id="view-documents" hidden aria-labelledby="docs-title">
+    <div class="wrap page">
+      <h1 class="display display-s" id="docs-title">The corpus</h1>
+      <p class="lede">Every document as ingested. The column beside each is divided by how
+        much of it runs as a rule, how much is a rule gated on a judgement, and how much can
+        only be quoted. Open a document to reach any clause.</p>
+      <div id="docsbody"></div>
+    </div>
+  </section>
+
+  <!-- Intake -->
+  <section class="view" id="view-intake" hidden aria-labelledby="intake-title">
+    <div class="wrap page">
+      <h1 class="display display-s" id="intake-title">Documents waiting for a decision</h1>
+      <p class="lede">An incoming document becomes a proposal, never a merge. Every blocking
+        conflict needs a person to record how it was resolved, and who resolved it, before the
+        document joins the corpus.</p>
+      <div id="intakebody"></div>
+    </div>
+  </section>
+
+  <!-- Checks -->
+  <section class="view" id="view-checks" hidden aria-labelledby="checks-title">
+    <div class="wrap page">
+      <h1 class="display display-s" id="checks-title">What has been checked</h1>
+      <p class="lede">Every way this system has been shown to be wrong is kept as a test and
+        run again. Defects in the source documents are listed separately, because those need
+        amending rather than fixing.</p>
+      <div id="checksbody"></div>
+    </div>
+  </section>
+
+</main>
+
+<aside class="drawer" id="drawer" hidden aria-label="Detail">
+  <button class="drawer-close" id="drawerclose" type="button" aria-label="Close">&times;</button>
+  <div id="drawerbody"></div>
+</aside>
+
+<script src="/classic/app.js"></script>
+</body>
+</html>

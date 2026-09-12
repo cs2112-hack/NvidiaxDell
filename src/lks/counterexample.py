@@ -56,6 +56,8 @@ class Counterexample:
     discovered: str = ""
     status: str = "open"                    # open | fixed
     notes: str = ""
+    headline: str = ""                      # one sentence for a non-specialist, in the reviewer's words
+    why_it_matters: str = ""                # the consequence, in the reviewer's words
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -72,9 +74,13 @@ class DegenerateCounterexample(ValueError):
 
 
 def _next_id(store: Path) -> str:
+    """The next unused id. A withdrawn counterexample leaves a `CE-NNNN.withdrawn`
+    tombstone, which counts: its id is named in round logs and reports, and
+    handing it to a different finding would make those records point at the
+    wrong one."""
     n = 0
-    for p in store.glob("CE-*.yaml"):
-        m = re.match(r"CE-(\d+)", p.stem)
+    for p in store.glob("CE-*"):
+        m = re.match(r"CE-(\d+)", p.name)
         if m:
             n = max(n, int(m.group(1)))
     return f"CE-{n + 1:04d}"
@@ -92,6 +98,8 @@ def record_counterexample(
     round: int = 0,
     store: str | Path = STORE,
     notes: str = "",
+    headline: str = "",
+    why_it_matters: str = "",
 ) -> Counterexample:
     store = Path(store)
     store.mkdir(parents=True, exist_ok=True)
@@ -113,7 +121,7 @@ def record_counterexample(
         raise DegenerateCounterexample("fact_pattern is required")
 
     ce = Counterexample(
-        id=_next_id(store),
+        id="",
         component=component,
         fact_pattern=fact_pattern.strip(),
         citations=list(citations),
@@ -126,10 +134,21 @@ def record_counterexample(
         discovered=date.today().isoformat(),
         status="open",
         notes=notes,
+        headline=headline,
+        why_it_matters=why_it_matters,
     )
-    path = store / f"{ce.id}.yaml"
-    path.write_text(yaml.safe_dump(ce.to_dict(), sort_keys=False, width=88, allow_unicode=True))
-    return ce
+    # Created exclusively: two runs that scanned the store at the same moment
+    # would otherwise both take the same id, and the second would overwrite
+    # the first's counterexample.
+    while True:
+        ce.id = _next_id(store)
+        try:
+            with (store / f"{ce.id}.yaml").open("x", encoding="utf-8") as fh:
+                fh.write(yaml.safe_dump(ce.to_dict(), sort_keys=False, width=88,
+                                        allow_unicode=True))
+            return ce
+        except FileExistsError:
+            continue
 
 
 def load_all(store: str | Path = STORE) -> list[Counterexample]:

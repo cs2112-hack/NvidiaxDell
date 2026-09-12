@@ -1,0 +1,217 @@
+/* Ross design system tokens, copied from the Ross Design System (tokens/*.css).
+   Fonts are linked from index.html. Edit the design system, not this copy. */
+:root{
+/* --- Base palette (provided) --- */
+--ross-ink:#080E21;
+--ross-slate:#6F7D8C;
+--ross-smoke:#F2F4F3;
+
+/* --- Ink ramp: derived from --ross-ink, same hue family --- */
+--ink-900:#080E21;
+--ink-800:#0D1631;
+--ink-700:#141F42;
+--ink-600:#1E2B54;
+--ink-500:#2C3B68;
+
+/* --- Slate ramp: derived from --ross-slate --- */
+--slate-700:#4A5765;
+--slate-600:#5C6A78;
+--slate-500:#6F7D8C;
+--slate-400:#8F9BA7;
+--slate-300:#B4BDC6;
+--slate-200:#D5DBE0;
+--slate-100:#E7EBEE;
+
+/* --- Smoke ramp (light surfaces) --- */
+--smoke-000:#FFFFFF;
+--smoke-050:#F8F9F9;
+--smoke-100:#F2F4F3;
+--smoke-200:#E8EBEA;
+
+/* --- Semantic accents (minimal, legal-document register) --- */
+--accent-brass:#A8874E;
+--status-cited:#2C5C4F;
+--status-flag:#8C3B32;
+--status-review:#8A6B1F;
+
+/* --- Semantic aliases: text --- */
+--text-primary:var(--ink-900);
+--text-secondary:var(--slate-600);
+--text-muted:var(--slate-400);
+--text-inverse:var(--smoke-100);
+--text-inverse-muted:#9AA6B4;
+--text-link:var(--ink-700);
+--text-link-hover:var(--ross-ink);
+
+/* --- Semantic aliases: surfaces --- */
+--surface-page:var(--smoke-100);
+--surface-card:var(--smoke-000);
+--surface-sunken:var(--smoke-200);
+--surface-inverse:var(--ink-900);
+--surface-inverse-raised:var(--ink-800);
+--surface-overlay:rgba(8,14,33,.56);
+
+/* --- Semantic aliases: lines --- */
+--line-hairline:var(--slate-200);
+--line-strong:var(--slate-300);
+--line-inverse:rgba(242,244,243,.22);
+--line-rule:var(--slate-400);
+
+/* --- Semantic aliases: interactive --- */
+--control-solid:var(--ink-900);
+--control-solid-hover:var(--ink-700);
+--control-solid-active:var(--ink-800);
+--control-quiet-hover:var(--smoke-200);
+--focus-ring:var(--ink-600);
+}
+:root{
+/* --- Families --- */
+--font-display:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+--font-serif:"Libre Caslon Text",Georgia,serif;
+--font-sans:"Instrument Sans","Helvetica Neue",Arial,sans-serif;
+--font-mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+
+/* --- Sizes --- */
+--text-2xs:11px;
+--text-xs:12px;
+--text-sm:13px;
+--text-base:15px;
+--text-md:17px;
+--text-lg:20px;
+--text-xl:24px;
+--display-sm:34px;
+--display-md:48px;
+--display-lg:72px;
+--display-xl:104px;
+
+/* --- Weights --- */
+--weight-light:300;
+--weight-regular:400;
+--weight-medium:500;
+--weight-semibold:600;
+
+/* --- Line heights --- */
+--leading-tight:1.04;
+--leading-snug:1.24;
+--leading-normal:1.5;
+--leading-relaxed:1.68;
+
+/* --- Tracking --- */
+--tracking-display:-0.01em;
+--tracking-normal:0;
+--tracking-wide:0.04em;
+--tracking-eyebrow:0.18em;
+
+/* --- Semantic roles --- */
+--type-hero:var(--weight-light) var(--display-xl)/var(--leading-tight) var(--font-display);
+--type-display:var(--weight-light) var(--display-md)/var(--leading-tight) var(--font-display);
+--type-title:var(--weight-regular) var(--text-xl)/var(--leading-snug) var(--font-serif);
+--type-body:var(--weight-regular) var(--text-base)/var(--leading-relaxed) var(--font-sans);
+--type-ui:var(--weight-medium) var(--text-sm)/1.2 var(--font-sans);
+--type-caption:var(--weight-regular) var(--text-xs)/var(--leading-normal) var(--font-sans);
+--type-cite:var(--weight-regular) var(--text-xs)/var(--leading-normal) var(--font-mono);
+}
+:root{
+/* 4px base, with a 2px half-step for control interiors */
+--space-0:0px;
+--space-1:2px;
+--space-2:4px;
+--space-3:8px;
+--space-4:12px;
+--space-5:16px;
+--space-6:20px;
+--space-7:24px;
+--space-8:32px;
+--space-9:40px;
+--space-10:56px;
+--space-11:72px;
+--space-12:96px;
+--space-13:128px;
+
+/* Radii — Ross is squared. Nothing is a pill except the status dot. */
+--radius-none:0px;
+--radius-xs:2px;
+--radius-sm:3px;
+--radius-md:4px;
+--radius-lg:6px;
+--radius-full:999px;
+
+/* Borders */
+--border-hairline:1px;
+--border-strong:2px;
+--rule-thin:1px;
+
+/* Layout */
+--container-prose:68ch;
+--container-page:1180px;
+--sidebar-width:264px;
+--panel-width:360px;
+--topbar-height:56px;
+--control-height-sm:28px;
+--control-height-md:36px;
+--control-height-lg:44px;
+}
+:root{
+/* Ross shadows are shallow and cool — paper on a desk, never floating glass. */
+--shadow-none:none;
+--shadow-hairline:0 0 0 1px var(--line-hairline);
+--shadow-raised:0 1px 2px rgba(8,14,33,.06),0 0 0 1px rgba(8,14,33,.06);
+--shadow-card:0 1px 3px rgba(8,14,33,.07),0 1px 1px rgba(8,14,33,.04);
+--shadow-panel:0 8px 24px rgba(8,14,33,.10),0 0 0 1px rgba(8,14,33,.06);
+--shadow-modal:0 24px 64px rgba(8,14,33,.28);
+--shadow-inset:inset 0 1px 0 rgba(8,14,33,.05);
+--shadow-focus:0 0 0 2px var(--smoke-000),0 0 0 4px var(--focus-ring);
+--shadow-focus-inverse:0 0 0 2px var(--ink-900),0 0 0 4px var(--slate-400);
+/* Protection gradient for text over imagery */
+--scrim-bottom:linear-gradient(to top,rgba(8,14,33,.88) 0%,rgba(8,14,33,.55) 42%,rgba(8,14,33,0) 100%); /* @kind other */
+--scrim-flat:rgba(8,14,33,.62);
+}
+:root{
+--duration-instant:80ms; /* @kind other */
+--duration-fast:140ms; /* @kind other */
+--duration-normal:220ms; /* @kind other */
+--duration-slow:380ms; /* @kind other */
+--ease-standard:cubic-bezier(.2,0,.2,1); /* @kind other */
+--ease-out:cubic-bezier(0,0,.2,1); /* @kind other */
+--ease-in:cubic-bezier(.4,0,1,1); /* @kind other */
+/* No bounce, no spring, no overshoot anywhere in Ross. */
+--transition-control:background-color var(--duration-fast) var(--ease-standard),color var(--duration-fast) var(--ease-standard),border-color var(--duration-fast) var(--ease-standard),box-shadow var(--duration-fast) var(--ease-standard);
+--transition-surface:opacity var(--duration-normal) var(--ease-out),transform var(--duration-normal) var(--ease-out);
+}
+:root{
+/* --- Engine identity: every answer is labelled by the engine that produced it --- */
+--engine-catala:#141F42;            /* executed rules — authoritative */
+--engine-catala-tint:rgba(20,31,66,.08);
+--engine-vector:#5C6A78;            /* retrieved prose — quoted, never computed */
+--engine-vector-tint:rgba(92,106,120,.10);
+--engine-mixed:#A8874E;             /* both engines contributed; always itemised */
+--engine-mixed-tint:rgba(168,135,78,.12);
+
+/* --- Literate source surfaces --- */
+--code-surface:#F8F9F9;
+--code-surface-ink:#0D1631;
+--code-line:#E7EBEE;
+--code-gutter:#8F9BA7;
+
+/* --- Catala syntax (light surface) --- */
+--syn-keyword:#141F42;
+--syn-scope:#2C5C4F;
+--syn-type:#5C6A78;
+--syn-literal:#8A6B1F;
+--syn-exception:#8C3B32;
+--syn-label:#A8874E;
+--syn-comment:#8F9BA7;
+--syn-operator:#4A5765;
+
+/* --- Diff / roundtrip --- */
+--diff-added:rgba(44,92,79,.12);
+--diff-added-line:#2C5C4F;
+--diff-removed:rgba(140,59,50,.12);
+--diff-removed-line:#8C3B32;
+
+/* --- Pipeline state --- */
+--state-pass:#2C5C4F;
+--state-blocked:#8C3B32;
+--state-pending:#8A6B1F;
+--state-idle:#8F9BA7;
+}

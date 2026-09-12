@@ -1,0 +1,102 @@
+id: EXP-0009
+klass: ADVERSE
+scope: Overtime.HourPremium
+archetype: plaintiff's employment lawyer
+headline: C-8.1 read literally pays a Grade 5+ employee 1.25x for an overtime hour the company
+  pays nothing for
+facts:
+  grade: 6
+  has_standing_shift_allowance: false
+  is_critical_incident: false
+  is_night: true
+  is_public_holiday: false
+  ordinal: 45
+why: 'C-8.1 is drafted as a free-standing precedence rule: where two or more provisions of
+  C-4, C-5 or C-7 would apply to the same hour, "only the single highest applicable multiplier
+  applies". For a Grade 5 employee working the 45th hour, two provisions bear on the hour.
+  C-4.1 would give 1.25. C-5.1 gives nil. The highest of those is 1.25, so on C-8.1''s own
+  words the employee is paid 1.25 and C-5.1 is displaced. The company''s encoding takes the
+  opposite view, reading C-5.1''s opening words "by way of exception to C-4" as taking it
+  outside C-8.1 altogether -- a construction the Annex nowhere states, and one that has to
+  be implied to stop C-8.1 destroying C-5.1 for every senior employee. The claimant does not
+  need to win that argument outright. The company has to run it, on its own document, against
+  a literal reading, for every overtime hour ever worked by a Grade 5 or above. This is AMB-02
+  in docs/DOCUMENT-DEFECTS.md, recorded there as an open question and quantified here.'
+predicate: EXP-P001
+citations:
+- EMP-ANNEX-C C-8.1
+- EMP-ANNEX-C C-4.1
+- EMP-ANNEX-C C-5.1
+clause_chain:
+- variable: multiplier
+  line: 126
+  law_headings:
+  - C-5 Overtime — grade exceptions
+  - 'Employment Terms — Annex C: Working Time and Overtime'
+  clause_refs:
+  - EMP-ANNEX-C C-5.1
+- variable: salaried_element
+  line: 243
+  law_headings:
+  - What the base salary already pays for
+  - 'Employment Terms — Annex C: Working Time and Overtime'
+  clause_refs:
+  - EMP-ANNEX-C C-3.1
+- variable: additional_payable
+  line: 246
+  law_headings:
+  - What the base salary already pays for
+  - 'Employment Terms — Annex C: Working Time and Overtime'
+  clause_refs:
+  - EMP-ANNEX-C C-3.1
+- variable: night_premium
+  line: 193
+  law_headings:
+  - C-6 Night work premium
+  - 'Employment Terms — Annex C: Working Time and Overtime'
+  clause_refs:
+  - EMP-ANNEX-C C-6.1
+- variable: total_rate
+  line: 274
+  law_headings:
+  - C-8 Precedence
+  - 'Employment Terms — Annex C: Working Time and Overtime'
+  clause_refs:
+  - EMP-ANNEX-C C-8.1
+  - EMP-ANNEX-C C-8.2
+- variable: accrues_toil
+  line: 305
+  law_headings:
+  - C-8 Precedence
+  - 'Employment Terms — Annex C: Working Time and Overtime'
+  clause_refs:
+  - EMP-ANNEX-C C-5.1
+outputs:
+  multiplier: '0.0'
+  salaried_element: '0.0'
+  additional_payable: '0.0'
+  night_premium: '0.15'
+  total_rate: '0.15'
+  accrues_toil: true
+amount: '1.25'
+amount_basis: multiplier computed as 0.0, contended to be 1.25; difference 1.25 multiple of
+  Base Hourly Rate per an employee-hour, to be multiplied by base_hourly_rate for currency
+population: an employee-hour
+diagnostic: ''
+narrative: A Grade 6 Incident Engineer in her third year works her 45th hour of the payroll
+  week. This hour falls during a night shift. It is not a public holiday, nor is it part of
+  a critical incident response. Under the company's own rules, because she is Grade 6, she
+  is deemed 'salaried' and denied overtime pay under C-5.1, accruing only time-off-in-lieu.
+  However, C-6.1 explicitly states the night premium is payable 'in addition to, and not in
+  substitution for' amounts payable under C-4 or C-5. Because C-5.1 denies the *payment* but
+  grants *toil*, and C-6.1 mandates the night premium is additive to the C-5 framework, the
+  company is forced to pay the night premium on top of the base rate, despite having zeroed
+  out the overtime multiplier. The documents create a scenario where the 'exception' (C-5.1)
+  swallows the payment mechanism but leaves the additive premium (C-6) intact, resulting in
+  a payable premium for an hour that otherwise yields no cash overtime.
+demand_letter: ''
+closing_edit: {}
+origin: fleet:customer
+headline_direction: ''
+found: '2026-09-12'
+status: open

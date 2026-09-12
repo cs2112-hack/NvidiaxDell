@@ -1,0 +1,40 @@
+id: EXP-0006
+klass: DIVERGENCE
+scope: GroundTransport.TaxiFare
+archetype: auditor reconciling the record against the policy
+headline: reimbursable_amount was recorded as 85.0, more than the 60.0 the policy computes
+facts:
+  journey_cost: 85.0
+  is_airport_journey: false
+  journey_start_hour: 19
+  journey_start_minute: 30
+why: 'On 2026-02-26 the company decided this case for the same manager''s taxi the following
+  week, not to an airport. Its own written policy, executed on the same facts, does not produce
+  that decision. Source: expense system 2026-02. The decision was MORE favourable than the
+  policy provides. That is not a loss and there is nobody to pay; it is evidence. The company
+  is not applying the construction of this clause that it would have to rely on to refuse
+  somebody else, and the first person it does refuse will put its own records to it. Where
+  an exposure on this queue turns on that construction, this is what the other side cites.'
+predicate: ''
+citations:
+- EXP-POL E-5.3
+clause_chain:
+- variable: reimbursable_amount
+  line: null
+  clause_refs:
+  - EXP-POL E-5.3
+  law_headings: []
+outputs:
+  reimbursable_amount: 60.0
+amount: '25.0'
+amount_basis: recorded 85.0, policy computes 60.0; difference 25.0 money on one a taxi journey
+population: a taxi journey
+diagnostic: ''
+narrative: the same manager's taxi the following week, not to an airport (OPS-0009, decided
+  2026-02-26)
+demand_letter: ''
+closing_edit: {}
+origin: operations:OPS-0009
+headline_direction: more
+found: '2026-09-12'
+status: open

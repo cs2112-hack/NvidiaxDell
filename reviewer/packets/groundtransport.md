@@ -23,17 +23,28 @@ Private hire and taxi journeys are reimbursable at actual cost up to
 £60 per journey, save that a journey to or from an airport before 06:00 or after
 22:00 is reimbursable at actual cost without limit.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### EXP-POL E-2.4 — Expense Reimbursement Policy (v7.0, effective 2025-04-01)
+Section E-2 Definitions
+
+"Pre-Approval" means written approval obtained before the expense is
+incurred from a person holding delegated financial authority at or above the
+threshold of the expense.
+
 
 ## Artefact under review
 
 ```
-# Expense Reimbursement Policy — ground transport
+#
 
 > Module GroundTransport
 
 > Using ExpenseDefs
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration enumeration RailClass:
@@ -60,7 +71,7 @@ declaration scope TaxiFare:
   output reimbursable_amount content money
 ```
 
-## E-5.1 Standard class rail
+## E-5.1
 
 | EXP-POL E-5.1 (002-expense-reimbursement-policy.md:82)
 |
@@ -77,7 +88,7 @@ scope RailFare:
     consequence equals ticket_cost
 ```
 
-## E-5.2 First class rail
+## E-5.2
 
 | EXP-POL E-5.2 (002-expense-reimbursement-policy.md:84)
 |
@@ -110,7 +121,7 @@ scope RailFare:
     consequence equals ticket_cost
 ```
 
-## E-5.3 Private hire and taxi
+## E-5.3
 
 | EXP-POL E-5.3 (002-expense-reimbursement-policy.md:88)
 |

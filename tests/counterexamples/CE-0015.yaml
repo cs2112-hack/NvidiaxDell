@@ -29,7 +29,8 @@ source_reasoning: 'S-3.1 prescribes a single product: ''Net Booked Revenue multi
   against $1,800.0792 -> $1,800.08. It runs in the Company''s favour or the Employee''s depending
   on the cents, and because S-5.1 caps the result rather than fixing it, it survives into
   the amount actually paid.'
-expected: 1200.05
+expected:
+  commission_payable: 1200.05
 observed:
   attainment_calc:
     attainment_pct: 1.250055

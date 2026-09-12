@@ -99,18 +99,31 @@ Emit a JSON object per finding:
 {
   "verdict": "BREAK" | "AMBIGUITY" | "NO_BREAK_FOUND",
   "component": "catala" | "chat" | "ingest" | "draft" | "triage",
-  "target": {"module": "Overtime", "scope": "OvertimePay"},
+  "target": {"module": "overtime", "scope": "HourPremium"},
   "fact_pattern": "...",
   "inputs": {...},
-  "expected": ...,
-  "observed": ...,
+  "expected": {"total_rate": 2.5},
   "citations": ["EMP-ANNEX-C C-5.2"],
   "source_reasoning": "...",
+  "headline": "One plain sentence: what goes wrong, and for whom.",
+  "why_it_matters": "One or two plain sentences, for someone with no legal training.",
   "attacks_tried": ["exception-boundary at 48h", "..."]
 }
 ```
 
-A `BREAK` is recorded via `lks.counterexample.record_counterexample` and
-becomes a permanent test. `record_counterexample` will reject your finding if
-`expected == observed`, so a "break" that merely restates the output will not
-be accepted.
+`inputs` must name every input the rule requires and nothing else, with
+values of the right type. `expected` names the results it is about, by the
+rule's exact output names, with values of those results' types; a bare value
+is accepted only for a rule with a single result. `citations` must name
+clauses that exist in the corpus, by document and clause id
+(`EMP-ANNEX-C C-7.2`); a finding citing a clause that does not exist is
+turned away. A finding that cannot be executed as written is turned away
+before anything runs, because Catala refusing to parse a misspelt input is
+not a defect in the rule.
+
+A `BREAK` is recorded via `lks.reviewer.record_findings`, which re-executes
+it, and becomes a permanent test. It will reject your finding if the rule
+already gives your expected answer, so a "break" that merely restates the
+output will not be accepted. An accepted break is also written up for a
+non-specialist in `reviewer/reports/<id>.md`, using your `headline` and
+`why_it_matters` alongside the values the harness executed.

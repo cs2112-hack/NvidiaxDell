@@ -38,15 +38,55 @@ Section R-6 Deletion of backups
 Records deleted from production systems are deleted from backups at the
 expiry of the backup rotation cycle, which must not exceed 90 days.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### DATA-RET R-2.2 — Data Retention and Deletion Standard (v5.1, effective 2025-06-01)
+Section R-2 Definitions
+
+"Retention Trigger" means the event from which the retention period is
+measured, as specified in R-3.
+
+### DATA-RET R-3.1 — Data Retention and Deletion Standard (v5.1, effective 2025-06-01)
+Section R-3 Retention periods
+
+Records are retained for the following periods measured from the
+applicable Retention Trigger:
+
+  (a) Employee Record: 6 years from the end of employment;
+  (b) Customer Contract: 7 years from the expiry or termination of the contract;
+  (c) Financial Record: 7 years from the end of the financial year to which it
+      relates;
+  (d) Marketing Contact: 24 months from the later of the date of collection and
+      the date of the most recent engagement by the contact;
+  (e) Security Log: 13 months from the date of the logged event;
+  (f) Candidate Record: 12 months from the date on which the recruitment process
+      concluded.
+
+### DATA-RET R-3.2 — Data Retention and Deletion Standard (v5.1, effective 2025-06-01)
+Section R-3 Retention periods
+
+By way of exception to R-3.1(f), where the candidate has given consent
+to be retained on a talent pool, the Candidate Record is retained for 24 months
+from the date of consent, and the period restarts on each renewal of consent.
+
+### DATA-RET R-3.3 — Data Retention and Deletion Standard (v5.1, effective 2025-06-01)
+Section R-3 Retention periods
+
+By way of exception to R-3.1(a), records required to be retained for a
+longer period under pensions or payroll legislation are retained for the period
+so required.
+
 
 ## Artefact under review
 
 ```
-# Data Retention and Deletion Standard — R-4 Legal Hold
+# R-4
 
 > Module LegalHold
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope HoldEffect:
@@ -61,19 +101,14 @@ declaration scope HoldEffect:
   output erasure_blocked_by_hold content boolean
 ```
 
-| NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Only day
-| durations are added in this scope (R-4.3's 30 days), which are never
-| ambiguous, but the mode is declared so that the scope's arithmetic is
-| total by construction rather than by inspection. `date round down` matches
-| `Retention`, whose R-3 result this scope consumes, so a single record
-| cannot be rounded one way here and the other way there.
+| NO-CLAUSE
 
 ```catala
 scope HoldEffect:
   date round down
 ```
 
-## R-2 Definitions
+## R-2
 
 | DATA-RET R-2.3 (006-data-retention-standard.md:34)
 |
@@ -102,13 +137,9 @@ scope HoldEffect:
               -- Present content released: assessment_date < released)
 ```
 
-## R-4 Legal Hold
+## R-4
 
-| NO-CLAUSE: the base case of the deletion decision is the ordinary retention
-| expiry that R-3 fixes, and R-3 is encoded in `Retention`, not here — this
-| block adds no law of its own, it only names that module's result as the
-| base that R-4.3 and R-4.1 are exceptions to. Encoding R-3 again here would
-| put one clause in two modules.
+| NO-CLAUSE
 
 ```catala
 scope HoldEffect:
@@ -166,7 +197,7 @@ scope HoldEffect:
     consequence equals false
 ```
 
-## R-6 Deletion of backups
+## R-6
 
 | DATA-RET R-6.1 (006-data-retention-standard.md:90)
 |

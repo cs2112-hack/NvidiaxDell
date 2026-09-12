@@ -1,0 +1,159 @@
+# Expense Reimbursement Policy — accommodation
+
+> Module Accommodation
+
+> Using ExpenseDefs
+
+E-4 legislates per night ("£220 per night"), so `NightlyAccommodation` answers
+for one night. The module computes two things that E-4 keeps apart and that a
+merged encoding would confuse: the **cap** that applies to the night (E-4.1 as
+possibly uplifted by E-4.2) and the **quantity measured against that cap**
+(E-4.3).
+
+## Prologue — declarations
+
+```catala-metadata
+declaration scope NightlyAccommodation:
+  input city_tier content ExpenseDefs.CityTier
+  input room_cost content money
+  input local_taxes content money
+  input mandatory_resort_or_city_charge content money
+  input parking_cost content money
+  input no_compliant_accommodation_available_evidenced content boolean
+  internal base_cap content money
+  output applicable_cap content money
+  output cost_against_cap content money
+  output accommodation_reimbursable content money
+  output parking_reimbursable content money
+  output reimbursable_amount content money
+```
+
+`no_compliant_accommodation_available_evidenced` is the **judgement input** for
+this module. E-4.2 is HYBRID: the relief it gives is exact arithmetic, but it is
+triggered by the Employee providing evidence that no *compliant* accommodation
+was *available* within the cap at the time of booking, and the Policy reduces
+none of compliance, availability or evidential sufficiency to a test. The
+assessment is therefore supplied to the scope by whoever made it, and this
+module never infers it — not from `room_cost` exceeding the cap, not from
+anything else.
+
+## E-4.1 Nightly caps
+
+| EXP-POL E-4.1 (002-expense-reimbursement-policy.md:69)
+|
+| Accommodation is reimbursable at actual cost up to £220 per night in a
+| Tier 1 city, £160 per night in a Tier 2 city and £120 per night in a Tier 3
+| city.
+
+Two limbs. The table fixes the cap for the night, and "at actual cost up to"
+fixes the reimbursable amount as the lesser of the cost and the cap. The table
+is lifted into a toplevel function so that E-4.2 can multiply "the applicable
+cap" without restating the figures.
+
+`accommodation_reimbursable` is compared against `cost_against_cap`, which is
+the composite quantity E-4.3 defines below — not against `room_cost`.
+
+"At actual cost" is also a bound on the input. The room cost is the sum the
+Employee actually paid for the night, so it is nought or more; a negative room
+cost is not a cost E-4.1 could reimburse, and it is the clause's own words that
+fix this rather than any programming convenience. Asserted here because E-4.1
+is the clause that makes the actual cost operative.
+
+```catala
+declaration tier_night_cap content money
+  depends on tier content ExpenseDefs.CityTier
+  equals
+    match tier with pattern
+    -- Tier1: $220.00
+    -- Tier2: $160.00
+    -- Tier3: $120.00
+
+scope NightlyAccommodation:
+  assertion room_cost >= $0.00
+
+  definition base_cap equals tier_night_cap of city_tier
+
+  label e4_1 definition applicable_cap equals base_cap
+
+  definition accommodation_reimbursable equals
+    Money.min of cost_against_cap, applicable_cap
+```
+
+## E-4.2 No compliant accommodation within the cap
+
+| EXP-POL E-4.2 (002-expense-reimbursement-policy.md:73)
+|
+| By way of exception to E-4.1, where the Employee provides evidence that
+| no compliant accommodation was available within the applicable cap at the time
+| of booking, the actual cost is reimbursable up to 1.4 times the applicable cap.
+
+An exception to `e4_1` on `applicable_cap`. The parent definition is
+unconditional — E-4.1's cap applies to every night — so there is no parent
+condition to repeat in the exception.
+
+The relief changes the cap and nothing else: the comparison is still against
+`cost_against_cap`, so a night whose actual cost exceeds 1.4 times the cap is
+still reimbursed only to 1.4 times the cap. "Up to 1.4 times" is a ceiling, not
+a substitution of actual cost.
+
+```catala
+```
+
+## E-4.3 What the cap is measured against
+
+| EXP-POL E-4.3 (002-expense-reimbursement-policy.md:77)
+|
+| The caps in E-4.1 are inclusive of local taxes and of any mandatory
+| resort or city charge, and exclusive of the cost of parking.
+
+E-4.3 is a computation rule, not a gloss: without it the E-4.1 comparison has
+no defined left-hand side. Local taxes and any mandatory resort or city charge
+are inside the cap, so they are added to the room cost before the comparison —
+a £210 room in a Tier 1 city with £25 of city charge is £235 against a £220 cap
+and is reimbursed at £220, not £210. Parking is outside the cap, so it is
+excluded from that sum.
+
+| NOTE: E-4.3 settles what the cap measures; it does not itself say that parking
+| is reimbursable. This module adopts the implication that it is — reimbursed
+| alongside the capped accommodation cost rather than against it — because
+| excluding parking from the cap while denying it altogether would leave the
+| exclusion doing no work. The alternative reading is that parking is simply
+| outside E-4 and falls to be dealt with under E-1.2. The two outputs are kept
+| separate (`accommodation_reimbursable`, `parking_reimbursable`) so that a
+| caller taking the narrower view can read the capped figure alone.
+
+**Each of the three sums E-4.3 sorts is nought or more, and the clause is what
+fixes that.** E-4.3 names "local taxes", "any mandatory resort or city charge"
+and "the cost of parking": a tax, a mandatory charge and a cost are each an
+amount levied or paid, and none of them can be a negative amount. The bounds
+are not conveniences, because each of the three does specific work under this
+clause — the first two are added into the quantity measured against the cap and
+the third is kept out of it — and a negative figure would make that work run
+backwards. Nothing in E-4 contemplates a credit, a refund or a rebate; a night
+that cost less is a smaller cost, not a negative one.
+
+The parking bound is the load-bearing one. Parking sits *outside* the cap, so
+it is added to the capped accommodation figure rather than measured against it,
+and a negative parking cost was therefore able to pull the reimbursable total
+below the cap the module had itself computed under E-4.1 — a Tier 1 room of
+£400 with parking of -£100 was reimbursed at £120 against a £220 cap. Recorded
+by the adversarial reviewer as the unguarded-input-domain class of
+`tests/counterexamples/CE-0011.yaml` rather than as a counterexample of its
+own, because no prose fact pattern states a cost in that form.
+
+```catala
+scope NightlyAccommodation:
+  assertion local_taxes >= $0.00
+
+  assertion mandatory_resort_or_city_charge >= $0.00
+
+  assertion parking_cost >= $0.00
+
+  definition cost_against_cap equals
+    room_cost + local_taxes + mandatory_resort_or_city_charge
+
+  definition parking_reimbursable equals parking_cost
+
+  definition reimbursable_amount equals
+    accommodation_reimbursable + parking_reimbursable
+```

@@ -43,15 +43,44 @@ Section N-5 Term and survival
 By way of exception to N-5.2, the obligations of confidence in respect
 of personal data continue for so long as the Recipient holds that personal data.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### NDA-MUT N-2.1 — Mutual Non-Disclosure Agreement (Standard Form) (v3.4, effective 2024-07-01)
+Section N-2 Confidential Information
+
+"Confidential Information" means all information disclosed by or on
+behalf of the Discloser to the Recipient, whether before or after the date of
+this Agreement, whether in writing, orally or by inspection of tangible objects,
+which is designated as confidential or which by its nature or the circumstances
+of its disclosure ought reasonably to be regarded as confidential.
+
+### NDA-MUT N-3.3 — Mutual Non-Disclosure Agreement (Standard Form) (v3.4, effective 2024-07-01)
+Section N-3 Obligations of the Recipient
+
+The Recipient will protect the Confidential Information using no less
+than the degree of care it applies to its own confidential information of like
+importance, and in any event no less than a reasonable degree of care.
+
+### NDA-MUT N-3.4 — Mutual Non-Disclosure Agreement (Standard Form) (v3.4, effective 2024-07-01)
+Section N-3 Obligations of the Recipient
+
+The Recipient may disclose Confidential Information to those of its
+officers, employees, professional advisers and group companies who need to know
+it for the Permitted Purpose, provided that the Recipient ensures each such
+person is bound by obligations of confidence no less onerous than those in this
+Agreement and remains liable for any breach by them.
+
 
 ## Artefact under review
 
 ```
-# Mutual Non-Disclosure Agreement — N-5 Term and survival
+# N-5
 
 > Module NdaSurvival
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope SurvivalEnd:
@@ -67,25 +96,7 @@ declaration scope SurvivalEnd:
   output obligations_subsist content boolean
 ```
 
-| NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Catala
-| date addition raises on an ambiguous result, so the scope must declare one.
-| `date round up` is chosen because N-5.1 and N-5.2 confer periods of
-| protection — the Agreement "continues for a period of 2 years" and the
-| obligations "continue for a period of 3 years" — so where a calendar month
-| has no corresponding day (an Effective Date of 29 February) the period is
-| taken to the next existing day rather than ending a day early. Rounding
-| down would curtail an obligation of confidence by a calendar artefact.
-|
-| The two assertions are structural well-formedness invariants, not rules of
-| the Agreement, and both are consequences of words already quoted below.
-| The Agreement "takes effect on the Effective Date", so it cannot end
-| before it begins — the invariant CE-0019 broke. And the N-3 obligations
-| "survive expiry or termination", which presupposes that they are still
-| running at that moment, so a produced confidentiality end date can never
-| precede the end of the Agreement — the invariant CE-0017 broke. They are
-| asserted rather than trusted so that any future limb which violates them
-| fails loudly at the point of computation instead of silently returning an
-| impossible date.
+| NO-CLAUSE
 
 ```catala
 scope SurvivalEnd:
@@ -97,7 +108,7 @@ scope SurvivalEnd:
      -- Present content ends: ends >= agreement_end_date)
 ```
 
-## N-3 Obligations of the Recipient
+## N-3
 
 | NDA-MUT N-3.1 (005-mutual-nda.md:45)
 |
@@ -112,11 +123,26 @@ scope SurvivalEnd:
 ```catala
 scope SurvivalEnd:
   label n3_in_term definition obligations_subsist
-    under condition assessment_date <= agreement_end_date
+    under condition
+      assessment_date >= effective_date
+      and assessment_date <= agreement_end_date
     consequence equals true
 ```
 
-## N-5 Term and survival
+| NDA-MUT N-5.1 (005-mutual-nda.md:71)
+|
+| This Agreement takes effect on the Effective Date and continues for a
+| period of 2 years, unless terminated earlier by either party on 30 days'
+| written notice.
+
+```catala
+scope SurvivalEnd:
+  label n5_1_before_effect definition obligations_subsist
+    under condition assessment_date < effective_date
+    consequence equals false
+```
+
+## N-5
 
 | NDA-MUT N-5.1 (005-mutual-nda.md:71)
 |
@@ -208,7 +234,7 @@ scope SurvivalEnd:
             assessment_date <= (Date.max of agreement_end_date, ceased))
 ```
 
-## N-5.3 and N-5.4 applying to the same information
+## N-5.3 N-5.4
 
 | NDA-MUT N-5.3 (005-mutual-nda.md:79)
 |

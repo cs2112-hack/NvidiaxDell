@@ -60,19 +60,28 @@ scope's own JSON Schema, so it cannot invent a field.
 **Verdict: fit for purpose.** It prefills the fact form in the web interface
 and a person sees and corrects every value before anything executes.
 
-## Adversarial reviewer — not yet measured
+## Adversarial reviewer — run, not signed off
 
-Each round costs about 8 minutes of wall clock: reasoning is on, the budget is
-6144 tokens, and it runs at ~12 tok/s. A round was two thirds of the way
-through its deliberation when it had to be stopped to free the single model
-slot for the triage run and the OpenShell install.
+Only `overtime` has been attacked: five attempts on record, about three minutes
+each (171 s logged), with the role at `think=False` and a 1,400-token reply
+bound by a schema (see the comments on `agents.REVIEWER`). No module has reached
+the clean run of 15 attempts that `scripts/review_loop.py` signs off on.
 
-What is built and untested is `scripts/review_loop.py`. What is known is that
-the harness will reject anything unsound regardless of what the model
-produces: a finding is accepted only if re-executing the scope on the model's
-own inputs contradicts the expected value it derived from the clause, and only
-if it cited clauses. So the risk of running it unattended is wasted GPU time,
-not a corrupted suite.
+One break was accepted, CE-0032, and has been withdrawn as false
+(`tests/counterexamples/CE-0032.withdrawn`). Its inputs were a one-row
+timesheet, which `WeeklyOvertime` counts as hour 1 of the week, not the 50th
+hour its fact pattern described; the rule's 115 was right for those inputs and
+the expected 150 followed from none of the reasoning.
+
+This page used to say the harness "will reject anything unsound regardless of
+what the model produces". It will not. Re-executing the scope proves the rule
+disagrees with the model's number, not that the model's number is the
+document's. The harness now also turns away expected values of the wrong type,
+citations of clauses that do not exist and findings about other components, and
+only an attempt that ran the rule counts towards sign-off. A well-formed wrong
+reading still gets through, which is why every report asks a person to confirm
+the reading before the rule is changed, and why running the loop unattended can
+cost a false entry in the suite, not only GPU time.
 
 **Honest statement: the 31 counterexamples in the suite were found by stronger
 reviewers than this one.** The local loop is there to extend the search

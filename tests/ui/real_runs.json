@@ -1,0 +1,1554 @@
+{
+ "runs": [
+  {
+   "name": "remote-working-allowance-4",
+   "finished": true,
+   "passed": false,
+   "doc_id": "REM-POL-01",
+   "title": "Remote Working Equipment and Utilities Allowance Policy",
+   "request": "A remote working equipment allowance policy for England and Wales. Employees who work from home on at least 2 days in a normal working week receive a one-off equipment allowance of £300 and a monthly utilities allowance of £25. Part-time employees receive the monthly allowance pro rata to their cont",
+   "failure_stage": "screen",
+   "failure_reason": "blocked after 2 round(s): BLOCKED: 0 confirmed, 2 agreed by two or more reviewers",
+   "catala_iterations": 5,
+   "screen_rounds": 2,
+   "seconds": 2547.1,
+   "has_pdf": false,
+   "modified": 1789244438.9610236
+  },
+  {
+   "name": "remote-working-allowance-3",
+   "finished": true,
+   "passed": false,
+   "doc_id": "REM-POL-01",
+   "title": "Remote Working Equipment and Utilities Allowance Policy",
+   "request": "A remote working equipment allowance policy for England and Wales. Employees who work from home on at least 2 days in a normal working week receive a one-off equipment allowance of £300 and a monthly utilities allowance of £25. Part-time employees receive the monthly allowance pro rata to their cont",
+   "failure_stage": "catala",
+   "failure_reason": "the encoding did not pass G1-G4 after 3 attempts: G1 (the module does not compile), G2 (not reached: the module does not compile), G3 (not reached: the module does not compile)",
+   "catala_iterations": 3,
+   "screen_rounds": 0,
+   "seconds": 1068.3,
+   "has_pdf": false,
+   "modified": 1789241862.8009534
+  },
+  {
+   "name": "remote-working-allowance-2",
+   "finished": true,
+   "passed": false,
+   "doc_id": "",
+   "title": "",
+   "request": "A remote working equipment allowance policy for England and Wales. Employees who work from home on at least 2 days in a normal working week receive a one-off equipment allowance of £300 and a monthly utilities allowance of £25. Part-time employees receive the monthly allowance pro rata to their cont",
+   "failure_stage": "aborted",
+   "failure_reason": "stopped by hand at the start of the second drafting attempt: the drafter (think=True) spent its entire 8,192-token budget reasoning and returned no document, although the same role fit its budget in the first run. Fixed by repeating any attempt whose budget was consumed by reasoning without it (docs",
+   "catala_iterations": 0,
+   "screen_rounds": 0,
+   "seconds": 800,
+   "has_pdf": false,
+   "modified": 1789240775.0529532
+  },
+  {
+   "name": "remote-working-allowance",
+   "finished": true,
+   "passed": false,
+   "doc_id": "RWA-POL",
+   "title": "Remote Working Equipment and Utilities Allowance Policy",
+   "request": "A remote working equipment allowance policy for England and Wales. Employees who work from home on at least 2 days in a normal working week receive a one-off equipment allowance of £300 and a monthly utilities allowance of £25. Part-time employees receive the monthly allowance pro rata to their cont",
+   "failure_stage": "aborted",
+   "failure_reason": "stopped by hand during the first encoding attempt: the encoder ran with think=True and spent its entire 8,192-token budget reasoning, returning no module; its remaining attempts had identical settings. Fixed by running the encoding roles with think=False (docs/GENERATION.md G-10) and re-run as gener",
+   "catala_iterations": 1,
+   "screen_rounds": 0,
+   "seconds": 1571,
+   "has_pdf": false,
+   "modified": 1789239866.899727
+  }
+ ],
+ "records": {
+  "remote-working-allowance-4": {
+   "run": {
+    "workspace": "generated/remote-working-allowance-4",
+    "prompt": "A remote working equipment allowance policy for England and Wales. Employees who work from home on at least 2 days in a normal working week receive a one-off equipment allowance of £300 and a monthly utilities allowance of £25. Part-time employees receive the monthly allowance pro rata to their contracted weekly hours out of 37.5. The one-off allowance is repayable in full if the employee leaves within 6 months of receiving it, and half of it is repayable if they leave after 6 months but within 12 months.",
+    "passed": false,
+    "failure_stage": "screen",
+    "failure_reason": "blocked after 2 round(s): BLOCKED: 0 confirmed, 2 agreed by two or more reviewers",
+    "pdf": null,
+    "pdf_sha256": "",
+    "doc_id": "REM-POL-01",
+    "title": "Remote Working Equipment and Utilities Allowance Policy",
+    "catala_iterations": 5,
+    "screen_rounds": 2,
+    "gates": {
+     "ok": true,
+     "gates": [
+      {
+       "id": "G1",
+       "name": "typecheck",
+       "ok": true,
+       "skipped": false,
+       "detail": "",
+       "evidence": {}
+      },
+      {
+       "id": "G2",
+       "name": "totality at boundaries",
+       "ok": true,
+       "skipped": false,
+       "detail": "41 of 41 boundary vectors total",
+       "evidence": {
+        "battery_size": 41,
+        "admitted": 41,
+        "rejected_by_assertion": 0,
+        "per_scope": {
+         "AllowanceEligibility": 16,
+         "RepaymentObligation": 25
+        },
+        "failures": [],
+        "error_class": "",
+        "failing_vector": {},
+        "diagnostic": "",
+        "scope": ""
+       }
+      },
+      {
+       "id": "G3",
+       "name": "no dead branch",
+       "ok": true,
+       "skipped": false,
+       "detail": "7/8 branches exercised; NOT EXERCISED (does not block): 1 condition on derived values the battery cannot aim at",
+       "evidence": {
+        "total": 8,
+        "covered": 7,
+        "dead_branches": [],
+        "untested_branches": [
+         {
+          "scope": "RepaymentObligation",
+          "variable": "repayment_amount",
+          "branch": "r4_base/r4_2/r4_3[termination_date > Date_en.add_round_down payment_date [6 months] && termination_date <= Date_en.add_round_down payment_date [12 months]]",
+          "lines": [
+           105,
+           107
+          ],
+          "reason": "derived",
+          "derived": [
+           "months"
+          ]
+         }
+        ],
+        "unattributable": []
+       }
+      },
+      {
+       "id": "G4",
+       "name": "quotation fidelity",
+       "ok": true,
+       "skipped": false,
+       "detail": "7 quotation(s) covering 7 of 24 clauses, all verbatim",
+       "evidence": {
+        "problems": [],
+        "quoted_clauses": [
+         "R-3.1",
+         "R-3.2",
+         "R-3.3",
+         "R-4.1",
+         "R-4.2",
+         "R-4.3",
+         "R-5.3"
+        ],
+        "unquoted_clauses": [
+         "R-1.1",
+         "R-1.2",
+         "R-1.3",
+         "R-2.1",
+         "R-2.2",
+         "R-2.3",
+         "R-2.4",
+         "R-2.5",
+         "R-2.6",
+         "R-2.7",
+         "R-3.4",
+         "R-3.5",
+         "R-4.4",
+         "R-5.1",
+         "R-5.2",
+         "R-5.4",
+         "R-5.5"
+        ],
+        "document_clauses": 24
+       }
+      }
+     ]
+    },
+    "g5": null,
+    "screens": [
+     {
+      "passed": false,
+      "verdict": "BLOCKED: 0 confirmed, 3 agreed by two or more reviewers",
+      "agents": [
+       {
+        "agent": "logic",
+        "role": "screen-logic",
+        "ok": true,
+        "enforcement": "sandbox-unproven",
+        "error": "",
+        "seconds": 43.70158429300136,
+        "attacks_tried": [
+         "Exact threshold boundaries for repayment dates",
+         "Pro-rata calculation logic for part-time employees",
+         "Inclusive vs Exclusive date interpretations",
+         "Interaction between R-4.1 general clause and specific clauses R-4.2/R-4.3"
+        ],
+        "findings": [
+         {
+          "agent": "logic",
+          "kind": "BREAK",
+          "clause_ids": [
+           "R-4.1"
+          ],
+          "summary": "The rule fails to enforce the general repayment condition of R-4.1 for the 6-12 month window, relying only on R-4.3 which might be skipped if logic order is flawed or conditions misaligned, but specifically here, the boundary condition 'at or before' 12 months is tested. The rule uses Date.add_round_down. If 2024-01-01 is exactly 12 months, it should be repayable. The rule returns 150. Wait, let's check the next finding which is stronger.",
+          "quote": "The Equipment Allowance is repayable if the Termination Date occurs at or before the 12-month anniversary of the payment date (inclusive).",
+          "fix": "",
+          "reasoning": "R-4.1 establishes the overarching liability. R-4.3 defines the amount for the 6-12 month window. The rule implements R-4.3. However, the prompt asks for logic errors. Let's look closer at R-4.1 vs R-4.3. R-4.1 says repayable if <= 12 months. R-4.2 says <= 6 months. R-4.3 says > 6 months and <= 12 months. The rule implements these ranges. Is there a gap? No. Is there an overlap? No. Let's look at R-3.3 again.",
+          "scope": "RepaymentObligation",
+          "inputs": {
+           "payment_date": "2023-01-01",
+           "termination_date": "2024-01-01"
+          },
+          "expected": {
+           "repayment_amount": 150.0
+          },
+          "observed": {
+           "repayment_amount": 150.0
+          },
+          "corpus_refs": [],
+          "status": "refuted",
+          "verified_by": "executed RepaymentObligation on {\"payment_date\": \"2023-01-01\", \"termination_date\": \"2024-01-01\"}: the rule already produces the expected {\"repayment_amount\": 150.0}",
+          "discard_reason": "",
+          "agreed_with": []
+         }
+        ],
+        "attempts": 1
+       },
+       {
+        "agent": "language",
+        "role": "screen-language",
+        "ok": true,
+        "enforcement": "sandbox-unproven",
+        "error": "",
+        "seconds": 58.08231269499811,
+        "attacks_tried": [
+         "Checked for undefined capitalized terms in R-1 and R-2.",
+         "Analyzed consistency of 'working pattern' terminology in R-3.",
+         "Reviewed cross-references in R-4 and R-5 for dangling or circular logic.",
+         "Assessed quantifiability of standards in eligibility and repayment clauses."
+        ],
+        "findings": [
+         {
+          "agent": "language",
+          "kind": "INCONSISTENT_TERM",
+          "clause_ids": [
+           "R-3.4",
+           "R-3.5"
+          ],
+          "summary": "R-3.4 uses 'recorded working pattern' while R-3.5 uses 'actual working pattern' and 'recorded pattern', creating uncertainty about whether eligibility is based on the HR system record or the physical reality of where the employee works.",
+          "quote": "recorded working pattern",
+          "fix": "Replace 'actual working pattern' in R-3.5 with 'recorded working pattern' or define 'actual working pattern' explicitly in R-2.",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": null,
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": [
+           "consistency"
+          ]
+         },
+         {
+          "agent": "language",
+          "kind": "UNDEFINED_TERM",
+          "clause_ids": [
+           "R-1.3"
+          ],
+          "summary": "The term 'Employment Terms' is capitalized and used to define the scope of other entitlements but is never defined in the Definitions section (R-2), leaving it unclear if it refers to the contract, handbook, or other documents.",
+          "quote": "Employment Terms",
+          "fix": "Add a definition for 'Employment Terms' in R-2, e.g., 'meaning the terms and conditions of employment set out in the Employee's contract of employment.'",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": null,
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "language",
+          "kind": "AMBIGUOUS_REFERENT",
+          "clause_ids": [
+           "R-3.1"
+          ],
+          "summary": "It is unclear whether '2 days' refers to any 2 days in the week, or 2 days of the 'Normal Working Week' defined in R-2.4, and whether this is a rolling average or a specific week snapshot, especially given R-3.4's monthly determination.",
+          "quote": "works from home on at least 2 days in a Normal Working Week",
+          "fix": "Clarify if the threshold applies to the average over a period or a specific week, e.g., 'averages at least 2 days per Normal Working Week over the preceding month'.",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": null,
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "language",
+          "kind": "UNQUANTIFIED_STANDARD",
+          "clause_ids": [
+           "R-3.5"
+          ],
+          "summary": "R-3.5 grants discretionary power to the line manager to determine eligibility when patterns differ, but provides no standard or criteria for this determination, risking inconsistent or arbitrary application.",
+          "quote": "the Employee's line manager determines eligibility",
+          "fix": "Add criteria for the line manager's determination, e.g., 'based on documented evidence of the Employee's actual working location.'",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": null,
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": [
+           "consistency"
+          ]
+         }
+        ],
+        "attempts": 1
+       },
+       {
+        "agent": "consistency",
+        "role": "screen-consistency",
+        "ok": true,
+        "enforcement": "sandbox-unproven",
+        "error": "",
+        "seconds": 69.61855508299777,
+        "attacks_tried": [
+         "Checked R-3.4 and R-3.5 for conflicting authorities on eligibility determination.",
+         "Checked R-3.3 boundary conditions for undefined behavior at 37.5 hours.",
+         "Checked R-4.4 and R-5.4 for conflicting repayment recovery methods.",
+         "Checked R-1.2 and R-1.3 against EMP-ANNEX-C C-1.1 for scope consistency.",
+         "Checked R-5.1 and R-5.2 against EXP-POL E-1.3 for tax treatment consistency."
+        ],
+        "findings": [
+         {
+          "agent": "consistency",
+          "kind": "INTERNAL_CONTRADICTION",
+          "clause_ids": [
+           "R-3.4",
+           "R-3.5"
+          ],
+          "summary": "R-3.4 assigns eligibility determination to the payroll administrator based on recorded patterns, while R-3.5 assigns it to the line manager when actual patterns differ, creating a conflict over who decides eligibility when records are inaccurate.",
+          "quote": "The Company's payroll administrator determines eligibility for the Equipment Allowance and Utilities Allowance based on the Employee's recorded working pattern at the start of each calendar month.",
+          "fix": "",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": {},
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": [
+           "language"
+          ]
+         },
+         {
+          "agent": "consistency",
+          "kind": "UNDECIDED_CASE",
+          "clause_ids": [
+           "R-3.3",
+           "R-5.3"
+          ],
+          "summary": "The pro-rata formula in R-3.3 applies to 'less than 37.5 hours' but does not define the treatment for employees with exactly 37.5 hours, leaving the calculation ambiguous for that specific boundary case.",
+          "quote": "By way of exception to R-3.2, where an Employee's Contracted Weekly Hours are less than 37.5 hours, the Utilities Allowance is calculated by multiplying £25 by the fraction of the Employee's Contracted Weekly Hours divided by 37.5 hours.",
+          "fix": "",
+          "reasoning": "",
+          "scope": "AllowanceEligibility",
+          "inputs": {
+           "contracted_weekly_hours": 37.5,
+           "days_worked_from_home": 2
+          },
+          "expected": {
+           "entitled_to_equipment_allowance": true,
+           "utilities_allowance_amount": 25.0
+          },
+          "observed": {
+           "entitled_to_equipment_allowance": true,
+           "utilities_allowance_amount": 25.0
+          },
+          "corpus_refs": [],
+          "status": "refuted",
+          "verified_by": "executed AllowanceEligibility on {\"contracted_weekly_hours\": 37.5, \"days_worked_from_home\": 2}: the rule already produces the expected {\"entitled_to_equipment_allowance\": true, \"utilities_allowance_amount\": 25.0}",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "consistency",
+          "kind": "INTERNAL_CONTRADICTION",
+          "clause_ids": [
+           "R-4.4",
+           "R-5.4"
+          ],
+          "summary": "R-4.4 allows recovery via invoice if no final payment is due, but R-5.4 states the repayment obligation prevails over outstanding Utilities Allowance and allows offsetting against pending payments, creating conflicting recovery mechanisms when a pending allowance exists but no other final payment is due.",
+          "quote": "Repayment amounts under R-4.2 and R-4.3 are recoverable as follows: (a) by deduction from any final salary, holiday pay or bonus due to the Employee; or (b) by invoice if no final payment is due or the deduction would exceed the amount due.",
+          "fix": "",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": {},
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": []
+         }
+        ],
+        "attempts": 1
+       }
+      ],
+      "confirmed": [],
+      "agreed": [
+       {
+        "agent": "language",
+        "kind": "INCONSISTENT_TERM",
+        "clause_ids": [
+         "R-3.4",
+         "R-3.5"
+        ],
+        "summary": "R-3.4 uses 'recorded working pattern' while R-3.5 uses 'actual working pattern' and 'recorded pattern', creating uncertainty about whether eligibility is based on the HR system record or the physical reality of where the employee works.",
+        "quote": "recorded working pattern",
+        "fix": "Replace 'actual working pattern' in R-3.5 with 'recorded working pattern' or define 'actual working pattern' explicitly in R-2.",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": null,
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": [
+         "consistency"
+        ]
+       },
+       {
+        "agent": "language",
+        "kind": "UNQUANTIFIED_STANDARD",
+        "clause_ids": [
+         "R-3.5"
+        ],
+        "summary": "R-3.5 grants discretionary power to the line manager to determine eligibility when patterns differ, but provides no standard or criteria for this determination, risking inconsistent or arbitrary application.",
+        "quote": "the Employee's line manager determines eligibility",
+        "fix": "Add criteria for the line manager's determination, e.g., 'based on documented evidence of the Employee's actual working location.'",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": null,
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": [
+         "consistency"
+        ]
+       },
+       {
+        "agent": "consistency",
+        "kind": "INTERNAL_CONTRADICTION",
+        "clause_ids": [
+         "R-3.4",
+         "R-3.5"
+        ],
+        "summary": "R-3.4 assigns eligibility determination to the payroll administrator based on recorded patterns, while R-3.5 assigns it to the line manager when actual patterns differ, creating a conflict over who decides eligibility when records are inaccurate.",
+        "quote": "The Company's payroll administrator determines eligibility for the Equipment Allowance and Utilities Allowance based on the Employee's recorded working pattern at the start of each calendar month.",
+        "fix": "",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": {},
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": [
+         "language"
+        ]
+       }
+      ],
+      "open_questions": [
+       {
+        "agent": "language",
+        "kind": "UNDEFINED_TERM",
+        "clause_ids": [
+         "R-1.3"
+        ],
+        "summary": "The term 'Employment Terms' is capitalized and used to define the scope of other entitlements but is never defined in the Definitions section (R-2), leaving it unclear if it refers to the contract, handbook, or other documents.",
+        "quote": "Employment Terms",
+        "fix": "Add a definition for 'Employment Terms' in R-2, e.g., 'meaning the terms and conditions of employment set out in the Employee's contract of employment.'",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": null,
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "language",
+        "kind": "AMBIGUOUS_REFERENT",
+        "clause_ids": [
+         "R-3.1"
+        ],
+        "summary": "It is unclear whether '2 days' refers to any 2 days in the week, or 2 days of the 'Normal Working Week' defined in R-2.4, and whether this is a rolling average or a specific week snapshot, especially given R-3.4's monthly determination.",
+        "quote": "works from home on at least 2 days in a Normal Working Week",
+        "fix": "Clarify if the threshold applies to the average over a period or a specific week, e.g., 'averages at least 2 days per Normal Working Week over the preceding month'.",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": null,
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "consistency",
+        "kind": "INTERNAL_CONTRADICTION",
+        "clause_ids": [
+         "R-4.4",
+         "R-5.4"
+        ],
+        "summary": "R-4.4 allows recovery via invoice if no final payment is due, but R-5.4 states the repayment obligation prevails over outstanding Utilities Allowance and allows offsetting against pending payments, creating conflicting recovery mechanisms when a pending allowance exists but no other final payment is due.",
+        "quote": "Repayment amounts under R-4.2 and R-4.3 are recoverable as follows: (a) by deduction from any final salary, holiday pay or bonus due to the Employee; or (b) by invoice if no final payment is due or the deduction would exceed the amount due.",
+        "fix": "",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": {},
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": []
+       }
+      ],
+      "discarded": [
+       {
+        "agent": "logic",
+        "kind": "BREAK",
+        "clause_ids": [
+         "R-4.1"
+        ],
+        "summary": "The rule fails to enforce the general repayment condition of R-4.1 for the 6-12 month window, relying only on R-4.3 which might be skipped if logic order is flawed or conditions misaligned, but specifically here, the boundary condition 'at or before' 12 months is tested. The rule uses Date.add_round_down. If 2024-01-01 is exactly 12 months, it should be repayable. The rule returns 150. Wait, let's check the next finding which is stronger.",
+        "quote": "The Equipment Allowance is repayable if the Termination Date occurs at or before the 12-month anniversary of the payment date (inclusive).",
+        "fix": "",
+        "reasoning": "R-4.1 establishes the overarching liability. R-4.3 defines the amount for the 6-12 month window. The rule implements R-4.3. However, the prompt asks for logic errors. Let's look closer at R-4.1 vs R-4.3. R-4.1 says repayable if <= 12 months. R-4.2 says <= 6 months. R-4.3 says > 6 months and <= 12 months. The rule implements these ranges. Is there a gap? No. Is there an overlap? No. Let's look at R-3.3 again.",
+        "scope": "RepaymentObligation",
+        "inputs": {
+         "payment_date": "2023-01-01",
+         "termination_date": "2024-01-01"
+        },
+        "expected": {
+         "repayment_amount": 150.0
+        },
+        "observed": {
+         "repayment_amount": 150.0
+        },
+        "corpus_refs": [],
+        "status": "refuted",
+        "verified_by": "executed RepaymentObligation on {\"payment_date\": \"2023-01-01\", \"termination_date\": \"2024-01-01\"}: the rule already produces the expected {\"repayment_amount\": 150.0}",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "consistency",
+        "kind": "UNDECIDED_CASE",
+        "clause_ids": [
+         "R-3.3",
+         "R-5.3"
+        ],
+        "summary": "The pro-rata formula in R-3.3 applies to 'less than 37.5 hours' but does not define the treatment for employees with exactly 37.5 hours, leaving the calculation ambiguous for that specific boundary case.",
+        "quote": "By way of exception to R-3.2, where an Employee's Contracted Weekly Hours are less than 37.5 hours, the Utilities Allowance is calculated by multiplying £25 by the fraction of the Employee's Contracted Weekly Hours divided by 37.5 hours.",
+        "fix": "",
+        "reasoning": "",
+        "scope": "AllowanceEligibility",
+        "inputs": {
+         "contracted_weekly_hours": 37.5,
+         "days_worked_from_home": 2
+        },
+        "expected": {
+         "entitled_to_equipment_allowance": true,
+         "utilities_allowance_amount": 25.0
+        },
+        "observed": {
+         "entitled_to_equipment_allowance": true,
+         "utilities_allowance_amount": 25.0
+        },
+        "corpus_refs": [],
+        "status": "refuted",
+        "verified_by": "executed AllowanceEligibility on {\"contracted_weekly_hours\": 37.5, \"days_worked_from_home\": 2}: the rule already produces the expected {\"entitled_to_equipment_allowance\": true, \"utilities_allowance_amount\": 25.0}",
+        "discard_reason": "",
+        "agreed_with": []
+       }
+      ]
+     },
+     {
+      "passed": false,
+      "verdict": "BLOCKED: 0 confirmed, 2 agreed by two or more reviewers",
+      "agents": [
+       {
+        "agent": "logic",
+        "role": "screen-logic",
+        "ok": true,
+        "enforcement": "sandbox-unproven",
+        "error": "",
+        "seconds": 261.4650640809996,
+        "attacks_tried": [
+         "Exact threshold boundaries for date arithmetic (R-4.1, R-4.2, R-4.3)",
+         "Inclusive vs exclusive date interpretation with 'round down' operator",
+         "Pro-rata calculation edge cases (R-3.3)",
+         "Contingency logic between Equipment and Utilities allowances (R-3.1, R-3.2)"
+        ],
+        "findings": [
+         {
+          "agent": "logic",
+          "kind": "BREAK",
+          "clause_ids": [
+           "R-4.2",
+           "R-4.3"
+          ],
+          "summary": "The rule uses 'round down' date arithmetic which excludes the exact 6-month anniversary date from the repayment obligation, contradicting the inclusive language in the policy.",
+          "quote": "at or before the 6-month anniversary of the payment date (inclusive)",
+          "fix": "",
+          "reasoning": "Clause R-4.2 states repayment is required if termination is 'at or before' the 6-month anniversary. Clause R-4.3 covers the period 'after' the 6-month anniversary. For a payment on 2023-07-01, the 6-month anniversary is 2024-01-01. However, using a payment date of 2023-06-01, the 6-month anniversary is 2023-12-01. Let's use a cleaner boundary: Payment 2023-06-01. 6-month anniv: 2023-12-01. Input termination 2023-12-01. Rule: `Date.add_round_down(2023-06-01, 6 month)` likely results in 2023-12-01. Condition `termination_date <= 2023-12-01` is True. This works. Let's try a date where rounding down shifts the boundary. Payment: 2023-01-31. 6 months later: 2023-07-31. `Date.add_round_down` might handle this correctly. The issue is likely with months having different days. Let's look at R-4.3. Termination after 6-month anniv but <= 12-month anniv. If the rule calculates the 6-month anniversary as 2023-12-01, and termination is 2023-12-01, it hits R-4.2. If termination is 2023-12-02, it hits R-4.3. This seems correct. Wait, look at R-4.1. Repayable if <= 12-month anniv. If termination is 2024-01-01 (12 months after 2023-01-01), it should be repayable. Rule: `termination_date <= Date.add_round_down(2023-01-01, 12 month)`. If round_down affects the date calculation, it might shift the anniversary. For example, if the rule engine calculates 6 months from Jan 31 as July 30 (rounding down days), then July 31 would be 'after' the anniversary, falling into the 6-12 month bucket or no bucket? If July 31 is after July 30, it falls into R-4.3 (150) or R-4.1? R-4.3 is <= 12 month. If 12 month from Jan 31 is July 30, then July 31 is > 12 month anniv, so no repayment. But doc says 'at or before 12-month anniversary'. If the anniversary is considered July 31, July 31 should trigger repayment. If the rule calculates anniversary as July 30, July 31 escapes repayment. This is a boundary error due to rounding.",
+          "scope": "RepaymentObligation",
+          "inputs": {
+           "payment_date": "2023-07-01",
+           "termination_date": "2023-12-31"
+          },
+          "expected": {
+           "repayment_amount": 300.0
+          },
+          "observed": {
+           "repayment_amount": 300.0
+          },
+          "corpus_refs": [],
+          "status": "refuted",
+          "verified_by": "executed RepaymentObligation on {\"payment_date\": \"2023-07-01\", \"termination_date\": \"2023-12-31\"}: the rule already produces the expected {\"repayment_amount\": 300.0}",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "logic",
+          "kind": "BREAK",
+          "clause_ids": [
+           "R-3.1",
+           "R-3.2"
+          ],
+          "summary": "The rule correctly denies equipment allowance for 1 day, but we must ensure the Utilities Allowance is also zero since it is contingent on Equipment Allowance.",
+          "quote": "An Employee is entitled to the Equipment Allowance if the Employee works from home on at least 2 days",
+          "fix": "",
+          "reasoning": "Clause R-3.2 states an employee entitled to Equipment Allowance is *also* entitled to Utilities Allowance. This implies if not entitled to Equipment, not entitled to Utilities. The rule sets utilities to 0 by default and only sets to 25 if entitled_to_equipment_allowance is true. This logic holds. No finding here. Let's look for another logic error.",
+          "scope": "AllowanceEligibility",
+          "inputs": {
+           "works_from_home_days": 1,
+           "contracted_weekly_hours": 37.5
+          },
+          "expected": {
+           "entitled_to_equipment_allowance": false,
+           "utilities_allowance_amount": 0.0
+          },
+          "observed": {
+           "entitled_to_equipment_allowance": false,
+           "utilities_allowance_amount": 0.0
+          },
+          "corpus_refs": [],
+          "status": "refuted",
+          "verified_by": "executed AllowanceEligibility on {\"contracted_weekly_hours\": 37.5, \"works_from_home_days\": 1}: the rule already produces the expected {\"entitled_to_equipment_allowance\": false, \"utilities_allowance_amount\": 0.0}",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "logic",
+          "kind": "BREAK",
+          "clause_ids": [
+           "R-3.3",
+           "R-5.3"
+          ],
+          "summary": "The rule applies the pro-rata calculation for very low hours, which is correct per the text. No finding.",
+          "quote": "where an Employee's Contracted Weekly Hours are less than 37.5 hours, the Utilities Allowance is calculated by multiplying £25 by the fraction",
+          "fix": "",
+          "reasoning": "The text says 'less than 37.5'. 0.1 is less. Calculation is 25 * (0.1/37.5). This is correct.",
+          "scope": "AllowanceEligibility",
+          "inputs": {
+           "works_from_home_days": 2,
+           "contracted_weekly_hours": 0.1
+          },
+          "expected": {
+           "entitled_to_equipment_allowance": true,
+           "utilities_allowance_amount": 0.07
+          },
+          "observed": {
+           "entitled_to_equipment_allowance": true,
+           "utilities_allowance_amount": 0.07
+          },
+          "corpus_refs": [],
+          "status": "refuted",
+          "verified_by": "executed AllowanceEligibility on {\"contracted_weekly_hours\": 0.1, \"works_from_home_days\": 2}: the rule already produces the expected {\"entitled_to_equipment_allowance\": true, \"utilities_allowance_amount\": 0.07}",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "logic",
+          "kind": "BREAK",
+          "clause_ids": [
+           "R-4.2",
+           "R-4.3"
+          ],
+          "summary": "Date arithmetic rounding down may cause the 6-month anniversary of Feb 28 to be calculated as Aug 28 or Aug 30, potentially misclassifying Aug 31 as outside the 6-month boundary or inside the 12-month boundary incorrectly depending on how 'round down' applies to month addition.",
+          "quote": "after the 6-month anniversary but at or before the 12-month anniversary",
+          "fix": "",
+          "reasoning": "If `Date.add_round_down` of 2023-02-28 + 6 months yields 2023-08-28 (rounding down days to match Feb), then termination on 2023-08-31 is > 6-month anniv. It is also <= 12-month anniv (2023-08-28 + 6 months = 2024-02-28? No, 12 months from Feb 28 is Aug 28? No, 12 months is same date next year. 2024-02-28). So Aug 31 is between Aug 28 and Feb 28. It falls in R-4.3. This seems correct. Let's try the 12-month boundary. Payment 2023-01-31. 12 months = 2024-01-31. If round_down makes it 2024-01-30, then termination on 2024-01-31 is > 12-month anniv. Rule: `termination_date <= Date.add_round_down(2023-01-31, 12 month)`. If result is 2024-01-30, then 2024-01-31 > 2024-01-30, so condition fails. Repayment is 0. But Doc says 'at or before 12-month anniversary'. The anniversary of Jan 31 is Jan 31. It should be repayable. The rule fails to capture the exact anniversary if it rounds down the day.",
+          "scope": "RepaymentObligation",
+          "inputs": {
+           "payment_date": "2023-02-28",
+           "termination_date": "2023-08-31"
+          },
+          "expected": {
+           "repayment_amount": 150.0
+          },
+          "observed": {
+           "repayment_amount": 150.0
+          },
+          "corpus_refs": [],
+          "status": "refuted",
+          "verified_by": "executed RepaymentObligation on {\"payment_date\": \"2023-02-28\", \"termination_date\": \"2023-08-31\"}: the rule already produces the expected {\"repayment_amount\": 150.0}",
+          "discard_reason": "",
+          "agreed_with": []
+         }
+        ],
+        "attempts": 1
+       },
+       {
+        "agent": "language",
+        "role": "screen-language",
+        "ok": true,
+        "enforcement": "sandbox-unproven",
+        "error": "",
+        "seconds": 81.39026130999991,
+        "attacks_tried": [
+         "Checked all capitalized terms in R-1 and R-3 against definitions in R-2.",
+         "Analyzed cross-references in R-4 and R-5 for dangling or circular logic.",
+         "Reviewed standards like 'reasonable' or 'promptly' for quantification.",
+         "Checked for inconsistent naming of similar concepts (e.g., working patterns vs hours)."
+        ],
+        "findings": [
+         {
+          "agent": "language",
+          "kind": "UNDEFINED_TERM",
+          "clause_ids": [
+           "R-1.3"
+          ],
+          "summary": "The phrase 'Employment Terms' is capitalized and used as a defined concept but is never defined in Section R-2 or elsewhere.",
+          "quote": "Employment Terms",
+          "fix": "Define 'Employment Terms' in R-2 or replace with 'contract of employment'.",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": null,
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "language",
+          "kind": "UNQUANTIFIED_STANDARD",
+          "clause_ids": [
+           "R-3.5"
+          ],
+          "summary": "The standard for 'documented evidence' is vague, creating dispute risk over what constitutes sufficient proof of actual working location.",
+          "quote": "documented evidence",
+          "fix": "Specify the required evidence, e.g., 'documented evidence such as calendar entries or manager approval'.",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": null,
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": [
+           "consistency"
+          ]
+         },
+         {
+          "agent": "language",
+          "kind": "INCONSISTENT_TERM",
+          "clause_ids": [
+           "R-2.4",
+           "R-2.7"
+          ],
+          "summary": "'Normal Working Week' (hours) and 'Recorded Working Pattern' (location/days) are distinct but both rely on the 'human resources system of record', risking conflicting data sources if the system is not granular.",
+          "quote": "Normal Working Week",
+          "fix": "Clarify that 'Recorded Working Pattern' includes the 'Normal Working Week' data or define separate system fields.",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": null,
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "language",
+          "kind": "AMBIGUOUS_REFERENT",
+          "clause_ids": [
+           "R-4.1"
+          ],
+          "summary": "'Payment date' is not defined; it is unclear whether this refers to the date the allowance is approved, processed, or credited to the employee's account.",
+          "quote": "payment date",
+          "fix": "Define 'payment date' as 'the date the allowance is credited to the Employee's bank account'.",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": null,
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": []
+         }
+        ],
+        "attempts": 1
+       },
+       {
+        "agent": "consistency",
+        "role": "screen-consistency",
+        "ok": true,
+        "enforcement": "sandbox-unproven",
+        "error": "",
+        "seconds": 65.88050624400057,
+        "attacks_tried": [
+         "Checked for contradictions between new policy and existing EMP-ANNEX-C and EXP-POL clauses regarding variation notice periods and tax responsibilities.",
+         "Analyzed internal consistency of repayment clauses R-4.1 through R-4.4 for overlapping or missing time periods.",
+         "Verified definitions in R-2 against usage in R-3 and R-4.",
+         "Checked for scope gaps in eligibility determination when working patterns are disputed."
+        ],
+        "findings": [
+         {
+          "agent": "consistency",
+          "kind": "INTERNAL_CONTRADICTION",
+          "clause_ids": [
+           "R-3.3",
+           "R-5.3"
+          ],
+          "summary": "R-3.3 and R-5.3 both claim to be the exception or prevailing rule for pro-rata calculations, creating redundant and potentially conflicting textual authority for the same scenario.",
+          "quote": "By way of exception to R-3.2, where an Employee's Contracted Weekly Hours are less than 37.5 hours, the Utilities Allowance is calculated by multiplying £25 by the fraction of the Employee's Contracted Weekly Hours divided by 37.5 hours.",
+          "fix": "",
+          "reasoning": "",
+          "scope": "AllowanceEligibility",
+          "inputs": {
+           "contracted_weekly_hours": 20.0,
+           "works_from_home_days": 3
+          },
+          "expected": {
+           "entitled_to_equipment_allowance": true,
+           "utilities_allowance_amount": 13.33
+          },
+          "observed": {
+           "entitled_to_equipment_allowance": true,
+           "utilities_allowance_amount": 13.33
+          },
+          "corpus_refs": [],
+          "status": "refuted",
+          "verified_by": "executed AllowanceEligibility on {\"contracted_weekly_hours\": 20.0, \"works_from_home_days\": 3}: the rule already produces the expected {\"entitled_to_equipment_allowance\": true, \"utilities_allowance_amount\": 13.33}",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "consistency",
+          "kind": "INTERNAL_CONTRADICTION",
+          "clause_ids": [
+           "R-4.1",
+           "R-4.2",
+           "R-4.3"
+          ],
+          "summary": "R-4.1 establishes a general repayment obligation for terminations within 12 months, but R-4.2 and R-4.3 define specific amounts only for the first 6 months and the period between 6 and 12 months, leaving the exact repayment amount for a termination exactly on the 12-month anniversary ambiguous between the general rule and the specific caps.",
+          "quote": "The Equipment Allowance is repayable if the Termination Date occurs at or before the 12-month anniversary of the payment date (inclusive).",
+          "fix": "",
+          "reasoning": "",
+          "scope": "RepaymentObligation",
+          "inputs": {
+           "payment_date": "2023-01-01",
+           "termination_date": "2024-01-01"
+          },
+          "expected": {
+           "repayment_amount": 150
+          },
+          "observed": {
+           "repayment_amount": 150.0
+          },
+          "corpus_refs": [],
+          "status": "refuted",
+          "verified_by": "executed RepaymentObligation on {\"payment_date\": \"2023-01-01\", \"termination_date\": \"2024-01-01\"}: the rule already produces the expected {\"repayment_amount\": 150}",
+          "discard_reason": "",
+          "agreed_with": []
+         },
+         {
+          "agent": "consistency",
+          "kind": "UNDECIDED_CASE",
+          "clause_ids": [
+           "R-3.4",
+           "R-3.5"
+          ],
+          "summary": "The document fails to define what constitutes 'documented evidence' or the process for the line manager's determination, leaving the resolution of inaccurate records procedurally undecided.",
+          "quote": "Notwithstanding R-3.4, where the Employee's Recorded Working Pattern is inaccurate, the Employee's line manager determines eligibility for the allowances based on documented evidence of the Employee's actual working location.",
+          "fix": "",
+          "reasoning": "",
+          "scope": "",
+          "inputs": {},
+          "expected": {},
+          "observed": null,
+          "corpus_refs": [],
+          "status": "judgement",
+          "verified_by": "",
+          "discard_reason": "",
+          "agreed_with": [
+           "language"
+          ]
+         }
+        ],
+        "attempts": 1
+       }
+      ],
+      "confirmed": [],
+      "agreed": [
+       {
+        "agent": "language",
+        "kind": "UNQUANTIFIED_STANDARD",
+        "clause_ids": [
+         "R-3.5"
+        ],
+        "summary": "The standard for 'documented evidence' is vague, creating dispute risk over what constitutes sufficient proof of actual working location.",
+        "quote": "documented evidence",
+        "fix": "Specify the required evidence, e.g., 'documented evidence such as calendar entries or manager approval'.",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": null,
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": [
+         "consistency"
+        ]
+       },
+       {
+        "agent": "consistency",
+        "kind": "UNDECIDED_CASE",
+        "clause_ids": [
+         "R-3.4",
+         "R-3.5"
+        ],
+        "summary": "The document fails to define what constitutes 'documented evidence' or the process for the line manager's determination, leaving the resolution of inaccurate records procedurally undecided.",
+        "quote": "Notwithstanding R-3.4, where the Employee's Recorded Working Pattern is inaccurate, the Employee's line manager determines eligibility for the allowances based on documented evidence of the Employee's actual working location.",
+        "fix": "",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": {},
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": [
+         "language"
+        ]
+       }
+      ],
+      "open_questions": [
+       {
+        "agent": "language",
+        "kind": "UNDEFINED_TERM",
+        "clause_ids": [
+         "R-1.3"
+        ],
+        "summary": "The phrase 'Employment Terms' is capitalized and used as a defined concept but is never defined in Section R-2 or elsewhere.",
+        "quote": "Employment Terms",
+        "fix": "Define 'Employment Terms' in R-2 or replace with 'contract of employment'.",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": null,
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "language",
+        "kind": "INCONSISTENT_TERM",
+        "clause_ids": [
+         "R-2.4",
+         "R-2.7"
+        ],
+        "summary": "'Normal Working Week' (hours) and 'Recorded Working Pattern' (location/days) are distinct but both rely on the 'human resources system of record', risking conflicting data sources if the system is not granular.",
+        "quote": "Normal Working Week",
+        "fix": "Clarify that 'Recorded Working Pattern' includes the 'Normal Working Week' data or define separate system fields.",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": null,
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "language",
+        "kind": "AMBIGUOUS_REFERENT",
+        "clause_ids": [
+         "R-4.1"
+        ],
+        "summary": "'Payment date' is not defined; it is unclear whether this refers to the date the allowance is approved, processed, or credited to the employee's account.",
+        "quote": "payment date",
+        "fix": "Define 'payment date' as 'the date the allowance is credited to the Employee's bank account'.",
+        "reasoning": "",
+        "scope": "",
+        "inputs": {},
+        "expected": null,
+        "observed": null,
+        "corpus_refs": [],
+        "status": "judgement",
+        "verified_by": "",
+        "discard_reason": "",
+        "agreed_with": []
+       }
+      ],
+      "discarded": [
+       {
+        "agent": "logic",
+        "kind": "BREAK",
+        "clause_ids": [
+         "R-4.2",
+         "R-4.3"
+        ],
+        "summary": "The rule uses 'round down' date arithmetic which excludes the exact 6-month anniversary date from the repayment obligation, contradicting the inclusive language in the policy.",
+        "quote": "at or before the 6-month anniversary of the payment date (inclusive)",
+        "fix": "",
+        "reasoning": "Clause R-4.2 states repayment is required if termination is 'at or before' the 6-month anniversary. Clause R-4.3 covers the period 'after' the 6-month anniversary. For a payment on 2023-07-01, the 6-month anniversary is 2024-01-01. However, using a payment date of 2023-06-01, the 6-month anniversary is 2023-12-01. Let's use a cleaner boundary: Payment 2023-06-01. 6-month anniv: 2023-12-01. Input termination 2023-12-01. Rule: `Date.add_round_down(2023-06-01, 6 month)` likely results in 2023-12-01. Condition `termination_date <= 2023-12-01` is True. This works. Let's try a date where rounding down shifts the boundary. Payment: 2023-01-31. 6 months later: 2023-07-31. `Date.add_round_down` might handle this correctly. The issue is likely with months having different days. Let's look at R-4.3. Termination after 6-month anniv but <= 12-month anniv. If the rule calculates the 6-month anniversary as 2023-12-01, and termination is 2023-12-01, it hits R-4.2. If termination is 2023-12-02, it hits R-4.3. This seems correct. Wait, look at R-4.1. Repayable if <= 12-month anniv. If termination is 2024-01-01 (12 months after 2023-01-01), it should be repayable. Rule: `termination_date <= Date.add_round_down(2023-01-01, 12 month)`. If round_down affects the date calculation, it might shift the anniversary. For example, if the rule engine calculates 6 months from Jan 31 as July 30 (rounding down days), then July 31 would be 'after' the anniversary, falling into the 6-12 month bucket or no bucket? If July 31 is after July 30, it falls into R-4.3 (150) or R-4.1? R-4.3 is <= 12 month. If 12 month from Jan 31 is July 30, then July 31 is > 12 month anniv, so no repayment. But doc says 'at or before 12-month anniversary'. If the anniversary is considered July 31, July 31 should trigger repayment. If the rule calculates anniversary as July 30, July 31 escapes repayment. This is a boundary error due to rounding.",
+        "scope": "RepaymentObligation",
+        "inputs": {
+         "payment_date": "2023-07-01",
+         "termination_date": "2023-12-31"
+        },
+        "expected": {
+         "repayment_amount": 300.0
+        },
+        "observed": {
+         "repayment_amount": 300.0
+        },
+        "corpus_refs": [],
+        "status": "refuted",
+        "verified_by": "executed RepaymentObligation on {\"payment_date\": \"2023-07-01\", \"termination_date\": \"2023-12-31\"}: the rule already produces the expected {\"repayment_amount\": 300.0}",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "logic",
+        "kind": "BREAK",
+        "clause_ids": [
+         "R-3.1",
+         "R-3.2"
+        ],
+        "summary": "The rule correctly denies equipment allowance for 1 day, but we must ensure the Utilities Allowance is also zero since it is contingent on Equipment Allowance.",
+        "quote": "An Employee is entitled to the Equipment Allowance if the Employee works from home on at least 2 days",
+        "fix": "",
+        "reasoning": "Clause R-3.2 states an employee entitled to Equipment Allowance is *also* entitled to Utilities Allowance. This implies if not entitled to Equipment, not entitled to Utilities. The rule sets utilities to 0 by default and only sets to 25 if entitled_to_equipment_allowance is true. This logic holds. No finding here. Let's look for another logic error.",
+        "scope": "AllowanceEligibility",
+        "inputs": {
+         "works_from_home_days": 1,
+         "contracted_weekly_hours": 37.5
+        },
+        "expected": {
+         "entitled_to_equipment_allowance": false,
+         "utilities_allowance_amount": 0.0
+        },
+        "observed": {
+         "entitled_to_equipment_allowance": false,
+         "utilities_allowance_amount": 0.0
+        },
+        "corpus_refs": [],
+        "status": "refuted",
+        "verified_by": "executed AllowanceEligibility on {\"contracted_weekly_hours\": 37.5, \"works_from_home_days\": 1}: the rule already produces the expected {\"entitled_to_equipment_allowance\": false, \"utilities_allowance_amount\": 0.0}",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "logic",
+        "kind": "BREAK",
+        "clause_ids": [
+         "R-3.3",
+         "R-5.3"
+        ],
+        "summary": "The rule applies the pro-rata calculation for very low hours, which is correct per the text. No finding.",
+        "quote": "where an Employee's Contracted Weekly Hours are less than 37.5 hours, the Utilities Allowance is calculated by multiplying £25 by the fraction",
+        "fix": "",
+        "reasoning": "The text says 'less than 37.5'. 0.1 is less. Calculation is 25 * (0.1/37.5). This is correct.",
+        "scope": "AllowanceEligibility",
+        "inputs": {
+         "works_from_home_days": 2,
+         "contracted_weekly_hours": 0.1
+        },
+        "expected": {
+         "entitled_to_equipment_allowance": true,
+         "utilities_allowance_amount": 0.07
+        },
+        "observed": {
+         "entitled_to_equipment_allowance": true,
+         "utilities_allowance_amount": 0.07
+        },
+        "corpus_refs": [],
+        "status": "refuted",
+        "verified_by": "executed AllowanceEligibility on {\"contracted_weekly_hours\": 0.1, \"works_from_home_days\": 2}: the rule already produces the expected {\"entitled_to_equipment_allowance\": true, \"utilities_allowance_amount\": 0.07}",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "logic",
+        "kind": "BREAK",
+        "clause_ids": [
+         "R-4.2",
+         "R-4.3"
+        ],
+        "summary": "Date arithmetic rounding down may cause the 6-month anniversary of Feb 28 to be calculated as Aug 28 or Aug 30, potentially misclassifying Aug 31 as outside the 6-month boundary or inside the 12-month boundary incorrectly depending on how 'round down' applies to month addition.",
+        "quote": "after the 6-month anniversary but at or before the 12-month anniversary",
+        "fix": "",
+        "reasoning": "If `Date.add_round_down` of 2023-02-28 + 6 months yields 2023-08-28 (rounding down days to match Feb), then termination on 2023-08-31 is > 6-month anniv. It is also <= 12-month anniv (2023-08-28 + 6 months = 2024-02-28? No, 12 months from Feb 28 is Aug 28? No, 12 months is same date next year. 2024-02-28). So Aug 31 is between Aug 28 and Feb 28. It falls in R-4.3. This seems correct. Let's try the 12-month boundary. Payment 2023-01-31. 12 months = 2024-01-31. If round_down makes it 2024-01-30, then termination on 2024-01-31 is > 12-month anniv. Rule: `termination_date <= Date.add_round_down(2023-01-31, 12 month)`. If result is 2024-01-30, then 2024-01-31 > 2024-01-30, so condition fails. Repayment is 0. But Doc says 'at or before 12-month anniversary'. The anniversary of Jan 31 is Jan 31. It should be repayable. The rule fails to capture the exact anniversary if it rounds down the day.",
+        "scope": "RepaymentObligation",
+        "inputs": {
+         "payment_date": "2023-02-28",
+         "termination_date": "2023-08-31"
+        },
+        "expected": {
+         "repayment_amount": 150.0
+        },
+        "observed": {
+         "repayment_amount": 150.0
+        },
+        "corpus_refs": [],
+        "status": "refuted",
+        "verified_by": "executed RepaymentObligation on {\"payment_date\": \"2023-02-28\", \"termination_date\": \"2023-08-31\"}: the rule already produces the expected {\"repayment_amount\": 150.0}",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "consistency",
+        "kind": "INTERNAL_CONTRADICTION",
+        "clause_ids": [
+         "R-3.3",
+         "R-5.3"
+        ],
+        "summary": "R-3.3 and R-5.3 both claim to be the exception or prevailing rule for pro-rata calculations, creating redundant and potentially conflicting textual authority for the same scenario.",
+        "quote": "By way of exception to R-3.2, where an Employee's Contracted Weekly Hours are less than 37.5 hours, the Utilities Allowance is calculated by multiplying £25 by the fraction of the Employee's Contracted Weekly Hours divided by 37.5 hours.",
+        "fix": "",
+        "reasoning": "",
+        "scope": "AllowanceEligibility",
+        "inputs": {
+         "contracted_weekly_hours": 20.0,
+         "works_from_home_days": 3
+        },
+        "expected": {
+         "entitled_to_equipment_allowance": true,
+         "utilities_allowance_amount": 13.33
+        },
+        "observed": {
+         "entitled_to_equipment_allowance": true,
+         "utilities_allowance_amount": 13.33
+        },
+        "corpus_refs": [],
+        "status": "refuted",
+        "verified_by": "executed AllowanceEligibility on {\"contracted_weekly_hours\": 20.0, \"works_from_home_days\": 3}: the rule already produces the expected {\"entitled_to_equipment_allowance\": true, \"utilities_allowance_amount\": 13.33}",
+        "discard_reason": "",
+        "agreed_with": []
+       },
+       {
+        "agent": "consistency",
+        "kind": "INTERNAL_CONTRADICTION",
+        "clause_ids": [
+         "R-4.1",
+         "R-4.2",
+         "R-4.3"
+        ],
+        "summary": "R-4.1 establishes a general repayment obligation for terminations within 12 months, but R-4.2 and R-4.3 define specific amounts only for the first 6 months and the period between 6 and 12 months, leaving the exact repayment amount for a termination exactly on the 12-month anniversary ambiguous between the general rule and the specific caps.",
+        "quote": "The Equipment Allowance is repayable if the Termination Date occurs at or before the 12-month anniversary of the payment date (inclusive).",
+        "fix": "",
+        "reasoning": "",
+        "scope": "RepaymentObligation",
+        "inputs": {
+         "payment_date": "2023-01-01",
+         "termination_date": "2024-01-01"
+        },
+        "expected": {
+         "repayment_amount": 150
+        },
+        "observed": {
+         "repayment_amount": 150.0
+        },
+        "corpus_refs": [],
+        "status": "refuted",
+        "verified_by": "executed RepaymentObligation on {\"payment_date\": \"2023-01-01\", \"termination_date\": \"2024-01-01\"}: the rule already produces the expected {\"repayment_amount\": 150}",
+        "discard_reason": "",
+        "agreed_with": []
+       }
+      ]
+     }
+    ],
+    "confirmed_history": [
+     {
+      "agent": "language",
+      "kind": "INCONSISTENT_TERM",
+      "clause_ids": [
+       "R-3.4",
+       "R-3.5"
+      ],
+      "summary": "R-3.4 uses 'recorded working pattern' while R-3.5 uses 'actual working pattern' and 'recorded pattern', creating uncertainty about whether eligibility is based on the HR system record or the physical reality of where the employee works.",
+      "quote": "recorded working pattern",
+      "fix": "Replace 'actual working pattern' in R-3.5 with 'recorded working pattern' or define 'actual working pattern' explicitly in R-2.",
+      "reasoning": "",
+      "scope": "",
+      "inputs": {},
+      "expected": null,
+      "observed": null,
+      "corpus_refs": [],
+      "status": "judgement",
+      "verified_by": "",
+      "discard_reason": "",
+      "agreed_with": [
+       "consistency"
+      ],
+      "round": 1
+     },
+     {
+      "agent": "language",
+      "kind": "UNQUANTIFIED_STANDARD",
+      "clause_ids": [
+       "R-3.5"
+      ],
+      "summary": "R-3.5 grants discretionary power to the line manager to determine eligibility when patterns differ, but provides no standard or criteria for this determination, risking inconsistent or arbitrary application.",
+      "quote": "the Employee's line manager determines eligibility",
+      "fix": "Add criteria for the line manager's determination, e.g., 'based on documented evidence of the Employee's actual working location.'",
+      "reasoning": "",
+      "scope": "",
+      "inputs": {},
+      "expected": null,
+      "observed": null,
+      "corpus_refs": [],
+      "status": "judgement",
+      "verified_by": "",
+      "discard_reason": "",
+      "agreed_with": [
+       "consistency"
+      ],
+      "round": 1
+     },
+     {
+      "agent": "consistency",
+      "kind": "INTERNAL_CONTRADICTION",
+      "clause_ids": [
+       "R-3.4",
+       "R-3.5"
+      ],
+      "summary": "R-3.4 assigns eligibility determination to the payroll administrator based on recorded patterns, while R-3.5 assigns it to the line manager when actual patterns differ, creating a conflict over who decides eligibility when records are inaccurate.",
+      "quote": "The Company's payroll administrator determines eligibility for the Equipment Allowance and Utilities Allowance based on the Employee's recorded working pattern at the start of each calendar month.",
+      "fix": "",
+      "reasoning": "",
+      "scope": "",
+      "inputs": {},
+      "expected": {},
+      "observed": null,
+      "corpus_refs": [],
+      "status": "judgement",
+      "verified_by": "",
+      "discard_reason": "",
+      "agreed_with": [
+       "language"
+      ],
+      "round": 1
+     },
+     {
+      "agent": "language",
+      "kind": "UNQUANTIFIED_STANDARD",
+      "clause_ids": [
+       "R-3.5"
+      ],
+      "summary": "The standard for 'documented evidence' is vague, creating dispute risk over what constitutes sufficient proof of actual working location.",
+      "quote": "documented evidence",
+      "fix": "Specify the required evidence, e.g., 'documented evidence such as calendar entries or manager approval'.",
+      "reasoning": "",
+      "scope": "",
+      "inputs": {},
+      "expected": null,
+      "observed": null,
+      "corpus_refs": [],
+      "status": "judgement",
+      "verified_by": "",
+      "discard_reason": "",
+      "agreed_with": [
+       "consistency"
+      ],
+      "round": 2
+     },
+     {
+      "agent": "consistency",
+      "kind": "UNDECIDED_CASE",
+      "clause_ids": [
+       "R-3.4",
+       "R-3.5"
+      ],
+      "summary": "The document fails to define what constitutes 'documented evidence' or the process for the line manager's determination, leaving the resolution of inaccurate records procedurally undecided.",
+      "quote": "Notwithstanding R-3.4, where the Employee's Recorded Working Pattern is inaccurate, the Employee's line manager determines eligibility for the allowances based on documented evidence of the Employee's actual working location.",
+      "fix": "",
+      "reasoning": "",
+      "scope": "",
+      "inputs": {},
+      "expected": {},
+      "observed": null,
+      "corpus_refs": [],
+      "status": "judgement",
+      "verified_by": "",
+      "discard_reason": "",
+      "agreed_with": [
+       "language"
+      ],
+      "round": 2
+     }
+    ],
+    "attempts": [
+     {
+      "stage": "draft-r1",
+      "n": 1,
+      "ok": true,
+      "seconds": 645.4,
+      "note": "",
+      "file": "generated/remote-working-allowance-4/attempts/01-draft-r1.md",
+      "prompt_tokens": 3942,
+      "completion_tokens": 7502
+     },
+     {
+      "stage": "encode-r1",
+      "n": 1,
+      "ok": true,
+      "seconds": 95.9,
+      "note": "",
+      "file": "generated/remote-working-allowance-4/attempts/02-encode-r1.txt",
+      "prompt_tokens": 6730,
+      "completion_tokens": 949
+     },
+     {
+      "stage": "encode-r1",
+      "n": 2,
+      "ok": true,
+      "seconds": 91.5,
+      "note": "",
+      "file": "generated/remote-working-allowance-4/attempts/03-encode-r1.txt",
+      "prompt_tokens": 6195,
+      "completion_tokens": 976
+     },
+     {
+      "stage": "draft-r101",
+      "n": 1,
+      "ok": true,
+      "seconds": 634.8,
+      "note": "",
+      "file": "generated/remote-working-allowance-4/attempts/04-draft-r101.md",
+      "prompt_tokens": 5311,
+      "completion_tokens": 7262
+     },
+     {
+      "stage": "encode-r2",
+      "n": 1,
+      "ok": true,
+      "seconds": 103.9,
+      "note": "",
+      "file": "generated/remote-working-allowance-4/attempts/05-encode-r2.txt",
+      "prompt_tokens": 6781,
+      "completion_tokens": 1050
+     },
+     {
+      "stage": "encode-r2",
+      "n": 2,
+      "ok": true,
+      "seconds": 170.0,
+      "note": "",
+      "file": "generated/remote-working-allowance-4/attempts/06-encode-r2.txt",
+      "prompt_tokens": 6416,
+      "completion_tokens": 1121
+     },
+     {
+      "stage": "encode-r2",
+      "n": 3,
+      "ok": true,
+      "seconds": 218.4,
+      "note": "",
+      "file": "generated/remote-working-allowance-4/attempts/07-encode-r2.txt",
+      "prompt_tokens": 6611,
+      "completion_tokens": 1196
+     }
+    ],
+    "context": [
+     {
+      "ref": "EMP-ANNEX-C C-10.1",
+      "kind": "prose",
+      "score": 0.4405,
+      "doc_id": "EMP-ANNEX-C",
+      "doc_title": "Employment Terms — Annex C: Working Time, Overtime and Leave",
+      "path": "corpus/001-employment-terms-annex-c.md"
+     },
+     {
+      "ref": "EXP-POL E-6.2",
+      "kind": "hybrid",
+      "score": 0.4365,
+      "doc_id": "EXP-POL",
+      "doc_title": "Expense Reimbursement Policy",
+      "path": "corpus/002-expense-reimbursement-policy.md"
+     },
+     {
+      "ref": "EXP-POL E-4.2",
+      "kind": "hybrid",
+      "score": 0.3966,
+      "doc_id": "EXP-POL",
+      "doc_title": "Expense Reimbursement Policy",
+      "path": "corpus/002-expense-reimbursement-policy.md"
+     },
+     {
+      "ref": "EMP-ANNEX-C C-1.1",
+      "kind": "prose",
+      "score": 0.3865,
+      "doc_id": "EMP-ANNEX-C",
+      "doc_title": "Employment Terms — Annex C: Working Time, Overtime and Leave",
+      "path": "corpus/001-employment-terms-annex-c.md"
+     },
+     {
+      "ref": "EMP-ANNEX-C C-9.4",
+      "kind": "hybrid",
+      "score": 0.3734,
+      "doc_id": "EMP-ANNEX-C",
+      "doc_title": "Employment Terms — Annex C: Working Time, Overtime and Leave",
+      "path": "corpus/001-employment-terms-annex-c.md"
+     },
+     {
+      "ref": "EXP-POL E-1.3",
+      "kind": "prose",
+      "score": 0.3728,
+      "doc_id": "EXP-POL",
+      "doc_title": "Expense Reimbursement Policy",
+      "path": "corpus/002-expense-reimbursement-policy.md"
+     },
+     {
+      "ref": "EXP-POL E-1.2",
+      "kind": "prose",
+      "score": 0.372,
+      "doc_id": "EXP-POL",
+      "doc_title": "Expense Reimbursement Policy",
+      "path": "corpus/002-expense-reimbursement-policy.md"
+     },
+     {
+      "ref": "EXP-POL E-1.1",
+      "kind": "prose",
+      "score": 0.371,
+      "doc_id": "EXP-POL",
+      "doc_title": "Expense Reimbursement Policy",
+      "path": "corpus/002-expense-reimbursement-policy.md"
+     },
+     {
+      "ref": "EMP-ANNEX-C",
+      "kind": "document",
+      "score": 0.4405,
+      "doc_id": "EMP-ANNEX-C",
+      "doc_title": "Employment Terms — Annex C: Working Time, Overtime and Leave",
+      "path": "corpus/001-employment-terms-annex-c.md"
+     },
+     {
+      "ref": "EXP-POL",
+      "kind": "document",
+      "score": 0.4365,
+      "doc_id": "EXP-POL",
+      "doc_title": "Expense Reimbursement Policy",
+      "path": "corpus/002-expense-reimbursement-policy.md"
+     },
+     {
+      "ref": "overtime.catala_en",
+      "kind": "encoding",
+      "score": 0.4405,
+      "doc_id": "EMP-ANNEX-C",
+      "doc_title": "Employment Terms — Annex C: Working Time, Overtime and Leave",
+      "path": "catala/modules/overtime.catala_en"
+     }
+    ],
+    "retrieval": {
+     "ranking": "committed file index (cosine)",
+     "mongo": "in agreement (49 chunks, $vectorSearch (mongot))",
+     "excluded": []
+    },
+    "seconds": 2547.1,
+    "model": "qwen3.6:27b-q4_K_M",
+    "seed": 20260912
+   },
+   "report": "# Generation report — Remote Working Equipment and Utilities Allowance Policy\n\n**Outcome:** NOT ISSUED\n**Failed at:** screen — blocked after 2 round(s): BLOCKED: 0 confirmed, 2 agreed by two or more reviewers\n\n## Request\n\n> A remote working equipment allowance policy for England and Wales. Employees who work from home on at least 2 days in a normal working week receive a one-off equipment allowance of £300 and a monthly utilities allowance of £25. Part-time employees receive the monthly allowance pro rata to their contracted weekly hours out of 37.5. The one-off allowance is repayable in full if the employee leaves within 6 months of receiving it, and half of it is repayable if they leave after 6 months but within 12 months.\n\n## Run\n\n- workspace: `generated/remote-working-allowance-4`\n- model: `qwen3.6:27b-q4_K_M`, seed `20260912`\n- document: `REM-POL-01`\n- Catala encodings attempted: 5\n- screen rounds: 2\n\n## Retrieval\n\n- ranking: committed file index (cosine)\n- mongo: in agreement (49 chunks, $vectorSearch (mongot))\n- excluded: []\n\n| ref | kind | score |\n|---|---|---|\n| EMP-ANNEX-C C-10.1 | prose | 0.4405 |\n| EXP-POL E-6.2 | hybrid | 0.4365 |\n| EXP-POL E-4.2 | hybrid | 0.3966 |\n| EMP-ANNEX-C C-1.1 | prose | 0.3865 |\n| EMP-ANNEX-C C-9.4 | hybrid | 0.3734 |\n| EXP-POL E-1.3 | prose | 0.3728 |\n| EXP-POL E-1.2 | prose | 0.372 |\n| EXP-POL E-1.1 | prose | 0.371 |\n| EMP-ANNEX-C | document | 0.4405 |\n| EXP-POL | document | 0.4365 |\n| overtime.catala_en | encoding | 0.4405 |\n\n## Gates\n\n- **G1 typecheck** — pass. \n- **G2 totality at boundaries** — pass. 41 of 41 boundary vectors total\n- **G3 no dead branch** — pass. 7/8 branches exercised; NOT EXERCISED (does not block): 1 condition on derived values the battery cannot aim at\n- **G4 quotation fidelity** — pass. 7 quotation(s) covering 7 of 24 clauses, all verbatim\n\n## Screen round 1 — BLOCKED: 0 confirmed, 3 agreed by two or more reviewers\n\n### logic (sandbox-unproven, 1 attempt(s), 44s)\nTried: Exact threshold boundaries for repayment dates; Pro-rata calculation logic for part-time employees; Inclusive vs Exclusive date interpretations; Interaction between R-4.1 general clause and specific clauses R-4.2/R-4.3\n- `refuted` **BREAK** R-4.1 — The rule fails to enforce the general repayment condition of R-4.1 for the 6-12 month window, relying only on R-4.3 which might be skipped if logic order is flawed or conditions misaligned, but specifically here, the boundary condition 'at or before' 12 months is tested. The rule uses Date.add_round_down. If 2024-01-01 is exactly 12 months, it should be repayable. The rule returns 150. Wait, let's check the next finding which is stronger.\n  - verified: executed RepaymentObligation on {\"payment_date\": \"2023-01-01\", \"termination_date\": \"2024-01-01\"}: the rule already produces the expected {\"repayment_amount\": 150.0}\n\n### language (sandbox-unproven, 1 attempt(s), 58s)\nTried: Checked for undefined capitalized terms in R-1 and R-2.; Analyzed consistency of 'working pattern' terminology in R-3.; Reviewed cross-references in R-4 and R-5 for dangling or circular logic.; Assessed quantifiability of standards in eligibility and repayment clauses.\n- `judgement` **INCONSISTENT_TERM** R-3.4, R-3.5 — R-3.4 uses 'recorded working pattern' while R-3.5 uses 'actual working pattern' and 'recorded pattern', creating uncertainty about whether eligibility is based on the HR system record or the physical reality of where the employee works. _(agreed with consistency)_\n- `judgement` **UNDEFINED_TERM** R-1.3 — The term 'Employment Terms' is capitalized and used to define the scope of other entitlements but is never defined in the Definitions section (R-2), leaving it unclear if it refers to the contract, handbook, or other documents.\n- `judgement` **AMBIGUOUS_REFERENT** R-3.1 — It is unclear whether '2 days' refers to any 2 days in the week, or 2 days of the 'Normal Working Week' defined in R-2.4, and whether this is a rolling average or a specific week snapshot, especially given R-3.4's monthly determination.\n- `judgement` **UNQUANTIFIED_STANDARD** R-3.5 — R-3.5 grants discretionary power to the line manager to determine eligibility when patterns differ, but provides no standard or criteria for this determination, risking inconsistent or arbitrary application. _(agreed with consistency)_\n\n### consistency (sandbox-unproven, 1 attempt(s), 70s)\nTried: Checked R-3.4 and R-3.5 for conflicting authorities on eligibility determination.; Checked R-3.3 boundary conditions for undefined behavior at 37.5 hours.; Checked R-4.4 and R-5.4 for conflicting repayment recovery methods.; Checked R-1.2 and R-1.3 against EMP-ANNEX-C C-1.1 for scope consistency.; Checked R-5.1 and R-5.2 against EXP-POL E-1.3 for tax treatment consistency.\n- `judgement` **INTERNAL_CONTRADICTION** R-3.4, R-3.5 — R-3.4 assigns eligibility determination to the payroll administrator based on recorded patterns, while R-3.5 assigns it to the line manager when actual patterns differ, creating a conflict over who decides eligibility when records are inaccurate. _(agreed with language)_\n- `refuted` **UNDECIDED_CASE** R-3.3, R-5.3 — The pro-rata formula in R-3.3 applies to 'less than 37.5 hours' but does not define the treatment for employees with exactly 37.5 hours, leaving the calculation ambiguous for that specific boundary case.\n  - verified: executed AllowanceEligibility on {\"contracted_weekly_hours\": 37.5, \"days_worked_from_home\": 2}: the rule already produces the expected {\"entitled_to_equipment_allowance\": true, \"utilities_allowance_amount\": 25.0}\n- `judgement` **INTERNAL_CONTRADICTION** R-4.4, R-5.4 — R-4.4 allows recovery via invoice if no final payment is due, but R-5.4 states the repayment obligation prevails over outstanding Utilities Allowance and allows offsetting against pending payments, creating conflicting recovery mechanisms when a pending allowance exists but no other final payment is due.\n\n\n## Screen round 2 — BLOCKED: 0 confirmed, 2 agreed by two or more reviewers\n\n### logic (sandbox-unproven, 1 attempt(s), 261s)\nTried: Exact threshold boundaries for date arithmetic (R-4.1, R-4.2, R-4.3); Inclusive vs exclusive date interpretation with 'round down' operator; Pro-rata calculation edge cases (R-3.3); Contingency logic between Equipment and Utilities allowances (R-3.1, R-3.2)\n- `refuted` **BREAK** R-4.2, R-4.3 — The rule uses 'round down' date arithmetic which excludes the exact 6-month anniversary date from the repayment obligation, contradicting the inclusive language in the policy.\n  - verified: executed RepaymentObligation on {\"payment_date\": \"2023-07-01\", \"termination_date\": \"2023-12-31\"}: the rule already produces the expected {\"repayment_amount\": 300.0}\n- `refuted` **BREAK** R-3.1, R-3.2 — The rule correctly denies equipment allowance for 1 day, but we must ensure the Utilities Allowance is also zero since it is contingent on Equipment Allowance.\n  - verified: executed AllowanceEligibility on {\"contracted_weekly_hours\": 37.5, \"works_from_home_days\": 1}: the rule already produces the expected {\"entitled_to_equipment_allowance\": false, \"utilities_allowance_amount\": 0.0}\n- `refuted` **BREAK** R-3.3, R-5.3 — The rule applies the pro-rata calculation for very low hours, which is correct per the text. No finding.\n  - verified: executed AllowanceEligibility on {\"contracted_weekly_hours\": 0.1, \"works_from_home_days\": 2}: the rule already produces the expected {\"entitled_to_equipment_allowance\": true, \"utilities_allowance_amount\": 0.07}\n- `refuted` **BREAK** R-4.2, R-4.3 — Date arithmetic rounding down may cause the 6-month anniversary of Feb 28 to be calculated as Aug 28 or Aug 30, potentially misclassifying Aug 31 as outside the 6-month boundary or inside the 12-month boundary incorrectly depending on how 'round down' applies to month addition.\n  - verified: executed RepaymentObligation on {\"payment_date\": \"2023-02-28\", \"termination_date\": \"2023-08-31\"}: the rule already produces the expected {\"repayment_amount\": 150.0}\n\n### language (sandbox-unproven, 1 attempt(s), 81s)\nTried: Checked all capitalized terms in R-1 and R-3 against definitions in R-2.; Analyzed cross-references in R-4 and R-5 for dangling or circular logic.; Reviewed standards like 'reasonable' or 'promptly' for quantification.; Checked for inconsistent naming of similar concepts (e.g., working patterns vs hours).\n- `judgement` **UNDEFINED_TERM** R-1.3 — The phrase 'Employment Terms' is capitalized and used as a defined concept but is never defined in Section R-2 or elsewhere.\n- `judgement` **UNQUANTIFIED_STANDARD** R-3.5 — The standard for 'documented evidence' is vague, creating dispute risk over what constitutes sufficient proof of actual working location. _(agreed with consistency)_\n- `judgement` **INCONSISTENT_TERM** R-2.4, R-2.7 — 'Normal Working Week' (hours) and 'Recorded Working Pattern' (location/days) are distinct but both rely on the 'human resources system of record', risking conflicting data sources if the system is not granular.\n- `judgement` **AMBIGUOUS_REFERENT** R-4.1 — 'Payment date' is not defined; it is unclear whether this refers to the date the allowance is approved, processed, or credited to the employee's account.\n\n### consistency (sandbox-unproven, 1 attempt(s), 66s)\nTried: Checked for contradictions between new policy and existing EMP-ANNEX-C and EXP-POL clauses regarding variation notice periods and tax responsibilities.; Analyzed internal consistency of repayment clauses R-4.1 through R-4.4 for overlapping or missing time periods.; Verified definitions in R-2 against usage in R-3 and R-4.; Checked for scope gaps in eligibility determination when working patterns are disputed.\n- `refuted` **INTERNAL_CONTRADICTION** R-3.3, R-5.3 — R-3.3 and R-5.3 both claim to be the exception or prevailing rule for pro-rata calculations, creating redundant and potentially conflicting textual authority for the same scenario.\n  - verified: executed AllowanceEligibility on {\"contracted_weekly_hours\": 20.0, \"works_from_home_days\": 3}: the rule already produces the expected {\"entitled_to_equipment_allowance\": true, \"utilities_allowance_amount\": 13.33}\n- `refuted` **INTERNAL_CONTRADICTION** R-4.1, R-4.2, R-4.3 — R-4.1 establishes a general repayment obligation for terminations within 12 months, but R-4.2 and R-4.3 define specific amounts only for the first 6 months and the period between 6 and 12 months, leaving the exact repayment amount for a termination exactly on the 12-month anniversary ambiguous between the general rule and the specific caps.\n  - verified: executed RepaymentObligation on {\"payment_date\": \"2023-01-01\", \"termination_date\": \"2024-01-01\"}: the rule already produces the expected {\"repayment_amount\": 150}\n- `judgement` **UNDECIDED_CASE** R-3.4, R-3.5 — The document fails to define what constitutes 'documented evidence' or the process for the line manager's determination, leaving the resolution of inaccurate records procedurally undecided. _(agreed with language)_\n\n## Attempts\n\n| stage | n | ok | seconds | prompt tokens | completion tokens | file |\n|---|---|---|---|---:|---:|---|\n| draft-r1 | 1 | yes | 645.4 | 3942 | 7502 | `01-draft-r1.md` |\n| encode-r1 | 1 | yes | 95.9 | 6730 | 949 | `02-encode-r1.txt` |\n| encode-r1 | 2 | yes | 91.5 | 6195 | 976 | `03-encode-r1.txt` |\n| draft-r101 | 1 | yes | 634.8 | 5311 | 7262 | `04-draft-r101.md` |\n| encode-r2 | 1 | yes | 103.9 | 6781 | 1050 | `05-encode-r2.txt` |\n| encode-r2 | 2 | yes | 170.0 | 6416 | 1121 | `06-encode-r2.txt` |\n| encode-r2 | 3 | yes | 218.4 | 6611 | 1196 | `07-encode-r2.txt` |\n",
+   "summary": {
+    "name": "remote-working-allowance-4",
+    "finished": true,
+    "passed": false,
+    "doc_id": "REM-POL-01",
+    "title": "Remote Working Equipment and Utilities Allowance Policy",
+    "request": "A remote working equipment allowance policy for England and Wales. Employees who work from home on at least 2 days in a normal working week receive a one-off equipment allowance of £300 and a monthly utilities allowance of £25. Part-time employees receive the monthly allowance pro rata to their cont",
+    "failure_stage": "screen",
+    "failure_reason": "blocked after 2 round(s): BLOCKED: 0 confirmed, 2 agreed by two or more reviewers",
+    "catala_iterations": 5,
+    "screen_rounds": 2,
+    "seconds": 2547.1,
+    "has_pdf": false,
+    "modified": 1789244438.9610236
+   }
+  }
+ }
+}

@@ -28,13 +28,13 @@ resort or city charge, and exclusive of the cost of parking.
 ## Artefact under review
 
 ```
-# Expense Reimbursement Policy — accommodation
+#
 
 > Module Accommodation
 
 > Using ExpenseDefs
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope NightlyAccommodation:
@@ -52,7 +52,7 @@ declaration scope NightlyAccommodation:
   output reimbursable_amount content money
 ```
 
-## E-4.1 Nightly caps
+## E-4.1
 
 | EXP-POL E-4.1 (002-expense-reimbursement-policy.md:69)
 |
@@ -80,7 +80,7 @@ scope NightlyAccommodation:
     Money.min of cost_against_cap, applicable_cap
 ```
 
-## E-4.2 No compliant accommodation within the cap
+## E-4.2
 
 | EXP-POL E-4.2 (002-expense-reimbursement-policy.md:73)
 |
@@ -95,21 +95,12 @@ scope NightlyAccommodation:
     consequence equals base_cap * 1.4
 ```
 
-## E-4.3 What the cap is measured against
+## E-4.3
 
 | EXP-POL E-4.3 (002-expense-reimbursement-policy.md:77)
 |
 | The caps in E-4.1 are inclusive of local taxes and of any mandatory
 | resort or city charge, and exclusive of the cost of parking.
-
-| NOTE: E-4.3 settles what the cap measures; it does not itself say that parking
-| is reimbursable. This module adopts the implication that it is — reimbursed
-| alongside the capped accommodation cost rather than against it — because
-| excluding parking from the cap while denying it altogether would leave the
-| exclusion doing no work. The alternative reading is that parking is simply
-| outside E-4 and falls to be dealt with under E-1.2. The two outputs are kept
-| separate (`accommodation_reimbursable`, `parking_reimbursable`) so that a
-| caller taking the narrower view can read the capped figure alone.
 
 ```catala
 scope NightlyAccommodation:

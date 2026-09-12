@@ -1,0 +1,275 @@
+# Data Retention and Deletion Standard — R-4 Legal Hold
+
+> Module LegalHold
+
+This module answers three questions: does a Legal Hold suspend deletion of a
+record, when does deletion fall due once the hold is released, and by when
+must the record then be purged from backups?
+
+R-4.1 is expressed as "notwithstanding R-3", so the hold override cannot live
+inside `Retention`: it must defeat whatever R-3 limb produced the retention
+end date. `retention_end_date` therefore arrives here as an input — it is
+`Retention.RetentionEnd.retention_end_date` — and the override sits at the
+bottom of the exception chain on the deletion decision, below every other
+limb.
+
+`deletion_due_date` is an `optional of date`. `Absent` means **no deletion
+date falls due**, which is the only correct answer while a hold is in force:
+R-4.1 forbids deletion irrespective of expiry of the retention period, so
+reporting the expired retention date as a due date would invite exactly the
+deletion the clause prohibits.
+
+The third question is R-6.1's, and it lives here rather than in `Retention`
+because R-6.1 measures its cycle from deletion from production systems, which
+is precisely what R-4.1 and R-4.3 displace. `backup_purge_deadline` is
+therefore computed from `deletion_due_date` and is `Absent` whenever that is
+(CE-0020; the reasoning is under R-6 below).
+
+## Prologue — declarations
+
+`retention_under_hold_permitted_by_data_protection_law` is the **judgement
+input** of R-4.2. Whether applicable data protection law permits continued
+retention against a particular erasure request is not computable from
+anything in this Standard; encoded as a plain rule the module would assert
+that a hold always defeats an erasure request.
+
+A hold is described by two recorded dates: `hold_issued_date` (`Absent` where
+no hold was ever issued) and `hold_released_date` (`Absent` where the hold
+has not been released). `assessment_date` is the date as at which the
+questions are asked, since a hold released last month was in force the month
+before.
+
+```catala-metadata
+declaration scope HoldEffect:
+  input hold_issued_date content optional of date
+  input hold_released_date content optional of date
+  input retention_end_date content date
+  input assessment_date content date
+  input retention_under_hold_permitted_by_data_protection_law content boolean
+  output hold_in_force content boolean
+  output deletion_due_date content optional of date
+  output backup_purge_deadline content optional of date
+  output erasure_blocked_by_hold content boolean
+```
+
+| NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Only day
+| durations are added in this scope (R-4.3's 30 days), which are never
+| ambiguous, but the mode is declared so that the scope's arithmetic is
+| total by construction rather than by inspection. `date round down` matches
+| `Retention`, whose R-3 result this scope consumes, so a single record
+| cannot be rounded one way here and the other way there.
+
+```catala
+scope HoldEffect:
+  date round down
+```
+
+## R-2 Definitions
+
+| DATA-RET R-2.3 (006-data-retention-standard.md:34)
+|
+| "Legal Hold" means a documented instruction issued by the General Counsel
+| or their delegate to preserve specified records in connection with actual
+| or reasonably anticipated litigation, investigation or regulatory
+| proceedings.
+
+The clause's evaluative element — whether litigation is "reasonably
+anticipated" — is exercised by the General Counsel *before* issuing the
+instruction, so what this module consumes is a documented instruction with a
+date, not a judgement it has to make. That is why R-4.1 below is RULE and not
+HYBRID.
+
+A hold is in force as at the assessment date if it has been issued on or
+before that date and not yet released by it. A hold is spent on the day it is
+released, which is what makes R-4.3's 30 days start running.
+
+The two dates are ordered, and R-2.3 read with R-4.3 is what orders them. A
+Legal Hold comes into existence by being "issued by the General Counsel or
+their delegate"; R-4.3 then speaks of what happens "on release **of a Legal
+Hold**". There is nothing to release until something has been issued, and a
+release cannot precede the issue it releases. So a release date with no issue
+date, or a release date earlier than the issue date, describes no Legal Hold
+this Standard recognises — and the answers the scope would otherwise give are
+confident and wrong: `hold_in_force` comes out false at every assessment date,
+including dates on which a real hold would have been in force, and R-4.3 still
+runs its 30 days from the phantom release. The scope declines instead. The
+bound is the Standard's, not a programming convenience: it is what makes
+"release" mean anything.
+
+```catala
+scope HoldEffect:
+  assertion
+    match hold_released_date with pattern
+    -- Absent: true
+    -- Present content released:
+         (match hold_issued_date with pattern
+          -- Absent: false
+          -- Present content issued: released >= issued)
+
+  label r2_3 definition hold_in_force equals
+    match hold_issued_date with pattern
+    -- Absent: false
+    -- Present content issued:
+         assessment_date >= issued
+         and (match hold_released_date with pattern
+              -- Absent: true
+              -- Present content released: assessment_date < released)
+```
+
+## R-4 Legal Hold
+
+| NO-CLAUSE: the base case of the deletion decision is the ordinary retention
+| expiry that R-3 fixes, and R-3 is encoded in `Retention`, not here — this
+| block adds no law of its own, it only names that module's result as the
+| base that R-4.3 and R-4.1 are exceptions to. Encoding R-3 again here would
+| put one clause in two modules.
+
+```catala
+scope HoldEffect:
+  label r3_ordinary definition deletion_due_date
+    equals Present content retention_end_date
+```
+
+| DATA-RET R-4.3 (006-data-retention-standard.md:75)
+|
+| On release of a Legal Hold, the record is deleted within 30 days if its
+| retention period has already expired, and otherwise on the ordinary expiry
+| of its retention period.
+
+Two branches on one condition — that a hold was issued and has since been
+released. Which branch applies turns on whether the retention period had
+*already* expired when the hold was released, so the comparison is against
+the release date and not against today: a record whose period expires next
+year is deleted next year, however long the hold ran.
+
+The boundary is exclusive. A period that expires on the very day the hold is
+released has not "already" expired, so that record falls in the second branch
+and is deleted on its ordinary expiry, which is that same day.
+
+```catala
+scope HoldEffect:
+  label r4_3 exception r3_ordinary definition deletion_due_date
+    under condition
+      (hold_issued_date with pattern Present)
+      or (hold_released_date with pattern Present)
+    consequence equals
+      match hold_released_date with pattern
+      -- Absent: Present content retention_end_date
+      -- Present content released:
+           if retention_end_date < released
+           then Present content (released + 30 day)
+           else Present content retention_end_date
+```
+
+| DATA-RET R-4.1 (006-data-retention-standard.md:68)
+|
+| Notwithstanding R-3, a record subject to a Legal Hold must not be deleted
+| while the Legal Hold remains in force, irrespective of the expiry of the
+| applicable retention period.
+
+"Notwithstanding R-3" puts this clause below everything else, so it is an
+exception to `r4_3`, which is itself an exception to the R-3 base. It
+therefore defeats every R-3 limb and R-4.3 alike, which is what the words
+require: no deletion date falls due while the hold is in force, *irrespective
+of the expiry* of the retention period.
+
+Nothing is repeated from the parent's condition here, and deliberately so.
+R-4.1 is not a qualification of R-4.3; it applies on its own terms whenever a
+hold is in force. It overlaps `r4_3` only as at an assessment date falling
+between issue and release of a hold that has since been released, and in that
+overlap R-4.1 must win — the hold was in force then. Sitting below `r4_3` in
+the chain is what secures that.
+
+```catala
+scope HoldEffect:
+  label r4_1 exception r4_3 definition deletion_due_date
+    under condition hold_in_force
+    consequence equals Absent
+```
+
+| DATA-RET R-4.2 (006-data-retention-standard.md:72)
+|
+| A Legal Hold takes precedence over any request for erasure made by a data
+| subject, to the extent permitted by applicable data protection law.
+
+**HYBRID.** The precedence is determinate — a hold in force blocks an erasure
+request — but it holds only "to the extent permitted by applicable data
+protection law", which is the judgement input. The limitation is encoded as
+an exception to the precedence rather than folded into a conjunction, so that
+the clause's two parts stay separately visible: the rule, and the legal limit
+on it.
+
+The exception repeats the parent's operative term `hold_in_force`. The parent
+is unconditional, so this is not strictly required to keep the exception in
+its parent's domain, but it keeps the limitation from reading as a statement
+about records under no hold at all.
+
+`erasure_blocked_by_hold` is the value `Erasure_request` consumes for the
+third limb of R-5.2, so the R-4.2 judgement cannot be bypassed by reading the
+hold's existence directly.
+
+```catala
+scope HoldEffect:
+  label r4_2 definition erasure_blocked_by_hold equals hold_in_force
+
+  label r4_2_permitted exception r4_2 definition erasure_blocked_by_hold
+    under condition
+      hold_in_force
+      and not retention_under_hold_permitted_by_data_protection_law
+    consequence equals false
+```
+
+## R-6 Deletion of backups
+
+| DATA-RET R-6.1 (006-data-retention-standard.md:90)
+|
+| Records deleted from production systems are deleted from backups at the
+| expiry of the backup rotation cycle, which must not exceed 90 days.
+
+The clause measures its cycle from one event and one only: deletion **from
+production systems**. It takes that date from `deletion_due_date`, the output
+of the whole R-3-then-R-4 chain, and from no input of its own. The Standard
+fixes only the ceiling of the cycle, not its length, so what this computes is
+the outer bound: a record leaving production when deletion falls due must be
+gone from backups 90 days later.
+
+`Absent` propagates for the same reason it arises. While a hold is in force
+no production-deletion date falls due, so no backup deadline can be computed
+either; manufacturing one from the expired retention period would name a
+purge deadline for a deletion R-4.1 forbids.
+
+```catala
+scope HoldEffect:
+  label r6_1 definition backup_purge_deadline equals
+    match deletion_due_date with pattern
+    -- Absent: Absent
+    -- Present content deleted_from_production:
+         Present content (deleted_from_production + 90 day)
+```
+
+**CE-0020, and why the clause is encoded here.** R-6.1 used to live in
+`Retention`, as `retention_end_date + 90 day`, which substituted R-3's expiry
+for the event the clause actually names. The two come apart exactly where R-4
+bites: a record under a Legal Hold must not be deleted while the hold is in
+force (R-4.1) and is then deleted within 30 days of release if its period has
+already expired (R-4.3), which can fall years after the R-3 date. The old
+encoding therefore produced a backup deadline that had already passed before
+the record could lawfully leave production — an instruction compliable with
+on no facts at all. R-2.4 confirms the two dates are distinct steps of one
+deletion: a record is deleted when it is gone from production *and*, at the
+expiry of the rotation cycle, from backups.
+
+Taking the date from `deletion_due_date` rather than as an input of its own
+is the point of the fix. A caller asked to supply the production-deletion
+date could silently supply the R-3 expiry, which is precisely the error
+CE-0020 records; composed this way the wrong date cannot be passed in,
+because no date is passed in. `Retention.RetentionEnd.retention_end_date`
+feeds this scope's `retention_end_date`, and R-6.1 reads what R-4 made of it.
+
+The remaining inexactness is R-1.2's, and it is inexact in the safe
+direction. Where a business unit deletes earlier than it must, R-6.1 runs its
+cycle from that earlier actual deletion and the deadline moves earlier with
+it. No record defined by this Standard carries that actual date —
+`deletion_due_date` is when deletion *falls due* — so what this output states
+is the latest permissible purge deadline, never a licence to keep a backup
+for 90 days after a deletion that has already happened.

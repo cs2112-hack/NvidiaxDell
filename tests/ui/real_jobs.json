@@ -1,0 +1,1186 @@
+{
+ "quick": {
+  "id": "5e49f1263490",
+  "kind": "sweep",
+  "label": "autonomous sweep",
+  "params": {
+   "rounds": 0,
+   "scopes": []
+  },
+  "status": "done",
+  "error": "",
+  "progress": {
+   "stage": "reverify",
+   "done": 9,
+   "total": 9
+  },
+  "result": {
+   "recorded": [],
+   "found": [],
+   "stale": [],
+   "contradictions": 0
+  },
+  "n_lines": 4,
+  "n_events": 17,
+  "started": 1789246245.5076356,
+  "seconds": 1.2,
+  "lines": [
+   "Reconcile what we did against what we wrote: 14 decisions executed: 8 agree with the policy, 8 diverge, 0 new on the queue",
+   "Execute both sides of every rivalry: 1 pair of rules executed on both sides, 0 contradictions",
+   "Re-execute every finding on the queue: 9 of 9 still reproduce",
+   "Send the fleet against the rules: no attack rounds were asked for"
+  ],
+  "events": [
+   {
+    "type": "plan",
+    "t": 0.0,
+    "stages": [
+     {
+      "key": "operations",
+      "title": "Reconcile what we did against what we wrote"
+     },
+     {
+      "key": "rivalries",
+      "title": "Execute both sides of every rivalry"
+     },
+     {
+      "key": "reverify",
+      "title": "Re-execute every finding on the queue"
+     },
+     {
+      "key": "fleet",
+      "title": "Send the fleet against the rules"
+     }
+    ],
+    "rounds": 0,
+    "scopes": []
+   },
+   {
+    "type": "stage",
+    "t": 0.0,
+    "key": "operations",
+    "title": "Reconcile what we did against what we wrote",
+    "status": "running"
+   },
+   {
+    "type": "stage",
+    "t": 0.5,
+    "key": "operations",
+    "title": "Reconcile what we did against what we wrote",
+    "status": "done",
+    "summary": "14 decisions executed: 8 agree with the policy, 8 diverge, 0 new on the queue",
+    "counts": {
+     "decisions": 14,
+     "agreeing": 8,
+     "divergences": 8,
+     "new": 0
+    },
+    "recorded": []
+   },
+   {
+    "type": "stage",
+    "t": 0.5,
+    "key": "rivalries",
+    "title": "Execute both sides of every rivalry",
+    "status": "running"
+   },
+   {
+    "type": "stage",
+    "t": 1.2,
+    "key": "rivalries",
+    "title": "Execute both sides of every rivalry",
+    "status": "done",
+    "summary": "1 pair of rules executed on both sides, 0 contradictions",
+    "counts": {
+     "rivalries": 1,
+     "contradictions": 0
+    },
+    "contradictions": []
+   },
+   {
+    "type": "stage",
+    "t": 1.2,
+    "key": "reverify",
+    "title": "Re-execute every finding on the queue",
+    "status": "running",
+    "total": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.2,
+    "id": "EXP-0001",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 1,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.2,
+    "id": "EXP-0002",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 2,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.2,
+    "id": "EXP-0003",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 3,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.2,
+    "id": "EXP-0004",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 4,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.2,
+    "id": "EXP-0005",
+    "klass": "DIVERGENCE",
+    "scope": "ServiceCredits.ServiceCredit",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 5,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.2,
+    "id": "EXP-0006",
+    "klass": "DIVERGENCE",
+    "scope": "GroundTransport.TaxiFare",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 6,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.2,
+    "id": "EXP-0007",
+    "klass": "DIVERGENCE",
+    "scope": "ClaimWindow.ClaimAdmissible",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 7,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.2,
+    "id": "EXP-0008",
+    "klass": "DIVERGENCE",
+    "scope": "Clawback.RecoverableCommission",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 8,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.2,
+    "id": "EXP-0009",
+    "klass": "ADVERSE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "executed again and reached the same outcome",
+    "n": 9,
+    "of": 9
+   },
+   {
+    "type": "stage",
+    "t": 1.2,
+    "key": "reverify",
+    "title": "Re-execute every finding on the queue",
+    "status": "done",
+    "summary": "9 of 9 still reproduce",
+    "counts": {
+     "checked": 9,
+     "stale": 0
+    }
+   },
+   {
+    "type": "stage",
+    "t": 1.2,
+    "key": "fleet",
+    "title": "Send the fleet against the rules",
+    "status": "skipped",
+    "summary": "no attack rounds were asked for"
+   }
+  ]
+ },
+ "three_attacks": {
+  "id": "5e9e072ee5c4",
+  "kind": "sweep",
+  "label": "autonomous sweep",
+  "params": {
+   "rounds": 3,
+   "scopes": []
+  },
+  "status": "done",
+  "error": "",
+  "progress": {
+   "stage": "fleet",
+   "done": 3,
+   "total": 3
+  },
+  "result": {
+   "recorded": [],
+   "found": [],
+   "stale": [],
+   "contradictions": 0
+  },
+  "n_lines": 10,
+  "n_events": 27,
+  "started": 1789243582.0806508,
+  "seconds": 741.5,
+  "lines": [
+   "Reconcile what we did against what we wrote: 14 decisions executed: 8 agree with the policy, 8 diverge, 0 new on the queue",
+   "Execute both sides of every rivalry: 1 pair of rules executed on both sides, 0 contradictions",
+   "Re-execute every finding on the queue: 9 of 9 still reproduce",
+   "packet for Overtime.HourPremium: 12326 characters of clauses, interface and realisable domain. The exposure predicates are not in it.",
+   "  1  auditor      died           the scope computed an answer and no predicate fired",
+   "packet for ClaimWindow.ClaimAdmissible: 3655 characters of clauses, interface and realisable domain. The exposure predicates are not in it.",
+   "  2  contractor   died           the scope computed an answer and no predicate fired",
+   "packet for ServiceCredits.ServiceCredit: 7133 characters of clauses, interface and realisable domain. The exposure predicates are not in it.",
+   "  3  customer     died           the scope computed an answer and no predicate fired",
+   "Send the fleet against the rules: 3 attacks across 3 rules; 0 new on the queue"
+  ],
+  "events": [
+   {
+    "type": "plan",
+    "t": 0.0,
+    "stages": [
+     {
+      "key": "operations",
+      "title": "Reconcile what we did against what we wrote"
+     },
+     {
+      "key": "rivalries",
+      "title": "Execute both sides of every rivalry"
+     },
+     {
+      "key": "reverify",
+      "title": "Re-execute every finding on the queue"
+     },
+     {
+      "key": "fleet",
+      "title": "Send the fleet against the rules"
+     }
+    ],
+    "rounds": 3,
+    "scopes": []
+   },
+   {
+    "type": "stage",
+    "t": 0.0,
+    "key": "operations",
+    "title": "Reconcile what we did against what we wrote",
+    "status": "running"
+   },
+   {
+    "type": "stage",
+    "t": 0.9,
+    "key": "operations",
+    "title": "Reconcile what we did against what we wrote",
+    "status": "done",
+    "summary": "14 decisions executed: 8 agree with the policy, 8 diverge, 0 new on the queue",
+    "counts": {
+     "decisions": 14,
+     "agreeing": 8,
+     "divergences": 8,
+     "new": 0
+    },
+    "recorded": []
+   },
+   {
+    "type": "stage",
+    "t": 0.9,
+    "key": "rivalries",
+    "title": "Execute both sides of every rivalry",
+    "status": "running"
+   },
+   {
+    "type": "stage",
+    "t": 1.8,
+    "key": "rivalries",
+    "title": "Execute both sides of every rivalry",
+    "status": "done",
+    "summary": "1 pair of rules executed on both sides, 0 contradictions",
+    "counts": {
+     "rivalries": 1,
+     "contradictions": 0
+    },
+    "contradictions": []
+   },
+   {
+    "type": "stage",
+    "t": 1.8,
+    "key": "reverify",
+    "title": "Re-execute every finding on the queue",
+    "status": "running",
+    "total": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.9,
+    "id": "EXP-0001",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 1,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.9,
+    "id": "EXP-0002",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 2,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.9,
+    "id": "EXP-0003",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 3,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.9,
+    "id": "EXP-0004",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 4,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.9,
+    "id": "EXP-0005",
+    "klass": "DIVERGENCE",
+    "scope": "ServiceCredits.ServiceCredit",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 5,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.9,
+    "id": "EXP-0006",
+    "klass": "DIVERGENCE",
+    "scope": "GroundTransport.TaxiFare",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 6,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.9,
+    "id": "EXP-0007",
+    "klass": "DIVERGENCE",
+    "scope": "ClaimWindow.ClaimAdmissible",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 7,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.9,
+    "id": "EXP-0008",
+    "klass": "DIVERGENCE",
+    "scope": "Clawback.RecoverableCommission",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 8,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 1.9,
+    "id": "EXP-0009",
+    "klass": "ADVERSE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "executed again and reached the same outcome",
+    "n": 9,
+    "of": 9
+   },
+   {
+    "type": "stage",
+    "t": 1.9,
+    "key": "reverify",
+    "title": "Re-execute every finding on the queue",
+    "status": "done",
+    "summary": "9 of 9 still reproduce",
+    "counts": {
+     "checked": 9,
+     "stale": 0
+    }
+   },
+   {
+    "type": "stage",
+    "t": 2.0,
+    "key": "fleet",
+    "title": "Send the fleet against the rules",
+    "status": "running",
+    "note": "loading the model's weights",
+    "total": 3,
+    "model": "qwen3.6:27b-q4_K_M",
+    "isolation": "sandbox-unproven"
+   },
+   {
+    "type": "round",
+    "t": 123.3,
+    "phase": "proposing",
+    "n": 1,
+    "of": 3,
+    "scope": "Overtime.HourPremium",
+    "archetype": "auditor",
+    "role": "Auditor reconciling what the policy says against what it pays"
+   },
+   {
+    "type": "round",
+    "t": 333.2,
+    "phase": "adjudicating",
+    "narrative": "A Grade 6 incident engineer works a night hour on a public holiday during a critical incident, at ordinal 50 (exceeding 48). The documents grant overtime under C-5.2 and a holiday rate under C-7. C-8.1 mandates taking the 'highest applicable multiplier.' C-7.2 defines the holiday rate as max(2.0, 1.75) = 2.0. C-5.2 grants 1.5. The highest is 2.0. However, C-6 states the night premium is cumulative. The policy fails to define whether the night premium stacks with the *substitutionary* holiday rate or only the overtime rate, creating ambiguity on whether the engineer is owed 2.15 or 1.15 over base.",
+    "contends": "The documents are silent on whether the cumulative night premium (C-6) applies when the base multiplier is determined by the substitutionary public holiday rate (C-7), which supersedes overtime. A sympathetic reading requires paying both the holiday rate and the night premium, as C-6 explicitly lists C-7 as a source for which the premium is additional.",
+    "citations": [
+     "EMP-ANNEX-C C-5.2",
+     "EMP-ANNEX-C C-7.2",
+     "EMP-ANNEX-C C-6.1",
+     "EMP-ANNEX-C C-8.1"
+    ],
+    "facts": {
+     "grade": 6,
+     "has_standing_shift_allowance": false,
+     "is_critical_incident": true,
+     "is_night": true,
+     "is_public_holiday": true,
+     "ordinal": 50
+    },
+    "usage": "4094 in, 394 out, 209.8s (1.9 tok/s)",
+    "n": 1,
+    "of": 3,
+    "scope": "Overtime.HourPremium",
+    "archetype": "auditor",
+    "role": "Auditor reconciling what the policy says against what it pays"
+   },
+   {
+    "type": "round",
+    "t": 333.3,
+    "phase": "died",
+    "klass": "",
+    "why": "the scope computed an answer and no predicate fired",
+    "recorded": "",
+    "predicate": "",
+    "amount": null,
+    "amount_basis": "",
+    "n": 1,
+    "of": 3,
+    "scope": "Overtime.HourPremium",
+    "archetype": "auditor",
+    "role": "Auditor reconciling what the policy says against what it pays"
+   },
+   {
+    "type": "round",
+    "t": 333.3,
+    "phase": "proposing",
+    "n": 2,
+    "of": 3,
+    "scope": "ClaimWindow.ClaimAdmissible",
+    "archetype": "contractor",
+    "role": "Disgruntled contractor or leaver chasing what they are owed"
+   },
+   {
+    "type": "round",
+    "t": 532.5,
+    "phase": "adjudicating",
+    "narrative": "On January 15, 2026, I advanced personal funds to secure a critical client site. My line manager was on extended medical leave, delaying certification. I submitted the claim on March 16, 2026. This is exactly 60 days later. While within the standard window, I request certification for 'good reason' to ensure processing under the exception clause, as my manager has now returned and confirms the delay was unavoidable.",
+    "contends": "The claim falls precisely on the 60-day threshold. E-6.1 admits claims within 60 days. E-6.2 admits claims between 60 and 120 days with certification. By providing certification, I invoke the broader exception which explicitly overrides E-6.1, ensuring admissibility regardless of strict boundary interpretation.",
+    "citations": [
+     "EXP-POL E-6.1",
+     "EXP-POL E-6.2"
+    ],
+    "facts": {
+     "delay_certified_for_good_reason": true,
+     "expense_incurred_date": "2026-01-15",
+     "submission_date": "2026-03-16"
+    },
+    "usage": "1589 in, 280 out, 199.1s (1.4 tok/s)",
+    "n": 2,
+    "of": 3,
+    "scope": "ClaimWindow.ClaimAdmissible",
+    "archetype": "contractor",
+    "role": "Disgruntled contractor or leaver chasing what they are owed"
+   },
+   {
+    "type": "round",
+    "t": 532.5,
+    "phase": "died",
+    "klass": "",
+    "why": "the scope computed an answer and no predicate fired",
+    "recorded": "",
+    "predicate": "",
+    "amount": null,
+    "amount_basis": "",
+    "n": 2,
+    "of": 3,
+    "scope": "ClaimWindow.ClaimAdmissible",
+    "archetype": "contractor",
+    "role": "Disgruntled contractor or leaver chasing what they are owed"
+   },
+   {
+    "type": "round",
+    "t": 532.7,
+    "phase": "proposing",
+    "n": 3,
+    "of": 3,
+    "scope": "ServiceCredits.ServiceCredit",
+    "archetype": "customer",
+    "role": "Counsel for a customer under the services agreement"
+   },
+   {
+    "type": "round",
+    "t": 741.5,
+    "phase": "adjudicating",
+    "narrative": "A senior procurement director at a global tech firm whose platform suffered catastrophic, week-long outfalls this month. The infrastructure collapsed to 94% availability, rendering the service unusable for critical workflows. The firm has not paid the current invoice yet as it remains under active dispute regarding the service failure, meaning no undisputed debt is overdue. They seek the maximum contractual redress available.",
+    "contends": "The customer is entitled to a 50% service credit ($250,000). Clauses L-4.3 and L-4.4 operate as exceptions to the base rules. L-4.4 blocks credits only if the customer is in arrears of an *undisputed* invoice for >30 days. Because the invoice is disputed, the arrears condition is not met, and the credit is payable. L-4.3 applies because availability is below 95%, overriding the 30% cap in L-4.2.",
+    "citations": [
+     "MSA-SCH4 L-4.3",
+     "MSA-SCH4 L-4.4",
+     "MSA-SCH4 L-4.1"
+    ],
+    "facts": {
+     "arrears_days": 0,
+     "availability_percentage": 94.0,
+     "invoice_undisputed": false,
+     "monthly_service_charge": 500000.0
+    },
+    "usage": "2524 in, 326 out, 208.8s (1.6 tok/s)",
+    "n": 3,
+    "of": 3,
+    "scope": "ServiceCredits.ServiceCredit",
+    "archetype": "customer",
+    "role": "Counsel for a customer under the services agreement"
+   },
+   {
+    "type": "round",
+    "t": 741.5,
+    "phase": "died",
+    "klass": "",
+    "why": "the scope computed an answer and no predicate fired",
+    "recorded": "",
+    "predicate": "",
+    "amount": null,
+    "amount_basis": "",
+    "n": 3,
+    "of": 3,
+    "scope": "ServiceCredits.ServiceCredit",
+    "archetype": "customer",
+    "role": "Counsel for a customer under the services agreement"
+   },
+   {
+    "type": "stage",
+    "t": 741.5,
+    "key": "fleet",
+    "title": "Send the fleet against the rules",
+    "status": "done",
+    "summary": "3 attacks across 3 rules; 0 new on the queue",
+    "counts": {
+     "rounds": 3,
+     "found": 0
+    }
+   }
+  ]
+ },
+ "six_attacks": {
+  "id": "2fc4d721b40d",
+  "kind": "sweep",
+  "label": "autonomous sweep",
+  "params": {
+   "rounds": 6,
+   "scopes": []
+  },
+  "status": "done",
+  "error": "",
+  "progress": {
+   "stage": "fleet",
+   "done": 6,
+   "total": 6
+  },
+  "result": {
+   "recorded": [],
+   "found": [],
+   "stale": [],
+   "contradictions": 0
+  },
+  "n_lines": 16,
+  "n_events": 36,
+  "started": 1789238863.492237,
+  "seconds": 2664.0,
+  "lines": [
+   "Reconcile what we did against what we wrote: 14 decisions executed: 8 agree with the policy, 8 diverge, 0 new on the queue",
+   "Execute both sides of every rivalry: 1 pair of rules executed on both sides, 0 contradictions",
+   "Re-execute every finding on the queue: 9 of 9 still reproduce",
+   "packet for Overtime.HourPremium: 12326 characters of clauses, interface and realisable domain. The exposure predicates are not in it.",
+   "  1  auditor      died           the scope computed an answer and no predicate fired",
+   "packet for ClaimWindow.ClaimAdmissible: 3655 characters of clauses, interface and realisable domain. The exposure predicates are not in it.",
+   "  2  contractor   died           the scope computed an answer and no predicate fired",
+   "packet for ServiceCredits.ServiceCredit: 7133 characters of clauses, interface and realisable domain. The exposure predicates are not in it.",
+   "  3  customer     died           the scope computed an answer and no predicate fired",
+   "packet for Accommodation.NightlyAccommodation: 5086 characters of clauses, interface and realisable domain. The exposure predicates are not in it.",
+   "  4  employment   died           the scope computed an answer and no predicate fired",
+   "packet for Availability.AvailabilityPercentage: 14167 characters of clauses, interface and realisable domain. The exposure predicates are not in it.",
+   "  5  regulator    died           the scope computed an answer and no predicate fired",
+   "packet for Clawback.RecoverableCommission: 4115 characters of clauses, interface and realisable domain. The exposure predicates are not in it.",
+   "  6  auditor      died           the scope computed an answer and no predicate fired",
+   "Send the fleet against the rules: 6 attacks across 6 rules; 0 new on the queue"
+  ],
+  "events": [
+   {
+    "type": "plan",
+    "t": 0.0,
+    "stages": [
+     {
+      "key": "operations",
+      "title": "Reconcile what we did against what we wrote"
+     },
+     {
+      "key": "rivalries",
+      "title": "Execute both sides of every rivalry"
+     },
+     {
+      "key": "reverify",
+      "title": "Re-execute every finding on the queue"
+     },
+     {
+      "key": "fleet",
+      "title": "Send the fleet against the rules"
+     }
+    ],
+    "rounds": 6,
+    "scopes": []
+   },
+   {
+    "type": "stage",
+    "t": 0.0,
+    "key": "operations",
+    "title": "Reconcile what we did against what we wrote",
+    "status": "running"
+   },
+   {
+    "type": "stage",
+    "t": 0.8,
+    "key": "operations",
+    "title": "Reconcile what we did against what we wrote",
+    "status": "done",
+    "summary": "14 decisions executed: 8 agree with the policy, 8 diverge, 0 new on the queue",
+    "counts": {
+     "decisions": 14,
+     "agreeing": 8,
+     "divergences": 8,
+     "new": 0
+    },
+    "recorded": []
+   },
+   {
+    "type": "stage",
+    "t": 0.8,
+    "key": "rivalries",
+    "title": "Execute both sides of every rivalry",
+    "status": "running"
+   },
+   {
+    "type": "stage",
+    "t": 2.0,
+    "key": "rivalries",
+    "title": "Execute both sides of every rivalry",
+    "status": "done",
+    "summary": "1 pair of rules executed on both sides, 0 contradictions",
+    "counts": {
+     "rivalries": 1,
+     "contradictions": 0
+    },
+    "contradictions": []
+   },
+   {
+    "type": "stage",
+    "t": 2.1,
+    "key": "reverify",
+    "title": "Re-execute every finding on the queue",
+    "status": "running",
+    "total": 9
+   },
+   {
+    "type": "verify",
+    "t": 2.1,
+    "id": "EXP-0001",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 1,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 2.1,
+    "id": "EXP-0002",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 2,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 2.1,
+    "id": "EXP-0003",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 3,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 2.1,
+    "id": "EXP-0004",
+    "klass": "DIVERGENCE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 4,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 2.1,
+    "id": "EXP-0005",
+    "klass": "DIVERGENCE",
+    "scope": "ServiceCredits.ServiceCredit",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 5,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 2.1,
+    "id": "EXP-0006",
+    "klass": "DIVERGENCE",
+    "scope": "GroundTransport.TaxiFare",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 6,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 2.1,
+    "id": "EXP-0007",
+    "klass": "DIVERGENCE",
+    "scope": "ClaimWindow.ClaimAdmissible",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 7,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 2.1,
+    "id": "EXP-0008",
+    "klass": "DIVERGENCE",
+    "scope": "Clawback.RecoverableCommission",
+    "ok": true,
+    "why": "the record still diverges from the policy",
+    "n": 8,
+    "of": 9
+   },
+   {
+    "type": "verify",
+    "t": 2.1,
+    "id": "EXP-0009",
+    "klass": "ADVERSE",
+    "scope": "Overtime.HourPremium",
+    "ok": true,
+    "why": "executed again and reached the same outcome",
+    "n": 9,
+    "of": 9
+   },
+   {
+    "type": "stage",
+    "t": 2.1,
+    "key": "reverify",
+    "title": "Re-execute every finding on the queue",
+    "status": "done",
+    "summary": "9 of 9 still reproduce",
+    "counts": {
+     "checked": 9,
+     "stale": 0
+    }
+   },
+   {
+    "type": "stage",
+    "t": 2.2,
+    "key": "fleet",
+    "title": "Send the fleet against the rules",
+    "status": "running",
+    "note": "loading the model's weights",
+    "total": 6,
+    "model": "qwen3.6:27b-q4_K_M",
+    "isolation": "sandbox-unproven"
+   },
+   {
+    "type": "round",
+    "t": 79.2,
+    "phase": "proposing",
+    "n": 1,
+    "of": 6,
+    "scope": "Overtime.HourPremium",
+    "archetype": "auditor",
+    "role": "Auditor reconciling what the policy says against what it pays"
+   },
+   {
+    "type": "round",
+    "t": 950.4,
+    "phase": "adjudicating",
+    "narrative": "A Grade 6 engineer works hour 50 of a Payroll Week on a Public Holiday during night hours. While C-5.1 generally denies Grade 5+ overtime in favor of Time Off In Lieu (TOIL), and C-7.1 substitutes the public holiday rate for overtime, C-7.2 provides an exception: where holiday hours exceed 48, pay is the greater of double time or (C-4.2 rate + 0.25). Here, C-4.2 yields 1.5, so C-7.2 yields 1.75. Crucially, C-6.2 does not apply (no shift allowance), so the 0.15 night premium adds to the multiplier. The documents fail to specify whether TOIL accrual is extinguished when the holiday override triggers payment, creating a dual entitlement.",
+    "contends": "The employee is entitled to both the monetary premium calculated under C-7.2 (multiplier 1.75) and the TOIL accrual under C-5.1. C-5.2 rescinds TOIL only for Critical Incidents. C-7.1 substitutes payment for *overtime*, but C-7.2 invokes C-4.2 rates, effectively treating the hour as overtime. Since C-5.1 is not excepted by the holiday clauses regarding TOIL, the employee gets paid time off in lieu on top of the enhanced holiday rate.",
+    "citations": [
+     "EMP-ANNEX-C C-5.1",
+     "EMP-ANNEX-C C-5.2",
+     "EMP-ANNEX-C C-7.1",
+     "EMP-ANNEX-C C-7.2",
+     "EMP-ANNEX-C C-6.1",
+     "EMP-ANNEX-C C-8.2"
+    ],
+    "facts": {
+     "grade": 6,
+     "has_standing_shift_allowance": false,
+     "is_critical_incident": false,
+     "is_night": true,
+     "is_public_holiday": true,
+     "ordinal": 50
+    },
+    "usage": "4094 in, 480 out, 871.2s (0.6 tok/s)",
+    "n": 1,
+    "of": 6,
+    "scope": "Overtime.HourPremium",
+    "archetype": "auditor",
+    "role": "Auditor reconciling what the policy says against what it pays"
+   },
+   {
+    "type": "round",
+    "t": 950.5,
+    "phase": "died",
+    "klass": "",
+    "why": "the scope computed an answer and no predicate fired",
+    "recorded": "",
+    "predicate": "",
+    "amount": null,
+    "amount_basis": "",
+    "n": 1,
+    "of": 6,
+    "scope": "Overtime.HourPremium",
+    "archetype": "auditor",
+    "role": "Auditor reconciling what the policy says against what it pays"
+   },
+   {
+    "type": "round",
+    "t": 950.6,
+    "phase": "proposing",
+    "n": 2,
+    "of": 6,
+    "scope": "ClaimWindow.ClaimAdmissible",
+    "archetype": "contractor",
+    "role": "Disgruntled contractor or leaver chasing what they are owed"
+   },
+   {
+    "type": "round",
+    "t": 1022.0,
+    "phase": "adjudicating",
+    "narrative": "I incurred a client dinner expense on January 15, 2026. My line manager, Sarah, certified the delay due to travel. I submitted the claim on March 17, 2026. The system rejects it as inadmissible. However, March 17 is exactly the 61st day after January 15. Under a strict count including both start and end dates, this is within the '60 days after' window intended by E-6.1. Even if it is day 62, it falls squarely within the E-6.2 exception window (61-120 days) and I possess the required manager certification. The rejection relies on an arbitrary day-counting definition that contradicts the plain language of 'within' and 'after'.",
+    "contends": "E-6.1 uses 'within 60 days after'. If the period starts Jan 15, day 1 is Jan 15. Day 60 is March 15. Submission on March 17 is late for E-6.1 but strictly < 120 days. E-6.2 explicitly covers 61-120 days with certification. My certification is valid. The code's integer division truncates, potentially shifting boundaries. The policy text 'within 120 days' protects me. The company cannot ignore E-6.2 because their internal day-counting logic is flawed or overly strict.",
+    "citations": [
+     "EXP-POL E-6.1",
+     "EXP-POL E-6.2"
+    ],
+    "facts": {
+     "delay_certified_for_good_reason": true,
+     "expense_incurred_date": "2026-01-15",
+     "submission_date": "2026-03-17"
+    },
+    "usage": "1589 in, 416 out, 71.3s (5.8 tok/s)",
+    "n": 2,
+    "of": 6,
+    "scope": "ClaimWindow.ClaimAdmissible",
+    "archetype": "contractor",
+    "role": "Disgruntled contractor or leaver chasing what they are owed"
+   },
+   {
+    "type": "round",
+    "t": 1022.0,
+    "phase": "died",
+    "klass": "",
+    "why": "the scope computed an answer and no predicate fired",
+    "recorded": "",
+    "predicate": "",
+    "amount": null,
+    "amount_basis": "",
+    "n": 2,
+    "of": 6,
+    "scope": "ClaimWindow.ClaimAdmissible",
+    "archetype": "contractor",
+    "role": "Disgruntled contractor or leaver chasing what they are owed"
+   },
+   {
+    "type": "round",
+    "t": 1022.1,
+    "phase": "proposing",
+    "n": 3,
+    "of": 6,
+    "scope": "ServiceCredits.ServiceCredit",
+    "archetype": "customer",
+    "role": "Counsel for a customer under the services agreement"
+   },
+   {
+    "type": "round",
+    "t": 1821.6,
+    "phase": "adjudicating",
+    "narrative": "The platform suffered catastrophic downtime, recording 94.5% availability. Despite the service being effectively useless for over 5% of the month, the supplier argues the credit is capped at 30% per Schedule 4. We reject this. The availability fell below the 95% threshold, triggering the specific exception in L-4.3 which explicitly overrides the standard cap, mandating a 50% credit. The supplier’s failure to perform has already occurred; the documents plainly dictate the remedy.",
+    "contends": "L-4.3 expressly overrides the L-4.2 cap when availability drops below 95%. The machine interface confirms this exception logic. Since availability was 94.5%, the cap lifts to 50% and the credit percentage is fixed at 50%. This yields $250,000, maximizing recovery.",
+    "citations": [
+     "MSA-SCH4 L-4.3",
+     "MSA-SCH4 L-4.2"
+    ],
+    "facts": {
+     "arrears_days": 0,
+     "availability_percentage": 94.5,
+     "invoice_undisputed": false,
+     "monthly_service_charge": 500000.0
+    },
+    "usage": "2524 in, 294 out, 799.5s (0.4 tok/s)",
+    "n": 3,
+    "of": 6,
+    "scope": "ServiceCredits.ServiceCredit",
+    "archetype": "customer",
+    "role": "Counsel for a customer under the services agreement"
+   },
+   {
+    "type": "round",
+    "t": 1821.7,
+    "phase": "died",
+    "klass": "",
+    "why": "the scope computed an answer and no predicate fired",
+    "recorded": "",
+    "predicate": "",
+    "amount": null,
+    "amount_basis": "",
+    "n": 3,
+    "of": 6,
+    "scope": "ServiceCredits.ServiceCredit",
+    "archetype": "customer",
+    "role": "Counsel for a customer under the services agreement"
+   },
+   {
+    "type": "round",
+    "t": 1821.8,
+    "phase": "proposing",
+    "n": 4,
+    "of": 6,
+    "scope": "Accommodation.NightlyAccommodation",
+    "archetype": "employment",
+    "role": "Plaintiff's employment lawyer looking for an unpaid entitlement"
+   },
+   {
+    "type": "round",
+    "t": 1924.3,
+    "phase": "adjudicating",
+    "narrative": "A senior engineer stayed in a Tier 1 city for a critical incident. No compliant rooms were available under the standard cap, so she booked a £300 room and incurred £200 parking. She provides evidence of market scarcity. The company admits the room cost but disputes the parking, arguing it is not accommodation. However, E-4.3 explicitly excludes parking from the cap, implying it is recoverable alongside the room cost. If parking were not recoverable, the exclusion would be meaningless. We claim the full room cost under the E-4.2 exception plus the full parking cost.",
+    "contends": "E-4.2 raises the cap to 1.4x (£308) due to lack of availability, covering the £300 room. E-4.3 excludes parking from the cap, implying separate reimbursement. The code confirms `reimbursable_amount` sums both. Total recovery: £508.",
+    "citations": [
+     "EXP-POL E-4.2",
+     "EXP-POL E-4.3"
+    ],
+    "facts": {
+     "city_tier": "Tier1",
+     "local_taxes": 0.0,
+     "mandatory_resort_or_city_charge": 0.0,
+     "no_compliant_accommodation_available_evidenced": true,
+     "parking_cost": 200.0,
+     "room_cost": 300.0
+    },
+    "usage": "1981 in, 334 out, 102.5s (3.3 tok/s)",
+    "n": 4,
+    "of": 6,
+    "scope": "Accommodation.NightlyAccommodation",
+    "archetype": "employment",
+    "role": "Plaintiff's employment lawyer looking for an unpaid entitlement"
+   },
+   {
+    "type": "round",
+    "t": 1924.3,
+    "phase": "died",
+    "klass": "",
+    "why": "the scope computed an answer and no predicate fired",
+    "recorded": "",
+    "predicate": "",
+    "amount": null,
+    "amount_basis": "",
+    "n": 4,
+    "of": 6,
+    "scope": "Accommodation.NightlyAccommodation",
+    "archetype": "employment",
+    "role": "Plaintiff's employment lawyer looking for an unpaid entitlement"
+   },
+   {
+    "type": "round",
+    "t": 1924.5,
+    "phase": "proposing",
+    "n": 5,
+    "of": 6,
+    "scope": "Availability.AvailabilityPercentage",
+    "archetype": "regulator",
+    "role": "Regulator testing whether the policy can be complied with"
+   },
+   {
+    "type": "round",
+    "t": 1963.6,
+    "phase": "adjudicating",
+    "narrative": "A hospital relies on this cloud service for patient records. In a 31-day month, the provider performed 8 hours and 45 minutes of scheduled maintenance. Under L-4.5, the excess 45 minutes cease to be excluded. The provider claims they met the 99.90% SLA because total downtime was only 47 minutes (0.01% unavailability). However, because the definition of 'Unavailable Minutes' in L-2.4 excludes 'Excluded Minutes,' and L-4.5 strips exclusion status from the excess maintenance, the 45 excess minutes must count as unavailable. The policy fails to clarify if the 47 total minutes include the 45 excess minutes. If they are distinct, the provider breached the SLA.",
+    "contends": "The documents contradict themselves on whether 'minutes_not_available' is a gross total or a net figure after exclusions. If gross, and the 47 minutes include the 45 excess maintenance minutes, the calculation is flawed because L-4.5 says excess minutes 'count as Unavailable Minutes' (implying addition), yet L-2.4 says Unavailable Minutes are total downtime minus exclusions. This ambiguity allows the supplier to argue the SLA was met when it was not.",
+    "citations": [
+     "MSA-SCH4 L-2.4",
+     "MSA-SCH4 L-4.5",
+     "MSA-SCH4 L-2.3"
+    ],
+    "facts": {
+     "excluded_minutes": 300,
+     "minutes_not_available": 47,
+     "scheduled_maintenance_excess_minutes": 45,
+     "total_minutes": 44640
+    },
+    "usage": "3828 in, 394 out, 39.1s (10.1 tok/s)",
+    "n": 5,
+    "of": 6,
+    "scope": "Availability.AvailabilityPercentage",
+    "archetype": "regulator",
+    "role": "Regulator testing whether the policy can be complied with"
+   },
+   {
+    "type": "round",
+    "t": 1963.7,
+    "phase": "died",
+    "klass": "",
+    "why": "the scope computed an answer and no predicate fired",
+    "recorded": "",
+    "predicate": "",
+    "amount": null,
+    "amount_basis": "",
+    "n": 5,
+    "of": 6,
+    "scope": "Availability.AvailabilityPercentage",
+    "archetype": "regulator",
+    "role": "Regulator testing whether the policy can be complied with"
+   },
+   {
+    "type": "round",
+    "t": 1963.8,
+    "phase": "proposing",
+    "n": 6,
+    "of": 6,
+    "scope": "Clawback.RecoverableCommission",
+    "archetype": "auditor",
+    "role": "Auditor reconciling what the policy says against what it pays"
+   },
+   {
+    "type": "round",
+    "t": 2663.9,
+    "phase": "adjudicating",
+    "narrative": "The agent was paid $250,000 on 2024-01-31. The contract churned due to a material breach by the Company. The Company assessed clawback on 2026-02-01, one day after the 24-month long-stop date. S-7.2 bars recovery for Company breach; S-7.3 bars recovery after 24 months. The code applies S-7.3 last, overriding S-7.2 to deny recovery. But S-7.2 is an exception to S-7.1, not to S-7.3. The documents do not resolve whether the breach exception survives the time bar. The agent contends the breach exception should apply regardless of time, preserving the right to keep the commission.",
+    "contends": "S-7.2 creates an absolute bar to recovery for Company breach. S-7.3 sets a time limit. The code chains exceptions (S-7.3 overrides S-7.2), but the text does not. Where both apply, the more specific exception (breach) should prevail over the general time bar. The documents fail to decide which wins.",
+    "citations": [
+     "COMM-PLAN S-7.1",
+     "COMM-PLAN S-7.2",
+     "COMM-PLAN S-7.3"
+    ],
+    "facts": {
+     "assessment_date": "2026-02-01",
+     "commission_paid": 250000.0,
+     "is_churned_contract": true,
+     "payment_date": "2024-01-31",
+     "terminated_for_company_material_breach": true
+    },
+    "usage": "1624 in, 394 out, 700.1s (0.6 tok/s)",
+    "n": 6,
+    "of": 6,
+    "scope": "Clawback.RecoverableCommission",
+    "archetype": "auditor",
+    "role": "Auditor reconciling what the policy says against what it pays"
+   },
+   {
+    "type": "round",
+    "t": 2664.0,
+    "phase": "died",
+    "klass": "",
+    "why": "the scope computed an answer and no predicate fired",
+    "recorded": "",
+    "predicate": "",
+    "amount": null,
+    "amount_basis": "",
+    "n": 6,
+    "of": 6,
+    "scope": "Clawback.RecoverableCommission",
+    "archetype": "auditor",
+    "role": "Auditor reconciling what the policy says against what it pays"
+   },
+   {
+    "type": "stage",
+    "t": 2664.0,
+    "key": "fleet",
+    "title": "Send the fleet against the rules",
+    "status": "done",
+    "summary": "6 attacks across 6 rules; 0 new on the queue",
+    "counts": {
+     "rounds": 6,
+     "found": 0
+    }
+   }
+  ]
+ }
+}

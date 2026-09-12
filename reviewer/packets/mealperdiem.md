@@ -48,17 +48,36 @@ Response within the meaning of Annex C, paragraph C-2.5, the per diem under E-3.
 is increased by £20 per Travel Day and Pre-Approval is not required for that
 increase.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### EXP-POL E-2.3 — Expense Reimbursement Policy (v7.0, effective 2025-04-01)
+Section E-2 Definitions
+
+"Travel Day" means each calendar day, or part of a calendar day, on
+which the Employee is away from their principal place of work overnight on
+Company business. The day of departure and the day of return are each a Travel
+Day.
+
+### EXP-POL E-2.4 — Expense Reimbursement Policy (v7.0, effective 2025-04-01)
+Section E-2 Definitions
+
+"Pre-Approval" means written approval obtained before the expense is
+incurred from a person holding delegated financial authority at or above the
+threshold of the expense.
+
 
 ## Artefact under review
 
 ```
-# Expense Reimbursement Policy — meal per diem
+#
 
 > Module MealPerDiem
 
 > Using ExpenseDefs
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope MealPerDiemForDay:
@@ -78,9 +97,9 @@ declaration scope MealPerDiemForDay:
   output reimbursable_amount content money
 ```
 
-## Order of operations
+##
 
-## E-3.1 Meal per diem — the tier table
+## E-3.1
 
 | EXP-POL E-3.1 (002-expense-reimbursement-policy.md:46)
 |
@@ -107,7 +126,7 @@ scope MealPerDiemForDay:
   label e3_1_cap definition per_diem_cap equals per_diem_under_e3_1
 ```
 
-## E-3.2 Client-Billable Travel
+## E-3.2
 
 | EXP-POL E-3.2 (002-expense-reimbursement-policy.md:53)
 |
@@ -131,7 +150,7 @@ scope MealPerDiemForDay:
       client_billable_per_diem of client_billable, per_diem_under_e3_1
 ```
 
-## E-3.3 Pre-Approved higher amount
+## E-3.3
 
 | EXP-POL E-3.3 (002-expense-reimbursement-policy.md:57)
 |
@@ -168,7 +187,7 @@ scope MealPerDiemForDay:
       -- Present content specified: specified
 ```
 
-## E-3.4 Meals provided at no cost
+## E-3.4
 
 | EXP-POL E-3.4 (002-expense-reimbursement-policy.md:60)
 |
@@ -186,7 +205,7 @@ scope MealPerDiemForDay:
     Money.max of $0.00, (per_diem_cap - e3_4_reduction)
 ```
 
-## E-3.1 again — reimbursement up to the day's per diem
+## E-3.1
 
 | EXP-POL E-3.1 (002-expense-reimbursement-policy.md:46)
 |
@@ -205,7 +224,7 @@ scope MealPerDiemForDay:
     Money.min of meal_expense_incurred, adjusted_per_diem
 ```
 
-## E-3.5 No meal expense incurred
+## E-3.5
 
 | EXP-POL E-3.5 (002-expense-reimbursement-policy.md:64)
 |
@@ -219,7 +238,7 @@ scope MealPerDiemForDay:
     consequence equals $0.00
 ```
 
-## E-7.2 Critical Incident Response uplift
+## E-7.2
 
 | EXP-POL E-7.2 (002-expense-reimbursement-policy.md:109)
 |
@@ -235,33 +254,6 @@ scope MealPerDiemForDay:
     consequence equals (tier_meal_per_diem of city_tier) + $20.00
 ```
 
-| NOTE: E-7.2 is genuinely ambiguous where it meets E-3.2, and the ambiguity is
-| worth £22.50 a day on a Tier 1 Client-Billable Travel Day for which the
-| statement of work specifies no figure. The documents do not resolve it.
-|
-| Reading (A), adopted here: E-7.2 amends the quantum "under E-3.1" to £95, and
-| E-3.2 then applies its multiplier to "the amount under E-3.1" as so amended,
-| giving 1.5 x (75 + 20) = £142.50. The textual warrant is that E-7.2 operates
-| on a named quantity rather than on the claim, and that E-3.2's fallback limb
-| computes from that very quantity by name. On this reading the closing words of
-| E-7.2 also do real work: absent them, a per diem above the £75 table figure
-| would appear to need Pre-Approval under E-3.3.
-|
-| Reading (B), rejected: E-7.2 is a flat uplift to whatever per diem applies,
-| giving 1.5 x 75 + 20 = £132.50. Its warrant is that on Client-Billable Travel
-| the applicable per diem is not "under E-3.1" at all but under E-3.2, so
-| E-7.2's stated target does not exist and the £20 can only attach to the figure
-| that does apply. Reading (B) also keeps the uplift alive where E-3.3
-| substitutes a Pre-Approved amount, which reading (A) does not — under reading
-| (A) a Pre-Approved amount displaces the uplifted E-3.1 figure entirely, and
-| the £20 survives only through E-3.3's "higher amount" test, which measures the
-| approved figure against the uplifted £95.
-|
-| Reading (A) is adopted because it follows the words E-7.2 actually uses. The
-| choice is pinned by `TestE7_2_ClientBillable_ReadingA` in
-| `catala/tests/test_mealperdiem.catala_en`, which also records reading (B)'s
-| number, so changing the reading changes a failing test rather than silently
-| changing an answer.
 
 ```
 

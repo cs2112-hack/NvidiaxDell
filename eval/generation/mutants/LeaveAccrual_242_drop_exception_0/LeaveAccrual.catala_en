@@ -1,0 +1,316 @@
+# Employment Terms — Annex C: annual leave accrual
+
+> Module LeaveAccrual
+
+The module is declared `Leave_accrual` rather than `LeaveAccrual` because
+Catala 1.2.1 requires the module name to match the file name up to casing
+only, and the file name fixed by this repository's layout is
+`leave_accrual.catala_en`. It is the `LeaveAccrual` module of
+`catala/module_plan.md`.
+
+Annex C legislates leave accrual one calendar month at a time: C-9.1 fixes the
+rate for a completed calendar month and C-9.2 pro-rates the month in which
+service begins or ends. `MonthlyAccrual` is therefore the unit, and the leave
+year is the sum of its months. Carry-forward and forfeiture are a separate
+question asked once per leave year, and `CarryForward` answers that one.
+
+The rounding proviso of C-9.2 is given its own scope, `HalfDayRounding`. It is
+lifted out because the proviso is a rule about a number and not about leave:
+stating it separately is what makes the exact-quarter case reachable by a
+test, and the exact-quarter case is the one the clause was written to settle.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration scope HalfDayRounding:
+  input raw_days content decimal
+  output half_steps content decimal
+  output half_steps_below content decimal
+  output excess_half_steps content decimal
+  output is_exact_quarter content boolean
+  output rounded_days content decimal
+
+declaration scope MonthlyAccrual:
+  input day_in_month content date
+  input service_start content date
+  input service_end content optional of date
+  internal month_first_day content date
+  internal month_last_day content date
+  rounding scope HalfDayRounding
+  output days_in_month content integer
+  output days_of_service_in_month content integer
+  output month_is_completed content boolean
+  output pro_rated_days content decimal
+  output days_accrued content decimal
+
+declaration scope CarryForward:
+  input accrued_untaken_days content decimal
+  input prevented_from_taking_leave_by_long_term_sickness content boolean
+  output permitted_carry_forward_days content decimal
+  output carry_forward_days content decimal
+  output forfeited_days content decimal
+  output forfeited_days_payable_on_termination content boolean
+```
+
+## Calendar bounds of the month under examination
+
+| NO-CLAUSE: C-9 speaks throughout of "a calendar month" and "that month".
+| Deriving that month's first and last day from any day within it (the
+| `day_in_month` input) is calendar
+| decomposition of an input, not a rule of the Annex; both C-9.1 and C-9.2
+| read the result. `date round down` is declared because Catala raises
+| `AmbiguousDateComputation` in a scope with no rounding mode declared as soon
+| as a month or year duration is added to a date — nothing below does so, and
+| declaring the mode is what keeps that true under later edits.
+
+```catala
+scope MonthlyAccrual:
+  date round down
+
+scope MonthlyAccrual:
+  definition month_first_day equals Date.first_day_of_month of day_in_month
+  definition month_last_day equals Date.last_day_of_month of day_in_month
+```
+
+## C-9.1 Accrual for a completed calendar month
+
+| EMP-ANNEX-C C-9.1 (001-employment-terms-annex-c.md:104)
+|
+| An Employee accrues annual leave at the rate of 2.0 days for each
+| completed calendar month of service.
+
+"Completed calendar month of service" is read as a calendar month throughout
+which the Employee was in service — service beginning on or before the first
+day of the month and not ending before its last day. The competing reading,
+that a completed month runs from the anniversary of the start date, is
+excluded by C-9.2: C-9.2 pro-rates by the days in the calendar month, which
+only makes sense if the unit C-9.1 measures is the calendar month itself.
+
+An open-ended engagement has no end date, which is why `service_end` is
+optional; an Employee still in service has not terminated and so completes
+every month from the month after commencement onwards.
+
+Where there is an end date it cannot precede the start date, and C-9 is what
+fixes that. Accrual under C-9.1 is "for each completed calendar month **of
+service**", and C-9.2 pro-rates by "the number of days **of service** in that
+month" where the Employee "commences or terminates employment" part-way through
+it: the quantity both clauses measure is a period of service running from
+commencement to termination. Employment cannot terminate before it commences,
+so a `service_end` earlier than `service_start` bounds no period of service and
+neither clause has anything to measure. The scope refuses it instead of
+answering nought days, which is what the arithmetic would otherwise return —
+an answer indistinguishable from the lawful case of a month falling wholly
+outside a real period of service. The bound is the clauses', not a programming
+convenience.
+
+The boundary is made explicit as `month_is_completed`, and it is this variable
+alone that separates C-9.1 from C-9.2. A month in which service begins on the
+second day, or ends on the penultimate day, is not a completed month and
+accrues under C-9.2 even where the pro-rated figure happens to round back to
+2.0 days.
+
+```catala
+scope MonthlyAccrual:
+  assertion
+    match service_end with pattern
+    -- Absent: true
+    -- Present content ending: ending >= service_start
+
+  definition month_is_completed equals
+    service_start <= month_first_day
+    and (match service_end with pattern
+         -- Absent: true
+         -- Present content ending: ending >= month_last_day)
+
+  label c9_1 definition days_accrued
+    under condition month_is_completed
+    consequence equals 2.0
+```
+
+## C-9.2 Pro-rating a part month
+
+| EMP-ANNEX-C C-9.2 (001-employment-terms-annex-c.md:107)
+|
+| Where an Employee commences or terminates employment part-way through a
+| calendar month, accrual in respect of that month is pro-rated by reference
+| to the number of days of service in that month as a proportion of the
+| number of days in that month, rounded to the nearest half day, with an
+| exact quarter rounded upwards.
+
+C-9.2 is an exception to C-9.1 and is encoded as one. Its condition is the
+exact complement of C-9.1's, so there is nothing of the parent's condition to
+repeat: a Catala exception does not inherit its parent's condition, and here
+the child's condition is the parent's negation rather than a narrowing of it.
+
+The denominator is "the number of days in that month" — 28, 29, 30 or 31, read
+off the month under examination and never a constant. Two months of identical
+service length therefore accrue different amounts: eighteen days of service in
+February 2023 accrues 1.5 days and the same eighteen days in February 2024
+accrues 1.0, purely because the denominator is 28 in one year and 29 in the
+other. Both are tested.
+
+The numerator counts whole days of service falling in the month, inclusive of
+the first and last such day, which is why the count is a difference plus one.
+Where service does not overlap the month at all the numerator is zero and the
+month accrues nothing; that case is outside the words "commences or terminates
+employment part-way through a calendar month" but is the arithmetic the clause
+supplies for it, and it is tested.
+
+```catala
+scope MonthlyAccrual:
+  definition days_in_month equals Date.get_day of month_last_day
+
+  definition days_of_service_in_month equals
+    let period_start equals Date.max of service_start, month_first_day in
+    let period_end equals
+      (match service_end with pattern
+       -- Absent: month_last_day
+       -- Present content ending: Date.min of ending, month_last_day) in
+    if period_end < period_start then 0
+    else integer of ((period_end - period_start) / (1 day)) + 1
+
+  definition rounding.raw_days equals
+    2.0 * (decimal of days_of_service_in_month)
+        / (decimal of days_in_month)
+
+  definition pro_rated_days equals rounding.rounded_days
+
+  label c9_2 exception c9_1 definition days_accrued
+    under condition not month_is_completed
+    consequence equals pro_rated_days
+```
+
+### The rounding proviso of C-9.2
+
+An exact quarter is any odd multiple of a quarter day — 0.25, 0.75, 1.25 and
+1.75 within the 0-to-2-day range a month can produce — because each is exactly
+midway between two half days and so is exactly the case "nearest" cannot
+decide. The proviso rounds every one of them upwards: 0.25 becomes 0.5 and, by
+the same words, 0.75 becomes 1.0, 1.25 becomes 1.5 and 1.75 becomes 2.0. The
+narrower reading, that "an exact quarter" means only the value 0.25 and that
+0.75 is therefore something else, would leave 0.75 with no rule at all, which
+cannot be what the proviso is for.
+
+A finding worth stating: on real calendar months the proviso is inoperative.
+The unrounded accrual is 2d/n for d days of service in a month of n days, and
+2d/n is an odd multiple of a quarter only if 8 divides n. No calendar month
+has 28, 29, 30 or 31 days, so none is divisible by 8, and the exact-quarter
+case cannot arise from `MonthlyAccrual` at all. It is encoded faithfully
+anyway, because a change to the C-9.1 rate or to the pro-rating base would
+make it bite, and it is tested directly against `HalfDayRounding`, where it is
+reachable.
+
+| EMP-ANNEX-C C-9.2 (001-employment-terms-annex-c.md:107)
+|
+| Where an Employee commences or terminates employment part-way through a
+| calendar month, accrual in respect of that month is pro-rated by reference
+| to the number of days of service in that month as a proportion of the
+| number of days in that month, rounded to the nearest half day, with an
+| exact quarter rounded upwards.
+
+"Rounded to the nearest half day" is the rule; "with an exact quarter rounded
+upwards" is a proviso resolving the only case in which "nearest" has no
+answer, and it is encoded as an exception to the rule rather than folded into
+it.
+
+Working in half-days makes both limbs visible. `half_steps` is the unrounded
+accrual expressed in half-days, `half_steps_below` is the half-day at or below
+it, and `excess_half_steps` is the remaining fraction of a half-day, which
+lies in [0, 1). The nearest half day is the one below when that fraction is
+under a half and the one above when it is over. The fraction is exactly a half
+precisely when the unrounded accrual is an exact quarter of a day.
+
+```catala
+scope HalfDayRounding:
+  definition half_steps equals raw_days * 2.0
+
+  definition half_steps_below equals
+    Decimal.round_by_default of half_steps
+
+  definition excess_half_steps equals half_steps - half_steps_below
+
+  definition is_exact_quarter equals excess_half_steps = 0.5
+
+  label nearest_half definition rounded_days
+    under condition excess_half_steps < 0.5
+    consequence equals half_steps_below / 2.0
+
+  label nearest_half definition rounded_days
+    under condition excess_half_steps > 0.5
+    consequence equals (half_steps_below + 1.0) / 2.0
+
+```
+
+## C-9.3 Carry-forward cap
+
+| EMP-ANNEX-C C-9.3 (001-employment-terms-annex-c.md:113)
+|
+| An Employee may carry forward to the next leave year a maximum of 5
+| accrued but untaken days.
+
+C-9.3 does two things: it fixes the amount that may be carried forward at 5
+days, and it caps the carry-forward at the accrued but untaken balance where
+that balance is smaller. The permitted amount is held in its own variable
+because C-9.4 replaces it and C-9.5 must read whatever it ends up being.
+
+```catala
+scope CarryForward:
+  label c9_3 definition permitted_carry_forward_days equals 5.0
+
+  definition carry_forward_days equals
+    Decimal.min of accrued_untaken_days, permitted_carry_forward_days
+```
+
+## C-9.4 Long-term sickness absence
+
+| EMP-ANNEX-C C-9.4 (001-employment-terms-annex-c.md:116)
+|
+| By way of exception to C-9.3, an Employee who was prevented from taking
+| accrued leave by reason of long-term sickness absence may carry forward
+| the whole of their accrued but untaken balance.
+
+C-9.4 is `HYBRID` in the adjudicated ledger and its trigger is a judgement
+input. Whether an Employee "was prevented from taking accrued leave" and
+whether that was "by reason of long-term sickness absence" are both causal
+determinations the Annex does not define; neither reduces to a record the way
+a job grade or an incident severity does. The judgement is therefore lifted to
+the scope input `prevented_from_taking_leave_by_long_term_sickness`, and the
+module computes the consequence given that judgement without ever making it.
+
+The consequence is arithmetic: the permitted carry-forward becomes the whole
+accrued but untaken balance in place of the 5 days of C-9.3. Because C-9.3's
+figure is unconditional there is no parent condition for this exception to
+repeat.
+
+```catala
+scope CarryForward:
+  label c9_4 exception c9_3 definition permitted_carry_forward_days
+    under condition prevented_from_taking_leave_by_long_term_sickness
+    consequence equals accrued_untaken_days
+```
+
+## C-9.5 Forfeiture
+
+| EMP-ANNEX-C C-9.5 (001-employment-terms-annex-c.md:120)
+|
+| Accrued but untaken leave in excess of the amount permitted to be carried
+| forward is forfeited at the end of the leave year and is not payable on
+| termination.
+
+C-9.5 reads the permitted amount that C-9.3 and C-9.4 between them produce; it
+does not restate the 5 days. Where C-9.4 applies, the permitted amount is the
+whole balance, nothing is in excess of it, and nothing is forfeited — the
+exception would leak if the forfeiture were computed against a hard 5.
+
+The second limb is a rule about the forfeited days rather than about their
+number: they are not payable on termination. It is encoded as such, so that a
+termination calculation reading this scope is told that the forfeited figure
+carries no money rather than having to infer it.
+
+```catala
+scope CarryForward:
+  definition forfeited_days equals
+    accrued_untaken_days - carry_forward_days
+
+  definition forfeited_days_payable_on_termination equals false
+```

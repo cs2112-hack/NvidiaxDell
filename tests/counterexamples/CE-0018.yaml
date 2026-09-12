@@ -32,10 +32,6 @@ source_reasoning: 'N-5.3 is expressly ''By way of exception to N-5.2'', and N-5.
 expected:
   agreement_end_date: '2026-07-01'
   obligations_subsist: true
-  note: 'survival_end_date is not challenged in this finding: N-5.3 confers no date and the
-    scope takes no input for the date trade-secret status ceased, so Absent is defensible.
-    The challenged output is obligations_subsist, which must be true while the Agreement is
-    in force.'
 observed:
   agreement_end_date: '2026-07-01'
   obligations_subsist: false
@@ -52,8 +48,12 @@ inputs:
 round: 1
 discovered: '2026-09-12'
 status: fixed
-notes: N-5.3 with status lapsed, assessed during the term (this finding); N-5.3 with status
-  live, assessment 2099-01-01 (obligations subsist indefinitely, survival_end_date Absent
-  - correct, no expiry date manufactured); N-5.3 with status lapsed, assessed after expiry
-  but within the 3-year N-5.2 window (recorded separately as an AMBIGUITY); information_is_trade_secret=false
-  with information_remains_trade_secret=true (flag ignored, N-5.2 applied)
+notes: 'Note on the expected answer: survival_end_date is not challenged in this finding:
+  N-5.3 confers no date and the scope takes no input for the date trade-secret status ceased,
+  so Absent is defensible. The challenged output is obligations_subsist, which must be true
+  while the Agreement is in force. || Attacks tried: N-5.3 with status lapsed, assessed during
+  the term (this finding); N-5.3 with status live, assessment 2099-01-01 (obligations subsist
+  indefinitely, survival_end_date Absent - correct, no expiry date manufactured); N-5.3 with
+  status lapsed, assessed after expiry but within the 3-year N-5.2 window (recorded separately
+  as an AMBIGUITY); information_is_trade_secret=false with information_remains_trade_secret=true
+  (flag ignored, N-5.2 applied)'

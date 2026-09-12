@@ -32,7 +32,8 @@ source_reasoning: 'S-8.1 creates an entitlement running one way only: the leaver
   ''amount payable to the Employee'' rather than a net balance is confirmed by the module''s
   own S-8.2 branch, which returns $0 for a gross-misconduct leaver instead of the negative
   of the sum already paid. The correct answer is $0.'
-expected: 0.0
+expected:
+  commission_payable: 0.0
 observed:
   qualifying_contracts:
   - contract_id: 1.0

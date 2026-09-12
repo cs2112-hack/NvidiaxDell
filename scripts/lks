@@ -5,6 +5,7 @@
     lks agent triage "<DOC CLAUSE>"         propose a label, compare to the ledger
     lks agent facts M.S "<question>"        extract facts, execute nothing
     lks serve [--port 8765]                 the web interface
+    lks serve-search [--host H] [--port 8770]  read-only search for sandboxed agents (OpenClaw)
     lks ask "<question>" [--inputs JSON] [--scope Module.Scope] [--backend mongo|files]
     lks scopes [--grep TEXT]
     lks run <Module.Scope> <JSON>
@@ -17,6 +18,27 @@
     lks merge <proposal-id>
     lks counterexamples [--open]
     lks check
+
+  Document generation:
+    lks generate "<request>"                retrieve, draft, encode, gate, screen, roundtrip, PDF
+         [--workspace DIR] [--no-roundtrip] [--emit-failed-pdf]
+         [--catala-attempts N] [--screen-rounds N] [--exclude DOC-ID ...]
+    lks pdf <DOC-ID> [--out FILE]           typeset a corpus document as PDF
+
+  The adversarial legal exposure engine:
+    lks exposure doctor                     check the declared domains and predicates
+    lks exposure map <Module.Scope>         the decision surface, as regions
+    lks exposure queue [--class K] [--open] exposures found, worst first
+    lks exposure show <EXP-id>              one exposure in full, with its proof
+    lks exposure adjudicate <M.S> <JSON>    put one fact pattern to the executor
+    lks exposure fleet <M.S> [--rounds N]   run the attack fleet
+    lks exposure operations [--record]      what we did vs what the policy says
+    lks exposure contradictions             two documents, one question, two answers
+    lks exposure holding <ruling> <M.S>     formalise a ruling as a constraint
+    lks exposure impact <HOLD-id>           what that ruling does to the map
+    lks exposure inbound <proposal-id>      redline somebody else's paper
+    lks exposure letter <EXP-id>            draft the demand letter
+    lks exposure close <EXP-id>             propose the fix, and cost everything it moves
 """
 import argparse
 import json
@@ -25,6 +47,11 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
+
+# Named here rather than imported at parse time so that `lks --help` does not
+# pay for loading the fleet's roles, and so the choices stay visible in the
+# help text when the local model is not installed at all.
+_ARCHETYPE_NAMES = ("auditor", "contractor", "customer", "employment", "regulator")
 
 
 def _store(backend: str):
@@ -325,15 +352,492 @@ def cmd_agent(a):
     return 0
 
 
+# --- the adversarial legal exposure engine --------------------------------
+
+def _money(e) -> str:
+    return f"{e.amount} " if e.amount is not None else "-- "
+
+
+def _print_exposure(e, full: bool = False) -> None:
+    print(f"{e.id}  [{e.klass}]  {e.scope}")
+    print(f"    {e.headline}")
+    print(f"    {e.archetype or 'unattributed'} — {e.population or 'one case'}"
+          + (f"   (found by {e.origin})" if e.origin else ""))
+    if e.amount is not None:
+        print(f"    exposure: {e.amount}")
+        print(f"      basis:  {e.amount_basis}")
+    elif e.amount_basis:
+        print(f"    no figure: {e.amount_basis}")
+    refs = sorted({r for g in e.clause_chain for r in g.get("clause_refs", [])})
+    if refs:
+        print(f"    clauses:  {', '.join(refs)}")
+    if not full:
+        return
+    print(f"\n  The fact pattern\n    {e.narrative or '(none recorded)'}")
+    print(f"\n  The theory\n    " + "\n    ".join(
+        (e.why or "").split("\n")))
+    print(f"\n  Cited: {', '.join(e.citations) or '(none)'}")
+    print(f"\n  Facts put to the rule\n    {json.dumps(e.facts)}")
+    if e.outputs:
+        print(f"\n  What the policy computed\n    {json.dumps(e.outputs)}")
+    if e.diagnostic:
+        print(f"\n  What the compiler said\n    "
+              + "\n    ".join(e.diagnostic.splitlines()[:12]))
+    print("\n  Which provision decided what")
+    for g in e.clause_chain:
+        cites = ", ".join(g.get("clause_refs") or []) or "(unattributed)"
+        line = g.get("line")
+        print(f"    {g['variable']:<28} {cites}"
+              + (f"  [{e.scope.split('.')[0]} line {line}]" if line else ""))
+    if e.demand_letter:
+        print("\n  Demand letter (drafted by the local model; the figures are computed)\n")
+        for ln in e.demand_letter.splitlines():
+            print(f"    {ln}")
+
+
+def cmd_exposure(a):
+    from lks import exposure, surface as sf
+    act = a.action
+
+    if act == "doctor":
+        from lks.registry import load_registry
+        reg = load_registry()
+        dom = sf.load_domains()
+        pres = exposure.load_predicates()
+        probs = sf.validate_domains(dom, reg) + exposure.validate_predicates(pres, reg)
+        print(f"{len(dom)} scope domain(s), {len(pres)} predicate(s), "
+              f"{len(exposure.load_rivalries())} rivalry(ies)")
+        unmapped = sorted(set(reg) - set(dom))
+        if unmapped:
+            print(f"\n{len(unmapped)} registered scope(s) have no declared domain and are "
+                  f"therefore invisible to the engine:")
+            for k in unmapped:
+                print(f"  {k}")
+        for x in probs:
+            print(f"  PROBLEM  {x}")
+        print(f"\n{'ok' if not probs else str(len(probs)) + ' problem(s)'}")
+        return 1 if probs else 0
+
+    if act == "map":
+        surf = sf.partition(a.scope)
+        from lks.watchers import populate
+        populate(surf)
+        d = surf.summary()
+        print(f"{a.scope}: {d['regions']} regions over {d['cells']} executed cases")
+        if d["incoherent"]:
+            print(f"  {d['incoherent']} grid points were not executed: they describe "
+                  f"nobody ({'; '.join(d['coherence'])})")
+        for name, vals in sorted(surf.axes.items()):
+            why = "; ".join(surf.axis_reasons.get(name, []))
+            print(f"  axis {name}: {vals}")
+            print(f"       from {why}")
+        if surf.elided:
+            print(f"  DIMENSIONS FLATTENED to stay under the cell ceiling: "
+                  f"{'; '.join(surf.elided)}")
+        print()
+        hdr = f"{'region':<8}{'outcome':<10}{'cases':>6}{'people':>8}  clauses"
+        print(hdr)
+        for r in surf.regions:
+            print(f"{r.id:<8}{r.outcome:<10}{r.size:>6}{r.population:>8}  "
+                  f"{', '.join(r.clause_refs) or '(unattributed)'}")
+            if r.outcome != sf.OUTCOME_COMPUTED:
+                print(f"          {r.cells[0].diagnostic.splitlines()[2].strip() if len(r.cells[0].diagnostic.splitlines()) > 2 else r.cells[0].diagnostic[:70]}")
+        singles = surf.singletons()
+        if singles:
+            print(f"\n{len(singles)} single-case region(s) — a rule that applies to exactly "
+                  f"one configuration of facts is usually an accident:")
+            for r in singles:
+                print(f"  {r.id}  {r.exemplar()}")
+        return 0
+
+    if act == "queue":
+        q = exposure.load_queue()
+        if a.klass:
+            q = [e for e in q if e.klass == a.klass.upper()]
+        if a.open_only:
+            q = [e for e in q if e.status == "open"]
+
+        def sort_key(e):
+            from decimal import Decimal
+            try:
+                amt = Decimal(e.amount) if e.amount is not None else Decimal(-1)
+            except Exception:
+                amt = Decimal(-1)
+            # a divergence is something that happened; it outranks an argument
+            return (0 if e.klass == exposure.Klass.DIVERGENCE else 1, -amt, e.id)
+
+        for e in sorted(q, key=sort_key):
+            _print_exposure(e)
+            print()
+        print(json.dumps(exposure.summary()))
+        return 0
+
+    if act == "show":
+        for e in exposure.load_queue():
+            if e.id == a.id:
+                _print_exposure(e, full=True)
+                return 0
+        print(f"no exposure {a.id}", file=sys.stderr)
+        return 1
+
+    if act == "adjudicate":
+        att = exposure.Attack(archetype="(by hand)", scope=a.scope,
+                              facts=json.loads(a.facts), origin="cli")
+        v = exposure.adjudicate(att)
+        if not v.landed:
+            from lks.plain import attack_result
+            print(f"no exposure: {attack_result(v.why)}")
+            if v.outputs:
+                print(f"  the scope computed {json.dumps(v.outputs)}")
+            return 0
+        print(f"LANDED [{v.klass}] {v.why}")
+        if v.predicate:
+            print(f"  predicate {v.predicate}")
+        if v.amount is not None:
+            print(f"  exposure {v.amount} — {v.amount_basis}")
+        if a.record:
+            e = exposure.record(att, v)
+            print(f"  recorded as {e.id}" if e else
+                  "  not recorded: this hole is already on the queue")
+        return 0
+
+    if act == "fleet":
+        from lks import fleet, llm
+        try:
+            llm.require_model(a.model)
+        except llm.ModelUnavailable as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            return 1
+        archetypes = ([a.archetype] if a.archetype else sorted(fleet.ARCHETYPES))
+        packet = fleet.build_packet(a.scope)
+        print(f"model {a.model}   isolation "
+              f"{fleet.ARCHETYPES[archetypes[0]].enforcement()}", flush=True)
+        print("warming the weights…", end=" ", flush=True)
+        print(llm.warm(a.model), flush=True)
+        tried = []
+        found = 0
+        for n in range(1, a.rounds + 1):
+            arch = archetypes[(n - 1) % len(archetypes)]
+            r = fleet.run_round(a.scope, arch, packet, model=a.model, already_tried=tried)
+            if r.narrative:
+                tried.append(r.narrative[:150])
+            if r.recorded:
+                found += 1
+            # flushed, because a fleet round is a minute of silence otherwise
+            # and this loop is meant to be watched or tailed
+            print(f"  {n:>3}  {arch:<12} {r.line()}", flush=True)
+        print(f"\n{found} new exposure(s) on the queue")
+        return 0
+
+    if act == "operations":
+        from lks.watchers import check_operations, load_decisions, record_divergences
+        ds = load_decisions()
+        divs = check_operations(ds)
+        print(f"{len(ds)} decision(s) on record; {len(divs)} divergence(s) from the "
+              f"policy as written\n")
+        for dv in divs:
+            print(f"  {dv.decision.id}  {dv.decision.subject}")
+            print(f"      decided {dv.decision.decided_on} — {dv.decision.source}")
+            print(f"      {dv.headline}")
+            print(f"      governed by {', '.join(dv.clause_refs) or '(unattributed)'}")
+        if a.record and divs:
+            made = record_divergences(divs)
+            print(f"\nrecorded {len(made)} on the queue: "
+                  f"{', '.join(e.id for e in made)}")
+        return 0
+
+    if act == "contradictions":
+        cs = exposure.check_rivalries()
+        rivs = exposure.load_rivalries()
+        print(f"{len(rivs)} declared rivalry(ies); {len(cs)} contradiction(s)")
+        for c in cs:
+            print(f"  {c.headline}")
+            print(f"      on {json.dumps(c.facts)}")
+        if not cs and rivs:
+            print("  every declared rivalry agrees across the whole mapped grid")
+        return 0
+
+    if act == "holding":
+        from lks.watchers import formalise_holding, ProposedHolding, HOLDINGS_PROPOSED
+        from datetime import date
+        r = formalise_holding(a.ruling, a.scope, model=a.model)
+        if not r.ok:
+            print(f"the role produced nothing usable: {r.error}", file=sys.stderr)
+            return 1
+        v = r.value
+        if not v.get("applicable"):
+            print(f"not applicable to {a.scope}: {v.get('why','')}")
+            return 0
+        n = len(list(HOLDINGS_PROPOSED.glob("HOLD-*.yaml"))) + 1
+        h = ProposedHolding(
+            id=f"HOLD-{n:04d}", scope=a.scope, title=v["title"], holding=v["holding"],
+            when=v["when"], citations=v["citations"],
+            contends_output=v["contends_output"], contends_value=v["contends_value"],
+            source_file=str(a.ruling), proposed=date.today().isoformat(),
+        )
+        path = h.save()
+        print(f"proposed {h.id} -> {path}")
+        print(f"  {h.title}")
+        print(f"  when: {' AND '.join(h.when)}")
+        if h.contends_output:
+            print(f"  requires instead: {h.contends_output} = {h.contends_value}")
+        print(f"\nIt is PROPOSED, not live. Nothing will be adjudicated against it "
+              f"until a person moves it into exposure/predicates.yaml.")
+        print(f"See what it would do first:  lks exposure impact {h.id}")
+        return 0
+
+    if act == "impact":
+        from lks.watchers import load_proposed_holdings, holding_impact
+        hs = {h.id: h for h in load_proposed_holdings()}
+        if not hs:
+            print("no proposed holdings. Formalise one with: lks exposure holding "
+                  "<ruling> <Module.Scope>")
+            return 1
+        for h in ([hs[a.id]] if a.id else hs.values()):
+            imp = holding_impact(h)
+            print(f"== {h.id}  {h.title}")
+            print(f"   {h.holding}\n")
+            print(f"   {imp.summary()}\n")
+            for r in imp.regions:
+                flag = (f"  ({r['contends_no_change']} of them already have the "
+                        f"outcome it requires)" if r["contends_no_change"] else "")
+                print(f"   {r['id']}  {r['cells']}/{r['of']} cases, "
+                      f"{r['population']} on record — "
+                      f"{', '.join(r['clause_refs']) or '(unattributed)'}{flag}")
+                print(f"        e.g. {json.dumps(r['exemplar'])} -> {json.dumps(r['outputs'])}")
+        return 0
+
+    if act == "inbound":
+        from lks.watchers import review_inbound
+        out = review_inbound(a.id, model=a.model, advisory=a.advisory)
+        print(f"{out['document']} ({out['doc_id']}) — {out['conflicts']} conflict(s), "
+              f"{out['blocking']} blocking")
+        print(f"  {out['note']}\n")
+        for row in out["positions"]:
+            print(f"  [{row['kind']}] {row['their_clause']} vs "
+                  f"{', '.join(row['our_clauses']) or '(nothing named)'}")
+            print(f"      {row['detail'][:200]}")
+            pos = row["position"]
+            if not pos:
+                print(f"      no position: {row['error']}")
+                continue
+            print(f"      position: {pos['position']}")
+            print(f"      redline:  {pos['redline']}")
+            print(f"      fallback: {pos['fallback']}")
+            if pos.get("fallback_condition"):
+                print(f"        if:     {pos['fallback_condition']}")
+            if pos.get("cost_if_conceded"):
+                print(f"        costs:  {pos['cost_if_conceded']}")
+        return 0
+
+    if act == "letter":
+        from lks.fleet import demand_letter
+        q = {e.id: e for e in exposure.load_queue()}
+        e = q.get(a.id)
+        if e is None:
+            print(f"no exposure {a.id}", file=sys.stderr)
+            return 1
+        if e.headline_direction == "more":
+            print(
+                f"{e.id} runs the other way: the decision was MORE favourable to "
+                f"the other side than the policy provides, so there is nobody to "
+                f"write to and nothing to demand.\n\n"
+                f"It is still a finding, and a useful one — it is evidence that "
+                f"this company does not apply the construction it would have to "
+                f"rely on to refuse somebody else. Read it with "
+                f"`lks exposure show {e.id}`, and cite it against the exposures "
+                f"on this queue that turn on that construction.",
+                file=sys.stderr)
+            return 1
+        r = demand_letter(e, model=a.model)
+        if not r.ok:
+            print(f"the role produced nothing usable: {r.error}", file=sys.stderr)
+            return 1
+        print(r.value)
+        if a.write:
+            e.demand_letter = r.value
+            exposure.save_exposure(e)
+            print(f"\n(saved to exposure/queue/{e.id}.yaml)", file=sys.stderr)
+        return 0
+
+    if act == "close":
+        from lks.remedy import propose_closing_edit, close
+        q = {e.id: e for e in exposure.load_queue()}
+        e = q.get(a.id)
+        if e is None:
+            print(f"no exposure {a.id}", file=sys.stderr)
+            return 1
+        r = propose_closing_edit(e, model=a.model)
+        if not r.ok:
+            print(f"the role produced nothing usable: {r.error}", file=sys.stderr)
+            return 1
+        edit = r.value
+        print("The amendment to the document\n")
+        for ln in edit["clause_amendment"].splitlines():
+            print(f"  {ln}")
+        print(f"\nWhy\n  {edit['rationale']}\n")
+        print("The corresponding edit to the encoding\n")
+        print("  - " + "\n  - ".join(edit["old"].splitlines()))
+        print("  + " + "\n  + ".join(edit["new"].splitlines()))
+        print("\nApplying it and measuring everything it moves…\n")
+        cf = close(e, edit)
+        for row in cf.report():
+            print(f"  {row}")
+        if cf.error:
+            print(f"  note: {cf.error}")
+        for d in cf.diffs:
+            w = d.worst
+            if w is not None:
+                print(f"\n  largest single move in {d.scope}: {json.dumps(w.inputs)}")
+                print(f"    {d.measure or 'outcome'} {w.before_value} -> {w.after_value} "
+                      f"({w.kind})")
+        if a.write:
+            e.closing_edit = {"edit": edit, "measured": [r for r in cf.report()]}
+            exposure.save_exposure(e)
+            print(f"\n(saved to exposure/queue/{e.id}.yaml)", file=sys.stderr)
+        return 0 if cf.ok else 1
+
+    print(f"unknown action {act!r}", file=sys.stderr)
+    return 2
+
+
 def cmd_serve(a):
     from lks.api import serve
     serve(a.host, a.port)
     return 0
 
 
+def cmd_serve_search(a):
+    from lks.search_api import serve
+    serve(a.host, a.port)
+    return 0
+
+
+def cmd_watch(a):
+    """The contradiction watch, without the web server."""
+    import time
+    from lks.doc_watch import Watcher, inline_launcher
+    from lks.mongo_store import MongoUnavailable
+
+    w = Watcher(launcher=inline_launcher, interval=a.interval)
+    key = a.key
+    if key and not key.startswith(("index:", "intake:")):
+        key = f"index:{key}"
+    try:
+        if a.action == "status":
+            s = w.status()
+            print(f"mongo {s['mongo']}; {s.get('counts', {})}")
+            for d in s.get("documents", []):
+                lc = d.get("last_check") or {}
+                print(f"  {d['status']:<11} {d['key']:<32} {d.get('title', '')[:40]:<40} "
+                      f"{lc.get('verdict', d.get('error', ''))}")
+            return 0
+        if a.action == "scan":
+            ups = w.scan()
+            for k, u in ups.items():
+                print(f"  {u['status']:<11} {k}")
+            print(f"{len(ups)} change(s)")
+            return 0
+        if a.action == "check":
+            if not key:
+                print("lks watch check <DOC-ID | index:DOC-ID | intake:ID>", file=sys.stderr)
+                return 2
+            w.scan()
+            if not w.requeue(key):
+                print(f"{key} is unknown, being checked elsewhere, removed or unreadable "
+                      f"(see `lks watch status`)", file=sys.stderr)
+                return 1
+            if w.launch_next(key) is None:
+                print(f"{key} was claimed by another watcher (the web server?)", file=sys.stderr)
+                return 1
+            return 0
+        if a.action == "results":
+            for c in w.checks(key, limit=a.limit):
+                print(f"{c['id']}  {c['key']}  {time.strftime('%Y-%m-%d %H:%M', time.localtime(c['started']))}"
+                      f"  {c['seconds']}s  {c['verdict']}")
+                for f in c["findings"]:
+                    print(f"  [{f['status']}] {c['doc_id']} {f['clause_id']}  vs  {f['corpus_ref']}")
+                    print(f"      \"{f['quote']}\"\n      \"{f['corpus_quote']}\"")
+                    print(f"      facts: {f['facts']}\n      {f['summary']}")
+            return 0
+        if a.action == "run":
+            print(f"contradiction watch: scanning every {w.interval}s (Ctrl-C to stop)")
+            while True:
+                try:
+                    started = w.tick()
+                    if w.waiting_on:
+                        print(f"  waiting on {w.waiting_on[:160]}")
+                    elif started is None:
+                        pass
+                except MongoUnavailable as e:
+                    print(f"  {str(e).splitlines()[0]}")
+                    w._drop_client()
+                time.sleep(w.interval)
+    except KeyboardInterrupt:
+        return 0
+    except MongoUnavailable as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+
+
 def cmd_check(a):
     import subprocess
     return subprocess.call([str(ROOT / "scripts" / "check.sh")], cwd=str(ROOT))
+
+
+def cmd_generate(a):
+    """Run the generation pipeline. Exit 0 only when a PDF was issued."""
+    from lks.generate import Limits, WorkspaceInUse, generate
+
+    request = " ".join(a.request).strip()
+    if request == "-":
+        request = sys.stdin.read().strip()
+    if not request:
+        print("a request is required", file=sys.stderr)
+        return 2
+    limits = Limits(
+        catala_attempts=a.catala_attempts,
+        screen_rounds=a.screen_rounds,
+        roundtrip=not a.no_roundtrip,
+        emit_failed_pdf=a.emit_failed_pdf,
+    )
+    try:
+        r = generate(request, limits=limits, model=a.model, seed=a.seed,
+                     workspace=a.workspace, exclude_docs=tuple(a.exclude or ()),
+                     effective_date=a.effective_date)
+    except WorkspaceInUse as e:
+        print(e, file=sys.stderr)
+        return 2
+    print()
+    if r.passed:
+        print(f"ISSUED  {r.doc_id} \"{r.title}\"")
+        print(f"  pdf        {r.pdf}")
+        print(f"  sha256     {r.pdf_sha256}")
+    else:
+        print(f"NOT ISSUED  failed at {r.failure_stage}: {r.failure_reason}")
+        if r.pdf:
+            print(f"  pdf (stamped FAILED GATE)  {r.pdf}")
+    print(f"  report     {r.workspace / 'report.md'}")
+    print(f"  workspace  {r.workspace}  ({r.seconds / 60:.1f} min)")
+    return 0 if r.passed else 1
+
+
+def cmd_pdf(a):
+    """Typeset a corpus document. No provenance: it was not generated."""
+    from lks.render import render_document
+    from lks.segment import load_corpus
+
+    docs = {d.doc_id: d for d in load_corpus()}
+    d = docs.get(a.doc_id)
+    if d is None:
+        print(f"no document {a.doc_id!r}; have {sorted(docs)}", file=sys.stderr)
+        return 1
+    out = Path(a.out or f"{d.doc_id}.pdf")
+    rr = render_document(d, out)
+    print(f"{rr.path}  ({rr.pages} pages, sha256 {rr.sha256[:16]})")
+    if rr.unmapped:
+        print(f"WARNING: characters with no glyph were replaced: {rr.unmapped}", file=sys.stderr)
+    return 0
 
 
 def main() -> int:
@@ -419,6 +923,94 @@ def main() -> int:
     sv.add_argument("--host", default="127.0.0.1")
     sv.add_argument("--port", type=int, default=8765)
     sv.set_defaults(fn=cmd_serve)
+
+    ss = sub.add_parser("serve-search", help="read-only document search for sandboxed agents")
+    ss.add_argument("--host", default="127.0.0.1",
+                    help="127.0.0.1, or the OpenShell bridge address for sandboxes")
+    ss.add_argument("--port", type=int, default=8770)
+    ss.set_defaults(fn=cmd_serve_search)
+
+    ex = sub.add_parser("exposure", help="the adversarial legal exposure engine")
+    exsub = ex.add_subparsers(dest="action", required=True)
+    from lks import llm as _llm_defaults
+
+    def _model(sp):
+        sp.add_argument("--model", default=_llm_defaults.DEFAULT_MODEL)
+        return sp
+
+    exsub.add_parser("doctor", help="check the declared domains and predicates")
+    m = exsub.add_parser("map", help="the decision surface of one scope, as regions")
+    m.add_argument("scope")
+    qq = exsub.add_parser("queue", help="exposures found, worst first")
+    qq.add_argument("--class", dest="klass", help="CONFLICT|SILENCE|REFUSAL|CONTRADICTION|DIVERGENCE|ADVERSE")
+    qq.add_argument("--open", dest="open_only", action="store_true")
+    sh = exsub.add_parser("show", help="one exposure in full, with its proof")
+    sh.add_argument("id")
+    ad = exsub.add_parser("adjudicate", help="put one fact pattern to the executor")
+    ad.add_argument("scope")
+    ad.add_argument("facts", help="JSON object of the scope's inputs")
+    ad.add_argument("--record", action="store_true")
+    fl = _model(exsub.add_parser("fleet", help="run the attack fleet against one scope"))
+    fl.add_argument("scope")
+    fl.add_argument("--rounds", type=int, default=10)
+    fl.add_argument("--archetype", choices=sorted(_ARCHETYPE_NAMES))
+    op = exsub.add_parser("operations", help="what we did vs what the policy says")
+    op.add_argument("--record", action="store_true")
+    exsub.add_parser("contradictions", help="two documents, one question, two answers")
+    ho = _model(exsub.add_parser("holding", help="formalise a ruling as a constraint"))
+    ho.add_argument("ruling")
+    ho.add_argument("scope")
+    im = exsub.add_parser("impact", help="what a proposed holding does to the map")
+    im.add_argument("id", nargs="?")
+    ib = _model(exsub.add_parser("inbound", help="redline somebody else's paper"))
+    ib.add_argument("id", help="proposal id")
+    ib.add_argument("--advisory", action="store_true", help="include advisory conflicts")
+    lt = _model(exsub.add_parser("letter", help="draft the demand letter for an exposure"))
+    lt.add_argument("id")
+    lt.add_argument("--write", action="store_true", help="save it onto the queue entry")
+    cl = _model(exsub.add_parser("close", help="propose the fix, and cost everything it moves"))
+    cl.add_argument("id")
+    cl.add_argument("--write", action="store_true", help="save it onto the queue entry")
+    ex.set_defaults(fn=cmd_exposure)
+
+    from lks.llm import DEFAULT_MODEL, DEFAULT_SEED
+
+    gn = sub.add_parser("generate", help="generate a legal document as a PDF, gated by "
+                                         "Catala and a three-reviewer screen")
+    gn.add_argument("request", nargs="+", help="what to draft, in plain language ('-' reads stdin)")
+    gn.add_argument("--workspace", help="directory for the run (default generated/<slug>)")
+    gn.add_argument("--no-roundtrip", action="store_true",
+                    help="skip G5; the omission is stamped on the PDF")
+    gn.add_argument("--emit-failed-pdf", action="store_true",
+                    help="render a PDF even when a gate fails, stamped on every page")
+    gn.add_argument("--catala-attempts", type=int, default=3)
+    gn.add_argument("--screen-rounds", type=int, default=2)
+    def _iso_date(v):
+        import re as _re
+        if not _re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+            raise argparse.ArgumentTypeError("expected YYYY-MM-DD")
+        return v
+
+    gn.add_argument("--effective-date", dest="effective_date", type=_iso_date,
+                    help="YYYY-MM-DD. Never taken from the model: without this, a date "
+                         "the request does not state becomes TO BE CONFIRMED")
+    gn.add_argument("--exclude", nargs="*", metavar="DOC-ID",
+                    help="keep these corpus documents out of retrieval")
+    gn.add_argument("--model", default=DEFAULT_MODEL)
+    gn.add_argument("--seed", type=int, default=DEFAULT_SEED)
+    gn.set_defaults(fn=cmd_generate)
+
+    pd = sub.add_parser("pdf", help="typeset a corpus document as PDF")
+    pd.add_argument("doc_id")
+    pd.add_argument("--out")
+    pd.set_defaults(fn=cmd_pdf)
+
+    wa = sub.add_parser("watch", help="the contradiction watch over new MongoDB documents")
+    wa.add_argument("action", choices=("status", "scan", "check", "results", "run"))
+    wa.add_argument("key", nargs="?", help="DOC-ID, index:DOC-ID or intake:ID")
+    wa.add_argument("--interval", type=int, default=30)
+    wa.add_argument("--limit", type=int, default=5)
+    wa.set_defaults(fn=cmd_watch)
 
     ck = sub.add_parser("check", help="run the full verification gate")
     ck.set_defaults(fn=cmd_check)

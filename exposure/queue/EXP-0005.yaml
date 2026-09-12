@@ -1,0 +1,64 @@
+id: EXP-0005
+klass: DIVERGENCE
+scope: ServiceCredits.ServiceCredit
+archetype: auditor reconciling the record against the policy
+headline: credit_amount was recorded as 14400.0, less than the 24000.0 the policy computes
+facts:
+  availability_percentage: 94.2
+  monthly_service_charge: 48000.0
+  arrears_days: 0
+  invoice_undisputed: true
+why: 'On 2026-04-08 the company decided this case for the March service month for the same
+  customer, after the regional outage. Its own written policy, executed on the same facts,
+  does not produce that decision. Source: credit notes raised 2026-04. The decision was less
+  favourable than the policy provides, so it is a claim by the person it was made about, for
+  the difference, and by everyone else the same clause was applied to the same way.'
+predicate: ''
+citations:
+- MSA-SCH4 L-4.1
+clause_chain:
+- variable: credit_amount
+  line: null
+  clause_refs:
+  - MSA-SCH4 L-4.1
+  law_headings: []
+outputs:
+  credit_amount: 24000.0
+amount: '9600.0'
+amount_basis: recorded 14400.0, policy computes 24000.0; difference 9600.0 money on one a
+  customer service-month
+population: a customer service-month
+diagnostic: ''
+narrative: the March service month for the same customer, after the regional outage (OPS-0007,
+  decided 2026-04-08)
+demand_letter: 'We represent the class of customers affected by the regional outage OPS-0007,
+  specifically regarding the March service month. On 2026-04-08, your company issued a decision
+  for this period that did not align with the calculations mandated by your own written policy.
+
+
+  The relevant provision is MSA-SCH4 L-4.1. This clause governs the credit amount due for
+  service interruptions and dictates the specific computation method for affected service
+  months.
+
+
+  Your records indicate that a credit of 14,400.0 was applied or decided for the March service
+  month. However, executing MSA-SCH4 L-4.1 against the same facts produces a required credit
+  amount of 24,000.0.
+
+
+  The difference between your decision and the policy requirement is 9,600.0 per customer
+  service-month. This shortfall represents a breach of the agreed terms for every customer
+  to whom this clause was applied in the same manner.
+
+
+  We seek payment of the outstanding difference of 9,600.0 per affected customer service-month.
+  This amount is derived strictly from your own policy computations, not our estimation.
+
+
+  Please remit the total class difference by 2026-05-08. Failure to resolve this discrepancy
+  will leave us no choice but to pursue further remedies.'
+closing_edit: {}
+origin: operations:OPS-0007
+headline_direction: less
+found: '2026-09-12'
+status: open

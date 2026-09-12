@@ -1,0 +1,309 @@
+# Employment Terms — Annex C: defined terms of working time
+
+> Module WorkingTimeDefs
+
+The module is declared `Working_time_defs` rather than `WorkingTimeDefs`
+because Catala 1.2.1 requires the module name to match the file name up to
+casing only, and the file name fixed by this repository's layout is
+`working_time_defs.catala_en`. It is the `WorkingTimeDefs` module of
+`catala/module_plan.md`.
+
+This module encodes the definitions of C-2. It decides no entitlement: every
+scope here answers a question of the form "what is the defined quantity" or
+"is the defined predicate satisfied", and the entitlement provisions of C-4 to
+C-9 consume the answers.
+
+Three of the six definitions (C-2.4, C-2.5, C-2.6) resolve to a record held
+outside this Annex — the human resources system of record, the incident
+management standard, and the gazette of public holidays for a place of work.
+Each is therefore modelled as an input type together with the decidable
+predicate the Annex states over it, so that the Annex's own content is
+encoded and the record lookup stays visible as an input rather than being
+assumed away. None of them is a judgement input: reading a record is data.
+
+C-3.1 (the 40-hour ordinary working week) is a defined quantity of the same
+family but is encoded in `Overtime`, where the thresholds that measure against
+it live; it is deliberately not restated here.
+
+## Prologue — declarations
+
+Everything a sibling module needs is declared here, in a metadata block, so
+that it is exported in the module interface.
+
+```catala-metadata
+declaration structure PayrollWeek:
+  data first_day content date
+  data last_day content date
+
+declaration structure GradeRecord:
+  data grade content integer
+  data recorded_from content date
+
+declaration structure CriticalIncident:
+  data severity content integer
+  data declared_at content date
+  data closed_at content optional of date
+
+declaration structure GazettedHoliday:
+  data place_of_work content integer
+  data holiday_date content date
+
+declaration scope BaseHourlyRate:
+  input annual_base_salary content money
+  output base_hourly_rate content decimal
+  output base_hourly_rate_to_the_penny content money
+
+declaration scope PayrollWeekOf:
+  input calendar_day content date
+  output days_since_monday content integer
+  output payroll_week content PayrollWeek
+
+declaration scope NightHours:
+  input hour_beginning content integer
+  output is_night_hour content boolean
+
+declaration scope GradeForPayrollWeek:
+  input grade_records content list of GradeRecord
+  input payroll_week content PayrollWeek
+  internal records_in_force content list of GradeRecord
+  output grade content optional of integer
+
+declaration scope CriticalIncidentResponse:
+  input incident content CriticalIncident
+  input work_performed_at content date
+  input performed_in_response_to_incident content boolean
+  output within_incident_period content boolean
+  output is_critical_incident_response content boolean
+
+declaration scope GazettedPublicHolidays:
+  input gazette content list of GazettedHoliday
+  input principal_place_of_work content integer
+  input calendar_day content date
+  output is_gazetted_public_holiday content boolean
+```
+
+## C-2.1 Base Hourly Rate
+
+C-2.1 states a division and nothing else. It prescribes no rounding, and no
+other clause of Annex C authorises rounding the defined term before it is used.
+Holding the rate as `money` rounded it to the penny before any premium was
+applied, which is wrong in both directions -- a salary of 45,000 rounded down
+and underpaid a 50-hour week by 0.03, while 50,000 rounded up and overpaid --
+so it was not even a defensible convention. The rate is therefore an exact
+`decimal`, and `base_hourly_rate_to_the_penny` is provided separately for
+display only, never as an input to a premium calculation. Found by the
+adversarial reviewer; see tests/counterexamples/CE-0023.yaml.
+
+| EMP-ANNEX-C C-2.1 (001-employment-terms-annex-c.md:28)
+|
+| "Base Hourly Rate" means the Employee's annual base salary divided by
+| 2,080.
+
+The divisor is the literal 2,080 of the clause and not a computed figure
+(52 weeks of the 40-hour week of C-3.1 happens to equal it, but the clause
+fixes the number itself, so a change to C-3.1 would not move it).
+
+`money` is fixed at the cent, so the quotient is rounded to the nearest cent.
+The clause states no rounding for the rate: on an annual salary that is not a
+multiple of 2,080 cents the Base Hourly Rate as computed here differs from the
+unrounded quotient by less than half a cent. That is recorded as an ambiguity
+rather than hidden — an alternative reading carries the exact rational through
+to the premium and rounds only the payment.
+
+The clause bounds its own operand. What is divided is "the Employee's annual
+base salary" — the sum the Company contracts to pay the Employee for the year —
+and a sum payable to the Employee is nought or more; there is no such thing as
+a negative base salary, and C-1.2 confirms the direction of travel by making
+the statutory minimum a floor on every entitlement this Annex computes. The
+bound matters because the quotient is the multiplicand of every figure in C-4
+to C-7: a negative salary produces a negative Base Hourly Rate, and the premium
+provisions then multiply it into a negative overtime payment — the Employee
+owing the Company for the hours worked, which no clause of Annex C could
+authorise. The scope therefore declines rather than dividing. This is the
+clause's bound and not a programming convenience.
+
+```catala
+scope BaseHourlyRate:
+  assertion annual_base_salary >= $0.00
+
+  definition base_hourly_rate equals
+    (annual_base_salary / $1.00) / 2080.25
+
+  definition base_hourly_rate_to_the_penny equals
+    money of base_hourly_rate
+```
+
+## C-2.2 Payroll Week
+
+| EMP-ANNEX-C C-2.2 (001-employment-terms-annex-c.md:31)
+|
+| "Payroll Week" means the period of seven consecutive days commencing at
+| 00:00 on Monday and ending at 23:59:59 on the following Sunday.
+
+Catala dates have no time of day, so "commencing at 00:00 on Monday" and
+"ending at 23:59:59 on the following Sunday" together say that the Payroll
+Week is the whole of the Monday through the whole of the following Sunday —
+seven consecutive whole days. The week is therefore represented by its first
+and last day, and the constructor takes any calendar day and returns the week
+that contains it.
+
+`date round down` is declared even though every operation below adds or
+subtracts a whole number of days, which can never be ambiguous. Declaring it
+means the scope cannot silently acquire an ambiguous month or year addition
+later (Catala raises `AmbiguousDateComputation` in a scope with no rounding
+mode declared).
+
+```catala
+scope PayrollWeekOf:
+  date round down
+
+scope PayrollWeekOf:
+  definition days_since_monday equals
+    match (Date.day_of_week of calendar_day) with pattern
+    -- Monday: 0
+    -- Tuesday: 1
+    -- Wednesday: 2
+    -- Thursday: 3
+    -- Friday: 4
+    -- Saturday: 5
+    -- Sunday: 6
+
+  definition payroll_week equals
+    PayrollWeek {
+      -- first_day: calendar_day - (days_since_monday * (1 day))
+      -- last_day: calendar_day + ((6 - days_since_monday) * (1 day))
+    }
+```
+
+## C-2.3 Night Hours
+
+| EMP-ANNEX-C C-2.3 (001-employment-terms-annex-c.md:34)
+|
+| "Night Hours" means hours worked between 22:00 on any day and 06:00 on the
+| following day.
+
+An hour worked is identified by the clock hour at which it begins, so the
+hours worked between 22:00 and 06:00 are those beginning at 22, 23, 0, 1, 2,
+3, 4 or 5. The hour beginning at 06:00 is not a Night Hour, and neither is the
+hour beginning at 21:00; both boundaries are tested.
+
+C-2.3 fixes the range of that identifier as well as the window inside it. The
+clause works in clock times — "between 22:00 on any day and 06:00 on the
+following day" — and the hours of a day are the twenty-four beginning at 00:00
+through 23:00. There is no hour beginning at 24:00 or at -1:00, so an input
+outside 0 to 23 identifies no hour that could have been worked, and the
+predicate would answer it anyway and answer wrongly in the paying direction:
+every value of 24 or above satisfies `>= 22` and every negative value satisfies
+`< 6`, so each would attract the C-6.1 night premium. The scope refuses them
+instead. The bound is the clause's own, not a programming convenience: it is
+what makes the two comparisons a window within one day, and it is the same
+twenty-four hours that C-2.2's seven consecutive days are made of.
+
+```catala
+scope NightHours:
+  assertion hour_beginning >= 0 and hour_beginning <= 23
+
+  definition is_night_hour equals
+    hour_beginning >= 22 or hour_beginning < 6
+```
+
+## C-2.4 Grade
+
+| EMP-ANNEX-C C-2.4 (001-employment-terms-annex-c.md:37)
+|
+| "Grade" means the Employee's job grade as recorded in the Company's human
+| resources system of record at the first day of the Payroll Week in
+| question.
+
+The clause fixes both the source (the human resources system of record) and
+the as-of moment (the first day of the Payroll Week in question). The system
+of record is modelled as a list of grade recordings, each with the date from
+which it was recorded; the Grade for a Payroll Week is the grade of the most
+recent recording in force at the first day of that week. A recording made
+later in the week does not govern that week.
+
+Where no recording is in force at that date the Annex supplies no Grade, so
+the result is `Absent` rather than an invented default: a scope that needs a
+Grade must be told that the record is missing, not given a zero.
+
+```catala
+scope GradeForPayrollWeek:
+  definition records_in_force equals
+    list of r among grade_records
+      such that r.recorded_from <= payroll_week.first_day
+
+  definition grade equals
+    if number of records_in_force = 0 then Absent
+    else Present content
+      (content of r among records_in_force
+         such that r.recorded_from is maximum
+         or if list empty then
+           GradeRecord {
+             -- grade: 0
+             -- recorded_from: payroll_week.first_day
+           }
+      ).grade
+```
+
+## C-2.5 Critical Incident Response
+
+| EMP-ANNEX-C C-2.5 (001-employment-terms-annex-c.md:41)
+|
+| "Critical Incident Response" means work performed in response to an
+| incident classified as Severity 1 under the Company's incident management
+| standard, during the period from declaration of the incident until its
+| formal closure.
+
+The definition has three limbs, all of which must hold: the work was performed
+in response to the incident, the incident is classified Severity 1 under the
+incident management standard, and the work falls in the period from declaration
+to formal closure. The first two are readings of records — the timesheet's
+attribution of the work and the incident management standard's severity — and
+are supplied as inputs; the third is computed.
+
+An incident that has been declared but not formally closed has no closure
+date, which is why `closed_at` is optional: until closure the period is open,
+so any work from the declaration onwards falls inside it.
+
+Both the declaration date and the closure date are treated as inside the
+period. With no time of day available this is the reading that does not lose
+work performed on the day an incident was declared or closed; it is an
+ambiguity of the clause, not of the encoding.
+
+```catala
+scope CriticalIncidentResponse:
+  definition within_incident_period equals
+    work_performed_at >= incident.declared_at
+    and (match incident.closed_at with pattern
+         -- Absent: true
+         -- Present content closure: work_performed_at <= closure)
+
+  definition is_critical_incident_response equals
+    performed_in_response_to_incident
+    and incident.severity = 1
+    and within_incident_period
+```
+
+## C-2.6 Gazetted Public Holiday
+
+| EMP-ANNEX-C C-2.6 (001-employment-terms-annex-c.md:46)
+|
+| "Gazetted Public Holiday" means a day designated as a bank or public
+| holiday in the Employee's principal place of work.
+
+Designation is per place of work, so the gazette is a table of (place of work,
+calendar day) pairs and the predicate is membership of that table for the Employee's
+principal place of work. A day gazetted for another place of work is not a
+Gazetted Public Holiday for this Employee, which is the whole point of the
+qualifier and is tested.
+
+Places of work are identified by an integer code because Catala has no string
+type; the code is an opaque identifier supplied with the gazette.
+
+```catala
+scope GazettedPublicHolidays:
+  definition is_gazetted_public_holiday equals
+    exists h among gazette such that
+      (h.place_of_work = principal_place_of_work
+       and h.holiday_date = calendar_day)
+```

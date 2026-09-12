@@ -43,11 +43,11 @@ termination.
 ## Artefact under review
 
 ```
-# Employment Terms — Annex C: annual leave accrual
+#
 
 > Module LeaveAccrual
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope HalfDayRounding:
@@ -80,16 +80,9 @@ declaration scope CarryForward:
   output forfeited_days_payable_on_termination content boolean
 ```
 
-## Calendar bounds of the month under examination
+##
 
-| NO-CLAUSE: C-9 speaks throughout of "a calendar month" and "that month".
-| Deriving that month's first and last day from any day within it (the
-| `day_in_month` input) is calendar
-| decomposition of an input, not a rule of the Annex; both C-9.1 and C-9.2
-| read the result. `date round down` is declared because Catala raises
-| `AmbiguousDateComputation` in a scope with no rounding mode declared as soon
-| as a month or year duration is added to a date — nothing below does so, and
-| declaring the mode is what keeps that true under later edits.
+| NO-CLAUSE
 
 ```catala
 scope MonthlyAccrual:
@@ -100,7 +93,7 @@ scope MonthlyAccrual:
   definition month_last_day equals Date.last_day_of_month of day_in_month
 ```
 
-## C-9.1 Accrual for a completed calendar month
+## C-9.1
 
 | EMP-ANNEX-C C-9.1 (001-employment-terms-annex-c.md:104)
 |
@@ -109,6 +102,11 @@ scope MonthlyAccrual:
 
 ```catala
 scope MonthlyAccrual:
+  assertion
+    match service_end with pattern
+    -- Absent: true
+    -- Present content ending: ending >= service_start
+
   definition month_is_completed equals
     service_start <= month_first_day
     and (match service_end with pattern
@@ -120,7 +118,7 @@ scope MonthlyAccrual:
     consequence equals 2.0
 ```
 
-## C-9.2 Pro-rating a part month
+## C-9.2
 
 | EMP-ANNEX-C C-9.2 (001-employment-terms-annex-c.md:107)
 |
@@ -154,7 +152,7 @@ scope MonthlyAccrual:
     consequence equals pro_rated_days
 ```
 
-### The rounding proviso of C-9.2
+### C-9.2
 
 | EMP-ANNEX-C C-9.2 (001-employment-terms-annex-c.md:107)
 |
@@ -188,7 +186,7 @@ scope HalfDayRounding:
     consequence equals (half_steps_below + 1.0) / 2.0
 ```
 
-## C-9.3 Carry-forward cap
+## C-9.3
 
 | EMP-ANNEX-C C-9.3 (001-employment-terms-annex-c.md:113)
 |
@@ -203,7 +201,7 @@ scope CarryForward:
     Decimal.min of accrued_untaken_days, permitted_carry_forward_days
 ```
 
-## C-9.4 Long-term sickness absence
+## C-9.4
 
 | EMP-ANNEX-C C-9.4 (001-employment-terms-annex-c.md:116)
 |
@@ -218,7 +216,7 @@ scope CarryForward:
     consequence equals accrued_untaken_days
 ```
 
-## C-9.5 Forfeiture
+## C-9.5
 
 | EMP-ANNEX-C C-9.5 (001-employment-terms-annex-c.md:120)
 |

@@ -47,14 +47,18 @@ missing = sorted(need - set(enc))
 dupes = {r: fs for r, fs in enc.items() if len(set(fs)) > 1}
 extra = sorted(r for r in enc if r in led and led[r].label is Label.PROSE)
 print(f"   {len(need)-len(missing)}/{len(need)} RULE+HYBRID clauses encoded")
-if missing: print(f"   pending ({len(missing)}): {missing[:8]}{' ...' if len(missing)>8 else ''}")
-if dupes:  print(f"   FAIL  encoded in >1 module: {dupes}"); sys.exit(1)
+if missing: print(f"   FAIL  not encoded ({len(missing)}): {missing[:8]}{' ...' if len(missing)>8 else ''}")
+if dupes:  print(f"   FAIL  encoded in >1 module: {dupes}")
 if extra:  print(f"   note  PROSE clauses also quoted in Catala: {extra[:5]}")
+sys.exit(1 if (missing or dupes) else 0)
 PYEOF
 [ $? -ne 0 ] && rc=1
 
 echo "== 4. clerk test (#[test] scope assertions) =="
-if out=$(clerk test 2>&1); then
+# Under the build lock (lks.catala_runner.BUILD_LOCK), so a generation run
+# never loads objects this rebuild is halfway through writing.
+mkdir -p _build
+if out=$(mkdir -p .run && flock -s .run/tree.lock flock _build/.lks-build.lock clerk test 2>&1); then
   echo "$out" | grep -E "PASSED|FAILED|tests" | sed 's/^/   /' | tail -6
 else
   echo "$out" | tail -25 | sed 's/^/   /'; rc=1
@@ -62,17 +66,20 @@ fi
 
 echo "== 5. counterexample regression (permanent, re-run forever) =="
 "$PY" - <<'PYEOF'
+import sys
 from lks.reviewer import run_regression
 from lks.counterexample import summary
 rs = run_regression()
 s = summary()
+bad = [r for r in rs if not r.passed]
 if not rs:
     print("   (no counterexamples recorded yet)")
 else:
-    bad = [r for r in rs if not r.passed]
     for r in bad: print(f"   FAIL  {r.id}: expected {r.expected!r} got {r.actual!r} {r.detail[:80]}")
     print(f"   {len(rs)-len(bad)}/{len(rs)} counterexamples pass  (store: {s})")
+sys.exit(1 if bad else 0)
 PYEOF
+[ $? -ne 0 ] && rc=1
 
 echo "== 6. every scope is JSON-executable (no enum-typed outputs) =="
 "$PY" scripts/check_executable.py || rc=1
@@ -104,19 +111,92 @@ PYEOF
 
 echo "== 8. exception-branch coverage =="
 "$PY" - <<'PYEOF'
+import sys
 from pathlib import Path
 from lks.reviewer import discover_scopes, exception_branches
 from lks.catala_runner import CatalaError
+errors = []
 for f in sorted(Path('catala/modules').glob('*.catala_en')):
     for scope, qual in discover_scopes(f).items():
         for var in qual['output'] + qual['internal']:
             try:
                 br = exception_branches(f, scope, var)
-            except CatalaError:
+            except CatalaError as e:
+                # A variable whose exception tree cannot be read is one nothing
+                # downstream can map, trace or compare -- not one to skip.
+                errors.append(f"{f.stem}.{scope}.{var}: {str(e).splitlines()[0][:100] if str(e) else 'CatalaError'}")
                 continue
             if len(br) > 1:
                 print(f"   {f.stem}.{scope}.{var}: {len(br)} branches")
+for x in errors:
+    print(f"   FAIL  exception tree unreadable: {x}")
+sys.exit(1 if errors else 0)
 PYEOF
+[ $? -ne 0 ] && rc=1
+
+echo "== 9. exposure engine (declared content, and every finding reproducible) =="
+"$PY" - <<'PYEOF'
+import sys
+from lks import exposure, surface as sf, watchers
+from lks.registry import load_registry
+
+reg = load_registry()
+doms, preds = sf.load_domains(), exposure.load_predicates()
+problems = sf.validate_domains(doms, reg) + exposure.validate_predicates(preds, reg)
+for x in problems:
+    print(f"   FAIL  {x}")
+print(f"   {len(doms)}/{len(reg)} scopes have a declared population and are therefore "
+      f"visible; {len(preds)} predicates, all cited")
+
+# Every exposure on the queue must still be reachable by executing the scope on
+# its own recorded facts. An entry that no longer reproduces is either fixed --
+# in which case it belongs closed rather than sitting in a lawyer's queue -- or
+# the engine has drifted, and both are worth failing the gate for. Divergences
+# are excluded because they are claims about a past decision, not about the
+# corpus, and re-executing the corpus cannot confirm or refute one.
+stale = []
+for e in exposure.load_queue():
+    if e.klass == exposure.Klass.DIVERGENCE:
+        continue
+    v = exposure.adjudicate(
+        exposure.Attack(e.archetype, e.scope, e.facts, origin="gate"),
+        registry=reg, domains=doms, predicates=preds,
+    )
+    if not v.landed or v.klass != e.klass:
+        stale.append(f"{e.id} no longer reproduces ({v.why})")
+for x in stale:
+    print(f"   FAIL  {x}")
+q = exposure.summary()
+print(f"   {q['total']} on the queue ({q['by_class']}); {q['costed']} carry a computed figure")
+
+divs = watchers.check_operations()
+print(f"   {len(divs)} divergence(s) between the decisions on record and the policy")
+sys.exit(1 if (problems or stale) else 0)
+PYEOF
+[ $? -ne 0 ] && rc=1
+
+echo "== 10. rule registry matches the modules (catala/registry.yaml is derived) =="
+"$PY" - <<'PYEOF'
+import sys
+from lks.registry import build_registry, load_registry
+built = {k: v.to_dict() for k, v in build_registry().items()}
+committed = {k: v.to_dict() for k, v in load_registry().items()}
+drift = sorted(set(built) ^ set(committed)) + sorted(
+    k for k in set(built) & set(committed) if built[k] != committed[k])
+for k in drift:
+    if k not in committed:
+        print(f"   FAIL  {k}: declared by the modules, missing from the registry")
+    elif k not in built:
+        print(f"   FAIL  {k}: in the registry, no longer declared by any module")
+    else:
+        diff = [f for f in built[k] if built[k][f] != committed[k].get(f)]
+        print(f"   FAIL  {k}: registry differs on {diff}")
+if drift:
+    print("   regenerate with scripts/build_registry.py -- the router answers from this file")
+    sys.exit(1)
+print(f"   ok    {len(built)} scopes, registry current")
+PYEOF
+[ $? -ne 0 ] && rc=1
 
 echo
 [ $rc -eq 0 ] && echo "GATE: PASS" || echo "GATE: FAIL"

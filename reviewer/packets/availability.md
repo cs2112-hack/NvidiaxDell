@@ -68,11 +68,11 @@ Measurement Period is not less than 99.90%.
 ## Artefact under review
 
 ```
-# MSA Schedule 4 — Service Levels (availability measurement)
+#
 
 > Module Availability
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration structure Outage:
@@ -155,7 +155,7 @@ declaration scope ServiceAvailability:
   output meets_service_level content boolean
 ```
 
-## L-2.1 Measurement Period
+## L-2.1
 
 | MSA-SCH4 L-2.1 (004-msa-sla-credits.md:26)
 |
@@ -169,7 +169,7 @@ scope MeasurementPeriod:
     (Date.get_day of (Date.last_day_of_month of period_start)) * 1440
 ```
 
-## L-2.2 Available
+## L-2.2
 
 | MSA-SCH4 L-2.2 (004-msa-sla-credits.md:28)
 |
@@ -184,7 +184,7 @@ scope RequestAvailable:
     and responded_within_latency_threshold
 ```
 
-## L-2.6 Scheduled Maintenance — the notice limb
+## L-2.6
 
 | MSA-SCH4 L-2.6 (004-msa-sla-credits.md:50)
 |
@@ -203,7 +203,7 @@ scope ScheduledMaintenanceWindow:
     is_maintenance and (business_days_notice >= 5)
 ```
 
-## L-2.5 Excluded Minutes
+## L-2.5
 
 | MSA-SCH4 L-2.5 (004-msa-sla-credits.md:39)
 |
@@ -241,7 +241,7 @@ scope ExcludedMinutes:
   definition excluded_minutes equals if is_excluded then minutes else 0
 ```
 
-## L-2.6 Scheduled Maintenance — the 8-hour aggregate proviso
+## L-2.6
 
 | MSA-SCH4 L-2.6 (004-msa-sla-credits.md:50)
 |
@@ -265,7 +265,7 @@ scope ScheduledMaintenance:
        then o.minutes else 0))
 ```
 
-## L-4.5 Scheduled Maintenance overrun
+## L-4.5
 
 | MSA-SCH4 L-4.5 (004-msa-sla-credits.md:86)
 |
@@ -284,7 +284,7 @@ scope ScheduledMaintenance:
   definition excluded_minutes equals aggregate_minutes - excess_minutes
 ```
 
-## L-2.4 Unavailable Minutes
+## L-2.4
 
 | MSA-SCH4 L-2.4 (004-msa-sla-credits.md:36)
 |
@@ -312,7 +312,7 @@ scope AvailabilityPercentage:
       + scheduled_maintenance_excess_minutes
 ```
 
-## L-2.3 Availability Percentage
+## L-2.3
 
 | MSA-SCH4 L-2.3 (004-msa-sla-credits.md:31)
 |
@@ -330,7 +330,7 @@ scope AvailabilityPercentage:
     Decimal.round_to_decimal of availability_percentage_unrounded, 2
 ```
 
-## L-3.1 The Service Level
+## L-3.1
 
 | MSA-SCH4 L-3.1 (004-msa-sla-credits.md:61)
 |
@@ -342,14 +342,9 @@ scope AvailabilityPercentage:
   definition meets_service_level equals availability_percentage >= 99.90
 ```
 
-## Period aggregation
+##
 
-| NO-CLAUSE: Schedule 4 states no aggregation rule of its own. This scope only
-| wires the clause-level scopes above together in the order the Schedule
-| requires — L-2.1 for the denominator, L-2.5 per outage for the numerator's
-| deduction, L-2.6 and L-4.5 for the maintenance overrun, then L-2.4 and L-2.3
-| — so that a caller cannot get the L-4.5 feedback edge wrong. All the legal
-| content is in the clause blocks above.
+| NO-CLAUSE
 
 ```catala
 scope ServiceAvailability:

@@ -1,0 +1,77 @@
+id: EXP-0010
+klass: ADVERSE
+scope: ServiceCredits.ServiceCredit
+archetype: customer's commercial counsel
+headline: L-4.4 extinguishes a 50% service credit on the company's own view that an invoice
+  is undisputed
+facts:
+  availability_percentage: 94.9
+  monthly_service_charge: 500000.0
+  arrears_days: 31
+  invoice_undisputed: true
+why: 'L-4.4 removes the credit entirely where the customer is in arrears of an undisputed
+  invoice for more than 30 days. Whether an invoice is disputed is not defined anywhere in
+  the Agreement and is not a fact the supplier gets to find: a customer who has written to
+  query the invoice will say it was disputed, and the entire credit turns on that one word.
+  In the month this fires the service was below 95% availability, so L-4.3 fixes the credit
+  at 50% of the Monthly Service Charge -- the largest number the Schedule can produce -- and
+  L-4.4 is the only thing standing between the customer and it. The customer''s counsel will
+  also pair this with L-1.2, which makes credits the sole financial remedy: a supplier arguing
+  that the credit is barred is arguing that a month at under 95% availability carries no remedy
+  at all, which is the argument that gets a sole-remedy clause looked at hard.'
+predicate: EXP-P004
+citations:
+- MSA-SCH4 L-4.4
+- MSA-SCH4 L-4.3
+- MSA-SCH4 L-1.2
+clause_chain:
+- variable: credit_percentage
+  line: 255
+  law_headings:
+  - L-4.4 Arrears
+  - MSA Schedule 4 — Service Credits
+  clause_refs:
+  - MSA-SCH4 L-4.4
+- variable: credit_cap_percentage
+  line: 208
+  law_headings:
+  - L-4.3 Below 95.00%
+  - MSA Schedule 4 — Service Credits
+  clause_refs:
+  - MSA-SCH4 L-4.3
+- variable: credit_payable_percentage
+  line: 180
+  law_headings:
+  - L-4.2 The aggregate cap
+  - MSA Schedule 4 — Service Credits
+  clause_refs:
+  - MSA-SCH4 L-4.2
+- variable: credit_amount
+  line: 158
+  law_headings:
+  - L-4.1 The band table
+  - MSA Schedule 4 — Service Credits
+  clause_refs:
+  - MSA-SCH4 L-4.1
+outputs:
+  credit_percentage: '0.0'
+  credit_cap_percentage: '0.5'
+  credit_payable_percentage: '0.0'
+  credit_amount: 0.0
+amount: '0.5'
+amount_basis: credit_payable_percentage computed as 0.0, contended to be 0.5 (the executed
+  value of credit_cap_percentage); difference 0.5 money per a customer service-month
+population: a customer service-month
+diagnostic: ''
+narrative: A customer account shows 94.9% availability, triggering the 50% credit under L-4.3.
+  The customer is 31 days in arrears on an undisputed invoice, triggering the exclusion under
+  L-4.4. The documents do not specify which exception prevails. L-4.3 sets the credit to 50%;
+  L-4.4 sets it to 0%. The conflict allows the customer to argue for the 50% credit, as L-4.3
+  is a specific exception to the cap that also defines the credit amount, while L-4.4 is an
+  exception only to L-4.1. The ambiguity favors the customer in maximizing the credit.
+demand_letter: ''
+closing_edit: {}
+origin: fleet:auditor
+headline_direction: ''
+found: '2026-09-12'
+status: open

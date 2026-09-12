@@ -78,25 +78,69 @@ Section C-8 Precedence
 C-8.1 does not apply to the night premium under C-6, which is
 cumulative with any multiplier determined under C-4, C-5.2 or C-7.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### EMP-ANNEX-C C-2.1 — Employment Terms — Annex C: Working Time, Overtime and Leave (v4.2, effective 2024-01-01)
+Section C-2 Definitions
+
+"Base Hourly Rate" means the Employee's annual base salary divided by
+2,080.
+
+### EMP-ANNEX-C C-2.2 — Employment Terms — Annex C: Working Time, Overtime and Leave (v4.2, effective 2024-01-01)
+Section C-2 Definitions
+
+"Payroll Week" means the period of seven consecutive days commencing
+at 00:00 on Monday and ending at 23:59:59 on the following Sunday.
+
+### EMP-ANNEX-C C-2.3 — Employment Terms — Annex C: Working Time, Overtime and Leave (v4.2, effective 2024-01-01)
+Section C-2 Definitions
+
+"Night Hours" means hours worked between 22:00 on any day and 06:00 on
+the following day.
+
+### EMP-ANNEX-C C-2.4 — Employment Terms — Annex C: Working Time, Overtime and Leave (v4.2, effective 2024-01-01)
+Section C-2 Definitions
+
+"Grade" means the Employee's job grade as recorded in the Company's
+human resources system of record at the first day of the Payroll Week in
+question.
+
+### EMP-ANNEX-C C-2.5 — Employment Terms — Annex C: Working Time, Overtime and Leave (v4.2, effective 2024-01-01)
+Section C-2 Definitions
+
+"Critical Incident Response" means work performed in response to an
+incident classified as Severity 1 under the Company's incident management
+standard, during the period from declaration of the incident until its formal
+closure.
+
+### EMP-ANNEX-C C-2.6 — Employment Terms — Annex C: Working Time, Overtime and Leave (v4.2, effective 2024-01-01)
+Section C-2 Definitions
+
+"Gazetted Public Holiday" means a day designated as a bank or public
+holiday in the Employee's principal place of work.
+
 
 ## Artefact under review
 
 ```
-# Employment Terms — Annex C: Working Time and Overtime
+#
 
 > Module Overtime
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration structure HourWorked:
+  data hour_of_week content integer
   data is_public_holiday content boolean
   data is_critical_incident content boolean
   data is_night content boolean
 
 declaration structure WeekTally:
   data hours_counted content integer
-  data payment content money
+  data rate_total content decimal
   data toil content decimal
 
 declaration scope HourPremium:
@@ -118,13 +162,14 @@ declaration scope WeeklyOvertime:
   input base_hourly_rate content money
   input grade content integer
   input has_standing_shift_allowance content boolean
+  internal ordered_hours content list of HourWorked
   internal tally content WeekTally
   output hours_worked content integer
   output overtime_payment content money
   output toil_hours content decimal
 ```
 
-## C-3 Ordinary hours
+## C-3
 
 | EMP-ANNEX-C C-3.1 (001-employment-terms-annex-c.md:51)
 |
@@ -135,7 +180,7 @@ scope HourPremium:
   label ordinary definition multiplier equals 0.0
 ```
 
-## C-4 Overtime — general entitlement
+## C-4
 
 | EMP-ANNEX-C C-4.1 (001-employment-terms-annex-c.md:55)
 |
@@ -145,6 +190,8 @@ scope HourPremium:
 
 ```catala
 scope HourPremium:
+  assertion ordinal >= 1 and ordinal <= 168
+
   label c4_1 exception ordinary definition multiplier
     under condition ordinal > 40
     consequence equals 1.25
@@ -162,7 +209,7 @@ scope HourPremium:
     consequence equals 1.5
 ```
 
-## C-5 Overtime — grade exceptions
+## C-5
 
 | EMP-ANNEX-C C-5.1 (001-employment-terms-annex-c.md:64)
 |
@@ -193,7 +240,7 @@ scope HourPremium:
       if ordinal > 48 then 1.5 else 1.25
 ```
 
-## C-7 Public holidays
+## C-7
 
 | EMP-ANNEX-C C-7.1 (001-employment-terms-annex-c.md:85)
 |
@@ -223,7 +270,7 @@ scope HourPremium:
       if 2.0 > (1.5 + 0.25) then 2.0 else (1.5 + 0.25)
 ```
 
-## C-6 Night work premium
+## C-6
 
 | EMP-ANNEX-C C-6.1 (001-employment-terms-annex-c.md:75)
 |
@@ -250,7 +297,7 @@ scope HourPremium:
     consequence equals 0.0
 ```
 
-## What the base salary already pays for
+##
 
 | EMP-ANNEX-C C-3.1 (001-employment-terms-annex-c.md:51)
 |
@@ -267,7 +314,7 @@ scope HourPremium:
     else 0.0
 ```
 
-## C-8 Precedence
+## C-8
 
 | EMP-ANNEX-C C-8.1 (001-employment-terms-annex-c.md:96)
 |
@@ -305,20 +352,23 @@ scope HourPremium:
     consequence equals false
 ```
 
-## Weekly aggregation
+##
 
-| NO-CLAUSE: Annex C states no weekly aggregation rule. Summing the per-hour
-| entitlements that C-4 to C-8 confer adds no law of its own; the legal content
-| is entirely in HourPremium above. What this block does add is the derivation
-| of each hour's position in the Payroll Week, which C-4.1 makes operative.
+| NO-CLAUSE
 
 ```catala
 scope WeeklyOvertime:
+  assertion (for all h among hours we have
+    h.hour_of_week >= 1 and h.hour_of_week <= 168)
+
+  definition ordered_hours equals
+    sort all h among hours in increasing order of h.hour_of_week
+
   definition tally equals
-    combine all h among hours in acc
+    combine all h among ordered_hours in acc
     initially WeekTally {
       -- hours_counted: 0
-      -- payment: $0.00
+      -- rate_total: 0.0
       -- toil: 0.0
     }
     with (
@@ -335,13 +385,13 @@ scope WeeklyOvertime:
       in
       WeekTally {
         -- hours_counted: n
-        -- payment: acc.payment + hp.total_rate * base_hourly_rate
+        -- rate_total: acc.rate_total + hp.total_rate
         -- toil: acc.toil + (if hp.accrues_toil then 1.0 else 0.0)
       }
     )
 
   definition hours_worked equals tally.hours_counted
-  definition overtime_payment equals tally.payment
+  definition overtime_payment equals tally.rate_total * base_hourly_rate
   definition toil_hours equals tally.toil
 ```
 
@@ -386,6 +436,7 @@ scope WeeklyOvertime:
         "toil_hours"
       ],
       "internal": [
+        "ordered_hours",
         "tally"
       ],
       "context": []

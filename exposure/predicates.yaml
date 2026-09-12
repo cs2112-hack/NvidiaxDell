@@ -1,0 +1,206 @@
+# What it means for an attack to land, where the corpus itself does not already
+# say so by conflicting, falling silent or refusing.
+#
+# A predicate is a theory of liability held by somebody outside this company:
+# the reading of our own documents that an opponent will advance, the outcome
+# it produces, and the provisions that make that reading arguable. It is
+# written by a person and reviewed like any other legal content. Nothing in
+# this file was generated, and the fleet cannot add to it -- an agent chooses
+# facts, never what counts as a bad outcome. See src/lks/exposure.py.
+#
+# Every predicate must cite. A predicate asserts that an outcome is bad in law;
+# uncited, it is an opinion with a currency symbol attached, and a queue of
+# those is the report a General Counsel stops opening.
+#
+# `when` is a conjunction over the values the scope actually produced and the
+# facts it ran on. There is no `or`: two ways of being exposed are two
+# predicates, which costs four lines and buys a queue where each entry names
+# exactly one theory and can be closed by one amendment.
+
+predicates:
+
+  - id: EXP-P001
+    scope: Overtime.HourPremium
+    title: >-
+      C-8.1 read literally pays a Grade 5+ employee 1.25x for an overtime hour
+      the company pays nothing for
+    archetype: plaintiff's employment lawyer
+    source: policy
+    citations:
+      - EMP-ANNEX-C C-8.1
+      - EMP-ANNEX-C C-4.1
+      - EMP-ANNEX-C C-5.1
+    theory: >-
+      C-8.1 is drafted as a free-standing precedence rule: where two or more
+      provisions of C-4, C-5 or C-7 would apply to the same hour, "only the
+      single highest applicable multiplier applies". For a Grade 5 employee
+      working the 45th hour, two provisions bear on the hour. C-4.1 would give
+      1.25. C-5.1 gives nil. The highest of those is 1.25, so on C-8.1's own
+      words the employee is paid 1.25 and C-5.1 is displaced. The company's
+      encoding takes the opposite view, reading C-5.1's opening words "by way
+      of exception to C-4" as taking it outside C-8.1 altogether -- a
+      construction the Annex nowhere states, and one that has to be implied to
+      stop C-8.1 destroying C-5.1 for every senior employee. The claimant does
+      not need to win that argument outright. The company has to run it, on its
+      own document, against a literal reading, for every overtime hour ever
+      worked by a Grade 5 or above. This is AMB-02 in docs/DOCUMENT-DEFECTS.md,
+      recorded there as an open question and quantified here.
+    when:
+      - grade >= 5
+      - ordinal > 40
+      - ordinal <= 48
+      - is_public_holiday = false
+      - is_critical_incident = false
+      - multiplier = 0.0
+    contends: {output: multiplier, value: 1.25}
+
+  - id: EXP-P002
+    scope: Overtime.HourPremium
+    title: >-
+      The same literal reading of C-8.1 pays 1.5x above 48 hours, where the
+      hours are longest and the population most sympathetic
+    archetype: plaintiff's employment lawyer
+    source: policy
+    citations:
+      - EMP-ANNEX-C C-8.1
+      - EMP-ANNEX-C C-4.2
+      - EMP-ANNEX-C C-5.1
+    theory: >-
+      The argument in EXP-P001 does not stop at 48 hours; above that threshold
+      the competing provision is C-4.2 rather than C-4.1 and the multiplier it
+      would confer is 1.5. It is recorded separately because the amount differs
+      and because the population is different in character: these are the
+      weeks in which a senior employee worked more than 48 hours and was paid
+      nothing at all for the excess, which is the fact pattern a tribunal hears
+      first and the one that carries a working-time complaint alongside the
+      contractual claim.
+    when:
+      - grade >= 5
+      - ordinal > 48
+      - is_public_holiday = false
+      - is_critical_incident = false
+      - multiplier = 0.0
+    contends: {output: multiplier, value: 1.5}
+
+  - id: EXP-P003
+    scope: Overtime.HourPremium
+    title: >-
+      A public holiday hour inside the ordinary 40 pays 1.0x on the company's
+      reading and 2.0x on the words of C-7.1
+    archetype: plaintiff's employment lawyer
+    source: policy
+    citations:
+      - EMP-ANNEX-C C-7.1
+      - EMP-ANNEX-C C-3.1
+      - EMP-ANNEX-C C-2.1
+    theory: >-
+      C-7.1 says each hour worked on a Gazetted Public Holiday "is calculated
+      at 2.0 times the Base Hourly Rate", in substitution for any amount
+      otherwise payable under C-4. For an hour inside the ordinary 40 there is
+      no C-4 amount to substitute for, so the substitution proviso does no
+      work and the rate stands alone. The company treats one of those two
+      multiples as already covered by salary and pays the other, which is a
+      defensible reading of a clause that nowhere says so. A claimant reads
+      the clause as it is written: the hour is calculated at 2.0, and salary
+      buys the ordinary week, not the holiday. The difference is one times the
+      Base Hourly Rate for every bank holiday hour worked by every employee,
+      and the class is the whole workforce rather than one grade. AMB-04 in
+      docs/DOCUMENT-DEFECTS.md.
+    when:
+      - is_public_holiday = true
+      - ordinal <= 40
+      - multiplier = 2.0
+      - total_rate = 1.0
+    contends: {output: total_rate, value: 2.0}
+
+  - id: EXP-P004
+    scope: ServiceCredits.ServiceCredit
+    title: >-
+      L-4.4 extinguishes a 50% service credit on the company's own view that an
+      invoice is undisputed
+    archetype: customer's commercial counsel
+    source: policy
+    citations:
+      - MSA-SCH4 L-4.4
+      - MSA-SCH4 L-4.3
+      - MSA-SCH4 L-1.2
+    theory: >-
+      L-4.4 removes the credit entirely where the customer is in arrears of an
+      undisputed invoice for more than 30 days. Whether an invoice is disputed
+      is not defined anywhere in the Agreement and is not a fact the supplier
+      gets to find: a customer who has written to query the invoice will say it
+      was disputed, and the entire credit turns on that one word. In the month
+      this fires the service was below 95% availability, so L-4.3 fixes the
+      credit at 50% of the Monthly Service Charge -- the largest number the
+      Schedule can produce -- and L-4.4 is the only thing standing between the
+      customer and it. The customer's counsel will also pair this with L-1.2,
+      which makes credits the sole financial remedy: a supplier arguing that
+      the credit is barred is arguing that a month at under 95% availability
+      carries no remedy at all, which is the argument that gets a
+      sole-remedy clause looked at hard.
+    when:
+      - availability_percentage < 95.0
+      - arrears_days > 30
+      - invoice_undisputed = true
+      - credit_payable_percentage = 0.0
+    contends: {output: credit_payable_percentage, value: "@credit_cap_percentage"}
+
+  - id: EXP-P005
+    scope: ClaimWindow.ClaimAdmissible
+    title: >-
+      A claim inside the 120-day window is refused for want of a certification
+      E-6.2 does not require anyone to give
+    archetype: disgruntled former employee
+    source: policy
+    citations:
+      - EXP-POL E-6.1
+      - EXP-POL E-6.2
+      - EXP-POL E-6.3
+    theory: >-
+      E-6.2 makes a claim submitted between 60 and 120 days reimbursable
+      "where the Employee's line manager certifies that the delay was for good
+      reason". It says nothing about what happens when the manager is never
+      asked, has left, or simply declines to answer, and it imposes no duty on
+      the manager to consider the request at all. The employee's position is
+      that E-6.2 confers a right that the company has made conditional on its
+      own act, and that a policy term operating that way is unenforceable
+      against them; the expense was incurred for the company's benefit and the
+      refusal is a deduction from wages. There is no figure here because the
+      scope decides admissibility rather than an amount -- the exposure is the
+      aggregate of every claim refused in the window, which this system cannot
+      see until the operations feed carries expense claims.
+    when:
+      - days_elapsed > 60
+      - days_elapsed <= 120
+      - delay_certified_for_good_reason = false
+      - admissible = false
+
+# Two scopes that answer the same question. Nothing in the corpus says they do,
+# so the claim is declared here and then checked by execution: the watcher runs
+# both on the same facts and reports any disagreement as a contradiction. This
+# is also how an inbound contract is composed with ours -- the vendor's clause
+# becomes one side of a rivalry.
+rivalries:
+  - left: Commission.CommissionPayable
+    right: QuotaRelief.CommissionAfterRelief
+    question: >-
+      What commission is payable on a period with no qualifying absence? S-6.2
+      relieves quota for absence; with no absence periods the relieved quota is
+      the assigned quota, so the two scopes must agree to the penny or the plan
+      pays two different amounts depending on which provision is applied first.
+    citations:
+      - COMM-PLAN S-6.2
+      - COMM-PLAN S-3.1
+    # Keyed by the RIGHT scope's input name, valued with the LEFT scope's, since
+    # the grid comes from the left side and the right side is fed from it.
+    shared_inputs:
+      assigned_quota: quota
+    fixed_inputs:
+      # The condition under which the two scopes are asserted to agree. With no
+      # qualifying absence S-6.2 relieves nothing, so the relieved quota is the
+      # assigned quota and the two computations must coincide exactly. Any
+      # divergence here is the plan paying two different amounts for the same
+      # period depending on which provision is applied first.
+      absence_periods: []
+    agree_on:
+      - {left: commission_payable, right: commission_payable}

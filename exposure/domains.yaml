@@ -1,0 +1,404 @@
+# Which input values describe a person, a customer or a claim that actually
+# exists. This is the ONE thing on the exposure map that is declared rather
+# than computed, and it is declared here because it cannot be derived: the
+# documents say what follows from a fact, never which facts occur.
+#
+# It matters in exactly one direction. The corpus is silent, conflicted or
+# refusing over most of the arithmetic space, and almost all of that silence is
+# correct -- there is no 700th hour of a payroll week, so nothing needs to say
+# what it pays. Reporting those as exposure would bury the handful of places
+# where the corpus is silent about someone who is really there. So a narrowing
+# suppresses findings, which is why every narrowing below carries a `note`
+# saying what makes it true, and why `lks exposure doctor` fails a narrowing
+# that does not.
+#
+# Everything else about the map -- where the borders are, which clause drew
+# each one, which regions exist -- comes from the compiler. See
+# src/lks/surface.py. `probe` appears only where there is no numeric
+# neighbourhood to step through (dates, enumerations); those axes are reported
+# as declared rather than derived.
+
+scopes:
+
+  Overtime.HourPremium:
+    population: an employee-hour
+    measure:
+      output: total_rate
+      unit: multiple of Base Hourly Rate
+      scale_by: base_hourly_rate
+    # Who a LARGER value of each output favours. Not guessable: a larger
+    # overtime rate is good news for the employee, a larger recoverable
+    # clawback is good news for the employer, and both are money.
+    favours:
+      total_rate: counterparty
+      multiplier: counterparty
+      additional_payable: counterparty
+      night_premium: counterparty
+      accrues_toil: counterparty
+    inputs:
+      ordinal:
+        type: integer
+        realisable: [1, 168]
+        note: >-
+          C-2.2 makes the Payroll Week seven consecutive days, which contains
+          168 hours. An hour at position 0 or 200 is not an hour of anyone's
+          week, so the scope's own assertion refusing it is correct and not
+          exposure.
+      grade:
+        type: integer
+        realisable: [1, 9]
+        note: >-
+          C-2.4 defines Grade as the job grade recorded in the Company's HR
+          system. The scale in use runs 1 to 9; grade 0 and grade 12 name
+          nobody. Widen this if the scale changes, or the map will stop
+          reporting silence about employees who exist.
+      is_public_holiday: {type: boolean}
+      is_critical_incident: {type: boolean}
+      is_night: {type: boolean}
+      has_standing_shift_allowance: {type: boolean}
+
+  ServiceCredits.ServiceCredit:
+    population: a customer service-month
+    measure: {output: credit_amount, unit: money}
+    favours:
+      credit_amount: counterparty
+      credit_percentage: counterparty
+      credit_payable_percentage: counterparty
+    inputs:
+      availability_percentage:
+        type: decimal
+        realisable: [0.0, 100.0]
+        note: A percentage of a Measurement Period cannot fall outside 0 to 100.
+      monthly_service_charge:
+        type: money
+        realisable: [0.0, 500000.0]
+        note: >-
+          The Monthly Service Charge is a contracted figure. Zero is realisable
+          (a credited or waived month); the upper bound is set well above the
+          largest charge on the book so that a cap interaction at scale is
+          still reached.
+      arrears_days:
+        type: integer
+        realisable: [0, 365]
+        note: >-
+          Days an invoice has been in arrears. Negative arrears are not a state
+          an account can be in; beyond a year the account is in collections and
+          L-4.4 is not what governs it.
+      invoice_undisputed: {type: boolean}
+
+  Availability.AvailabilityPercentage:
+    population: a Measurement Period
+    inputs:
+      total_minutes:
+        type: integer
+        realisable: [1, 44640]
+        note: >-
+          L-2.1 makes the Measurement Period a calendar month. The longest is
+          31 days, 44,640 minutes. A period of zero minutes is not a period.
+      minutes_not_available:
+        type: integer
+        realisable: [0, 44640]
+        note: Cannot be negative, and cannot exceed the longest possible period.
+      excluded_minutes:
+        type: integer
+        realisable: [0, 44640]
+        note: As above.
+      scheduled_maintenance_excess_minutes:
+        type: integer
+        realisable: [0, 44640]
+        note: As above. L-4.5 makes the excess over 8 hours the operative quantity.
+
+  ClaimWindow.ClaimAdmissible:
+    population: an expense claim
+    favours:
+      admissible: counterparty
+    inputs:
+      expense_incurred_date:
+        type: date
+        probe: ["2026-01-15", "2026-02-28", "2026-12-31"]
+        note: >-
+          A mid-month date, a month-end, and a year-end: the three shapes on
+          which day-count arithmetic across a boundary goes wrong. E-6 counts
+          in days from this date, so the borders live on `days_elapsed` and
+          are reached by varying the submission date against these.
+      submission_date:
+        type: date
+        probe: ["2026-01-15", "2026-03-16", "2026-03-17", "2026-05-15",
+                "2026-05-16", "2027-01-14"]
+        note: >-
+          Same day, and either side of the 60th and 120th day after
+          2026-01-15, which are the two thresholds E-6.1 to E-6.3 draw, plus a
+          submission a year late.
+      delay_certified_for_good_reason: {type: boolean}
+    coherence:
+      - holds: submission_date >= expense_incurred_date
+        note: >-
+          A claim cannot be submitted before the expense it claims for was
+          incurred. E-6 counts days forward from the expense, so the reverse
+          ordering is not a late claim, it is not a claim.
+
+  Clawback.RecoverableCommission:
+    population: a paid commission
+    measure: {output: recoverable_amount, unit: money}
+    favours:
+      # S-7 recovery runs FROM the former employee TO the company, so a larger
+      # figure is the company's gain. Recovering more than the plan permits is
+      # a claim against us, not a saving.
+      recoverable_amount: company
+      recovery_time_barred: counterparty
+    inputs:
+      commission_paid:
+        type: money
+        realisable: [0.0, 250000.0]
+        note: >-
+          A single commission payment under the plan. Zero is realisable; the
+          ceiling is above the largest single payment the plan can produce
+          given the S-5 cap.
+      payment_date:
+        type: date
+        probe: ["2024-01-31", "2025-06-30"]
+        note: Two payment dates, one more than 24 months before the assessments below.
+      assessment_date:
+        type: date
+        probe: ["2026-01-30", "2026-01-31", "2026-02-01", "2027-06-30"]
+        note: >-
+          Either side of the 24-month long stop S-7.3 draws from 2024-01-31,
+          and the day itself; plus one well beyond it.
+      is_churned_contract: {type: boolean}
+      terminated_for_company_material_breach: {type: boolean}
+    coherence:
+      - holds: assessment_date >= payment_date
+        note: >-
+          S-7.3 runs its 24-month long stop forward from the date of payment.
+          Assessing a clawback before the commission was paid is not an early
+          assessment, it is not an assessment.
+
+  Accommodation.NightlyAccommodation:
+    population: a night away
+    measure: {output: reimbursable_amount, unit: money}
+    favours:
+      reimbursable_amount: counterparty
+      accommodation_reimbursable: counterparty
+      parking_reimbursable: counterparty
+    inputs:
+      city_tier: {type: enum}
+      room_cost:
+        type: money
+        realisable: [0.0, 1000.0]
+        note: >-
+          A nightly room rate. The E-4.1 caps are £200/£160/£120, so a ceiling
+          of £1,000 reaches well past every cap including the E-4.3 override.
+      local_taxes:
+        type: money
+        realisable: [0.0, 300.0]
+        note: Tax on one night's room. Cannot be negative.
+      mandatory_resort_or_city_charge:
+        type: money
+        realisable: [0.0, 300.0]
+        note: A per-night mandatory charge. Cannot be negative.
+      parking_cost:
+        type: money
+        realisable: [0.0, 200.0]
+        note: One night's parking. Cannot be negative.
+      no_compliant_accommodation_available_evidenced: {type: boolean}
+
+  GroundTransport.TaxiFare:
+    population: a taxi journey
+    measure: {output: reimbursable_amount, unit: money}
+    favours:
+      reimbursable_amount: counterparty
+    inputs:
+      journey_cost:
+        type: money
+        realisable: [0.0, 500.0]
+        note: One journey. The E-5.3 cap is £60, so £500 reaches far past it.
+      is_airport_journey: {type: boolean}
+      journey_start_hour:
+        type: integer
+        realisable: [0, 23]
+        note: The hour of a clock time. There is no 24th or -1st hour.
+      journey_start_minute:
+        type: integer
+        realisable: [0, 59]
+        note: The minute of a clock time.
+
+  LeaveAccrual.CarryForward:
+    population: an employee leave year
+    measure:
+      output: forfeited_days
+      unit: days of annual leave
+      scale_by: daily_rate
+    favours:
+      # Forfeiting leave is the company's gain, so this one runs the other way
+      # from every other money-bearing output in this file.
+      forfeited_days: company
+      carry_forward_days: counterparty
+      permitted_carry_forward_days: counterparty
+      forfeited_days_payable_on_termination: counterparty
+    inputs:
+      accrued_untaken_days:
+        type: decimal
+        realisable: [0.0, 60.0]
+        note: >-
+          C-9 accrues at most 28 days a year and C-9.3 permits carry-forward,
+          so a balance above 60 cannot arise without two full years untaken,
+          which C-9.4 forfeits first. Negative leave is not a balance.
+      prevented_from_taking_leave_by_long_term_sickness: {type: boolean}
+
+  NdaSurvival.SurvivalEnd:
+    population: a disclosure under the NDA
+    favours:
+      # Longer-surviving obligations bind both parties under a mutual NDA, so
+      # neither side is simply the beneficiary. Left undeclared deliberately:
+      # a divergence here is reported as a difference, which is the truth.
+      obligations_subsist: counterparty
+    inputs:
+      effective_date:
+        type: date
+        probe: ["2020-01-01"]
+        note: One execution date; the survival arithmetic runs forward from it.
+      termination_notice_date:
+        type: date
+        probe: ["2023-01-01", "2026-01-01"]
+        note: A termination inside the term and one after the probe assessments.
+      date_ceased_to_hold:
+        type: date
+        probe: ["2024-01-01", "2030-01-01"]
+        note: >-
+          N-3.2 runs the trade-secret limb from the date the information ceased
+          to be held; one date inside the ordinary survival period and one long
+          after it.
+      assessment_date:
+        type: date
+        probe: ["2025-12-31", "2026-01-01", "2028-01-02", "2031-01-02"]
+        note: >-
+          Either side of the N-3.1 survival end measured from 2023-01-01, and
+          two later dates that reach the trade-secret limb.
+      is_personal_data: {type: boolean}
+      information_is_trade_secret: {type: boolean}
+      information_remains_trade_secret: {type: boolean}
+    coherence:
+      - holds: termination_notice_date >= effective_date
+        note: An agreement cannot be terminated before it was entered into.
+      - holds: assessment_date >= effective_date
+        note: >-
+          N-3 asks whether obligations subsist at a date. A date before the
+          agreement existed is not a date at which to ask.
+
+  Commission.CommissionPayable:
+    population: a salesperson's commission period
+    measure: {output: commission_payable, unit: money}
+    favours:
+      commission_payable: counterparty
+      commission_before_cap: counterparty
+      cap: counterparty
+    inputs:
+      net_booked_revenue:
+        type: money
+        realisable: [0.0, 5000000.0]
+        note: >-
+          Revenue booked in the period. Zero is realisable; the ceiling is
+          above the largest period on the book, so the S-5 cap is reached.
+      new_logo_share:
+        type: decimal
+        realisable: [0.0, 1.0]
+        note: A share of revenue. Outside 0 to 1 it is not a share.
+      quota:
+        type: decimal
+        realisable: [0.0, 5000000.0]
+        note: >-
+          An assigned quota. Zero is included deliberately: a salesperson with
+          no quota assigned is a real and recurring case, and S-2.2 divides by
+          it.
+      commencement_date:
+        type: date
+        probe: ["2024-01-01", "2026-07-01"]
+        note: >-
+          One commencement long before the period and one part-way through it,
+          which is what S-8's leaver and joiner provisions turn on.
+      annual_base_salary:
+        type: money
+        realisable: [0.0, 400000.0]
+        note: A base salary. The S-5 cap is a multiple of it.
+
+  MealPerDiem.MealPerDiemForDay:
+    population: a day away
+    measure: {output: reimbursable_amount, unit: money}
+    favours:
+      reimbursable_amount: counterparty
+      adjusted_per_diem: counterparty
+      per_diem_cap: counterparty
+    inputs:
+      city_tier: {type: enum}
+      client_billable:
+        type: struct
+        probe:
+          - {is_client_billable: false}
+          - {is_client_billable: true}
+          - {is_client_billable: true, sow_per_diem: 90.0}
+        note: >-
+          E-3.2 turns on whether the travel is Client-Billable and, if it is,
+          on whether the statement of work specifies a per diem. Those are the
+          three states the clause distinguishes: not billable, billable with no
+          figure specified, billable with one.
+      pre_approval:
+        type: struct
+        probe:
+          - {obtained: false, in_writing: false, obtained_at: "2026-03-01",
+             approver_authority_limit: 0.0}
+          - {obtained: true, in_writing: true, obtained_at: "2026-03-01",
+             approver_authority_limit: 500.0, specified_amount: 75.0}
+          - {obtained: true, in_writing: false, obtained_at: "2026-03-01",
+             approver_authority_limit: 500.0, specified_amount: 75.0}
+          - {obtained: true, in_writing: true, obtained_at: "2026-03-20",
+             approver_authority_limit: 500.0, specified_amount: 75.0}
+        note: >-
+          E-2.4 requires approval obtained in writing BEFORE the expense is
+          incurred, and E-3.3 raises the cap to the approved amount. The four
+          scenarios are: none; a valid one; one obtained but not in writing;
+          and one obtained after the expense date of 2026-03-10, which is the
+          case E-2.4 is drafted to exclude.
+      incurred_on:
+        type: date
+        probe: ["2026-03-10"]
+        note: >-
+          One ordinary weekday. E-3 does not turn on the date; it is carried so
+          the scope can be executed.
+      meals_provided_free:
+        type: integer
+        realisable: [0, 3]
+        note: >-
+          E-3.2 deducts for meals provided free, and a day has three. A
+          negative count is not a state of the world, and the scope's assertion
+          refusing it is correct.
+      meal_expense_incurred:
+        type: money
+        realisable: [0.0, 400.0]
+        note: One day's meals. The caps are far below this, so every cap is reached.
+      on_critical_incident_response: {type: boolean}
+
+  ErasureRequest.ErasureDeadline:
+    population: a data subject's erasure request
+    favours:
+      deletion_refused: company
+    inputs:
+      request_date:
+        type: date
+        probe: ["2026-01-05"]
+        note: One request date; R-5 counts forward from it.
+      verification_date:
+        type: date
+        probe: ["2026-01-05", "2026-01-19", "2026-02-20"]
+        note: >-
+          Verified the same day, a fortnight later, and after the month R-5.1
+          allows -- the three shapes that decide whether the deadline runs from
+          the request or from verification.
+      erasure_request_valid: {type: boolean}
+      retention_required_by_legal_obligation: {type: boolean}
+      retention_required_for_legal_claims: {type: boolean}
+      legal_hold_blocks_erasure: {type: boolean}
+    coherence:
+      - holds: verification_date >= request_date
+        note: >-
+          R-5 verifies the identity of someone who has already asked. A
+          verification predating the request is not an early verification.

@@ -1,0 +1,310 @@
+# Data Retention and Deletion Standard — R-2 and R-3 retention periods
+
+> Module Retention
+
+This module answers: for how long is a record retained, absent a Legal Hold?
+It encodes the R-3.1 period table and its two limb-specific exceptions. The
+Legal Hold override in R-4 lives in `Legal_hold`, which consumes
+`retention_end_date` from here — R-4.1 is expressed as "notwithstanding R-3",
+so it must sit below the whole of this module's output rather than inside it.
+
+**CE-0020.** R-6.1's backup bound used to be computed here, as
+`retention_end_date + 90 day`. That was the wrong trigger. R-6.1 runs its
+90-day cycle from deletion **from production systems**, and this scope cannot
+see that event: R-4.1 and R-4.3 can defer production deletion for years past
+the R-3 expiry, and R-1.2 lets a business unit bring it forward. R-6.1 is now
+encoded once, in `Legal_hold`, immediately below the clauses that fix the
+production-deletion date — see the R-6 section of that module for the full
+reasoning. This scope answers only the R-3 question it can answer, and offers
+no backup date that a reader could mistake for one.
+
+R-1.2 (PROSE) makes every period here a **maximum**: a computed
+`retention_end_date` is a ceiling, never an instruction to keep. R-2.4 and
+R-7.2 (PROSE) qualify it further. Those caveats are attached by the vector
+engine, not restated here.
+
+## Prologue — declarations
+
+| DATA-RET R-2.1 (006-data-retention-standard.md:26)
+|
+| "Data Class" means the classification assigned to a record under the
+| Company's information classification policy, being one of: Employee
+| Record, Customer Contract, Financial Record, Marketing Contact, Security
+| Log, or Candidate Record.
+
+| DATA-RET R-2.2 (006-data-retention-standard.md:31)
+|
+| "Retention Trigger" means the event from which the retention period is
+| measured, as specified in R-3.
+
+R-2.1 contributes the closed six-valued enumeration on which the whole R-3.1
+table is keyed; the classification itself is assigned under the information
+classification policy and so arrives as an input. R-2.2 contributes
+`retention_trigger_date`, the date of the event R-3.1 measures each period
+from — which event that is differs per limb and is stated in R-3.1 itself.
+
+`statutory_retention_applies` and `statutory_retention_period` are the two
+**judgement inputs** of R-3.3: whether pensions or payroll legislation
+requires a longer period, and how long, is a legal determination this
+Standard does not contain.
+
+`most_recent_engagement_date` is the second of the two dates R-3.1(d) takes
+the later of; it is `Absent` for a contact who has never engaged.
+`talent_pool_consent_date` is `Absent` where the candidate has given no
+talent-pool consent, and `consent_renewal_dates` lists each recorded renewal
+of that consent.
+
+```catala-metadata
+declaration enumeration DataClass:
+  -- EmployeeRecord
+  -- CustomerContract
+  -- FinancialRecord
+  -- MarketingContact
+  -- SecurityLog
+  -- CandidateRecord
+
+declaration scope RetentionEnd:
+  input data_class content DataClass
+  input retention_trigger_date content date
+  input most_recent_engagement_date content optional of date
+  input talent_pool_consent_date content optional of date
+  input consent_renewal_dates content list of date
+  input statutory_retention_applies content boolean
+  input statutory_retention_period content duration
+  output retention_end_date content date
+```
+
+| NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Catala
+| date addition raises on an ambiguous result, and this scope adds month and
+| year durations to arbitrary trigger dates (6 years from 29 February, 13
+| months from 31 January), so a mode must be declared. `date round down` is
+| chosen because R-1.2 states that where this Standard specifies a maximum
+| period business units are expected to delete earlier: the period is a
+| ceiling, so resolving an ambiguous month-end to the previous existing day
+| never authorises retention for a day the Standard does not allow.
+| Rounding up would extend every such period by a day.
+|
+| That justification is about the Standard's own periods, and R-3.3's period
+| is not one of them: it is imposed by pensions or payroll legislation, and a
+| statutory retention period is a floor rather than a maximum. Rounding it
+| down would have the Company destroy a record a day before the legislation
+| allows — a breach, where rounding an R-1.2 maximum down is at worst early
+| deletion the Standard positively encourages. So R-3.3 rounds the other way,
+| by calling `Date.add_round_up` explicitly rather than relying on the scope
+| mode, exactly as `NdaSurvival` rounds its periods of protection up
+| throughout. The scope mode stays `date round down` because every other
+| period in this scope is an R-1.2 maximum, and limb (a)'s own six years
+| keep rounding down even where R-3.3 displaces the result.
+|
+| CE-0029. That round-up is available only where R-3.3 actually governs, and
+| R-3.3 governs only where the statutory period is LONGER than limb (a)'s six
+| years. Applied to a statutory period that is not longer it does not protect
+| a statutory floor at all — it lengthens the Standard's own maximum by a day,
+| which is the one thing `date round down` was chosen to prevent. The
+| engagement of R-3.3 is therefore tested in its condition, below, and not
+| left to a maximum taken over the two dates.
+
+```catala
+scope RetentionEnd:
+  date round down
+```
+
+## R-3 Retention periods
+
+| DATA-RET R-3.1 (006-data-retention-standard.md:45)
+|
+| Records are retained for the following periods measured from the
+| applicable Retention Trigger:
+|
+|   (a) Employee Record: 6 years from the end of employment;
+|   (b) Customer Contract: 7 years from the expiry or termination of the
+|       contract;
+|   (c) Financial Record: 7 years from the end of the financial year to
+|       which it relates;
+|   (d) Marketing Contact: 24 months from the later of the date of
+|       collection and the date of the most recent engagement by the
+|       contact;
+|   (e) Security Log: 13 months from the date of the logged event;
+|   (f) Candidate Record: 12 months from the date on which the recruitment
+|       process concluded.
+
+Each limb gets its own label, because R-3.2 and R-3.3 are exceptions to
+*named limbs* — (f) and (a) — and not to the table as a whole.
+
+Limb (d) is the only one whose trigger is a maximum over two dates: the 24
+months run from whichever of `retention_trigger_date` (collection) and
+`most_recent_engagement_date` is later. Running them from the collection date
+alone would under-retain every contact who has since engaged.
+
+Durations keep the clause's own units — `6 year`, `24 month`, `13 month` —
+because Catala days and months are incomparable.
+
+```catala
+scope RetentionEnd:
+  label r3_1_a definition retention_end_date
+    under condition data_class with pattern EmployeeRecord
+    consequence equals retention_trigger_date + 6 year
+
+  label r3_1_b definition retention_end_date
+    under condition data_class with pattern CustomerContract
+    consequence equals retention_trigger_date + 7 year
+
+  label r3_1_c definition retention_end_date
+    under condition data_class with pattern FinancialRecord
+    consequence equals retention_trigger_date + 7 year
+
+  label r3_1_d definition retention_end_date
+    under condition data_class with pattern MarketingContact
+    consequence equals
+      (match most_recent_engagement_date with pattern
+       -- Absent: retention_trigger_date
+       -- Present content engaged:
+            Date.max of retention_trigger_date, engaged)
+      + 24 month
+
+  label r3_1_e definition retention_end_date
+    under condition data_class with pattern SecurityLog
+    consequence equals retention_trigger_date + 13 month
+
+  label r3_1_f definition retention_end_date
+    under condition data_class with pattern CandidateRecord
+    consequence equals retention_trigger_date + 12 month
+```
+
+| DATA-RET R-3.2 (006-data-retention-standard.md:58)
+|
+| By way of exception to R-3.1(f), where the candidate has given consent to
+| be retained on a talent pool, the Candidate Record is retained for 24
+| months from the date of consent, and the period restarts on each renewal
+| of consent.
+
+An exception to `r3_1_f` alone, and the condition repeats that limb's own
+condition — `data_class with pattern CandidateRecord`. A Catala exception
+does not inherit its parent's condition, so omitting it would apply the
+talent-pool period to an Employee Record or a Security Log whenever a consent
+date happened to be on file.
+
+"The period restarts on each renewal of consent" means the 24 months run from
+the most recent of the original consent and every recorded renewal, so the
+consent date and the renewal list are combined with a maximum. Taking the
+maximum over the renewals alone would regress to an earlier date if the
+register held only renewals predating the consent.
+
+```catala
+```
+
+| DATA-RET R-3.3 (006-data-retention-standard.md:62)
+|
+| By way of exception to R-3.1(a), records required to be retained for a
+| longer period under pensions or payroll legislation are retained for the
+| period so required.
+
+**HYBRID.** The consequence is arithmetic, but whether pensions or payroll
+legislation requires a longer period — and how long — is a legal
+determination this Standard does not contain, so both are judgement inputs.
+
+An exception to `r3_1_a` alone, and again the condition repeats that limb's
+condition `data_class with pattern EmployeeRecord`: without it, a standing
+determination that payroll legislation applies would lengthen the period for
+Customer Contracts and Security Logs too.
+
+The statutory period runs from the same Retention Trigger as limb (a), the
+end of employment. The clause bites only where the statutory period is the
+*longer*, which means a supplied period shorter than six years cannot cut
+limb (a) down.
+
+It is also the one period here that is a **floor rather than a maximum**, so
+it is the one that rounds *up*: resolving ten years from 29 February back to
+28 February would destroy the record a day before the legislation permits,
+which is the one direction rounding must not err in. Hence the explicit
+`Date.add_round_up` against the scope's own mode, argued in full in the
+rounding note above. Limb (a)'s six years keep rounding down inside their
+R-1.2 maximum, so one record can see both directions — correctly, because
+the two periods are different kinds of thing.
+
+**CE-0029.** "A longer period" is a comparative, and until now the module did
+not test it: the condition asked only whether a statutory period applied, and
+the comparison was left to a `Date.max` over limb (a)'s date and the
+rounded-up statutory date. On a statutory pensions period of exactly six years
+— equal, not longer — that put the round-up to work where R-3.3 does not
+engage at all, and an Employee Record whose employment ended on 29 February
+2020 came back as retainable until 1 March 2026 where R-3.1(a) read with R-1.2
+allows 28 February 2026. The module's two routes to the same legal quantity
+disagreed by a day: the same trigger with `statutory_retention_applies` false
+gave 28 February, and the same six years expressed as 72 months gave 1 March.
+A day of retention the Standard does not authorise is a real defect, because
+R-1.2 makes its periods maxima and the whole point of holding a record is that
+it is held.
+
+So the comparative is now in the condition. The statutory period is compared
+with limb (a)'s six years as a period — by resolving both from the same
+Retention Trigger, which is the only way the Standard offers to compare them,
+Catala's months and days being incomparable as durations — and R-3.3 engages
+only where the statutory period reaches beyond limb (a)'s own date. That
+comparison resolves the statutory period *downwards*: the question it asks is
+whether the period exceeds six years as a length of time, and a period that
+exceeds it only once rounded up (six years from 29 February) does not. Where
+R-3.3 does engage, the floor reasoning above is untouched and the period is
+resolved upwards, so a genuine ten-year statutory period still runs to 1 March
+2030. The `Date.max` is kept as the invariant it always was — R-3.3 cannot
+shorten limb (a) — but on the narrowed condition it can no longer be the thing
+that decides the answer.
+
+| DATA-RET R-3.3 (006-data-retention-standard.md:62)
+|
+| By way of exception to R-3.1(a), records required to be retained for a
+| longer period under pensions or payroll legislation are retained for the
+| period so required.
+
+The period so required cannot run backwards, and R-3.3 is what fixes that
+bound. What the clause receives is a period for which records "are required to
+be retained ... under pensions or payroll legislation": a length of time for
+which a record must be kept, and the shortest such requirement is to keep it
+for no time at all. A negative period is not a requirement to retain anything,
+and the clause's own comparative — "a **longer** period" — presupposes a period
+that can be compared with limb (a)'s six years as a duration of retention. The
+bound is therefore the clause's and not a programming convenience, and the
+scope declines rather than taking the later of two dates one of which precedes
+its own trigger.
+
+Two points of technique, both about staying inside what the clause allows.
+
+The guard is asserted only where the R-3.3 judgement is that a statutory
+period applies. `statutory_retention_applies` and `statutory_retention_period`
+are one judgement in two inputs, and where the first is false the second is
+not a period the Standard is relying on at all — asserting against it then
+would refuse a question R-3.3 answers perfectly well, which is the over-tight
+guard's own kind of defect.
+
+And the bound is expressed by adding the period to the trigger date rather
+than by comparing the period with `0 day`. A statutory period may well be
+stated in mixed units — six years and six months, say — and Catala's days and
+months are incomparable, so `statutory_retention_period >= 0 day` raises
+"ambiguous comparison between durations in different units" on exactly those
+lawful inputs. That is verified, not assumed: the duration comparison holds for
+a pure-month or pure-day period and raises for a mixed one. Date addition is
+total under the declared rounding mode, so the date form guards every period
+the clause can supply and refuses only the ones it cannot.
+
+```catala
+scope RetentionEnd:
+  assertion
+    if statutory_retention_applies
+    then (Date.add_round_up of
+            retention_trigger_date, statutory_retention_period)
+         >= retention_trigger_date
+    else true
+
+  label r3_3 exception r3_1_a definition retention_end_date
+    under condition
+      (data_class with pattern EmployeeRecord)
+      and statutory_retention_applies
+      and (Date.add_round_down of
+             retention_trigger_date, statutory_retention_period)
+          > retention_trigger_date + 6 year
+    consequence equals
+      Date.max of
+        (retention_trigger_date + 6 year),
+        (Date.add_round_up of
+           retention_trigger_date, statutory_retention_period)
+```

@@ -1,0 +1,110 @@
+# Expense Reimbursement Policy — submission and time limits
+
+> Module ClaimWindow
+
+E-6 is a three-step staircase on one quantity: the number of days between the
+date the expense was incurred and the date the claim was submitted. All three
+clauses define the same variable, `admissible`, in one exception chain, because
+E-6.2 is expressly "by way of exception to E-6.1" and E-6.3 bounds E-6.2.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration scope ClaimAdmissible:
+  input expense_incurred_date content date
+  input submission_date content date
+  input delay_certified_for_good_reason content boolean
+  output days_elapsed content integer
+  output admissible content boolean
+```
+
+`delay_certified_for_good_reason` is the **judgement input** for this module.
+E-6.2 is HYBRID: the 60/120-day window is exact arithmetic, but "good reason"
+has no test in the Policy, and the thing that triggers the exception is the line
+manager's certification of it. That certification is supplied to the scope. The
+module does not, and must not, infer good reason from the length of the delay,
+from the amount claimed, or from anything else.
+
+## E-6.1 The 60-day window
+
+| EXP-POL E-6.1 (002-expense-reimbursement-policy.md:94)
+|
+| A claim must be submitted within 60 days after the date on which the
+| expense was incurred.
+
+The elapsed period runs from the date the expense was incurred, so a claim
+submitted on the day the expense was incurred has elapsed nothing. "Within 60
+days" includes the sixtieth day: day 60 is admissible on this limb and day 61 is
+not.
+
+The scope asserts that the claim was not submitted before the expense was
+incurred, because a negative elapsed period is not a fact E-6 contemplates and
+silently admitting it would make the staircase meaningless.
+
+```catala
+scope ClaimAdmissible:
+  definition days_elapsed equals
+    integer of ((submission_date - expense_incurred_date) / (1 day))
+
+  label e6_1 definition admissible equals days_elapsed <= 60
+
+  assertion submission_date >= expense_incurred_date
+```
+
+## E-6.2 Late claim certified for good reason
+
+| EXP-POL E-6.2 (002-expense-reimbursement-policy.md:97)
+|
+| By way of exception to E-6.1, a claim submitted after 60 days but
+| within 120 days may be reimbursed where the Employee's line manager certifies
+| that the delay was for good reason.
+
+An exception to `e6_1`, and the window it carries is its own: "after 60 days
+but within 120 days" is days 61 to 120 inclusive. Both bounds are stated in the
+condition rather than inherited — a Catala exception does not inherit its
+parent's condition, and here the parent's condition (`days_elapsed <= 60`) is
+not one that may hold at all: E-6.2 governs precisely the days on which E-6.1's
+own test fails, which is why the window is restated as `> 60 and <= 120`.
+
+E-6.2 is permissive — "may be reimbursed" — and this scope answers the question
+E-6 asks, which is whether the claim is admissible. With the certification in
+hand it is; whether the Company then exercises a discretion to refuse is not a
+second gate this module invents, and the permissive wording is carried in the
+vector store as prose against this clause.
+
+```catala
+scope ClaimAdmissible:
+  label e6_2 exception e6_1 definition admissible
+    under condition
+      days_elapsed > 61
+      and days_elapsed <= 120
+      and delay_certified_for_good_reason
+    consequence equals true
+```
+
+## E-6.3 The 120-day long-stop
+
+| EXP-POL E-6.3 (002-expense-reimbursement-policy.md:101)
+|
+| No claim submitted more than 120 days after the expense was incurred
+| will be reimbursed in any circumstances.
+
+"In any circumstances" makes E-6.3 absolute, so it sits below `e6_2` in the
+chain: it defeats the certification route and admits no exception of its own.
+"More than 120 days" is strict, so day 120 is not caught by E-6.3 and day 121
+is.
+
+On the encoding above E-6.3 changes no answer that E-6.1 and E-6.2 would not
+already give — E-6.2's own upper bound stops at 120 and E-6.1 returns
+inadmissible beyond 60 — and it is encoded anyway, at the depth the text puts
+it, because the long-stop is the clause a reader needs cited when a 200-day
+claim with a glowing certification is refused. An encoding that dropped it would
+be relying on E-6.2's bound to do E-6.3's work, and a future amendment widening
+E-6.2 would then silently defeat the long-stop.
+
+```catala
+scope ClaimAdmissible:
+  label e6_3 exception e6_2 definition admissible
+    under condition days_elapsed > 120
+    consequence equals false
+```

@@ -1,0 +1,132 @@
+# Data Retention and Deletion Standard — R-5 Erasure requests
+
+> Module ErasureRequest
+
+This module answers: by when must personal data be deleted on a data
+subject's request for erasure?
+
+It is the densest judgement cluster in the corpus — four judgement inputs
+govern one 30-day arithmetic — and the reason both its clauses are HYBRID.
+Encoded as plain rules, the module would assert a deletion due date in
+precisely the cases where the law forbids deletion, and would assert one for
+a request nobody has yet held to be valid.
+
+`deletion_due_date` is an `optional of date`, and `Absent` means **no
+deletion deadline has arisen**: because the request has not been held valid,
+because it has not been verified, or because R-5.2 disapplies the deadline
+altogether. `deletion_refused` distinguishes the last of those, which is the
+only one of the three that is a refusal.
+
+## Prologue — declarations
+
+`erasure_request_valid` is the **judgement input** of R-5.1: whether a
+request is a "valid request for erasure" turns on the requester's standing,
+the ground relied on, and whether the request is manifestly unfounded or
+excessive, none of which this Standard defines.
+
+`retention_required_by_legal_obligation` and
+`retention_required_for_legal_claims` are the two **judgement inputs** of
+R-5.2's first and second limbs. Its third limb, a Legal Hold, is computable,
+and arrives as `legal_hold_blocks_erasure` — which is
+`LegalHold.HoldEffect.erasure_blocked_by_hold`, so it already carries R-4.2's
+own judgement that applicable data protection law permits the retention. A
+plain "is a hold in force" input here would let a hold defeat an erasure
+request unconditionally, which is what R-4.2 says it does not do.
+
+`verification_date` is `Absent` until the Company has verified the request.
+
+```catala-metadata
+declaration scope ErasureDeadline:
+  input request_date content date
+  input verification_date content optional of date
+  input erasure_request_valid content boolean
+  input retention_required_by_legal_obligation content boolean
+  input retention_required_for_legal_claims content boolean
+  input legal_hold_blocks_erasure content boolean
+  output deletion_due_date content optional of date
+  output deletion_refused content boolean
+```
+
+| NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Only the
+| 30 days of R-5.1 are added in this scope, which as a day duration is never
+| ambiguous, but the mode is declared so the arithmetic is total by
+| construction; `date round down` matches the other DATA-RET modules.
+|
+| The assertion is a well-formedness invariant on the inputs, not a rule of
+| the Standard: a request cannot be verified before it is made. It is what
+| `request_date` is for. R-5.1 measures its 30 days from verification and
+| not from the request, so the request date enters no computed date at all,
+| and holding both dates is how a reader can see that.
+
+```catala
+scope ErasureDeadline:
+  date round down
+  assertion
+    (match verification_date with pattern
+     -- Absent: true
+     -- Present content verified: verified >= request_date)
+```
+
+## R-5 Erasure requests
+
+| DATA-RET R-5.1 (006-data-retention-standard.md:81)
+|
+| Where a data subject makes a valid request for erasure, the Company will
+| delete the relevant personal data within 30 days of verifying the request.
+
+**HYBRID.** The deadline is exact; validity is not. So the base case is that
+no deadline has arisen, and the deadline is an exception that fires only on
+the judgement that the request is valid. This is the whole point of the
+HYBRID treatment: the module must not assert a 30-day deletion deadline for a
+request nobody has validated.
+
+The 30 days run from **verification**, not from the request. A valid request
+that has not yet been verified therefore has no deadline either — the clause
+gives the clock no start — and `Absent` is returned for that reason as well.
+
+A request that is valid and not caught by R-5.2 is one the Company will
+delete, so it is not refused. R-5.2 supplies the only ground of refusal.
+
+```catala
+scope ErasureDeadline:
+  label r5_1_none definition deletion_due_date equals Absent
+
+  label r5_1_not_refused definition deletion_refused equals false
+```
+
+| DATA-RET R-5.2 (006-data-retention-standard.md:84)
+|
+| By way of exception to R-5.1, the Company will not delete personal data
+| where it is required to retain it to comply with a legal obligation, for
+| the establishment or exercise of legal claims, or where a Legal Hold
+| applies.
+
+**HYBRID**, and an exception to R-5.1 at the depth the text states, because
+it disapplies the R-5.1 deadline entirely. Its three limbs are alternatives,
+so any one of them suffices.
+
+Both definitions repeat the parent's condition `erasure_request_valid`. A
+Catala exception does not inherit its parent's condition, and without the
+repetition R-5.2 would fire on an invalid request too — reporting the
+Company as *refusing* a request it never held to be valid, which the clause
+does not say and which misdescribes the record. R-5.2 is an exception to
+R-5.1; it has no application where R-5.1 does not.
+
+```catala
+scope ErasureDeadline:
+  label r5_2 exception r5_1 definition deletion_due_date
+    under condition
+      erasure_request_valid
+      and (retention_required_by_legal_obligation
+           or retention_required_for_legal_claims
+           or legal_hold_blocks_erasure)
+    consequence equals Absent
+
+  label r5_2_refused exception r5_1_not_refused definition deletion_refused
+    under condition
+      erasure_request_valid
+      and (retention_required_by_legal_obligation
+           or retention_required_for_legal_claims
+           or legal_hold_blocks_erasure)
+    consequence equals true
+```

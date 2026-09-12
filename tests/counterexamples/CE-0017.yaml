@@ -36,10 +36,6 @@ expected:
   agreement_end_date: '2026-07-01'
   obligations_subsist: true
   survival_end_date: '2026-07-01'
-  note: obligations_subsist=true is compelled on any reading. survival_end_date must be at
-    least the agreement end date, 2026-07-01; on the rival reading of N-5.4 (an exception
-    that only ever extends N-5.2's tail) it is 2029-07-01. No reading yields a date before
-    the end of the term.
 observed:
   agreement_end_date: '2026-07-01'
   survival_end_date: '2025-01-01'
@@ -58,8 +54,12 @@ inputs:
 round: 1
 discovered: '2026-09-12'
 status: fixed
-notes: N-5.4 assessed during the term of the Agreement (this finding); N-5.4 assessed after
-  expiry with date_ceased_to_hold after the 3-year tail (survival_end_date 2031-01-01, correct);
-  N-5.4 with date_ceased_to_hold Absent (obligations subsist, correct); checked the unconditional
-  n5_2 branch during the term (obligations_subsist true, correct - only the exception branches
-  break); cross-checked invariant survival_end_date >= agreement_end_date across all branches
+notes: 'Note on the expected answer: obligations_subsist=true is compelled on any reading.
+  survival_end_date must be at least the agreement end date, 2026-07-01; on the rival reading
+  of N-5.4 (an exception that only ever extends N-5.2''s tail) it is 2029-07-01. No reading
+  yields a date before the end of the term. || Attacks tried: N-5.4 assessed during the term
+  of the Agreement (this finding); N-5.4 assessed after expiry with date_ceased_to_hold after
+  the 3-year tail (survival_end_date 2031-01-01, correct); N-5.4 with date_ceased_to_hold
+  Absent (obligations subsist, correct); checked the unconditional n5_2 branch during the
+  term (obligations_subsist true, correct - only the exception branches break); cross-checked
+  invariant survival_end_date >= agreement_end_date across all branches'

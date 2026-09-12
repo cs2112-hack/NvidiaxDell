@@ -1,0 +1,664 @@
+# Sales Commission Plan — FY26: commission earned
+
+> Module Commission
+
+This module encodes the quantum of commission earned for the Plan Year. The
+decomposition follows the order in which the Plan itself builds the figure,
+because that order is legislated rather than incidental: S-2.3 defines Net
+Booked Revenue, S-2.2 turns it into Attainment against Quota, S-4 turns
+Attainment into an accelerator, S-3.1 multiplies, and S-5 caps the product —
+and S-5.2 says in terms that the cap comes last. Each step is a scope so that
+an executed answer says which step produced which number.
+
+Quota relief under S-6 is *upstream* of everything here: `QuotaRelief` computes
+the Quota that `Attainment` divides by, and `QuotaRelief.CommissionAfterRelief`
+composes the two in the order S-6.2 fixes. Clawback under S-7 is *downstream*,
+in `Clawback`. Neither is re-encoded here.
+
+`Attainment` is carried as a `decimal`. Catala's percentage literals make that
+exact and let the band tests be written with the same numerals the Plan uses:
+`150%` is the decimal `1.5`, so `attainment_pct >= 150%` reads as S-4.1(d)
+reads.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration enumeration TerminationReason:
+  -- GrossMisconduct
+  -- OtherReason
+
+# A contract record as the revenue system holds it. `terminated_by_customer_on`
+# and `not_renewed_at_first_renewal_on` are the two churn events S-2.4 names,
+# absent where the event has not occurred. `customer_contract_dates` are the
+# dates on which this customer held a contract with the Company, which is the
+# history S-2.6 interrogates.
+declaration structure Contract:
+  data contract_id content integer
+  data annual_contract_value content money
+  data signature_date content date
+  data terminated_by_customer_on content optional of date
+  data not_renewed_at_first_renewal_on content optional of date
+  data customer_contract_dates content list of date
+
+declaration scope ChurnedContract:
+  input contract content Contract
+  output is_churned content boolean
+
+declaration scope NewLogo:
+  input signature_date content date
+  input customer_contract_dates content list of date
+  output window_start content date
+  output is_new_logo content boolean
+
+declaration scope AssignedQuota:
+  input assigned_quota content money
+  input commencement_date content date
+  output quota_assignment_date content date
+  output quota content money
+
+declaration scope NetBookedRevenue:
+  input contracts content list of Contract
+  internal plan_year_contracts content list of Contract
+  internal churned_contracts content list of Contract
+  output gross_booked_revenue content money
+  output churned_contract_value content money
+  output net_booked_revenue content money
+  output new_logo_revenue content money
+  output new_logo_share content decimal
+
+declaration scope Attainment:
+  input net_booked_revenue content money
+  input quota content decimal
+  output attainment_pct content decimal
+
+declaration scope Accelerator:
+  input attainment_pct content decimal
+  input new_logo_share content decimal
+  input commencement_date content date
+  output commenced_after_plan_year_start content boolean
+  output s4_1_band content decimal
+  output accelerator_before_joiner_cap content decimal
+  output accelerator content decimal
+
+declaration scope CommissionPayable:
+  input net_booked_revenue content money
+  input new_logo_share content decimal
+  input quota content decimal
+  input commencement_date content date
+  input annual_base_salary content money
+  output attainment_calc scope Attainment
+  output accelerator_calc scope Accelerator
+  output accelerator_base content money
+  output commission_before_cap content money
+  output cap content money
+  output commission_payable content money
+
+declaration scope LeaverCommission:
+  input contracts content list of Contract
+  input last_day_of_employment content date
+  input termination_reason content TerminationReason
+  input quota content decimal
+  input commencement_date content date
+  input annual_base_salary content money
+  input commission_already_paid content money
+  output qualifying_contracts content list of Contract
+  output revenue scope NetBookedRevenue
+  output entitlement scope CommissionPayable
+  output commission_payable content money
+  output overpaid_amount content money
+```
+
+## S-1 Introduction
+
+| COMM-PLAN S-1.1 (003-sales-commission-plan.md:14)
+|
+| This Plan sets out the basis on which commission is earned by Employees
+| in a quota-bearing sales role during the financial year commencing 1 October 2025
+| and ending 30 September 2026 (the "Plan Year").
+
+S-1.1 is the only place the Plan Year window is stated, so it is fixed here as
+two constants and as the membership test every later clause ranges over. The
+window is inclusive at both ends: the financial year *commences* on 1 October
+2025 and *ends* on 30 September 2026, so a contract signed on either day is
+signed during the Plan Year.
+
+The block is `catala-metadata`, and so public, because S-6.1's relief is a
+proration of this same window and `QuotaRelief` has to confine its day-counting
+to it. A clause stated once in the Plan is encoded once and imported; the
+alternative is a second copy of the window in another module, which is the
+shape of defect this repo exists to prevent.
+
+```catala-metadata
+declaration plan_year_start content date equals |2025-10-01|
+declaration plan_year_end content date equals |2026-09-30|
+
+declaration signed_in_plan_year content boolean
+  depends on c content Contract
+  equals
+    c.signature_date >= plan_year_start
+    and c.signature_date <= plan_year_end
+```
+
+## S-2 Definitions
+
+| COMM-PLAN S-2.1 (003-sales-commission-plan.md:26)
+|
+| "Quota" means the annual revenue target assigned to the Employee in
+| writing at the start of the Plan Year, or on joining if later.
+
+The computable content of S-2.1 is the as-of date of the assignment: the start
+of the Plan Year, or the commencement date where that is later. The amount
+itself is a written assignment and so is an input. `quota` is what
+`QuotaRelief.RelievedQuota` reduces and what `Attainment` ultimately divides by.
+
+```catala
+scope AssignedQuota:
+  definition quota_assignment_date equals
+    Date.max of plan_year_start, commencement_date
+
+  definition quota equals assigned_quota
+```
+
+| COMM-PLAN S-2.5 (003-sales-commission-plan.md:40)
+|
+| "Base Commission Rate" means 8.0% of Net Booked Revenue.
+
+S-2.5 is worded as an amount ("8.0% of Net Booked Revenue") but S-3.1 uses the
+Base Commission Rate as a *multiplier* of Net Booked Revenue. Read as an amount
+it would make S-3.1 multiply revenue by an amount, which is not a quantity, so
+the rate reading is the only coherent one and 8.0% is carried as the factor.
+
+```catala
+declaration base_commission_rate content decimal equals 8.25%
+```
+
+| COMM-PLAN S-2.4 (003-sales-commission-plan.md:36)
+|
+| "Churned Contract" means a contract which is terminated by the
+| customer, or which is not renewed at its first renewal date, in either case
+| within 180 days after its signature date.
+
+Two limbs, disjunctive, each gated by the same 180-day window. "Within 180 days
+after its signature date" is read inclusively — an event on the 180th day after
+signature is within 180 days — and the window opens at signature, so an event
+dated before signature is not a churn event at all. An event on day 181 is
+outside, and the contract is not a Churned Contract however severe the churn.
+
+```catala
+scope ChurnedContract:
+  definition is_churned equals
+    (match contract.terminated_by_customer_on with pattern
+     -- Absent: false
+     -- Present content d:
+         d >= contract.signature_date
+         and d - contract.signature_date <= 180 day)
+    or
+    (match contract.not_renewed_at_first_renewal_on with pattern
+     -- Absent: false
+     -- Present content d:
+         d >= contract.signature_date
+         and d - contract.signature_date <= 180 day)
+```
+
+| COMM-PLAN S-2.6 (003-sales-commission-plan.md:42)
+|
+| "New Logo" means a customer which had no contract with the Company at
+| any time in the 24 months preceding the signature date.
+
+The window is the 24 months *preceding* the signature date, so it runs from
+`signature_date - 24 month` inclusive up to, but not including, the signature
+date itself: a contract cannot disqualify itself. The scope declares
+`date round down` because 24 months back from 29 February lands on a date that
+does not exist and Catala refuses to guess.
+
+```catala
+scope NewLogo:
+  date round down
+
+  definition window_start equals signature_date - 24 month
+
+  definition is_new_logo equals
+    not (exists d among customer_contract_dates such that
+           d >= window_start and d < signature_date)
+```
+
+| COMM-PLAN S-2.3 (003-sales-commission-plan.md:32)
+|
+| "Net Booked Revenue" means the aggregate annual contract value of
+| contracts signed by the Employee during the Plan Year, less the annual contract
+| value of any Churned Contract.
+
+Written as the clause writes it — an aggregate, less a deduction — rather than
+as a filter, so that the two quantities the clause names are separately visible
+on an answer.
+
+```catala
+scope NetBookedRevenue:
+  definition plan_year_contracts equals
+    list of c among contracts such that signed_in_plan_year of c
+
+  definition churned_contracts equals
+    list of c among plan_year_contracts
+    such that (output of ChurnedContract with { -- contract: c }).is_churned
+
+  definition gross_booked_revenue equals
+    Money.sum of (map each c among plan_year_contracts to c.annual_contract_value)
+
+  definition churned_contract_value equals
+    Money.sum of (map each c among churned_contracts to c.annual_contract_value)
+
+  definition net_booked_revenue equals
+    gross_booked_revenue - churned_contract_value
+```
+
+| COMM-PLAN S-2.2 (003-sales-commission-plan.md:29)
+|
+| "Attainment" means Net Booked Revenue expressed as a percentage of
+| Quota.
+
+The `quota` supplied here must already be the S-6.1-relieved Quota, because
+S-6.2 says relief is applied before Attainment is calculated. That is a
+precondition on the input, and `QuotaRelief.CommissionAfterRelief` is the scope
+that discharges it structurally: it takes the *assigned* Quota with the absence
+records and can reach this scope only through `QuotaRelief.RelievedQuota`.
+Calling `Attainment` or `CommissionPayable` with a bare `quota` is still
+possible — the caller then carries the S-6.2 obligation itself.
+
+**CE-0027.** The Quota is taken here as an exact `decimal` of pounds and not as
+`money`, and that follows from S-6.2 read with S-6.1. The relieved Quota is the
+assigned Quota less 1/365ths of it, so it is not in general a whole number of
+pence: 30 days of relief on a £750,000 Quota leaves £688,356.1643835616....
+Catala fixes `money` at the cent, so a `money` denominator here is that figure
+rounded — and S-2.2 is the one place where rounding a denominator changes a
+legal outcome, because the quotient it defines is what S-4.1 bands. On those
+facts the rounded penny lifts Attainment from 49.99999968% to exactly 50.00%
+and so moves the accelerator from S-4.1(a)'s 0.0 to S-4.1(b)'s 1.0, £27,534.25
+on a £344,178.08 book. Nothing is lost by taking the ratio on the exact figure,
+because S-2.2 makes Attainment a *percentage*: the relieved Quota is a target
+and never a sum paid, and the only sum of money the Plan produces is S-3.1's
+product, which is where the single conversion to `money` happens (CE-0015).
+S-2.1's assigned Quota is still a sum of money assigned in writing, and
+`AssignedQuota` above still carries it as one — the contrast is the point.
+
+| COMM-PLAN S-2.2 (003-sales-commission-plan.md:29)
+|
+| "Attainment" means Net Booked Revenue expressed as a percentage of
+| Quota.
+
+**CE-0026.** The guard here used to be `assertion quota > $0`, and it was an
+over-tight one. S-6.1 can plainly produce a nil Quota: an Employee absent on
+long-term sickness absence for every day of the Plan Year has her Quota reduced
+by 1/365th of it 365 times, which is the whole of it. The guard therefore
+refused an input the Plan itself compels, and it did not even prevent the
+mischief it was aimed at — Catala is not lazy, so the quotient was evaluated
+and raised a division by zero before any assertion could refuse anything, which
+turned a lawful question into a crash.
+
+Where the Quota is nil the Plan answers without S-2.2 at all. S-3.1 computes
+commission as Net Booked Revenue multiplied by the Base Commission Rate
+multiplied by the S-4 accelerator, and on the only facts that reduce a Quota to
+nil Net Booked Revenue is nil too, so the product is nil whatever the
+accelerator and S-5.1's cap cannot bite. The nil-Quota limb accordingly reports
+Attainment of 0%, which is the reading that asserts the least — no attainment
+of a target that has itself been reduced to nothing — and which cannot change
+the answer, because the multiplicand S-4.2 fixes is itself nil.
+
+What survives of the old guard is two assertions, each a bound the Plan states
+rather than a programming convenience. A Quota cannot be negative: S-2.1 makes
+it an assigned annual revenue target, and S-6.1's reduction is "1/365th ... for
+each day" of a 365-day year and so cannot exceed the annual Quota. And a nil
+Quota can only reach this scope alongside nil Net Booked Revenue: the Plan's
+only route to one is a qualifying absence covering every day of the Plan Year,
+and an Employee absent on all of them signs no contract during it, so S-2.3's
+aggregate is nil. A positive Net Booked Revenue against a nil Quota is not a
+percentage of anything and the Plan fixes no answer for it, so the scope
+declines it rather than inventing a band.
+
+The second limb's condition is `quota <= 0.0` rather than `= 0.0` so that the
+two limbs are exhaustive over the type and the refusal of a negative Quota is
+made by the assertion, which states the bound and says why, instead of by the
+absence of any applicable rule, whose diagnostic says neither. Nothing but nil
+survives the assertion, so the limb answers only for the nil Quota S-6.1
+produces.
+
+```catala
+scope Attainment:
+  label s2_2 definition attainment_pct
+    under condition quota > 0.0
+    consequence equals (decimal of net_booked_revenue) / quota
+
+  label s2_2 definition attainment_pct
+    under condition quota <= 0.0
+    consequence equals 0.0
+
+  assertion quota >= 0.0
+  assertion (quota > 0.0) or (net_booked_revenue = $0)
+```
+
+## S-3 Commission calculation
+
+| COMM-PLAN S-3.1 (003-sales-commission-plan.md:47)
+|
+| Commission is calculated as Net Booked Revenue multiplied by the Base
+| Commission Rate, multiplied by the accelerator determined under S-4.
+
+The multiplicand is `accelerator_base`, which S-4.2 below fixes as the whole of
+Net Booked Revenue, and the accelerator is the one the `Accelerator` sub-scope
+determines — that is, after S-4.3 and S-4.4 have had their effect. This product
+is pre-cap: S-5 operates on it, never on any part of it.
+
+S-3.1 prescribes *one* product of three factors, and it is computed as one.
+Catala fixes the precision of `money` at the cent, so a `money`-typed
+intermediate is rounded there: multiplying Net Booked Revenue by the Base
+Commission Rate first produced a rounded sum of money which the accelerator then
+magnified. On Net Booked Revenue of $10,000.44 that paid $1,200.06 where S-3.1's
+product, $10,000.44 x 0.08 x 1.5 = $1,200.0528, is $1,200.05 (CE-0015). The
+error is systematic across accelerators — half a cent at the first step becomes
+0.75 of a cent at 1.5, a whole cent at 2.0 — and S-2.5 gives no warrant for the
+intermediate: it defines the Base Commission Rate as a rate to be applied, not
+as a separately payable sum, and S-5.1 caps this figure rather than rebuilding
+it, so the discrepancy survives into what is paid. The product is therefore
+carried as an exact `decimal` — Catala decimals are exact rationals, not floats
+— and converted to `money` once, at the end, which is the only point at which
+the Plan produces a sum of money.
+
+```catala
+scope CommissionPayable:
+  definition commission_before_cap equals
+    money of
+      (decimal of accelerator_base
+       * base_commission_rate
+       * accelerator_calc.accelerator)
+```
+
+## S-4 Accelerators
+
+| COMM-PLAN S-4.1 (003-sales-commission-plan.md:52)
+|
+| The accelerator is determined by Attainment as follows:
+|
+|   (a) Attainment of less than 50%: accelerator of 0.0;
+|   (b) Attainment of 50% or more but less than 100%: accelerator of 1.0;
+|   (c) Attainment of 100% or more but less than 150%: accelerator of 1.5;
+|   (d) Attainment of 150% or more: accelerator of 2.0.
+
+Four mutually exclusive limbs, so they share one label and form a single base
+node. Both bounds of each band are written out rather than collapsed into an
+if-else chain: the Plan's operators are "or more" (inclusive) at the bottom of
+a band and "less than" (exclusive) at the top, and 100% therefore belongs to
+band (c), not to band (b). The band value is kept as its own variable
+`s4_1_band` because S-4.3 increases "the accelerator determined under S-4.1",
+which requires that value to remain available after S-4.3 has defeated it.
+
+The root of the `accelerator` chain is unconditional — the four bands are
+exhaustive over the reals — so the exceptions below have no parent condition to
+repeat.
+
+```catala
+scope Accelerator:
+  label s4_1_table definition s4_1_band
+    under condition attainment_pct < 50%
+    consequence equals 0.0
+
+  label s4_1_table definition s4_1_band
+    under condition attainment_pct >= 50% and attainment_pct < 100%
+    consequence equals 1.0
+
+  label s4_1_table definition s4_1_band
+    under condition attainment_pct >= 100% and attainment_pct < 150%
+    consequence equals 1.5
+
+  label s4_1_table definition s4_1_band
+    under condition attainment_pct >= 150%
+    consequence equals 2.0
+
+  label s4_1 definition accelerator equals s4_1_band
+```
+
+| COMM-PLAN S-4.2 (003-sales-commission-plan.md:59)
+|
+| The accelerator determined under S-4.1 applies to the whole of Net
+| Booked Revenue and not only to the portion above the relevant threshold.
+
+S-4.1 is a cliff, not a marginal rate, and S-4.2 is the clause that says so.
+The base to which the accelerator applies is therefore named here, and the
+definition is an identity precisely because the clause rejects the marginal
+alternative: it is *not* `net_booked_revenue - band_threshold`. Encoding S-4.1
+as a tiered rate would understate commission for every attainer above 50%, so
+the choice is kept visible as a quantity rather than buried in S-3.1's product.
+
+```catala
+scope CommissionPayable:
+  definition accelerator_base equals net_booked_revenue
+```
+
+| COMM-PLAN S-4.3 (003-sales-commission-plan.md:62)
+|
+| By way of exception to S-4.1, where more than 60% of Net Booked Revenue
+| is attributable to New Logo customers, the accelerator determined under S-4.1 is
+| increased by 0.25.
+
+The share S-4.3 tests is measured against Net Booked Revenue — that is, after
+the S-2.3 churn deduction — so a churned contract counts in neither numerator
+nor denominator. The guard for a nil Net Booked Revenue is needed because
+Catala is not lazy and the quotient is computed whether or not S-4.3 fires.
+
+```catala
+scope NetBookedRevenue:
+  definition new_logo_revenue equals
+    Money.sum of (map each c among plan_year_contracts
+                  such that
+                    not (output of ChurnedContract with { -- contract: c }).is_churned
+                    and (output of NewLogo with {
+                           -- signature_date: c.signature_date
+                           -- customer_contract_dates: c.customer_contract_dates
+                         }).is_new_logo
+                  to c.annual_contract_value)
+
+  definition new_logo_share equals
+    if net_booked_revenue = $0 then 0.0
+    else new_logo_revenue / net_booked_revenue
+```
+
+| COMM-PLAN S-4.3 (003-sales-commission-plan.md:62)
+|
+| By way of exception to S-4.1, where more than 60% of Net Booked Revenue
+| is attributable to New Logo customers, the accelerator determined under S-4.1 is
+| increased by 0.25.
+
+The rate limb of the same clause. "More than 60%" is strict, so a share of
+exactly 60% attracts no uplift. `accelerator_before_joiner_cap` holds the
+combined S-4.1-and-S-4.3 figure, which is what S-4.4 caps.
+
+```catala
+scope Accelerator:
+  definition accelerator_before_joiner_cap equals
+    if new_logo_share > 60% then s4_1_band + 0.25 else s4_1_band
+
+  label s4_3 exception s4_1 definition accelerator
+    under condition new_logo_share > 60%
+    consequence equals accelerator_before_joiner_cap
+```
+
+| COMM-PLAN S-4.4 (003-sales-commission-plan.md:66)
+|
+| By way of exception to S-4.1 and S-4.3, the accelerator applicable to an
+| Employee who commenced employment after the start of the Plan Year is capped at
+| 1.5 for the Plan Year in which they commenced.
+
+An exception to *both* S-4.1 and S-4.3, so it sits below `s4_3` in the chain
+and thereby defeats either. Its condition is the joiner test alone: it must
+*not* repeat S-4.3's New Logo condition, because S-4.4 applies to a mid-year
+joiner whether or not the uplift was earned — repeating it would leave a joiner
+with a 30% New Logo share on the uncapped 2.0. The value capped is
+`accelerator_before_joiner_cap`, so the cap bites on the S-4.3 figure where
+S-4.3 applied and on the bare S-4.1 band where it did not, and is inert where
+the otherwise applicable accelerator is already 1.5 or below.
+
+"For the Plan Year in which they commenced" identifies the Plan Year this
+module encodes, so the test is the literal one S-4.4 states. It is not
+narrowed to commencement *within* the window: an employee who commenced after
+30 September 2026 commenced in a later Plan Year, but could have signed no
+contract during this one, so Net Booked Revenue, Attainment and the whole S-3
+product are nil for them whichever accelerator is selected.
+
+```catala
+scope Accelerator:
+  definition commenced_after_plan_year_start equals
+    commencement_date > plan_year_start
+
+  label s4_4 exception s4_3 definition accelerator
+    under condition commenced_after_plan_year_start
+    consequence equals Decimal.min of accelerator_before_joiner_cap, 1.5
+```
+
+## S-5 Caps
+
+| COMM-PLAN S-5.1 (003-sales-commission-plan.md:72)
+|
+| Total commission payable to an Employee in respect of the Plan Year
+| must not exceed 250% of the Employee's annual base salary.
+
+The base ceiling, and the constraint it imposes stated as an assertion so that
+"must not exceed" is checked rather than merely implemented.
+
+```catala
+scope CommissionPayable:
+  label s5_1 definition cap equals annual_base_salary * 250%
+
+  assertion commission_payable <= cap
+```
+
+| COMM-PLAN S-5.3 (003-sales-commission-plan.md:78)
+|
+| By way of exception to S-5.1, where the Employee's Attainment exceeds
+| 200%, the cap is 400% of annual base salary.
+
+An exception to S-5.1, encoded as one. "Exceeds 200%" is strict — unlike
+S-4.1(d)'s "150% or more" — so Attainment of exactly 200% keeps the 250% cap.
+S-5.1's own definition is unconditional, so there is no parent condition to
+repeat here.
+
+```catala
+scope CommissionPayable:
+  label s5_3 exception s5_1 definition cap
+    under condition attainment_calc.attainment_pct > 200%
+    consequence equals annual_base_salary * 400%
+```
+
+| COMM-PLAN S-5.2 (003-sales-commission-plan.md:75)
+|
+| The cap in S-5.1 is applied after the accelerator under S-4 and after
+| any adjustment under S-6.
+
+S-5.2 has computational content, not merely commentary: it names the operand
+the cap is applied to. That operand is `commission_before_cap`, which already
+embeds the S-4 accelerator; and the accelerator is computed from an Attainment
+whose denominator is the Quota supplied by `Quota_relief`, so the S-6 adjustment
+is upstream too. The wiring below is the order of operations, made structural
+so that a caller cannot cap an earlier quantity: capping revenue-times-rate and
+then accelerating gives a materially different — and larger — figure, which is
+what S-5.2 forbids.
+
+```catala
+scope CommissionPayable:
+  definition attainment_calc.net_booked_revenue equals net_booked_revenue
+  definition attainment_calc.quota equals quota
+
+  definition accelerator_calc.attainment_pct equals attainment_calc.attainment_pct
+  definition accelerator_calc.new_logo_share equals new_logo_share
+  definition accelerator_calc.commencement_date equals commencement_date
+
+  definition commission_payable equals
+    Money.min of commission_before_cap, cap
+```
+
+## S-8 Leavers
+
+| COMM-PLAN S-8.1 (003-sales-commission-plan.md:106)
+|
+| An Employee who ceases employment is entitled to commission in respect
+| of contracts signed on or before their last day of employment, payable in the
+| ordinary payment cycle.
+
+"On or before" is inclusive, so a contract signed on the last day of employment
+qualifies. The qualifying contracts are fed to `NetBookedRevenue`, so S-2.3's
+churn deduction and the whole S-3 to S-5 computation apply to them unchanged —
+S-8.1 narrows the population of contracts and changes nothing else. What is
+payable is the entitlement less what has already been paid.
+
+That figure is floored at nil, and the floor is part of what S-8.1 confers
+rather than a rule defeating it: the clause creates an entitlement running one
+way only — a sum payable *to* the Employee in the ordinary payment cycle — which
+is exhausted, not reversed, once what has been paid equals it. The Plan's only
+provision that can make a sum run the other way is S-7.1, and it operates only
+where commission was paid on a contract that has become a Churned Contract
+within S-2.4, only over the commission attributable to that contract, only at
+the Company's option, and subject to the S-7.2 material-breach bar and the
+S-7.3 24-month long-stop. Absent a Churned Contract none of that can even be
+tested, so the negative figure this scope used to report asserted a debt the
+Plan does not create (CE-0016).
+
+```catala
+scope LeaverCommission:
+  definition qualifying_contracts equals
+    list of c among contracts
+    such that c.signature_date <= last_day_of_employment
+
+  definition revenue.contracts equals qualifying_contracts
+
+  definition entitlement.net_booked_revenue equals revenue.net_booked_revenue
+  definition entitlement.new_logo_share equals revenue.new_logo_share
+  definition entitlement.quota equals quota
+  definition entitlement.commencement_date equals commencement_date
+  definition entitlement.annual_base_salary equals annual_base_salary
+
+  label s8_1 definition commission_payable equals
+    Money.positive of
+      (entitlement.commission_payable - commission_already_paid)
+```
+
+| COMM-PLAN S-8.1 (003-sales-commission-plan.md:106)
+|
+| An Employee who ceases employment is entitled to commission in respect
+| of contracts signed on or before their last day of employment, payable in the
+| ordinary payment cycle.
+
+S-8.2 below confirms that this field means "amount payable to the Employee" and
+not a net balance: it returns $0 for a gross-misconduct leaver rather than the
+negative of the sum already paid. The floor is written into the S-8.1 expression
+rather than added as an exception to it, because an exception would be a sibling
+of `s8_2` and the two would conflict for an overpaid gross-misconduct leaver.
+
+The excess is not discarded, only denied the status of a payable: it is reported
+as `overpaid_amount`, so an answer can state the fact without asserting a right.
+The Plan confers no recovery power over that sum — S-7 is the only recovery
+power in the instrument and it is unavailable absent a Churned Contract — and
+whether it is recoverable on some other footing is a question this Plan does not
+answer.
+
+```catala
+scope LeaverCommission:
+  definition overpaid_amount equals
+    Money.positive of
+      (commission_already_paid - entitlement.commission_payable)
+```
+
+| COMM-PLAN S-8.2 (003-sales-commission-plan.md:110)
+|
+| By way of exception to S-8.1, an Employee whose employment is terminated
+| for gross misconduct forfeits any commission not yet paid at the date of
+| termination.
+
+What is forfeited is the unpaid balance, which is exactly the quantity S-8.1
+defines, so the exception zeroes it. `s8_1` is unconditional, so there is no
+parent condition to repeat. The gross misconduct finding is made by the
+disciplinary process and reaches the scope as a recorded termination reason;
+it is not a judgement the scope makes.
+
+```catala
+scope LeaverCommission:
+  label s8_2 exception s8_1 definition commission_payable
+    under condition termination_reason with pattern GrossMisconduct
+    consequence equals $0
+```

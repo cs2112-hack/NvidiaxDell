@@ -18,15 +18,24 @@ A Service Credit is applied against the next invoice issued after the
 claim is accepted. Where no further invoice will be issued, the Service Credit is
 paid to the Customer within 30 days.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### MSA-SCH4 L-2.1 — Master Services Agreement — Schedule 4: Service Levels and Service Credits (v2.1, effective 2025-01-15)
+Section L-2 Definitions
+
+"Measurement Period" means each calendar month.
+
 
 ## Artefact under review
 
 ```
-# MSA Schedule 4 — Claiming a Service Credit
+#
 
 > Module ServiceCreditClaim
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope CreditClaim:
@@ -41,10 +50,10 @@ declaration scope CreditClaim:
   output waived content boolean
   output applied_against_next_invoice content boolean
   output paid_to_customer content boolean
-  output settlement_due_date content date
+  output settlement_due_date content optional of date
 ```
 
-## L-5.1 The claim window
+## L-5.1
 
 | MSA-SCH4 L-5.1 (004-msa-sla-credits.md:92)
 |
@@ -62,7 +71,7 @@ scope CreditClaim:
   definition waived equals not claim_in_time
 ```
 
-## L-5.2 Settlement
+## L-5.2
 
 | MSA-SCH4 L-5.2 (004-msa-sla-credits.md:96)
 |
@@ -79,13 +88,41 @@ scope CreditClaim:
     under condition not further_invoice_expected
     consequence equals false
 
-  definition paid_to_customer equals not applied_against_next_invoice
-
-  label l5_2_setoff_date definition settlement_due_date equals next_invoice_date
+  label l5_2_setoff_date definition settlement_due_date equals
+    Present content next_invoice_date
 
   label l5_2_payment_date exception l5_2_setoff_date definition settlement_due_date
     under condition not further_invoice_expected
-    consequence equals claim_accepted_date + 30 day
+    consequence equals Present content (claim_accepted_date + 30 day)
+```
+
+## L-5.1 L-5.2
+
+| MSA-SCH4 L-5.1 (004-msa-sla-credits.md:92)
+|
+| The Customer must claim a Service Credit in writing within 30 days after
+| the end of the Measurement Period to which it relates. A Service Credit not
+| claimed within that period is waived.
+
+| MSA-SCH4 L-5.2 (004-msa-sla-credits.md:96)
+|
+| A Service Credit is applied against the next invoice issued after the
+| claim is accepted. Where no further invoice will be issued, the Service Credit is
+| paid to the Customer within 30 days.
+
+```catala
+scope CreditClaim:
+  label l5_1_waived exception l5_2_payment
+    definition applied_against_next_invoice
+    under condition waived
+    consequence equals false
+
+  definition paid_to_customer equals
+    (not waived) and (not applied_against_next_invoice)
+
+  label l5_1_waived_date exception l5_2_payment_date definition settlement_due_date
+    under condition waived
+    consequence equals Absent
 ```
 
 ```

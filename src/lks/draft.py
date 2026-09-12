@@ -43,7 +43,10 @@ from pathlib import Path
 from typing import Any
 
 from .catala_runner import (
+    AssertionFailed,
     CatalaError,
+    NoApplicableRule,
+    ScopeConflict,
     ExceptionNode,
     shape_signature,
     _run,
@@ -62,7 +65,13 @@ from .reviewer import discover_scopes
 COMPARISON_RE = re.compile(
     r"\b([a-z]\w*)\s*(>=|<=|!=|=|>|<)\s*(-?\d+(?:\.\d+)*)\b"
 )
-OFFSET_RE = re.compile(r"\b(\d+)\s*(day|month|year)\b", re.I)
+OFFSET_RE = re.compile(r"\b(\d+)\s*(day|month|year)s?\b", re.I)
+"""Durations as the compiler prints them in an exception tree: `[6 months]`,
+`[30 days]`, `[2 years]`. Always plural. The pattern once required the singular,
+which is how the source spells them, so it matched nothing the compiler
+printed. Every date battery was then built without a single offset, and a rule
+such as "repay half if you leave 6 to 12 months after payment" never had a
+vector inside its window."""
 PIVOT = date(2026, 6, 15)
 """Fixed pivot for date batteries. Deterministic so a battery is reproducible,
 and mid-month/mid-year so month-end and year-end arithmetic is reachable by
@@ -99,13 +108,19 @@ def _shift(d: date, n: int, unit: str) -> date:
     return date(y, m, min(d.day, last))
 
 
-def date_pool(offsets: set[tuple[int, str]], cap: int = 9) -> list[str]:
+def date_pool(offsets: set[tuple[int, str]]) -> list[str]:
     """Dates straddling every offset, plus month-end and leap-day cases.
 
     A date rule is wrong at a boundary or not at all, so the pool is built
     backwards from the pivot by each offset found in the conditions, one day
     either side -- which is exactly where an inclusive/exclusive or a
     rounding-direction disagreement shows up.
+
+    Nothing is thinned out. The pool used to be cut to 9 dates at even
+    intervals, and with two offsets that dropped the date exactly on the
+    six-month anniversary, which is the date an inclusive/exclusive mistake
+    needs. `generate_battery` still caps the cross product, by pinning whole
+    inputs rather than losing boundary dates.
     """
     pool = {PIVOT, PIVOT - timedelta(days=1), PIVOT + timedelta(days=1)}
     for n, unit in sorted(offsets):
@@ -113,11 +128,7 @@ def date_pool(offsets: set[tuple[int, str]], cap: int = 9) -> list[str]:
         pool |= {base, base - timedelta(days=1), base + timedelta(days=1)}
     # month-end and leap-day, which is where Catala's date arithmetic raises
     pool |= {date(2024, 2, 29), date(2026, 1, 31)}
-    ordered = sorted(pool)
-    if len(ordered) > cap:
-        step = len(ordered) / cap
-        ordered = [ordered[int(i * step)] for i in range(cap)]
-    return [d.isoformat() for d in ordered]
+    return [d.isoformat() for d in sorted(pool)]
 
 
 def collect_thresholds(trees: list[ExceptionNode]) -> dict[str, set[float]]:
@@ -150,6 +161,28 @@ def _schema_types(input_schema: dict[str, Any]) -> dict[str, str]:
     return out
 
 
+def _schema_enums(input_schema: dict[str, Any]) -> dict[str, list[str]]:
+    """input variable -> every constructor of its enumeration, for payload-free enums.
+
+    The compiler's schema gives an enumeration as a definition with `"type":
+    "string"` and an `enum` list, so the whole domain is stated and nothing has
+    to be guessed. An enumeration whose constructors carry content is an object
+    schema instead, and is deliberately absent here: its payloads have types
+    of their own, and inventing values for them is the guess this module
+    refuses to make.
+    """
+    defs = input_schema.get("definitions", {})
+    ref = input_schema.get("$ref", "")
+    root = defs.get(ref.split("/")[-1], {})
+    out: dict[str, list[str]] = {}
+    for name, spec in (root.get("properties") or {}).items():
+        target = defs.get((spec.get("$ref") or "").split("/")[-1], spec)
+        values = target.get("enum")
+        if target.get("type") == "string" and isinstance(values, list) and values:
+            out[name] = [str(v) for v in values]
+    return out
+
+
 def generate_battery(
     path: str | Path,
     scope: str,
@@ -169,6 +202,7 @@ def generate_battery(
     types = _schema_types(in_schema)
     if not types:
         return []
+    enums = _schema_enums(in_schema)
 
     domains: dict[str, list[Any]] = {}
     for name, t in sorted(types.items()):
@@ -188,6 +222,12 @@ def generate_battery(
             domains[name] = sorted(vals)
         elif t == "date":
             domains[name] = date_pool(date_offsets or set())
+        elif name in enums:
+            # Every constructor, because an enumeration has no boundary to
+            # straddle: Tier 2 is not "between" Tier 1 and Tier 3, and a rule
+            # that mishandles one constructor is wrong on that constructor and
+            # nowhere else.
+            domains[name] = list(enums[name])
         else:
             # durations, lists, structs: no safe generic generator. Returning an
             # empty battery here would report "0 disagreements", which reads as
@@ -344,6 +384,75 @@ def scopelang_normalised(path: str | Path) -> str:
     return "\n".join(lines)
 
 
+def widen_pinned(path: str | Path, scope: str, battery: list[dict[str, Any]],
+                 cap: int = 600) -> list[dict[str, Any]]:
+    """Add vectors that flip every boolean or enumeration the battery pinned.
+
+    `generate_battery` keeps under its cap by pinning its lowest-cardinality
+    inputs to a single value, and for a boolean that removes half the decision
+    space silently. Comparing the overtime module with a mutant that turned
+    `grade >= 5 and ordinal > 40` into `... or ...` at a cap of 240, every
+    vector had `is_public_holiday` pinned to true -- where C-7.1's 2.0 rate
+    overrides everything -- so 224 vectors found no difference between rules
+    that pay a Grade 3 employee's 41st hour 1.25 and 0.0. An equivalence check
+    with that blind spot calls different law the same law.
+
+    So each pinned input is flipped across the whole battery, not a sample,
+    up to `cap` extra vectors per input. Only booleans and payload-free
+    enumerations are widened, because only their domains are known without
+    inventing values. This can only add vectors, so it can only make a
+    comparison stricter.
+    """
+    if not battery:
+        return battery
+    in_schema, _ = json_schema(path, scope)
+    types = _schema_types(in_schema)
+    enums = _schema_enums(in_schema)
+    out = list(battery)
+    seen = {json.dumps(v, sort_keys=True) for v in battery}
+    for k in sorted(battery[0]):
+        if len({json.dumps(v[k], sort_keys=True) for v in battery}) != 1:
+            continue
+        domain = [False, True] if types.get(k) == "boolean" else enums.get(k)
+        if not domain:
+            continue
+        added = 0
+        for v in battery:
+            for value in domain:
+                if v[k] == value or added >= cap:
+                    continue
+                probe = dict(v)
+                probe[k] = value
+                key = json.dumps(probe, sort_keys=True)
+                if key not in seen:
+                    seen.add(key)
+                    out.append(probe)
+                    added += 1
+    return out
+
+
+def _observe(path: str | Path, scope: str, inputs: dict[str, Any]) -> dict[str, Any]:
+    """What a scope does on one vector, with failures sorted by what they mean.
+
+    A Conflict, a NoValue, a failed assertion or an evaluation error is
+    behaviour: two encodings that both refuse the same facts agree, and one
+    that refuses where the other answers differs. Anything else -- a module
+    that cannot be found, a build that failed -- is not behaviour at all, and
+    is returned as `__infra__` so the caller can exclude the vector instead of
+    comparing it. Counted as behaviour, the same infrastructure failure on both
+    sides would read as agreement and hide any difference; on one side it would
+    read as a difference that does not exist.
+    """
+    try:
+        return run_scope(path, scope, inputs)
+    except (ScopeConflict, NoApplicableRule, AssertionFailed) as e:
+        return {"__error__": type(e).__name__}
+    except CatalaError as e:
+        if "during evaluation" in e.diagnostic.lower():
+            return {"__error__": "RuntimeError"}
+        return {"__infra__": " ".join(e.diagnostic.split())[:200]}
+
+
 def compare_encodings(
     path_a: str | Path,
     path_b: str | Path,
@@ -406,6 +515,7 @@ def compare_encodings(
             battery = generate_battery(
                 path_a, sa, thresholds, cap=cap, date_offsets=offsets
             )
+            battery = widen_pinned(path_a, sa, battery, cap=cap)
         except UngeneratableBattery as e:
             res.errors.append(str(e))
             battery = []
@@ -419,18 +529,23 @@ def compare_encodings(
             )
         res.battery_size += len(battery)
 
+        untested = 0
+        first_infra = ""
         for inputs in battery:
-            try:
-                oa = run_scope(path_a, sa, inputs)
-            except CatalaError as e:
-                oa = {"__error__": type(e).__name__}
-            try:
-                ob = run_scope(path_b, sb, inputs)
-            except CatalaError as e:
-                ob = {"__error__": type(e).__name__}
+            oa = _observe(path_a, sa, inputs)
+            ob = _observe(path_b, sb, inputs)
+            if "__infra__" in oa or "__infra__" in ob:
+                untested += 1
+                first_infra = first_infra or oa.get("__infra__") or ob.get("__infra__", "")
+                continue
             common = set(oa) & set(ob)
             if not common or not all(values_agree(oa[k], ob[k]) for k in common):
                 res.behaviour_diffs.append(BehaviourDiff(sa, inputs, oa, ob))
+        if untested:
+            res.errors.append(
+                f"{sa}: {untested} of {len(battery)} vectors could not be executed at all "
+                f"({first_infra[:120]}); they are UNTESTED, not agreed"
+            )
 
     na, nb = scopelang_normalised(path_a), scopelang_normalised(path_b)
     res.structural_note = "identical" if na == nb else "differs (advisory only)"

@@ -1,0 +1,32 @@
+# NemoClaw custom policy preset: read-only LKS document search.
+#
+# Lets the sandbox reach `lks serve-search` on the host, for three GET routes,
+# from curl only. Nothing else on the host is reachable through it.
+#
+#   nemoclaw <sandbox> policy add --from-file openclaw/lks-search-policy.yaml --dry-run
+#   nemoclaw <sandbox> policy add --from-file openclaw/lks-search-policy.yaml --yes
+#
+# allowed_ips is permitted only for the host.openshell.internal bridge
+# endpoint; it matches the range NemoClaw's maintained local-inference preset
+# uses. The host, port, paths, method and binary are what narrow it.
+
+preset:
+  name: lks-search
+  description: "Read-only legal document search (lks serve-search on the host)"
+
+network_policies:
+  lks_search:
+    name: lks_search
+    endpoints:
+      - host: host.openshell.internal
+        port: 8770
+        protocol: rest
+        enforcement: enforce
+        allowed_ips:
+          - 172.16.0.0/12
+        rules:
+          - allow: { method: GET, path: "/search" }
+          - allow: { method: GET, path: "/clause" }
+          - allow: { method: GET, path: "/health" }
+    binaries:
+      - { path: /usr/bin/curl }

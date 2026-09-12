@@ -37,7 +37,6 @@ source_reasoning: 'R-6.1 does not measure the backup purge from the expiry of th
   deletion from production systems as an input rather than assuming it.'
 expected:
   retention_end_date: '2024-01-01'
-  backup_purge_deadline: '2030-05-01'
 observed:
   retention_end_date: '2024-01-01'
   backup_purge_deadline: '2024-03-31'
@@ -55,7 +54,10 @@ inputs:
 round: 1
 discovered: '2026-09-12'
 status: fixed
-notes: 'Legal Hold deferring production deletion past retention expiry (this finding; confirmed
+notes: 'backup_purge_deadline (2030-05-01) was removed from `expected` because the fix moved
+  R-6.1 out of RetentionEnd into LegalHold.HoldEffect; the old comparison skipped it silently.
+  The 2030-05-01 date is pinned by the R6_1 tests in catala/tests/test_legal_hold.catala_en.
+  || Legal Hold deferring production deletion past retention expiry (this finding; confirmed
   against HoldEffect, which returns deletion_due_date 2030-01-31 on the matching hold facts);
   early deletion under R-1.2, which moves the R-6.1 trigger the other way; tried to make backup_purge_deadline
   - retention_end_date exceed the 90-day cap directly: it is always exactly 90 days, so the

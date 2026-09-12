@@ -17,15 +17,27 @@ By way of exception to R-5.1, the Company will not delete personal data
 where it is required to retain it to comply with a legal obligation, for the
 establishment or exercise of legal claims, or where a Legal Hold applies.
 
+### Not quoted by the artefact
+
+The clauses above cross-refer to the provisions below, or use terms they define.
+
+### DATA-RET R-2.3 — Data Retention and Deletion Standard (v5.1, effective 2025-06-01)
+Section R-2 Definitions
+
+"Legal Hold" means a documented instruction issued by the General
+Counsel or their delegate to preserve specified records in connection with
+actual or reasonably anticipated litigation, investigation or regulatory
+proceedings.
+
 
 ## Artefact under review
 
 ```
-# Data Retention and Deletion Standard — R-5 Erasure requests
+# R-5
 
 > Module ErasureRequest
 
-## Prologue — declarations
+##
 
 ```catala-metadata
 declaration scope ErasureDeadline:
@@ -39,16 +51,7 @@ declaration scope ErasureDeadline:
   output deletion_refused content boolean
 ```
 
-| NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Only the
-| 30 days of R-5.1 are added in this scope, which as a day duration is never
-| ambiguous, but the mode is declared so the arithmetic is total by
-| construction; `date round down` matches the other DATA-RET modules.
-|
-| The assertion is a well-formedness invariant on the inputs, not a rule of
-| the Standard: a request cannot be verified before it is made. It is what
-| `request_date` is for. R-5.1 measures its 30 days from verification and
-| not from the request, so the request date enters no computed date at all,
-| and holding both dates is how a reader can see that.
+| NO-CLAUSE
 
 ```catala
 scope ErasureDeadline:
@@ -59,7 +62,7 @@ scope ErasureDeadline:
      -- Present content verified: verified >= request_date)
 ```
 
-## R-5 Erasure requests
+## R-5
 
 | DATA-RET R-5.1 (006-data-retention-standard.md:81)
 |
