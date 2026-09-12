@@ -1,3 +1,5 @@
 numpy
 model2vec
 pyyaml
+pymongo
+ninja

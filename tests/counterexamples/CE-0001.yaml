@@ -1,0 +1,68 @@
+id: CE-0001
+component: catala
+fact_pattern: A Grade 5 Employee works 45 hours in a Payroll Week. The 45th hour is worked
+  on a Gazetted Public Holiday. It is not Critical Incident Response, it is not a Night Hour,
+  and the Employee receives no standing shift allowance. The question is whether that hour
+  accrues time off in lieu.
+citations:
+- EMP-ANNEX-C C-5.1
+- EMP-ANNEX-C C-5.2
+- EMP-ANNEX-C C-7.1
+- EMP-ANNEX-C C-8.1
+- EMP-ANNEX-C C-8.2
+source_reasoning: 'C-5.1 confers two distinct consequences on a Grade 5 or above Employee:
+  (i) no entitlement to an overtime payment, and (ii) an accrual of time off in lieu of one
+  hour for each hour worked in excess of 40 in a Payroll Week. The 45th hour is an hour in
+  excess of 40, so limb (ii) is engaged on its face. The only provision in Annex C that purports
+  to displace any part of C-5.1 is C-5.2, and it is expressly confined to ''hours worked on
+  Critical Incident Response'' - which this hour is not. C-7.1 does displace limb (i): it
+  fixes the rate at 2.0 and, read with C-8.1 (only the single highest applicable multiplier
+  applies where C-4, C-5 or C-7 bear on the same hour), 2.0 beats C-5.1''s nil, so the hour
+  is paid at 2.0. But C-7.1''s displacing words are precisely limited - the 2.0 rate is ''in
+  substitution for, and not in addition to, any amount otherwise payable under C-4''. A time-off-in-lieu
+  accrual is (a) not an ''amount payable'' and (b) arises under C-5.1, not under C-4; C-7.1
+  therefore does not touch it. C-8.1 likewise reaches only ''the single highest applicable
+  multiplier'' - it is a rule about rates, not about leave accrual - and C-8.2 confirms that
+  C-8''s subject matter is the selection and cumulation of multipliers. No clause of Annex
+  C withdraws the C-5.1 TOIL accrual from an hour merely because that hour also falls on a
+  Gazetted Public Holiday. The module nevertheless suppresses it: its accrues_toil exception
+  fires on ''is_critical_incident or is_public_holiday'', and the public-holiday disjunct
+  has no source in the document. C-7.1 is invoked to defeat the payment limb of C-5.1 and
+  then, without authority, to defeat the accrual limb as well.'
+expected:
+  multiplier: 2.0
+  night_premium: 0.0
+  total_rate: 2.0
+  accrues_toil: true
+observed:
+  multiplier: 2.0
+  night_premium: 0.0
+  total_rate: 2.0
+  accrues_toil: false
+target:
+  module: overtime
+  path: catala/modules/overtime.catala_en
+  scope: HourPremium
+inputs:
+  ordinal: 45
+  grade: 5
+  is_public_holiday: true
+  is_critical_incident: false
+  is_night: false
+  has_standing_shift_allowance: false
+round: 1
+discovered: '2026-09-12'
+status: fixed
+notes: 'exception-boundary: ordinal 39/40/41 and 47/48/49 at grade 4 and grade 5 (all correct);
+  exception-boundary: grade 4 vs grade 5 vs grade 6 on ''Grade 5 or above'' (all correct);
+  exception-stacking: C-4.2 x C-5.1 x C-5.2 x C-7.1 x C-7.2 in all 2^3 flag combinations at
+  ordinals 20/45/49; cumulative-vs-substitutive: C-6 night premium added to 0.0, 1.25, 1.5
+  and 2.0 multipliers; C-6.2 standing shift allowance suppression; greater-of: C-7.2 limb
+  (a) 2.0 vs limb (b) C-4.2+0.25 = 1.75 evaluated on the drafted numbers; vacuous-branch:
+  C-7.2 exception; toil_c5_2 public-holiday limb; C-8.1 highest-multiplier search for a case
+  where the deepest firing exception yields a lower rate than a shallower applicable one;
+  C-5.2 limb selection: checked 1.25 restored below 48 and 1.5 restored above 48; conflict/NoValue
+  hunting: exception graph is a single linear chain so no two incomparable definitions can
+  co-apply; no Conflict or NoValue reproducible; degenerate ordinals 0 and 100; critical incident
+  at ordinal 30/40/41; weekly aggregation: 45-hour grade-5 week with and without the overtime
+  hours falling on a public holiday'

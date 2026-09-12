@@ -99,3 +99,38 @@ Indexing them would let the chat layer retrieve and quote a rule as prose,
 which is precisely the silent blending the brief forbids. A rule question that
 finds no vector hit is the correct outcome: it must be routed to execution, or
 answered "no rule module covers this".
+
+## D-6. MongoDB is the query engine; the committed files remain the source of truth
+
+**Requested:** use a local MongoDB for the vector store.
+
+**The tension:** the brief also requires that a git checkout of any commit
+gives you the matching index. A mongod data directory cannot be git-versioned
+in any useful way — it is a binary, mutable, machine-local blob.
+
+**Resolution — two layers, one of them authoritative:**
+
+| Layer | Role | Versioned? |
+|---|---|---|
+| `vectorstore/index/{chunks.jsonl,embeddings.npy,manifest.json}` | canonical, deterministic | yes, committed |
+| MongoDB `lks.chunks` | materialised, queryable view | no — rebuilt by `scripts/sync_mongo.py` |
+
+Every Mongo document is stamped with the `corpus_aggregate` hash of the
+manifest it was loaded from, and `MongoVectorStore.verify()` requires three-way
+agreement between the live corpus, the committed manifest, and what Mongo
+actually holds. Checking out an older commit and querying therefore *fails
+loudly* and names which pair diverged, rather than silently answering from a
+newer index. In a legal system that silent case is the one that matters: an
+answer about text the commit does not contain, delivered with citations that
+look valid.
+
+**Vector search:** `mongodb/mongodb-atlas-local` bundles `mongot`, so
+`$vectorSearch` runs locally. Plain MongoDB Community has no `mongot` and no
+`$vectorSearch`, so the store detects its absence and falls back to exact
+brute-force cosine over the stored vectors. At this corpus size the fallback is
+exhaustive and therefore strictly *more* accurate than an approximate ANN
+index — only slower. `status()` always reports which path is live, so the
+difference is never invisible.
+
+Embeddings remain the static model2vec vectors of D-4: moving the storage layer
+does not change what is embedded or make it non-deterministic.

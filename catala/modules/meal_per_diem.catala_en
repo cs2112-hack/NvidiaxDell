@@ -1,0 +1,307 @@
+# Expense Reimbursement Policy — meal per diem
+
+> Module MealPerDiem
+
+> Using ExpenseDefs
+
+E-3 legislates per Travel Day: E-3.1 sets a cap "per Travel Day", E-3.4 reduces
+"the per diem for that Travel Day", and E-3.5 removes it "in respect of a
+Travel Day". So the unit of computation is one Travel Day, and
+`MealPerDiemForDay` answers for one. A multi-day trip is `ExpenseDefs.TravelDayCount`
+Travel Days each evaluated on its own facts, because the free meals of E-3.4
+and the expenditure of E-3.5 vary day by day.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration scope MealPerDiemForDay:
+  input city_tier content ExpenseDefs.CityTier
+  input client_billable content ExpenseDefs.ClientBillable
+  input pre_approval content ExpenseDefs.PreApproval
+  input incurred_on content date
+  input meals_provided_free content integer
+  input meal_expense_incurred content money
+  input on_critical_incident_response content boolean
+  internal per_diem_under_e3_1 content money
+  internal per_diem_apart_from_e3_3 content money
+  internal pre_approval_effective content boolean
+  output per_diem_cap content money
+  output adjusted_per_diem content money
+  output reimbursable_amount content money
+```
+
+There are no judgement inputs. `on_critical_incident_response` is the
+classification EMP-ANNEX-C C-2.5 supplies from the incident management record,
+`client_billable` is a term of an executed statement of work, and `pre_approval`
+is a written approval on file — each a recorded fact.
+
+`meal_expense_incurred` is the meal expenditure actually incurred on the Travel
+Day, as money. E-3.5 turns on whether *any* meal expense was incurred, which is
+`meal_expense_incurred = $0.00`, and E-3.1's "up to" needs the amount itself.
+
+## Order of operations
+
+E-3 has to be applied in a stated order, because E-3.4 and E-3.5 both operate
+on the output of the E-3.1 to E-3.3 hierarchy rather than alongside it. The
+order this module implements, and the textual warrant for each step:
+
+1. **The day's per diem cap** — the exception chain
+   `e3_1 <- e3_2 <- e3_3` on `per_diem_cap`, with E-7.2's uplift applied to the
+   E-3.1 figure that E-3.2 multiplies. E-3.2 and E-3.3 are each expressed as an
+   exception "to E-3.1", and E-3.3 as an exception "to E-3.1 and E-3.2", so
+   exactly one of the three fixes the cap.
+2. **E-3.4's reduction** — E-3.4 reduces "the per diem for that Travel Day",
+   which is the figure step 1 produced, whichever limb produced it. It is
+   therefore applied *after* the hierarchy and not inside it: on a
+   Client-Billable day the £15 comes off the E-3.2 figure, and on a Pre-Approved
+   day it comes off the substituted E-3.3 figure. Reading it the other way —
+   deducting £15 from the E-3.1 table before E-3.2's 1.5x — would multiply the
+   deduction by 1.5, and nothing in E-3.4 speaks of the E-3.1 amount.
+3. **E-3.1's "up to"** — the reimbursable amount is the lesser of the meal
+   expense actually incurred and the cap as reduced by step 2.
+4. **E-3.5** — nil where no meal expense was incurred at all.
+
+## E-3.1 Meal per diem — the tier table
+
+| EXP-POL E-3.1 (002-expense-reimbursement-policy.md:46)
+|
+| An Employee is entitled to reimbursement of meal expenses on each
+| Travel Day up to the following amounts:
+|
+|   (a) Tier 1 city: £75 per Travel Day;
+|   (b) Tier 2 city: £55 per Travel Day;
+|   (c) Tier 3 city: £40 per Travel Day.
+
+The table is lifted into a toplevel function so that E-7.2 and E-3.2 can each
+refer to "the amount under E-3.1" without restating the figures. `per_diem_cap`
+is defined here as the E-3.1 amount, and that definition is the base of the
+chain every later provision hangs off.
+
+Catala money literals are written with `$`; the figures are the sterling
+amounts of E-3.1 and the sign carries no currency meaning here.
+
+```catala
+declaration tier_meal_per_diem content money
+  depends on tier content ExpenseDefs.CityTier
+  equals
+    match tier with pattern
+    -- Tier1: $75.00
+    -- Tier2: $55.00
+    -- Tier3: $40.00
+
+scope MealPerDiemForDay:
+  label e3_1 definition per_diem_under_e3_1 equals
+    tier_meal_per_diem of city_tier
+
+  label e3_1_cap definition per_diem_cap equals per_diem_under_e3_1
+```
+
+## E-3.2 Client-Billable Travel
+
+| EXP-POL E-3.2 (002-expense-reimbursement-policy.md:53)
+|
+| By way of exception to E-3.1, where the travel is Client-Billable
+| Travel, the applicable per diem is the amount specified in the relevant
+| statement of work, or if none is specified, 1.5 times the amount under E-3.1.
+
+An exception to `e3_1_cap`, conditioned on the travel being Client-Billable.
+Where the statement of work specifies an amount that amount governs outright —
+the clause does not cap it by, or compare it to, the E-3.1 figure — and the
+1.5x fallback bites only where none is specified.
+
+The parent `e3_1_cap` is unconditional, so there is no parent condition to
+repeat here.
+
+```catala
+declaration client_billable_per_diem content money
+  depends on cb content ExpenseDefs.ClientBillable,
+             amount_under_e3_1 content money
+  equals
+    match cb.sow_per_diem with pattern
+    -- Present content specified: specified
+    -- Absent: amount_under_e3_1 * 1.5
+
+scope MealPerDiemForDay:
+  label e3_2 exception e3_1_cap definition per_diem_cap
+    under condition client_billable.is_client_billable
+    consequence equals
+      client_billable_per_diem of client_billable, per_diem_under_e3_1
+```
+
+## E-3.3 Pre-Approved higher amount
+
+| EXP-POL E-3.3 (002-expense-reimbursement-policy.md:57)
+|
+| By way of exception to E-3.1 and E-3.2, where Pre-Approval has been
+| obtained for a specified higher amount, that amount applies.
+
+E-3.3 is an exception to *both* E-3.1 and E-3.2, so it sits below `e3_2` in the
+chain and thereby defeats either limb. Note what must **not** happen here:
+`e3_2`'s condition (`client_billable.is_client_billable`) is deliberately *not*
+repeated, because E-3.3 is expressly an exception to E-3.1 as well. A
+Pre-Approved higher amount displaces the plain E-3.1 cap on travel that is not
+Client-Billable at all, and repeating the parent's condition — the usual
+correction for Catala's non-inheriting exceptions — would wrongly confine E-3.3
+to Client-Billable days.
+
+"a specified higher amount" is read as operative, not merely descriptive:
+the approval must be for an amount *higher* than the per diem that E-3.1 or
+E-3.2 would otherwise give, which is what `per_diem_apart_from_e3_3` computes.
+On the other reading a Pre-Approval for a *lower* figure would cut the per diem
+down, which E-3.3 — an exception conferring "that amount" on the strength of the
+word "higher" — cannot have been intended to do.
+
+`pre_approval_effective` applies the E-2.4 predicate, with the specified amount
+as the threshold against which the approver's delegated authority is measured:
+an approval for £120 given by someone authorised only to £100 is not
+Pre-Approval within E-2.4.
+
+```catala
+scope MealPerDiemForDay:
+  definition pre_approval_effective equals
+    match pre_approval.specified_amount with pattern
+    -- Absent: false
+    -- Present content specified:
+      (output of ExpenseDefs.PreApprovalValid with {
+         -- pre_approval: pre_approval
+         -- expense_incurred_at: incurred_on
+         -- expense_amount: specified
+       }).valid
+
+  definition per_diem_apart_from_e3_3 equals
+    if client_billable.is_client_billable
+    then client_billable_per_diem of client_billable, per_diem_under_e3_1
+    else per_diem_under_e3_1
+
+  label e3_3 exception e3_2 definition per_diem_cap
+    under condition
+      pre_approval_effective
+      and (match pre_approval.specified_amount with pattern
+           -- Absent: false
+           -- Present content specified:
+             specified > per_diem_apart_from_e3_3)
+    consequence equals
+      match pre_approval.specified_amount with pattern
+      -- Absent: $0.00
+      -- Present content specified: specified
+```
+
+## E-3.4 Meals provided at no cost
+
+| EXP-POL E-3.4 (002-expense-reimbursement-policy.md:60)
+|
+| Where a meal is provided at no cost to the Employee as part of a
+| conference, client event or airline service, the per diem for that Travel Day is
+| reduced by £15 in respect of each such meal.
+
+E-3.4 reduces "the per diem for that Travel Day" — the figure the E-3.1/E-3.2/
+E-3.3 chain selected — and does so once for each free meal. It is not an
+exception to that chain but a stage after it, which is why it defines a
+separate variable rather than joining the hierarchy: an exception would replace
+the cap instead of adjusting it, and would have to restate which limb it was
+adjusting.
+
+The deduction is floored at nil. E-3.4 does not say so, but a negative per diem
+has no meaning: it would be a cap that requires the Employee to repay money,
+and E-3.4's operation is a "reduction" of an entitlement, which exhausts itself
+when the entitlement reaches zero.
+
+```catala
+scope MealPerDiemForDay:
+  definition adjusted_per_diem equals
+    Money.max of
+      $0.00,
+      per_diem_cap - ($15.00 * decimal of meals_provided_free)
+```
+
+## E-3.5 No meal expense incurred
+
+| EXP-POL E-3.5 (002-expense-reimbursement-policy.md:64)
+|
+| No per diem is payable in respect of a Travel Day on which the Employee
+| does not incur any meal expense.
+
+The reimbursable amount is the per diem *as reduced* under E-3.4, capped by
+what was actually spent (E-3.1: "reimbursement of meal expenses ... up to the
+following amounts"), and E-3.5 is an exception to that which forces nil where
+nothing was spent.
+
+On these two definitions alone E-3.5 changes no number — the minimum of nil and
+any cap is already nil — but it is encoded as its own exception rather than
+left implicit, because it is the clause that answers the question "is the per
+diem an allowance or a reimbursement?" and because an encoding that loses it
+would start paying the cap out the moment anyone reads E-3.1's "entitled to"
+as an allowance.
+
+| EXP-POL E-3.1 (002-expense-reimbursement-policy.md:46)
+|
+| An Employee is entitled to reimbursement of meal expenses on each
+| Travel Day up to the following amounts:
+|
+|   (a) Tier 1 city: £75 per Travel Day;
+|   (b) Tier 2 city: £55 per Travel Day;
+|   (c) Tier 3 city: £40 per Travel Day.
+
+```catala
+scope MealPerDiemForDay:
+  label e3_1_reimbursement definition reimbursable_amount equals
+    Money.min of meal_expense_incurred, adjusted_per_diem
+
+  label e3_5 exception e3_1_reimbursement definition reimbursable_amount
+    under condition meal_expense_incurred = $0.00
+    consequence equals $0.00
+```
+
+## E-7.2 Critical Incident Response uplift
+
+| EXP-POL E-7.2 (002-expense-reimbursement-policy.md:109)
+|
+| Where an Employee incurs expenses while engaged on Critical Incident
+| Response within the meaning of Annex C, paragraph C-2.5, the per diem under E-3.1
+| is increased by £20 per Travel Day and Pre-Approval is not required for that
+| increase.
+
+E-7.2 names its target precisely: "the per diem under E-3.1". It is therefore
+encoded as an exception to `e3_1` — the definition of `per_diem_under_e3_1`,
+which is the variable that *holds* the E-3.1 amount — and not as an addition to
+the cap the chain finally selects.
+
+"Pre-Approval is not required for that increase" is discharged structurally:
+the uplift is conditioned on `on_critical_incident_response` alone and touches
+`pre_approval` nowhere, so the £20 is available on a day with no approval of any
+kind.
+
+```catala
+scope MealPerDiemForDay:
+  label e7_2 exception e3_1 definition per_diem_under_e3_1
+    under condition on_critical_incident_response
+    consequence equals (tier_meal_per_diem of city_tier) + $20.00
+```
+
+| NOTE: E-7.2 is genuinely ambiguous where it meets E-3.2, and the ambiguity is
+| worth £22.50 a day on a Tier 1 Client-Billable Travel Day for which the
+| statement of work specifies no figure. The documents do not resolve it.
+|
+| Reading (A), adopted here: E-7.2 amends the quantum "under E-3.1" to £95, and
+| E-3.2 then applies its multiplier to "the amount under E-3.1" as so amended,
+| giving 1.5 x (75 + 20) = £142.50. The textual warrant is that E-7.2 operates
+| on a named quantity rather than on the claim, and that E-3.2's fallback limb
+| computes from that very quantity by name. On this reading the closing words of
+| E-7.2 also do real work: absent them, a per diem above the £75 table figure
+| would appear to need Pre-Approval under E-3.3.
+|
+| Reading (B), rejected: E-7.2 is a flat uplift to whatever per diem applies,
+| giving 1.5 x 75 + 20 = £132.50. Its warrant is that on Client-Billable Travel
+| the applicable per diem is not "under E-3.1" at all but under E-3.2, so
+| E-7.2's stated target does not exist and the £20 can only attach to the figure
+| that does apply. Reading (B) also keeps the uplift alive where E-3.3
+| substitutes a Pre-Approved amount, which reading (A) does not — under reading
+| (A) a Pre-Approved amount displaces the uplifted E-3.1 figure entirely, and
+| the £20 survives only through E-3.3's "higher amount" test, which measures the
+| approved figure against the uplifted £95.
+|
+| Reading (A) is adopted because it follows the words E-7.2 actually uses. The
+| choice is pinned by `TestE7_2_ClientBillable_ReadingA` in
+| `catala/tests/test_meal_per_diem.catala_en`, which also records reading (B)'s
+| number, so changing the reading changes a failing test rather than silently
+| changing an answer.

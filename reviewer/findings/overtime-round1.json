@@ -1,0 +1,571 @@
+[
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "HourPremium"
+    },
+    "fact_pattern": "A Grade 5 Employee works 45 hours in a Payroll Week. The 45th hour is worked on a Gazetted Public Holiday. It is not Critical Incident Response, it is not a Night Hour, and the Employee receives no standing shift allowance. The question is whether that hour accrues time off in lieu.",
+    "inputs": {
+      "ordinal": 45,
+      "grade": 5,
+      "is_public_holiday": true,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "total_rate": 2.0,
+      "accrues_toil": true
+    },
+    "observed": {
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "total_rate": 2.0,
+      "accrues_toil": false
+    },
+    "citations": [
+      "EMP-ANNEX-C C-5.1",
+      "EMP-ANNEX-C C-5.2",
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-8.1",
+      "EMP-ANNEX-C C-8.2"
+    ],
+    "source_reasoning": "C-5.1 confers two distinct consequences on a Grade 5 or above Employee: (i) no entitlement to an overtime payment, and (ii) an accrual of time off in lieu of one hour for each hour worked in excess of 40 in a Payroll Week. The 45th hour is an hour in excess of 40, so limb (ii) is engaged on its face. The only provision in Annex C that purports to displace any part of C-5.1 is C-5.2, and it is expressly confined to 'hours worked on Critical Incident Response' - which this hour is not. C-7.1 does displace limb (i): it fixes the rate at 2.0 and, read with C-8.1 (only the single highest applicable multiplier applies where C-4, C-5 or C-7 bear on the same hour), 2.0 beats C-5.1's nil, so the hour is paid at 2.0. But C-7.1's displacing words are precisely limited - the 2.0 rate is 'in substitution for, and not in addition to, any amount otherwise payable under C-4'. A time-off-in-lieu accrual is (a) not an 'amount payable' and (b) arises under C-5.1, not under C-4; C-7.1 therefore does not touch it. C-8.1 likewise reaches only 'the single highest applicable multiplier' - it is a rule about rates, not about leave accrual - and C-8.2 confirms that C-8's subject matter is the selection and cumulation of multipliers. No clause of Annex C withdraws the C-5.1 TOIL accrual from an hour merely because that hour also falls on a Gazetted Public Holiday. The module nevertheless suppresses it: its accrues_toil exception fires on 'is_critical_incident or is_public_holiday', and the public-holiday disjunct has no source in the document. C-7.1 is invoked to defeat the payment limb of C-5.1 and then, without authority, to defeat the accrual limb as well.",
+    "attacks_tried": [
+      "exception-boundary: ordinal 39/40/41 and 47/48/49 at grade 4 and grade 5 (all correct)",
+      "exception-boundary: grade 4 vs grade 5 vs grade 6 on 'Grade 5 or above' (all correct)",
+      "exception-stacking: C-4.2 x C-5.1 x C-5.2 x C-7.1 x C-7.2 in all 2^3 flag combinations at ordinals 20/45/49",
+      "cumulative-vs-substitutive: C-6 night premium added to 0.0, 1.25, 1.5 and 2.0 multipliers; C-6.2 standing shift allowance suppression",
+      "greater-of: C-7.2 limb (a) 2.0 vs limb (b) C-4.2+0.25 = 1.75 evaluated on the drafted numbers",
+      "vacuous-branch: C-7.2 exception; toil_c5_2 public-holiday limb",
+      "C-8.1 highest-multiplier search for a case where the deepest firing exception yields a lower rate than a shallower applicable one",
+      "C-5.2 limb selection: checked 1.25 restored below 48 and 1.5 restored above 48",
+      "conflict/NoValue hunting: exception graph is a single linear chain so no two incomparable definitions can co-apply; no Conflict or NoValue reproducible",
+      "degenerate ordinals 0 and 100; critical incident at ordinal 30/40/41",
+      "weekly aggregation: 45-hour grade-5 week with and without the overtime hours falling on a public holiday"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "WeeklyOvertime"
+    },
+    "fact_pattern": "A Grade 5 Employee on a Base Hourly Rate of 30.00 works 45 hours in a Payroll Week. Hours 41 to 45 are worked on a Gazetted Public Holiday. None of the hours is Critical Incident Response or a Night Hour, and the Employee receives no standing shift allowance. The question is the week's overtime payment and time-off-in-lieu accrual.",
+    "inputs": {
+      "hours": [
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 11,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 12,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 13,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 14,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 15,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 16,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 17,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 18,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 19,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 20,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 21,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 22,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 23,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 24,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 25,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 26,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 27,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 28,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 29,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 30,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 31,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 32,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 33,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 34,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 35,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 36,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 37,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 38,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 39,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 40,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 41,
+          "is_public_holiday": true,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 42,
+          "is_public_holiday": true,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 43,
+          "is_public_holiday": true,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 44,
+          "is_public_holiday": true,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 45,
+          "is_public_holiday": true,
+          "is_critical_incident": false,
+          "is_night": false
+        }
+      ],
+      "base_hourly_rate": 30.0,
+      "grade": 5,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "overtime_payment": 300.0,
+      "toil_hours": 5.0
+    },
+    "observed": {
+      "overtime_payment": 300.0,
+      "toil_hours": 0.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-3.1",
+      "EMP-ANNEX-C C-5.1",
+      "EMP-ANNEX-C C-5.2",
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-8.1"
+    ],
+    "source_reasoning": "Five hours are worked in excess of the 40-hour ordinary week fixed by C-3.1, namely hours 41-45, and each is worked on a Gazetted Public Holiday. On the payment side C-7.1 fixes each at 2.0 times the Base Hourly Rate and, via C-8.1, 2.0 is the highest applicable multiplier, so the payment is 5 x 2.0 x 30.00 = 300.00 - which the module gets right. On the accrual side C-5.1 gives the Grade 5 Employee one hour of time off in lieu for each of those same five hours in excess of 40. Nothing displaces that accrual: C-5.2 is confined to Critical Incident Response hours and none of these is; C-7.1 substitutes its rate only for 'any amount otherwise payable under C-4', which does not describe a leave accrual arising under C-5.1; and C-8.1 governs only which multiplier applies. The week therefore accrues 5.0 TOIL hours. The module returns 0.0. The identical week with the public-holiday flag removed returns toil_hours 5.0, which isolates the defect precisely: the module treats a Gazetted Public Holiday as extinguishing the C-5.1 accrual, a consequence Annex C nowhere provides for. Because the aggregate is a straight sum over hours, the per-hour error scales - a Grade 5 Employee who works a whole week of public-holiday overtime loses the entire accrual.",
+    "attacks_tried": [
+      "exception-boundary: ordinal 39/40/41 and 47/48/49 at grade 4 and grade 5 (all correct)",
+      "exception-boundary: grade 4 vs grade 5 vs grade 6 on 'Grade 5 or above' (all correct)",
+      "exception-stacking: C-4.2 x C-5.1 x C-5.2 x C-7.1 x C-7.2 in all 2^3 flag combinations at ordinals 20/45/49",
+      "cumulative-vs-substitutive: C-6 night premium added to 0.0, 1.25, 1.5 and 2.0 multipliers; C-6.2 standing shift allowance suppression",
+      "greater-of: C-7.2 limb (a) 2.0 vs limb (b) C-4.2+0.25 = 1.75 evaluated on the drafted numbers",
+      "vacuous-branch: C-7.2 exception; toil_c5_2 public-holiday limb",
+      "C-8.1 highest-multiplier search for a case where the deepest firing exception yields a lower rate than a shallower applicable one",
+      "C-5.2 limb selection: checked 1.25 restored below 48 and 1.5 restored above 48",
+      "conflict/NoValue hunting: exception graph is a single linear chain so no two incomparable definitions can co-apply; no Conflict or NoValue reproducible",
+      "degenerate ordinals 0 and 100; critical incident at ordinal 30/40/41",
+      "weekly aggregation: 45-hour grade-5 week with and without the overtime hours falling on a public holiday"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "HourPremium"
+    },
+    "fact_pattern": "A Grade 3 Employee works 49 hours in a Payroll Week and the 49th hour is worked on a Gazetted Public Holiday. C-7.2 purports to create an exception to C-7.1 for exactly this case: the rate is 'the greater of (a) 2.0 times the Base Hourly Rate and (b) the rate determined under C-4.2 plus 0.25'.",
+    "inputs": {
+      "ordinal": 49,
+      "grade": 3,
+      "is_public_holiday": true,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "total_rate": 2.0,
+      "accrues_toil": false,
+      "note": "2.0 is correct, but only because C-7.2 cannot change the C-7.1 answer on the numbers as drafted"
+    },
+    "observed": {
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "total_rate": 2.0,
+      "accrues_toil": false
+    },
+    "citations": [
+      "EMP-ANNEX-C C-4.2",
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-7.2"
+    ],
+    "source_reasoning": "This is a finding about the DOCUMENT, not the module. Evaluate C-7.2's two limbs on the figures actually drafted. Limb (a) is 2.0. Limb (b) is 'the rate determined under C-4.2 plus 0.25'; C-4.2 fixes that rate at 1.5, so limb (b) is 1.75. Since 1.75 < 2.0 unconditionally, and neither limb has any variable in it, limb (a) wins in every case in which C-7.2 is capable of applying. C-7.2 is therefore inoperative: it is expressed as an exception to C-7.1 but can never alter the rate C-7.1 already produces. Either the drafter mis-stated a figure (a premium of 0.25 over C-4.2 was presumably intended to exceed 2.0, which would require a C-4.2 rate above 1.75, or an addend above 0.5), or C-7.2 was intended to add 0.25 cumulatively to the 2.0 holiday rate rather than to the C-4.2 rate, or limb (b) was meant to be read with the C-6 night premium folded in (1.5 + 0.15 + 0.25 = 1.9, still short of 2.0). On the text as it stands no reading makes limb (b) bite. The module mirrors the defect faithfully - it encodes the comparison as a test between two literal constants, 2.0 against 1.5 + 0.25 - so the else-branch of that test is dead code and the whole c7_2 exception is a branch that can never change an output. Faithful to the source, but the source needs amending; no input can expose a wrong number here, which is exactly why it should be raised against the document before a future amendment to C-4.2 silently activates it.",
+    "attacks_tried": [
+      "exception-boundary: ordinal 39/40/41 and 47/48/49 at grade 4 and grade 5 (all correct)",
+      "exception-boundary: grade 4 vs grade 5 vs grade 6 on 'Grade 5 or above' (all correct)",
+      "exception-stacking: C-4.2 x C-5.1 x C-5.2 x C-7.1 x C-7.2 in all 2^3 flag combinations at ordinals 20/45/49",
+      "cumulative-vs-substitutive: C-6 night premium added to 0.0, 1.25, 1.5 and 2.0 multipliers; C-6.2 standing shift allowance suppression",
+      "greater-of: C-7.2 limb (a) 2.0 vs limb (b) C-4.2+0.25 = 1.75 evaluated on the drafted numbers",
+      "vacuous-branch: C-7.2 exception; toil_c5_2 public-holiday limb",
+      "C-8.1 highest-multiplier search for a case where the deepest firing exception yields a lower rate than a shallower applicable one",
+      "C-5.2 limb selection: checked 1.25 restored below 48 and 1.5 restored above 48",
+      "conflict/NoValue hunting: exception graph is a single linear chain so no two incomparable definitions can co-apply; no Conflict or NoValue reproducible",
+      "degenerate ordinals 0 and 100; critical incident at ordinal 30/40/41",
+      "weekly aggregation: 45-hour grade-5 week with and without the overtime hours falling on a public holiday"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "HourPremium"
+    },
+    "fact_pattern": "A Grade 5 Employee works the 45th hour of a Payroll Week. It is not Critical Incident Response, not a Gazetted Public Holiday and not a Night Hour. C-4.1 would give 1.25; C-5.1 says there is no entitlement to an overtime payment. C-8.1 says that where two or more provisions of C-4, C-5 or C-7 would apply to the same hour, only the single highest applicable multiplier applies.",
+    "inputs": {
+      "ordinal": 45,
+      "grade": 5,
+      "is_public_holiday": false,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "multiplier": 0.0,
+      "night_premium": 0.0,
+      "total_rate": 0.0,
+      "accrues_toil": true,
+      "note": "the module's answer; the point is that C-8.1 read literally compels 1.25 instead and thereby destroys C-5.1"
+    },
+    "observed": {
+      "multiplier": 0.0,
+      "night_premium": 0.0,
+      "total_rate": 0.0,
+      "accrues_toil": true
+    },
+    "citations": [
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-5.1",
+      "EMP-ANNEX-C C-8.1"
+    ],
+    "source_reasoning": "A finding about the DOCUMENT. Two provisions bear on this hour: C-4.1, which 'would apply' to give 1.25, and C-5.1, which gives nil. C-8.1 is drafted as a free-standing precedence rule over 'two or more provisions of C-4, C-5 or C-7' and directs that 'only the single highest applicable multiplier applies'. Applied literally, the highest of {1.25, nil} is 1.25, so C-8.1 would defeat C-5.1 on its own facts - and since C-4.1 or C-4.2 always applies wherever C-5.1 applies (both are keyed to hours in excess of 40), and their multipliers always exceed nil, C-8.1 would render C-5.1 wholly nugatory for every Grade 5 Employee. That cannot have been intended, so C-8.1 must be confined to cases where provisions compete without an express exception relationship, C-5.1's opening words 'By way of exception to C-4' taking it outside C-8.1's reach. The module adopts that confined reading (its 1.25 rule is subordinated to the grade rule). I do not challenge the outcome: 0.0 with TOIL is the right answer. But the reading that produces it is an implicit repair of C-8.1, not something C-8.1's words deliver, and it is the same latent tension that has to be resolved to decide the C-7-versus-C-5.1 interaction in my BREAK findings. C-8.1 should be amended to say that it operates subject to the express exceptions stated in C-4 and C-5, or to speak only of the multipliers under C-4.1, C-4.2, C-5.2, C-7.1 and C-7.2.",
+    "attacks_tried": [
+      "exception-boundary: ordinal 39/40/41 and 47/48/49 at grade 4 and grade 5 (all correct)",
+      "exception-boundary: grade 4 vs grade 5 vs grade 6 on 'Grade 5 or above' (all correct)",
+      "exception-stacking: C-4.2 x C-5.1 x C-5.2 x C-7.1 x C-7.2 in all 2^3 flag combinations at ordinals 20/45/49",
+      "cumulative-vs-substitutive: C-6 night premium added to 0.0, 1.25, 1.5 and 2.0 multipliers; C-6.2 standing shift allowance suppression",
+      "greater-of: C-7.2 limb (a) 2.0 vs limb (b) C-4.2+0.25 = 1.75 evaluated on the drafted numbers",
+      "vacuous-branch: C-7.2 exception; toil_c5_2 public-holiday limb",
+      "C-8.1 highest-multiplier search for a case where the deepest firing exception yields a lower rate than a shallower applicable one",
+      "C-5.2 limb selection: checked 1.25 restored below 48 and 1.5 restored above 48",
+      "conflict/NoValue hunting: exception graph is a single linear chain so no two incomparable definitions can co-apply; no Conflict or NoValue reproducible",
+      "degenerate ordinals 0 and 100; critical incident at ordinal 30/40/41",
+      "weekly aggregation: 45-hour grade-5 week with and without the overtime hours falling on a public holiday"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "HourPremium"
+    },
+    "fact_pattern": "A Grade 5 Employee works the 45th hour of a Payroll Week between 22:00 and 06:00, so it is a Night Hour. It is not Critical Incident Response and not a Gazetted Public Holiday, and there is no standing shift allowance. Under C-5.1 the hour attracts no overtime payment at all; the Employee accrues an hour of time off in lieu instead. Is the 0.15 night premium nonetheless payable?",
+    "inputs": {
+      "ordinal": 45,
+      "grade": 5,
+      "is_public_holiday": false,
+      "is_critical_incident": false,
+      "is_night": true,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "multiplier": 0.0,
+      "night_premium": 0.15,
+      "total_rate": 0.15,
+      "accrues_toil": true,
+      "note": "the module's answer; flagged because the document's second sentence of C-6.1 pulls the other way"
+    },
+    "observed": {
+      "multiplier": 0.0,
+      "night_premium": 0.15,
+      "total_rate": 0.15,
+      "accrues_toil": true
+    },
+    "citations": [
+      "EMP-ANNEX-C C-6.1",
+      "EMP-ANNEX-C C-5.1",
+      "EMP-ANNEX-C C-6.2",
+      "EMP-ANNEX-C C-8.2"
+    ],
+    "source_reasoning": "A finding about the DOCUMENT. C-6.1's first sentence is a free-standing entitlement - 'A premium of 0.15 times the Base Hourly Rate is payable in respect of each Night Hour worked' - conditioned on nothing but the hour being a Night Hour, and the only stated exception to it is C-6.2 (standing shift allowance), which is not engaged. On that reading the premium is payable and the module is right. But the second sentence enumerates what the premium is payable in addition to: 'any amount payable under C-4, C-5.2 or C-7'. C-5.1 is conspicuously absent from a list that otherwise names every payment-conferring provision in the Annex, and C-8.2 repeats the same three-item list. An employer could argue that the enumeration is exhaustive of the cases in which the premium arises, that a 'premium' presupposes a principal sum to be a premium upon, and that where C-5.1 applies there is no amount payable for the hour at all - so 0.15 times the Base Hourly Rate would be the Employee's entire cash entitlement for an hour otherwise compensated only in leave. Which construction governs decides a real amount of money and cannot be settled from the text. The module has silently taken the first (better, in my view, and the one C-1.2 favours) but the document should say so expressly - either by adding C-5.1 to C-6.1's list, or by stating that the premium is payable whether or not any other amount is payable for the hour.",
+    "attacks_tried": [
+      "exception-boundary: ordinal 39/40/41 and 47/48/49 at grade 4 and grade 5 (all correct)",
+      "exception-boundary: grade 4 vs grade 5 vs grade 6 on 'Grade 5 or above' (all correct)",
+      "exception-stacking: C-4.2 x C-5.1 x C-5.2 x C-7.1 x C-7.2 in all 2^3 flag combinations at ordinals 20/45/49",
+      "cumulative-vs-substitutive: C-6 night premium added to 0.0, 1.25, 1.5 and 2.0 multipliers; C-6.2 standing shift allowance suppression",
+      "greater-of: C-7.2 limb (a) 2.0 vs limb (b) C-4.2+0.25 = 1.75 evaluated on the drafted numbers",
+      "vacuous-branch: C-7.2 exception; toil_c5_2 public-holiday limb",
+      "C-8.1 highest-multiplier search for a case where the deepest firing exception yields a lower rate than a shallower applicable one",
+      "C-5.2 limb selection: checked 1.25 restored below 48 and 1.5 restored above 48",
+      "conflict/NoValue hunting: exception graph is a single linear chain so no two incomparable definitions can co-apply; no Conflict or NoValue reproducible",
+      "degenerate ordinals 0 and 100; critical incident at ordinal 30/40/41",
+      "weekly aggregation: 45-hour grade-5 week with and without the overtime hours falling on a public holiday"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "HourPremium"
+    },
+    "fact_pattern": "A Grade 3 Employee works the 20th hour of a Payroll Week on a Gazetted Public Holiday - an hour well within the 40-hour ordinary working week fixed by C-3.1, so no overtime payment arises under C-4 at all. C-7.1 says each hour worked on a Gazetted Public Holiday 'is calculated at 2.0 times the Base Hourly Rate ... in substitution for, and not in addition to, any amount otherwise payable under C-4'.",
+    "inputs": {
+      "ordinal": 20,
+      "grade": 3,
+      "is_public_holiday": true,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "total_rate": 2.0,
+      "accrues_toil": false,
+      "note": "the module's answer on its own convention; the ambiguity is what the 2.0 is measured against for an ordinary-time hour"
+    },
+    "observed": {
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "total_rate": 2.0,
+      "accrues_toil": false
+    },
+    "citations": [
+      "EMP-ANNEX-C C-3.1",
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-2.1"
+    ],
+    "source_reasoning": "A finding about the DOCUMENT. C-7.1 is unqualified as to when in the week the holiday hour falls, so it plainly reaches ordinary-time hours; the difficulty is what the 2.0 rate displaces when there is nothing under C-4 to displace. Two readings compete. On the first, 2.0 times the Base Hourly Rate is the total pay for the hour, so a holiday hour inside the first 40 is worth 2.0 and the Employee's salary for that hour is subsumed - which makes the substitution proviso do real work for hours above 40 and nothing for hours below it. On the second, C-7.1 confers a payment of 2.0 times the Base Hourly Rate over and above the salary that C-2.1 and the ordinary week already cover, so the holiday hour is worth 3.0 in total. The module reports 2.0 for an hour within ordinary time and 0.0 for an ordinary non-holiday hour, and its weekly scope sums rate times Base Hourly Rate into overtime_payment - which is the second reading, and it is not obviously the one C-7.1's words carry, since a clause that fixes what an hour 'is calculated at' reads more naturally as fixing the whole rate for the hour than as fixing a top-up. The choice moves 1.0 times the Base Hourly Rate per holiday hour for every Employee who works a bank holiday, and Annex C does not resolve it. C-7.1 should state whether the 2.0 rate is inclusive of ordinary salary for the hour.",
+    "attacks_tried": [
+      "exception-boundary: ordinal 39/40/41 and 47/48/49 at grade 4 and grade 5 (all correct)",
+      "exception-boundary: grade 4 vs grade 5 vs grade 6 on 'Grade 5 or above' (all correct)",
+      "exception-stacking: C-4.2 x C-5.1 x C-5.2 x C-7.1 x C-7.2 in all 2^3 flag combinations at ordinals 20/45/49",
+      "cumulative-vs-substitutive: C-6 night premium added to 0.0, 1.25, 1.5 and 2.0 multipliers; C-6.2 standing shift allowance suppression",
+      "greater-of: C-7.2 limb (a) 2.0 vs limb (b) C-4.2+0.25 = 1.75 evaluated on the drafted numbers",
+      "vacuous-branch: C-7.2 exception; toil_c5_2 public-holiday limb",
+      "C-8.1 highest-multiplier search for a case where the deepest firing exception yields a lower rate than a shallower applicable one",
+      "C-5.2 limb selection: checked 1.25 restored below 48 and 1.5 restored above 48",
+      "conflict/NoValue hunting: exception graph is a single linear chain so no two incomparable definitions can co-apply; no Conflict or NoValue reproducible",
+      "degenerate ordinals 0 and 100; critical incident at ordinal 30/40/41",
+      "weekly aggregation: 45-hour grade-5 week with and without the overtime hours falling on a public holiday"
+    ]
+  }
+]

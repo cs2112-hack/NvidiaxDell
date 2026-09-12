@@ -1,0 +1,52 @@
+_comment: DERIVED FILE -- regenerate with scripts/build_registry.py. Maps each Catala scope to the clauses
+  it encodes, its inputs/outputs, and the judgement inputs its HYBRID clauses require. The chat router
+  uses this to decide which scope can answer a question; a PROSE chunk's `qualifies` field points back
+  at the module names here.
+scopes:
+  Overtime.HourPremium:
+    module: Overtime
+    scope: HourPremium
+    path: catala/modules/overtime.catala_en
+    inputs:
+    - ordinal
+    - is_public_holiday
+    - is_critical_incident
+    - is_night
+    - grade
+    - has_standing_shift_allowance
+    outputs:
+    - multiplier
+    - night_premium
+    - total_rate
+    - accrues_toil
+    internals: []
+    encodes:
+    - EMP-ANNEX-C C-3.1
+    - EMP-ANNEX-C C-4.1
+    - EMP-ANNEX-C C-4.2
+    - EMP-ANNEX-C C-5.1
+    - EMP-ANNEX-C C-5.2
+    - EMP-ANNEX-C C-7.1
+    - EMP-ANNEX-C C-7.2
+    - EMP-ANNEX-C C-6.1
+    - EMP-ANNEX-C C-6.2
+    - EMP-ANNEX-C C-8.1
+    - EMP-ANNEX-C C-8.2
+    judgement_inputs: []
+    law_headings: []
+  Overtime.WeeklyOvertime:
+    module: Overtime
+    scope: WeeklyOvertime
+    path: catala/modules/overtime.catala_en
+    inputs:
+    - hours
+    - base_hourly_rate
+    - grade
+    - has_standing_shift_allowance
+    outputs:
+    - overtime_payment
+    - toil_hours
+    internals: []
+    encodes: []
+    judgement_inputs: []
+    law_headings: []

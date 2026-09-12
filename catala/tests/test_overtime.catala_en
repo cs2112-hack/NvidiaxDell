@@ -339,7 +339,11 @@ scope TestC7_2_HolidayBeyond48:
 
 ## C8_1_HighestApplies
 
-C-8.1: C-5.1 and C-7.1 both bear on the hour; the higher multiplier governs.
+C-8.1: C-5.1 and C-7.1 both bear on the hour; the higher multiplier governs the
+payment. The TOIL accrual under the second sentence of C-5.1 is NOT displaced,
+because C-7.1 substitutes only for "any amount otherwise payable under C-4" and
+C-8.1 speaks only of multipliers. Found by the adversarial reviewer; see
+tests/counterexamples/CE-0001.yaml.
 
 ```catala
 #[test]
@@ -359,7 +363,7 @@ scope TestC8_1_HighestApplies:
   assertion r.multiplier = 2.0
   assertion r.night_premium = 0.0
   assertion r.total_rate = 2.0
-  assertion r.accrues_toil = false
+  assertion r.accrues_toil = true
 ```
 
 ## C8_1_HolidayAndIncident
