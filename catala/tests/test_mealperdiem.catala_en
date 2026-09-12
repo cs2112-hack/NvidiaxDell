@@ -1000,3 +1000,69 @@ scope TestE7_2_UpliftWithFreeMealsAndE3_5:
   assertion r.adjusted_per_diem = $80.00
   assertion r.reimbursable_amount = $50.00
 ```
+
+## InputDomain_E3_4_NoFreeMealIsTheFloor
+
+The module asserts that `meals_provided_free` is nought or more, because
+E-3.4's operative fact is a meal "provided at no cost to the Employee" and the
+clause reduces the per diem "in respect of each such meal" — a count of nought
+or more, never less (CE-0011).
+
+A `#[test]` scope must succeed, so it cannot assert that an assertion fires.
+What this test pins is the lawful boundary: nought free meals, where E-3.4
+applies no reduction at all and E-3.1(c) governs alone. The unlawful side is
+verified by hand with `scripts/probe.py`, which reports `AssertionFailed` for
+the CE-0011 count of -10, and for -1.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E3_4_NoFreeMealIsTheFloor:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestInputDomain_E3_4_NoFreeMealIsTheFloor:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier3
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $500.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $40.00
+  assertion r.adjusted_per_diem = $40.00
+  assertion r.reimbursable_amount = $40.00
+```
+
+## InputDomain_E3_1_NoMealExpenseIsTheFloor
+
+The module asserts that `meal_expense_incurred` is nought or more: E-3.1
+reimburses "meal expenses" incurred, and E-3.5 legislates expressly for the
+case where the Employee "does not incur any meal expense", which is the least
+that can be incurred.
+
+The lawful boundary is that floor — nil expenditure, which E-3.5 answers with
+nil — and it is what this test pins. `probe.py` reports `AssertionFailed` for
+an expenditure of -£500.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E3_1_NoMealExpenseIsTheFloor:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestInputDomain_E3_1_NoMealExpenseIsTheFloor:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $0.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+  assertion r.adjusted_per_diem = $75.00
+  assertion r.reimbursable_amount = $0.00
+```

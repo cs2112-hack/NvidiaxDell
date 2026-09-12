@@ -450,3 +450,117 @@ scope TestE4_3_WithE4_2Relief:
   assertion r.accommodation_reimbursable = $308.00
   assertion r.reimbursable_amount = $348.00
 ```
+
+## InputDomain_E4_1_ZeroRoomCostIsTheFloor
+
+The module asserts that `room_cost` is nought or more: E-4.1 reimburses "at
+actual cost", and the cost of a room is a sum paid. The lawful boundary is nil,
+and a night that cost nothing is reimbursed at nothing while parking outside
+the cap is still paid. `probe.py` reports `AssertionFailed` for a room cost of
+-£200.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E4_1_ZeroRoomCostIsTheFloor:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestInputDomain_E4_1_ZeroRoomCostIsTheFloor:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $0.00
+      -- local_taxes: $10.00
+      -- mandatory_resort_or_city_charge: $5.00
+      -- parking_cost: $20.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.cost_against_cap = $15.00
+  assertion r.accommodation_reimbursable = $15.00
+  assertion r.parking_reimbursable = $20.00
+  assertion r.reimbursable_amount = $35.00
+```
+
+## InputDomain_E4_3_ZeroLocalTaxesIsTheFloor
+
+The module asserts that `local_taxes` is nought or more: E-4.3 makes the caps
+"inclusive of local taxes", and a tax is an amount levied. The lawful boundary
+is nil — a jurisdiction that levies none. `probe.py` reports `AssertionFailed`
+for local taxes of -£10.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E4_3_ZeroLocalTaxesIsTheFloor:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestInputDomain_E4_3_ZeroLocalTaxesIsTheFloor:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $200.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $5.00
+      -- parking_cost: $20.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.cost_against_cap = $205.00
+  assertion r.accommodation_reimbursable = $205.00
+  assertion r.reimbursable_amount = $225.00
+```
+
+## InputDomain_E4_3_ZeroResortChargeIsTheFloor
+
+The module asserts that `mandatory_resort_or_city_charge` is nought or more:
+E-4.3 speaks of "any mandatory resort or city charge", and the word "any"
+already contemplates none, which is nil and not less. `probe.py` reports
+`AssertionFailed` for a charge of -£5.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E4_3_ZeroResortChargeIsTheFloor:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestInputDomain_E4_3_ZeroResortChargeIsTheFloor:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $200.00
+      -- local_taxes: $10.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $20.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.cost_against_cap = $210.00
+  assertion r.accommodation_reimbursable = $210.00
+  assertion r.reimbursable_amount = $230.00
+```
+
+## InputDomain_E4_3_ZeroParkingCostIsTheFloor
+
+The module asserts that `parking_cost` is nought or more: E-4.3 keeps "the cost
+of parking" outside the cap, and a cost is a sum paid. This is the bound that
+matters most, because parking is added to the capped figure rather than
+measured against it, so a negative parking cost pulled the reimbursable total
+below the cap the module had itself computed — the unguarded-domain defect
+recorded against CE-0011. The lawful boundary is nil: a night with no parking.
+`probe.py` reports `AssertionFailed` for a parking cost of -£100.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E4_3_ZeroParkingCostIsTheFloor:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestInputDomain_E4_3_ZeroParkingCostIsTheFloor:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $400.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.applicable_cap = $220.00
+  assertion r.accommodation_reimbursable = $220.00
+  assertion r.parking_reimbursable = $0.00
+  assertion r.reimbursable_amount = $220.00
+```

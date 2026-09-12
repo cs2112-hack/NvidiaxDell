@@ -721,6 +721,86 @@ scope TestS3_1_NilRevenueNilCommission:
   assertion r.commission_payable = $0
 ```
 
+## S-3.1 One product, one rounding — CE-0015
+
+S-3.1 prescribes a single product of three factors. Because `money` is fixed at
+the cent, computing Net Booked Revenue x the Base Commission Rate first rounds
+an intermediate that the accelerator then magnifies. On Net Booked Revenue of
+$10,000.44 against a Quota of $8,000 — Attainment 125.0055%, band (c),
+accelerator 1.5 — the product is $10,000.44 x 0.12 = $1,200.0528, which is
+$1,200.05 to the cent on any rounding rule, because the remainder is 0.28 of a
+cent. The two-step form paid $1,200.06.
+
+```catala
+#[test]
+declaration scope TestS3_1_NoIntermediateRoundingAt1_5:
+  output r content Commission.CommissionPayable
+
+scope TestS3_1_NoIntermediateRoundingAt1_5:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $10,000.44
+      -- new_logo_share: 10%
+      -- quota: $8,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+    }
+  assertion r.attainment_calc.attainment_pct = 1.250055
+  assertion r.accelerator_calc.accelerator = 1.5
+  assertion r.commission_before_cap = $1,200.05
+  assertion r.commission_payable = $1,200.05
+  assertion r.commission_payable != $1,200.06
+```
+
+The error is systematic across accelerators, so the same revenue is tested at
+1.75 (S-4.3 engaged by a 70% New Logo share): $10,000.44 x 0.08 x 1.75 =
+$1,400.0616, so $1,400.06 and not the $1,400.07 the two-step form produced.
+
+```catala
+#[test]
+declaration scope TestS3_1_NoIntermediateRoundingAt1_75:
+  output r content Commission.CommissionPayable
+
+scope TestS3_1_NoIntermediateRoundingAt1_75:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $10,000.44
+      -- new_logo_share: 70%
+      -- quota: $8,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+    }
+  assertion r.accelerator_calc.accelerator = 1.75
+  assertion r.commission_before_cap = $1,400.06
+  assertion r.commission_payable = $1,400.06
+  assertion r.commission_payable != $1,400.07
+```
+
+And at 2.25 — band (d) plus the S-4.3 uplift, on a Quota of $5,000 which puts
+Attainment at 200.0088% and so raises the cap to 400% under S-5.3:
+$10,000.44 x 0.08 x 2.25 = $1,800.0792, so $1,800.08 and not $1,800.09.
+
+```catala
+#[test]
+declaration scope TestS3_1_NoIntermediateRoundingAt2_25:
+  output r content Commission.CommissionPayable
+
+scope TestS3_1_NoIntermediateRoundingAt2_25:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $10,000.44
+      -- new_logo_share: 70%
+      -- quota: $5,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+    }
+  assertion r.accelerator_calc.accelerator = 2.25
+  assertion r.cap = $400,000
+  assertion r.commission_before_cap = $1,800.08
+  assertion r.commission_payable = $1,800.08
+  assertion r.commission_payable != $1,800.09
+```
+
 ## S-5.1 The 250% cap
 
 Where the cap does not bite, the capped figure is the uncapped one.
@@ -947,4 +1027,90 @@ scope TestS8_2_GrossMisconductForfeitsBalance:
     }
   assertion r.entitlement.commission_payable = $120,000
   assertion r.commission_payable = $0
+```
+
+## S-8.1 An overpayment is not a debt — CE-0016
+
+A leaver whose entitlement is $140,000 and who has already been paid $200,000
+through an administrative error is owed nothing, and owes nothing under this
+Plan. No contract has churned, so S-7.1 — the Plan's only recovery power, and
+one fenced by S-7.2 and S-7.3 — cannot operate at all, and a negative
+`commission_payable` would assert a debt the Plan does not create. The $60,000
+is reported as `overpaid_amount` instead: a fact, not an entitlement either way.
+
+One contract of $1,000,000 signed on the last day of employment, a New Logo
+customer (so the S-4.3 uplift applies to the 100% share), Quota $1,000,000 and
+salary $500,000: $1,000,000 x 8.0% x 1.75 = $140,000, inside the 250% cap.
+
+```catala
+#[test]
+declaration scope TestS8_1_OverpaymentIsNotADebt:
+  output r content Commission.LeaverCommission
+
+scope TestS8_1_OverpaymentIsNotADebt:
+  definition r equals
+    output of Commission.LeaverCommission with {
+      -- contracts: [ signed_only of 1, $1,000,000, |2026-03-31|, [] ]
+      -- last_day_of_employment: |2026-03-31|
+      -- termination_reason: OtherReason
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $500,000
+      -- commission_already_paid: $200,000
+    }
+  assertion r.entitlement.accelerator_calc.accelerator = 1.75
+  assertion r.entitlement.commission_payable = $140,000
+  assertion r.commission_payable = $0
+  assertion r.commission_payable >= $0
+  assertion r.commission_payable != -$60,000
+  assertion r.overpaid_amount = $60,000
+```
+
+The floor is inside the S-8.1 expression rather than an exception to it. Were it
+an exception it would be a sibling of `s8_2`, and an overpaid gross-misconduct
+leaver would satisfy both conditions and raise a `Conflict`. This test is that
+leaver, and it answers.
+
+```catala
+#[test]
+declaration scope TestS8_2_OverpaidGrossMisconductLeaver:
+  output r content Commission.LeaverCommission
+
+scope TestS8_2_OverpaidGrossMisconductLeaver:
+  definition r equals
+    output of Commission.LeaverCommission with {
+      -- contracts: [ signed_only of 1, $1,000,000, |2026-03-31|, [] ]
+      -- last_day_of_employment: |2026-03-31|
+      -- termination_reason: GrossMisconduct
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $500,000
+      -- commission_already_paid: $200,000
+    }
+  assertion r.entitlement.commission_payable = $140,000
+  assertion r.commission_payable = $0
+  assertion r.overpaid_amount = $60,000
+```
+
+Where the entitlement exceeds what has been paid, nothing is floored and
+nothing is reported as overpaid.
+
+```catala
+#[test]
+declaration scope TestS8_1_NoOverpaymentReportedWhenUnderpaid:
+  output r content Commission.LeaverCommission
+
+scope TestS8_1_NoOverpaymentReportedWhenUnderpaid:
+  definition r equals
+    output of Commission.LeaverCommission with {
+      -- contracts: [ signed_only of 1, $1,000,000, |2026-03-31|, [] ]
+      -- last_day_of_employment: |2026-03-31|
+      -- termination_reason: OtherReason
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $500,000
+      -- commission_already_paid: $40,000
+    }
+  assertion r.commission_payable = $100,000
+  assertion r.overpaid_amount = $0
 ```

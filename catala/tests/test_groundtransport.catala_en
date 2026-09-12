@@ -520,3 +520,143 @@ scope TestE5_3_AirportOutOfHoursButCheap:
     }
   assertion r.reimbursable_amount = $20.00
 ```
+
+## InputDomain_E5_1_ZeroTicketCostIsTheFloor
+
+The module asserts that `ticket_cost` is nought or more: E-5.1 reimburses rail
+travel "at actual cost", and the cost of a ticket is a sum spent. The lawful
+boundary is nil, and a nil ticket cost is reimbursed at nil rather than
+refused. `probe.py` reports `AssertionFailed` for a ticket cost of -£50.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E5_1_ZeroTicketCostIsTheFloor:
+  output r content GroundTransport.RailFare
+
+scope TestInputDomain_E5_1_ZeroTicketCostIsTheFloor:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.StandardClass
+      -- ticket_cost: $0.00
+      -- standard_class_fare_same_day: $50.00
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $0.00
+```
+
+## InputDomain_E5_2_ZeroSameDayStandardFareIsTheFloor
+
+The module asserts that `standard_class_fare_same_day` is nought or more: it is
+"the standard class fare for the same journey booked on the day of travel", and
+a fare is a price. The lawful boundary is nil, where E-5.2's first gate is open
+only to a first class ticket that also cost nothing. `probe.py` reports
+`AssertionFailed` for a same-day fare of -£100.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E5_2_ZeroSameDayStandardFareIsTheFloor:
+  output r content GroundTransport.RailFare
+
+scope TestInputDomain_E5_2_ZeroSameDayStandardFareIsTheFloor:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $0.00
+      -- standard_class_fare_same_day: $0.00
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $0.00
+```
+
+## InputDomain_E5_3_ClockHourEnds
+
+The module asserts that `journey_start_hour` is between 0 and 23, because
+E-5.3's carve-out is stated in clock times and the hours of a day are the
+twenty-four beginning at 00:00 through 23:00. Both lawful ends are pinned here:
+the hour beginning at midnight is before 06:00 and the hour beginning at 23:00
+is after 22:00, so an airport journey in either is reimbursed without limit.
+`probe.py` reports `AssertionFailed` for hour -1 and for hour 24.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E5_3_ClockHourEnds:
+  output at_hour_zero content GroundTransport.TaxiFare
+  output at_hour_twenty_three content GroundTransport.TaxiFare
+
+scope TestInputDomain_E5_3_ClockHourEnds:
+  definition at_hour_zero equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $100.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 0
+      -- journey_start_minute: 0
+    }
+  definition at_hour_twenty_three equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $100.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 23
+      -- journey_start_minute: 0
+    }
+  assertion at_hour_zero.reimbursable_amount = $100.00
+  assertion at_hour_twenty_three.reimbursable_amount = $100.00
+```
+
+## InputDomain_E5_3_ClockMinuteEnds
+
+The module asserts that `journey_start_minute` is between 0 and 59, for the
+same reason: a minute within the hour runs from 00 to 59. Both lawful ends are
+pinned, and each falls on a different side of E-5.3's 06:00 boundary — 05:59 is
+before 06:00 and uncapped, 06:00 exactly is not and is capped at £60.
+`probe.py` reports `AssertionFailed` for minute 5000, the reviewer's attack,
+and for minute -1.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E5_3_ClockMinuteEnds:
+  output at_minute_fifty_nine content GroundTransport.TaxiFare
+  output at_minute_zero content GroundTransport.TaxiFare
+
+scope TestInputDomain_E5_3_ClockMinuteEnds:
+  definition at_minute_fifty_nine equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $100.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 5
+      -- journey_start_minute: 59
+    }
+  definition at_minute_zero equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $100.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 6
+      -- journey_start_minute: 0
+    }
+  assertion at_minute_fifty_nine.reimbursable_amount = $100.00
+  assertion at_minute_zero.reimbursable_amount = $60.00
+```
+
+## InputDomain_E5_3_ZeroJourneyCostIsTheFloor
+
+The module asserts that `journey_cost` is nought or more, for the reason it
+asserts the same of the rail ticket cost: E-5.3 reimburses "at actual cost".
+The lawful boundary is nil. `probe.py` reports `AssertionFailed` for a journey
+cost of -£30.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E5_3_ZeroJourneyCostIsTheFloor:
+  output r content GroundTransport.TaxiFare
+
+scope TestInputDomain_E5_3_ZeroJourneyCostIsTheFloor:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $0.00
+      -- is_airport_journey: false
+      -- journey_start_hour: 12
+      -- journey_start_minute: 30
+    }
+  assertion r.reimbursable_amount = $0.00
+```

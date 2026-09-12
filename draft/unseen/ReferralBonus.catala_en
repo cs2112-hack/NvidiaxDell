@@ -108,8 +108,23 @@ inherit its parent's condition. The consequence re-derives the B-3.1 to B-3.3
 result rather than naming a figure, since B-3.5 restores that calculation
 rather than fixing an amount of its own.
 
+Catala refuses an ambiguous date computation rather than silently picking a
+day, so advancing a date by 12 months needs a stated rounding mode. Rounding
+DOWN is right here: B-3.5 relieves the agency bar once the introduction is old
+enough, so rounding the twelve-month anniversary to the last day of the month
+resolves a leap-day introduction in favour of the referrer rather than against
+them on a calendar accident.
+
+Without this declaration the scope raised on every 29 February introduction.
+The drafting roundtrip found it: a fresh agent re-encoding the English
+specification produced the same exception hierarchy but declared the mode, and
+50 of 250 boundary inputs diverged with this encoding erroring where the
+re-encoding answered.
+
 ```catala
-scope ReferralBonus:
+scope ReferralBonus under condition true:
+  date round down
+
   definition agency_introduction_is_stale equals
     agency_introduction_date + 12 month < referral_date
 

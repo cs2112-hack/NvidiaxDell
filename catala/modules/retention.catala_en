@@ -228,8 +228,45 @@ rounding note above. Limb (a)'s six years keep rounding down inside their
 R-1.2 maximum, so one record can see both directions — correctly, because
 the two periods are different kinds of thing.
 
+The period so required cannot run backwards, and R-3.3 is what fixes that
+bound. What the clause receives is a period for which records "are required to
+be retained ... under pensions or payroll legislation": a length of time for
+which a record must be kept, and the shortest such requirement is to keep it
+for no time at all. A negative period is not a requirement to retain anything,
+and the clause's own comparative — "a **longer** period" — presupposes a period
+that can be compared with limb (a)'s six years as a duration of retention. The
+bound is therefore the clause's and not a programming convenience, and the
+scope declines rather than taking the later of two dates one of which precedes
+its own trigger.
+
+Two points of technique, both about staying inside what the clause allows.
+
+The guard is asserted only where the R-3.3 judgement is that a statutory
+period applies. `statutory_retention_applies` and `statutory_retention_period`
+are one judgement in two inputs, and where the first is false the second is
+not a period the Standard is relying on at all — asserting against it then
+would refuse a question R-3.3 answers perfectly well, which is the over-tight
+guard's own kind of defect.
+
+And the bound is expressed by adding the period to the trigger date rather
+than by comparing the period with `0 day`. A statutory period may well be
+stated in mixed units — six years and six months, say — and Catala's days and
+months are incomparable, so `statutory_retention_period >= 0 day` raises
+"ambiguous comparison between durations in different units" on exactly those
+lawful inputs. That is verified, not assumed: the duration comparison holds for
+a pure-month or pure-day period and raises for a mixed one. Date addition is
+total under the declared rounding mode, so the date form guards every period
+the clause can supply and refuses only the ones it cannot.
+
 ```catala
 scope RetentionEnd:
+  assertion
+    if statutory_retention_applies
+    then (Date.add_round_up of
+            retention_trigger_date, statutory_retention_period)
+         >= retention_trigger_date
+    else true
+
   label r3_3 exception r3_1_a definition retention_end_date
     under condition
       (data_class with pattern EmployeeRecord)

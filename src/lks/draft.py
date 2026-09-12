@@ -36,13 +36,16 @@ import itertools
 import json
 import re
 import subprocess
+import calendar
 from dataclasses import dataclass, field
+from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
 from .catala_runner import (
     CatalaError,
     ExceptionNode,
+    shape_signature,
     _run,
     exception_tree,
     json_schema,
@@ -59,7 +62,62 @@ from .reviewer import discover_scopes
 COMPARISON_RE = re.compile(
     r"\b([a-z]\w*)\s*(>=|<=|!=|=|>|<)\s*(-?\d+(?:\.\d+)*)\b"
 )
-BARE_BOOL_RE = re.compile(r"\b(?:not\s+)?([a-z]\w*)\b")
+OFFSET_RE = re.compile(r"\b(\d+)\s*(day|month|year)\b", re.I)
+PIVOT = date(2026, 6, 15)
+"""Fixed pivot for date batteries. Deterministic so a battery is reproducible,
+and mid-month/mid-year so month-end and year-end arithmetic is reachable by
+offsetting rather than only by luck."""
+
+
+def collect_date_offsets(trees: list[ExceptionNode]) -> set[tuple[int, str]]:
+    """Durations appearing in any condition, e.g. (12, 'month'), (179, 'day').
+
+    These are where two encodings of a date rule will differ, so the battery
+    has to straddle them.
+    """
+    out: set[tuple[int, str]] = set()
+
+    def walk(n: ExceptionNode) -> None:
+        for cond in n.conditions:
+            for num, unit in OFFSET_RE.findall(cond):
+                out.add((int(num), unit.lower()))
+        for c in n.exceptions:
+            walk(c)
+
+    for t in trees:
+        walk(t)
+    return out
+
+
+def _shift(d: date, n: int, unit: str) -> date:
+    if unit == "day":
+        return d + timedelta(days=n)
+    months = n * (12 if unit == "year" else 1)
+    y, m = divmod((d.year * 12 + d.month - 1) + months, 12)
+    m += 1
+    last = calendar.monthrange(y, m)[1]
+    return date(y, m, min(d.day, last))
+
+
+def date_pool(offsets: set[tuple[int, str]], cap: int = 9) -> list[str]:
+    """Dates straddling every offset, plus month-end and leap-day cases.
+
+    A date rule is wrong at a boundary or not at all, so the pool is built
+    backwards from the pivot by each offset found in the conditions, one day
+    either side -- which is exactly where an inclusive/exclusive or a
+    rounding-direction disagreement shows up.
+    """
+    pool = {PIVOT, PIVOT - timedelta(days=1), PIVOT + timedelta(days=1)}
+    for n, unit in sorted(offsets):
+        base = _shift(PIVOT, -n, unit)
+        pool |= {base, base - timedelta(days=1), base + timedelta(days=1)}
+    # month-end and leap-day, which is where Catala's date arithmetic raises
+    pool |= {date(2024, 2, 29), date(2026, 1, 31)}
+    ordered = sorted(pool)
+    if len(ordered) > cap:
+        step = len(ordered) / cap
+        ordered = [ordered[int(i * step)] for i in range(cap)]
+    return [d.isoformat() for d in ordered]
 
 
 def collect_thresholds(trees: list[ExceptionNode]) -> dict[str, set[float]]:
@@ -93,7 +151,11 @@ def _schema_types(input_schema: dict[str, Any]) -> dict[str, str]:
 
 
 def generate_battery(
-    path: str | Path, scope: str, thresholds: dict[str, set[float]], cap: int = 600
+    path: str | Path,
+    scope: str,
+    thresholds: dict[str, set[float]],
+    cap: int = 600,
+    date_offsets: set[tuple[int, str]] | None = None,
 ) -> list[dict[str, Any]]:
     """Input vectors driven to the boundary of every condition.
 
@@ -124,9 +186,17 @@ def generate_battery(
             for x in ts:
                 vals.update({x - 0.01, x, x + 0.01})
             domains[name] = sorted(vals)
+        elif t == "date":
+            domains[name] = date_pool(date_offsets or set())
         else:
-            # dates, durations, lists, structs: no safe generic generator.
-            return []
+            # durations, lists, structs: no safe generic generator. Returning an
+            # empty battery here would report "0 disagreements", which reads as
+            # success -- so say so instead.
+            raise UngeneratableBattery(
+                f"{scope}.{name} has type {t!r}, for which no input battery can be "
+                f"generated. Behavioural equivalence CANNOT be checked for this "
+                f"scope and must not be reported as passing."
+            )
 
     keys = list(domains)
     total = 1
@@ -152,6 +222,13 @@ def generate_battery(
 # --- comparisons -----------------------------------------------------------
 
 
+class UngeneratableBattery(RuntimeError):
+    """No input battery can be built for a scope, so behavioural equivalence
+    cannot be tested. Raised rather than returning an empty battery, because an
+    untested comparison that reports zero disagreements is indistinguishable
+    from a passing one."""
+
+
 @dataclass
 class VariableDiff:
     scope: str
@@ -161,11 +238,27 @@ class VariableDiff:
     labels_a: str = ""        # label-bearing, advisory only
     labels_b: str = ""
 
+    shape_a: str = ""         # depth/arity only, no labels and no condition text
+    shape_b: str = ""
+
     @property
     def equal(self) -> bool:
-        """Agreement about the law: same shape, same conditions. Label names
-        are recorded but do not decide this."""
-        return self.signature_a == self.signature_b
+        """Agreement about the exception STRUCTURE.
+
+        Compares depth and parent/child arity, not condition text. Text is
+        confounded by factoring: `ceased_within_qualifying_period` and
+        `has_ceased and cessation_date <= qualifying_period_end` are the same
+        condition written two ways, and no amount of string normalisation tells
+        them apart. What distinguishes *meaning* is behaviour, which
+        `compare_encodings` tests directly over a battery driven to every
+        boundary in either tree -- so text here would only add false positives.
+        Condition differences are still reported, as `conditions_differ`.
+        """
+        return (self.shape_a or self.signature_a) == (self.shape_b or self.signature_b)
+
+    @property
+    def conditions_differ(self) -> bool:
+        return self.signature_a != self.signature_b
 
     @property
     def labels_differ(self) -> bool:
@@ -204,6 +297,14 @@ class RoundtripResult:
             f"exception trees: {len(self.tree_diffs) - len(bad_trees)}/{len(self.tree_diffs)} identical",
             f"behaviour: {self.battery_size} input vectors, {len(self.behaviour_diffs)} disagreement(s)",
         ]
+        refactored = [d for d in self.tree_diffs if d.equal and d.conditions_differ]
+        if refactored:
+            lines.append(
+                f"  {len(refactored)} hierarchy/hierarchies identical in structure "
+                f"but with a condition written differently (a factored predicate, "
+                f"not a divergence): "
+                + ", ".join(f"{d.scope}.{d.variable}" for d in refactored[:6])
+            )
         renamed = [d for d in self.tree_diffs if d.equal and d.labels_differ]
         if renamed:
             lines.append(
@@ -269,8 +370,14 @@ def compare_encodings(
     for sa, sb in sorted(smap.items()):
         res.scopes.append(f"{sa}->{sb}" if sa != sb else sa)
         qa, qb = scopes_a[sa], scopes_b[sb]
-        vars_a = qa["output"] + qa["internal"]
-        vars_b = set(qb["output"] + qb["internal"])
+        # Only OUTPUTS gate. An internal variable is a place the author chose to
+        # factor a sub-expression, not a thing the law names: this encoding put
+        # "ceased within the qualifying period" in an internal while the
+        # re-encoding inlined it, which is the same law written two ways. Demanding
+        # a counterpart for every internal made a faithful encoding look divergent
+        # -- the same surface-form mistake as gating on label names.
+        vars_a = list(qa["output"])
+        vars_b = set(qb["output"])
 
         all_trees: list[ExceptionNode] = []
         for var in vars_a:
@@ -289,15 +396,27 @@ def compare_encodings(
                     sa, var,
                     structural_signature(ta), structural_signature(tb),
                     tree_signature(ta), tree_signature(tb),
+                    shape_signature(ta), shape_signature(tb),
                 )
             )
 
         thresholds = collect_thresholds(all_trees)
+        offsets = collect_date_offsets(all_trees)
         try:
-            battery = generate_battery(path_a, sa, thresholds, cap=cap)
+            battery = generate_battery(
+                path_a, sa, thresholds, cap=cap, date_offsets=offsets
+            )
+        except UngeneratableBattery as e:
+            res.errors.append(str(e))
+            battery = []
         except CatalaError as e:
             res.errors.append(f"battery for {sa}: {e.diagnostic[:120]}")
             battery = []
+        if not battery:
+            res.errors.append(
+                f"no behavioural battery for {sa}: equivalence is UNTESTED and must "
+                f"not be read as agreement"
+            )
         res.battery_size += len(battery)
 
         for inputs in battery:

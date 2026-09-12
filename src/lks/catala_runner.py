@@ -291,6 +291,25 @@ def exception_tree(
     return trees
 
 
+def shape_signature(trees: list[ExceptionNode]) -> str:
+    """The exception hierarchy's shape alone: depth and arity, no labels and no
+    condition text. Two encodings with the same shape agree about which
+    definition defeats which and at what depth; whether they agree about the
+    *conditions* is settled behaviourally, because a condition factored into a
+    helper variable reads as different text while meaning the same thing."""
+
+    def emit(n: ExceptionNode, depth: int) -> list[str]:
+        rows = [f"{'  ' * depth}node(children={len(n.exceptions)},defs={len(n.conditions)})"]
+        for c in n.exceptions:
+            rows += emit(c, depth + 1)
+        return rows
+
+    rows: list[str] = []
+    for t in trees:
+        rows += emit(t, 0)
+    return "\n".join(rows)
+
+
 def structural_signature(trees: list[ExceptionNode]) -> str:
     """Shape and conditions of an exception hierarchy, ignoring label names.
 
