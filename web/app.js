@@ -207,6 +207,8 @@ const PIPES = {
       body: 'The rule engine executes the rule on those facts. The figure it returns is computed, never estimated.' },
     { key: 'quote', title: 'Quote the wording', roles: ['search'],
       body: 'Clauses that answer in words, or qualify a result, are quoted exactly with their reference.' },
+    { key: 'general', title: 'Fall back to the local model', roles: ['agent'],
+      body: 'Only when no rule and no clause matches closely. The model on this machine reads the closest clauses and answers, labelled as its reading, not computed or quoted.' },
     { key: 'label', title: 'Label every part', roles: [],
       body: 'Each part of the answer says whether it was computed or quoted. The two are never blended.' },
   ],
@@ -318,8 +320,8 @@ const VIEWS = {
   ask: {
     title: 'Ask your documents',
     sub: () => (S.state
-      ? `${plural(S.state.documents.length, 'document')} · ${plural(S.state.n_scopes, 'rule')} · every answer computed or quoted`
-      : 'every answer computed or quoted'),
+      ? `${plural(S.state.documents.length, 'document')} · ${plural(S.state.n_scopes, 'rule')} · computed, quoted, or read by the local model`
+      : 'computed, quoted, or read by the local model'),
   },
   check: { title: 'Risk check', sub: () => 'agents propose claims · the rule engine decides which land' },
   draft: { title: 'Draft a document', sub: () => 'precedent → draft → encode → review → roundtrip → issue' },
@@ -816,7 +818,8 @@ const EXAMPLES = [
 const ENGINE = {
   CATALA: ['e-catala', 'Computed · rule engine'],
   VECTOR: ['e-vector', 'Quoted · from the documents'],
-  NONE: ['e-none', 'Not answered'],
+  NONE: ['e-none', 'Not in your documents'],
+  MODEL: ['e-model', 'Read · local model'],
 };
 
 const KIND_WORD = {
@@ -828,6 +831,8 @@ const KIND_WORD = {
   refused: 'these facts cannot arise under the documents',
   error: 'the rules do not settle this',
   'no-coverage': 'nothing in your documents answers this',
+  general: 'the local model’s reading of the closest clauses, not computed or quoted',
+  'general-failed': 'the local model did not answer',
 };
 
 const TYPE_HINT = {
@@ -839,6 +844,7 @@ const TYPE_HINT = {
 function engineLabel(engine, kind) {
   if (engine === 'CATALA' && kind === 'needs-input') return el('span', 'engine e-none', 'Rule found · needs facts');
   if (engine === 'CATALA' && kind !== 'computed') return el('span', 'engine e-none', 'Rule engine · not settled');
+  if (engine === 'MODEL' && kind !== 'general') return el('span', 'engine e-none', 'Local model · no answer');
   const [c, w] = ENGINE[engine] || ['e-none', engine];
   return el('span', 'engine ' + c, w);
 }
@@ -846,7 +852,7 @@ function engineLabel(engine, kind) {
 function askEmpty() {
   const box = el('div', 'ask-empty');
   add(box, el('p', 'eyebrow', 'Ask'), el('h2', null, 'What do your documents say?'),
-    el('p', 'lede', 'Ask in plain English. A question about a figure is answered by running the rule; a question about wording is answered by quoting the clause. Each part of the answer says which it is.'));
+    el('p', 'lede', 'Ask in plain English. A question about a figure is answered by running the rule; a question about wording is answered by quoting the clause. If nothing matches closely, the local model reads the closest clauses and answers, labelled as its reading.'));
   const list = el('div', 'examples');
   for (const [q, why, cls] of EXAMPLES) {
     const b = el('button', 'example');
@@ -964,10 +970,23 @@ function partNode(p, t) {
   } else if (p.kind === 'caveat') {
     const lead = p.text.split('\n')[0];
     box.appendChild(passageNode(p.text.slice(lead.length), p.citations, null, 'Qualifies the rule above. It is not part of the computation.'));
+  } else if (p.kind === 'general') {
+    box.appendChild(modelAnswerNode(p));
   } else {
     box.appendChild(notice(p.text, p.kind === 'no-coverage' ? '' : 'warn'));
     if ((p.citations || []).length) box.appendChild(add(el('div', 'label-after'), cites(p.citations)));
   }
+  return box;
+}
+
+/* Set apart from a passage on purpose: no quote mark, and a note saying the
+   model read the closest clauses, so its reading is never mistaken for a quote. */
+function modelAnswerNode(p) {
+  const box = el('div', 'model-answer');
+  add(box, add(el('div', 'model-answer-top'), roleTag('agent'), el('span', 'mono', p.model || 'local model'),
+    el('span', 'model-answer-note', `Read the ${plural((p.read || []).length, 'closest clause')}. Not computed or quoted: check it before relying on it.`)),
+  el('p', 'model-answer-text', p.text));
+  if ((p.citations || []).length) add(box, el('div', 'label label-after', 'Clauses it relied on'), add(el('div', 'label-after'), cites(p.citations)));
   return box;
 }
 
@@ -1170,6 +1189,7 @@ function askStates(a) {
   const parts = a.parts || [];
   const cat = parts.filter((p) => p.engine === 'CATALA');
   const vec = parts.filter((p) => p.engine === 'VECTOR');
+  const general = parts.find((p) => p.engine === 'MODEL');
   const computed = cat.filter((p) => p.kind === 'computed');
   const needs = cat.filter((p) => p.kind === 'needs-input');
   const stuck = parts.filter((p) => ['refused', 'error', 'ambiguous-route'].includes(p.kind));
@@ -1191,7 +1211,11 @@ function askStates(a) {
   st.quote = vec.length
     ? { status: 'pass', summary: `${plural(vec.length, 'passage')} quoted word for word.` }
     : { status: 'skipped', summary: 'No passage needed quoting.' };
-  const kinds = [computed.length && 'computed', needs.length && 'waiting for facts', stuck.length && 'not settled', vec.length && 'quoted'].filter(Boolean);
+  if (!general) st.general = { status: 'skipped', summary: 'Not needed: the question matched your documents.' };
+  else if (general.kind === 'general') st.general = { status: 'pass', summary: `Nothing matched closely, so ${general.model || 'the local model'} read ${plural((general.read || []).length, 'closest clause')} and answered.` };
+  else st.general = { status: 'blocked', summary: 'Nothing matched, and the local model did not answer.' };
+  const kinds = [computed.length && 'computed', needs.length && 'waiting for facts', stuck.length && 'not settled', vec.length && 'quoted',
+    general && general.kind === 'general' && 'read by the local model'].filter(Boolean);
   st.label = {
     status: parts.length ? 'pass' : 'skipped',
     summary: kinds.length > 1
@@ -2787,6 +2811,7 @@ const DEMOS = {
       ['execute', 'Ran ServiceCredits.ServiceCredit.'], ['quote', '1 passage quoted word for word.'],
       ['label', 'Computed and quoted parts, kept apart.']]) {
       seq.push([380, () => setStep(ol, k, 'running')], [520, () => setStep(ol, k, 'pass', sum)]);
+      if (k === 'quote') seq.push([300, () => setStep(ol, 'general', 'skipped', 'Not needed: the documents answered.')]);
     }
     seq.push([260, reveal(result)]);
     return seq;
@@ -2796,6 +2821,7 @@ const DEMOS = {
       ['e-catala', 'Computed · rule engine', 'A figure produced by running the rule. Exact, and the same every time.'],
       ['e-vector', 'Quoted · from the documents', 'The documents’ own words, with the clause they came from.'],
       ['e-none', 'Rule found · needs facts', 'Ross asks for what it needs to know. It never guesses.'],
+      ['e-model', 'Read · local model', 'Only when nothing matches closely. The model reads the closest clauses; its answer is labelled as its reading.'],
     ].map(([cls, label, text]) => add(el('div', 'tour-row demo-in'), el('span', 'engine ' + cls, label), el('span', null, text)));
     add(stage, ...rows);
     return rows.map((row, i) => [i ? 420 : 150, reveal(row)]);

@@ -2730,18 +2730,39 @@
   {
    "question": "What is the capital of France?",
    "engines": [
-    "NONE"
+    "NONE",
+    "MODEL"
    ],
    "parts": [
     {
      "engine": "NONE",
      "kind": "no-coverage",
-     "text": "No rule module and no indexed prose clause covers this question. The corpus does not answer it, and nothing has been inferred.",
+     "text": "No rule and no clause in your documents matched this closely enough to compute or quote an answer. The local model (qwen3.6:27b-q4_K_M) read the 6 closest clauses and answered below. That is its reading, not a computed or quoted answer.",
      "citations": [],
      "scope": null,
      "outputs": null,
      "inputs": null,
-     "score": null
+     "score": null,
+     "model": null
+    },
+    {
+     "citations": [],
+     "scope": null,
+     "outputs": null,
+     "inputs": null,
+     "score": null,
+     "model": "qwen3.6:27b-q4_K_M",
+     "read": [
+      "NDA-MUT N-9.1",
+      "EXP-POL E-1.1",
+      "EXP-POL E-1.3",
+      "COMM-PLAN S-5.3",
+      "EXP-POL E-4.3",
+      "COMM-PLAN S-5.2"
+     ],
+     "engine": "MODEL",
+     "kind": "general",
+     "text": "None of the closest clauses in your documents addresses this. From general knowledge: the capital of France is Paris. It is the country's largest city and serves as its political, economic, and cultural center."
     }
    ]
   }

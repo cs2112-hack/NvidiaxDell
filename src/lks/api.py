@@ -134,19 +134,81 @@ def ep_ask(body: Any, _q: dict) -> dict:
     inputs = (body or {}).get("inputs") or None
     scope = (body or {}).get("scope") or None
     ans = _chat().answer(q, inputs=inputs, scope=scope)
-    return {
-        "question": ans.question,
-        "engines": ans.engines_used,
-        "parts": [
-            {
-                "engine": p.engine, "kind": p.kind, "text": p.text,
-                "citations": p.citations, "scope": p.scope,
-                "outputs": p.outputs, "inputs": p.inputs,
-                "score": round(p.score, 3) if p.score is not None else None,
-            }
-            for p in ans.parts
-        ],
-    }
+    parts = [
+        {
+            "engine": p.engine, "kind": p.kind, "text": p.text,
+            "citations": p.citations, "scope": p.scope,
+            "outputs": p.outputs, "inputs": p.inputs,
+            "score": round(p.score, 3) if p.score is not None else None,
+            "model": None,
+        }
+        for p in ans.parts
+    ]
+    if parts and all(p["kind"] == "no-coverage" for p in parts):
+        parts = _general_fallback(q, parts)
+    engines: list[str] = []
+    for p in parts:
+        if p["engine"] not in engines:
+            engines.append(p["engine"])
+    return {"question": ans.question, "engines": engines, "parts": parts}
+
+
+GENERAL_CLAUSES = 6
+"""How many of the closest clauses the fallback model reads."""
+
+
+def _closest_clauses(question: str) -> list[tuple[str, str, str]]:
+    """The corpus clauses nearest the question, whether prose or rule.
+
+    Prose comes from the quotable store and rule clauses from the route index,
+    both with no floor: these are the clauses that fell *below* the answering
+    thresholds, which is exactly why the model is being asked.
+    """
+    chat = _chat()
+    by_ref = {c.ref: c for d in _corpus() for c in d.clauses}
+    refs: list[str] = []
+    if chat._ranker is not None:
+        for h in chat._ranker.search(question, k=GENERAL_CLAUSES, min_score=0.0)[:GENERAL_CLAUSES // 2]:
+            refs.append(h.chunk.ref)
+    refs += chat.route.best_refs(question, set(by_ref), GENERAL_CLAUSES)
+    out: list[tuple[str, str, str]] = []
+    for ref in dict.fromkeys(refs):
+        c = by_ref.get(ref)
+        if c is not None and len(out) < GENERAL_CLAUSES:
+            out.append((c.ref, c.section_title, c.body))
+    return out
+
+
+def _general_fallback(question: str, parts: list[dict]) -> list[dict]:
+    """When no rule or clause answers, let the local model read the closest.
+
+    Done here rather than in `Chat.answer`, which stays exactly as measured:
+    the routing evaluation and the search service read it, and neither should
+    start calling a model. The no-coverage part is kept and reworded to say
+    where the question went, and the model's reply is its own MODEL part, so
+    its reading is never presented as a computed or quoted answer.
+    """
+    from . import agents, llm
+    from .chat import Engine
+    model = llm.DEFAULT_MODEL
+    clauses = _closest_clauses(question)
+    res = agents.answer_general(question, clauses, model=model)
+    note = ("No rule and no clause in your documents matched this closely enough "
+            "to compute or quote an answer.")
+    if res.ok:
+        note += (f" The local model ({model}) read the {len(clauses)} closest clauses "
+                 f"and answered below. That is its reading, not a computed or quoted answer.")
+        extra = {"engine": Engine.MODEL, "kind": "general", "text": res.value["text"],
+                 "citations": res.value["cited"]}
+    else:
+        why = ("it is probably busy with another job" if res.kind == "timeout"
+               else res.error)
+        note += f" It was passed to the local model ({model}), which did not answer."
+        extra = {"engine": Engine.MODEL, "kind": "general-failed",
+                 "text": f"No answer from {model}: {why}"}
+    parts[0] = {**parts[0], "text": note}
+    return parts + [{"citations": [], "scope": None, "outputs": None, "inputs": None,
+                     "score": None, "model": model, "read": [r for r, _h, _b in clauses], **extra}]
 
 
 def ep_scopes(_body: Any, _q: dict) -> dict:

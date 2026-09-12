@@ -263,6 +263,30 @@ SLOTFILL = Role(
     ),
 )
 
+GENERAL = Role(
+    name="general",
+    purpose="Answer a question no rule or clause matched closely, from the "
+            "closest clauses of the company's documents and general knowledge.",
+    reads=["corpus"],
+    forbidden=["catala", "docs", "src"],
+    as_json=False,
+    num_predict=1024,
+    system=(
+        "You answer a question about a company's documents that the automatic "
+        "search could not answer: no rule and no clause matched it closely "
+        "enough to compute or quote. You are given the clauses of the company's "
+        "documents that came closest. Answer briefly and plainly, in a few short "
+        "paragraphs at most. Plain text only, no Markdown headings or tables.\n\n"
+        "Where a clause you were given bears on the question, rely on it and cite "
+        "its reference in square brackets exactly as given, e.g. [EMP-ANNEX-C C-1.1]. "
+        "Never cite a reference you were not given and never invent a clause. "
+        "Where the clauses do not answer the question, say so plainly and give "
+        "the general position from general knowledge, marked as such. If the "
+        "question turns on the law, say it has to be checked against the law "
+        "that actually applies. If you do not know, say so."
+    ),
+)
+
 # --- document generation ----------------------------------------------------
 #
 # Five roles, all proposal roles like the four above. The drafter and encoder
@@ -519,7 +543,7 @@ SCREENS = (SCREEN_LOGIC, SCREEN_LANGUAGE, SCREEN_CONSISTENCY)
 
 ROLES = {
     r.name: r
-    for r in (TRIAGE, REVIEWER, REENCODER, SLOTFILL, DRAFTER, ENCODER, *SCREENS)
+    for r in (TRIAGE, REVIEWER, REENCODER, SLOTFILL, GENERAL, DRAFTER, ENCODER, *SCREENS)
 }
 
 
@@ -747,6 +771,7 @@ def run_role(
     validate: Callable[[Any], Any] | None = None,
     seed: int | None = llm.DEFAULT_SEED,
     schema: dict[str, Any] | None = None,
+    timeout: int = 900,
 ) -> RoleResult:
     """Run one role once and validate its output.
 
@@ -774,6 +799,7 @@ def run_role(
             schema=schema if role.as_json else None,
             num_predict=role.num_predict,
             think=role.think,
+            timeout=timeout,
         )
     except llm.ModelTimedOut as e:
         return RoleResult(role.name, False, error=str(e), enforcement=enforcement,
@@ -887,6 +913,38 @@ def extract_facts(
     listing = "\n".join(f"  {n}: {t}" for n, t in sorted(inputs.items()))
     prompt = f"Question:\n{question}\n\nThe rule needs these inputs:\n{listing}\n"
     return run_role(SLOTFILL, prompt, model=model, validate=validate)
+
+
+# --- role: general fallback -----------------------------------------------
+
+def answer_general(
+    question: str,
+    clauses: list[tuple[str, str, str]],
+    *,
+    model: str = llm.DEFAULT_MODEL,
+    timeout: int = 180,
+) -> RoleResult:
+    """An answer to a question no rule or clause matched closely enough.
+
+    `clauses` are the closest clauses of the corpus, as (ref, heading, body).
+    The reply's value is `{"text", "cited"}`, where `cited` keeps only the
+    references it was actually given: a citation to a clause it never saw is
+    dropped, not shown. It is read by a person waiting on an answer, hence the
+    short `timeout`: a model busy with a long job is reported as busy.
+    """
+    given = {ref for ref, _h, _b in clauses}
+
+    def validate(v: Any) -> dict[str, Any]:
+        text = str(v).strip()
+        if not text:
+            raise ValueError("empty answer")
+        cited = [r for r in given if f"[{r}]" in text or r in text]
+        return {"text": text, "cited": sorted(cited)}
+
+    listing = "\n\n".join(f"[{ref}] {head}\n{body}" for ref, head, body in clauses)
+    prompt = (f"Closest clauses from the company's documents:\n\n{listing or '(none)'}"
+              f"\n\nQuestion:\n{question}\n")
+    return run_role(GENERAL, prompt, model=model, validate=validate, timeout=timeout)
 
 
 # --- role: adversarial reviewer ------------------------------------------

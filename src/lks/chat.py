@@ -70,6 +70,10 @@ class Engine:
     CATALA = "CATALA"
     VECTOR = "VECTOR"
     NONE = "NONE"
+    MODEL = "MODEL"
+    """The local model's reading of the closest clauses. Never produced by
+    `Chat.answer`, which only computes or quotes: `lks.api.ep_ask` adds it after
+    a no-coverage answer, as a separate part labelled as the model's reading."""
 
 
 @lru_cache(maxsize=2048)
@@ -92,7 +96,7 @@ def _embed_query(question: str) -> np.ndarray:
 @dataclass
 class AnswerPart:
     engine: str
-    kind: str                 # "computed" | "needs-input" | "quotation" | "caveat" | "no-coverage" | "error"
+    kind: str                 # "computed" | "needs-input" | "quotation" | "caveat" | "no-coverage" | "error" | "general" | "general-failed"
     text: str
     citations: list[str] = field(default_factory=list)
     scope: str | None = None

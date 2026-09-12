@@ -134,6 +134,8 @@ select.field { padding-right: 28px; }
 .engine.e-catala { background: var(--engine-catala-tint); color: var(--engine-catala); }
 .engine.e-vector { background: var(--engine-vector-tint); color: var(--engine-vector); }
 .engine.e-none { background: rgba(138,107,31,.10); color: var(--state-pending); }
+/* The model is not an engine: outlined like the agent role, never filled like a source. */
+.engine.e-model { background: var(--surface-card); box-shadow: inset 0 0 0 1px var(--slate-300); color: var(--ink-600); }
 
 /* Who does a step. The engine and search colours are the engine identity
    colours, so a role tag and an answer label agree about who produced what. */
@@ -409,6 +411,10 @@ details[open] > summary .icon { transform: rotate(180deg); }
 .part-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 10px; }
 .part-kind { font: 12px/1.4 var(--font-sans); color: var(--text-secondary); }
 .blend { margin: 4px 0 0; font: 12px/1.6 var(--font-sans); color: var(--text-secondary); }
+.model-answer { min-width: 0; padding: 12px 16px; border: 1px dashed var(--slate-300); }
+.model-answer-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 10px; font-size: 11px; color: var(--text-secondary); }
+.model-answer-note { font: 12px/1.4 var(--font-sans); color: var(--text-secondary); }
+.model-answer-text { margin: 0; font: 14px/1.7 var(--font-sans); white-space: pre-line; overflow-wrap: anywhere; }
 .a-steps { margin-top: 8px; }
 .a-steps .pipe { margin-top: 14px; padding: 16px; background: var(--surface-card); border: 1px solid var(--line-hairline); }
 
