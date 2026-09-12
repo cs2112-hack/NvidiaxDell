@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
@@ -49,8 +50,22 @@ REPO = Path(__file__).resolve().parents[2]
 
 
 class Enforcement:
-    SANDBOX = "sandbox"   # the paths it must not see are not mounted
-    PROMPT = "prompt"     # it is only asked not to look
+    SANDBOX = "sandbox"
+    """Proven: a sandbox was actually created and carried only the role's
+    permitted paths."""
+
+    UNPROVEN = "sandbox-unproven"
+    """OpenShell is installed and its gateway answers, but no sandbox has been
+    successfully created, so isolation is NOT established.
+
+    This state exists because an earlier version of this module had only two.
+    It reported `sandbox` on the strength of `openshell sandbox list`
+    succeeding, while `sandbox create` was in fact failing with
+    ContainerRestarting -- so it claimed enforced isolation and had none. A
+    capability you have not exercised is not a capability you have."""
+
+    PROMPT = "prompt"
+    """OpenShell is absent. A role is only asked not to look."""
 
 
 @dataclass
@@ -76,7 +91,25 @@ class Role:
     clause, and writing Catala, plainly do."""
 
     def enforcement(self) -> str:
-        return Enforcement.SANDBOX if openshell_available() else Enforcement.PROMPT
+        if not openshell_available():
+            return Enforcement.PROMPT
+        return Enforcement.SANDBOX if sandbox_proven() else Enforcement.UNPROVEN
+
+    def isolation_note(self) -> str:
+        state = self.enforcement()
+        if state == Enforcement.SANDBOX:
+            return (f"a sandbox carried only {', '.join(self.reads) or 'nothing'}; "
+                    f"{', '.join(self.forbidden)} were never placed in it")
+        if state == Enforcement.UNPROVEN:
+            return (f"OpenShell answers but no sandbox has been created yet, so "
+                    f"isolation is NOT established. Until one is, this role is "
+                    f"only asked not to read {', '.join(self.forbidden)}"
+                    + (f" (last create error: {last_create_error()[:120]})"
+                       if last_create_error() else ""))
+        ok, why = openshell_probe()
+        return (f"prompt only — {why}. The packet is stripped, but nothing "
+                f"prevents a tool-using role from reading "
+                f"{', '.join(self.forbidden)}")
 
 
 # --- the roles -------------------------------------------------------------
@@ -203,16 +236,77 @@ ROLES = {r.name: r for r in (TRIAGE, REVIEWER, REENCODER, SLOTFILL)}
 
 # --- OpenShell ------------------------------------------------------------
 
-def openshell_available() -> bool:
-    """Whether a policy-enforcing sandbox runtime is present.
+_OPENSHELL_PROBE: tuple[bool, str] | None = None
+_last_create_error: list[str] = []
 
-    Deliberately strict: the point of the sandbox is that a role's forbidden
-    paths do not exist, and claiming that when the gateway is missing would be
-    the one lie this module must not tell.
+
+def last_create_error() -> str:
+    return _last_create_error[0] if _last_create_error else ""
+
+
+def _openshell_bin() -> str | None:
+    for c in (shutil.which("openshell"), str(Path.home() / ".local/bin/openshell")):
+        if c and Path(c).exists():
+            return c
+    return None
+
+
+def openshell_probe(refresh: bool = False) -> tuple[bool, str]:
+    """Whether a sandbox can ACTUALLY be created, and why not if it cannot.
+
+    This used to be `shutil.which("openshell")`. That is not the same question.
+    A binary on PATH with an unreachable gateway would have made this module
+    report enforced isolation while enforcing nothing -- the one lie it must not
+    tell -- so the check now asks the gateway to list sandboxes and believes
+    only a real answer.
     """
+    global _OPENSHELL_PROBE
+    if _OPENSHELL_PROBE is not None and not refresh:
+        return _OPENSHELL_PROBE
     if os.environ.get("LKS_FORCE_PROMPT_ISOLATION") == "1":
-        return False
-    return bool(shutil.which("openshell") or shutil.which("nemohermes"))
+        _OPENSHELL_PROBE = (False, "forced off by LKS_FORCE_PROMPT_ISOLATION")
+        return _OPENSHELL_PROBE
+    exe = _openshell_bin()
+    if exe is None:
+        _OPENSHELL_PROBE = (False, "openshell is not installed")
+        return _OPENSHELL_PROBE
+    try:
+        proc = subprocess.run(
+            ["sg", "docker", "-c", f"{exe} sandbox list"],
+            capture_output=True, text=True, timeout=90,
+        )
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        _OPENSHELL_PROBE = (False, f"gateway did not answer: {type(e).__name__}")
+        return _OPENSHELL_PROBE
+    blob = (proc.stdout or "") + (proc.stderr or "")
+    if proc.returncode != 0:
+        _OPENSHELL_PROBE = (False, f"gateway refused: {blob.strip()[:200]}")
+        return _OPENSHELL_PROBE
+    _OPENSHELL_PROBE = (True, blob.strip().splitlines()[0][:120] if blob.strip() else "gateway reachable")
+    return _OPENSHELL_PROBE
+
+
+def openshell_available() -> bool:
+    """Whether the gateway answers. NOT whether a sandbox can be created --
+    see Enforcement.UNPROVEN for why those are different questions."""
+    return openshell_probe()[0]
+
+
+_CREATE_PROVEN: bool | None = None
+
+
+def sandbox_proven(refresh: bool = False) -> bool:
+    """Whether a sandbox has actually been created in this session.
+
+    Deliberately not probed eagerly: creating one is slow. It is set by
+    `open_sandbox` on success, so the first real use establishes it and
+    `enforcement()` tells the truth from then on. Until then the state is
+    UNPROVEN, which reads as "not established" everywhere it is printed.
+    """
+    global _CREATE_PROVEN
+    if refresh:
+        _CREATE_PROVEN = None
+    return bool(_CREATE_PROVEN)
 
 
 def sandbox_spec(role: Role) -> dict[str, Any]:
@@ -232,6 +326,83 @@ def sandbox_spec(role: Role) -> dict[str, Any]:
         "absent": [f"/work/{p}" for p in role.forbidden],
         "enforcement": role.enforcement(),
     }
+
+
+@dataclass
+class Sandbox:
+    """A live OpenShell sandbox holding only what one role may see.
+
+    Files are UPLOADED rather than bind-mounted, which is stricter: the
+    sandbox has no view of the host filesystem at all, so a role's forbidden
+    paths are not merely unreadable, they were never there.
+    """
+
+    name: str
+    role: str
+    exe: str
+    uploaded: list[str] = field(default_factory=list)
+    errors: list[str] = field(default_factory=list)
+
+    def _run(self, args: list[str], timeout: int = 300) -> subprocess.CompletedProcess:
+        return subprocess.run(
+            ["sg", "docker", "-c", f"{self.exe} " + " ".join(args)],
+            capture_output=True, text=True, timeout=timeout,
+        )
+
+    def upload(self, local: Path, remote: str) -> bool:
+        # upload takes positionals: <NAME> <LOCAL_PATH> [DEST]
+        r = self._run([
+            "sandbox", "upload", "--no-git-ignore",
+            self.name, f"'{local}'", f"'{remote}'",
+        ], timeout=600)
+        if r.returncode == 0:
+            self.uploaded.append(remote)
+        else:
+            self.errors.append(f"upload {remote}: {(r.stderr or r.stdout).strip()[:160]}")
+        return r.returncode == 0
+
+    def exec(self, command: str, timeout: int = 600) -> tuple[int, str, str]:
+        esc = command.replace("'", "'\\''")
+        r = self._run(["sandbox", "exec", "-n", self.name, "--no-tty",
+                       "sh", "-lc", f"'{esc}'"], timeout=timeout)
+        return r.returncode, r.stdout, r.stderr
+
+    def delete(self) -> None:
+        self._run(["sandbox", "delete", "--yes", self.name], timeout=300)
+
+
+def open_sandbox(role: Role, suffix: str = "") -> Sandbox | None:
+    """Create a sandbox carrying exactly the paths `role` may read.
+
+    Returns None when no sandbox can be created, so a caller can fall back to
+    the prompt-only path with its eyes open rather than silently believing it
+    is isolated.
+    """
+    ok, _why = openshell_probe()
+    exe = _openshell_bin()
+    if not ok or exe is None:
+        return None
+    # the gateway's naming rule: 1-19 chars, lowercase, starts with a letter,
+    # single internal hyphens, ends alphanumeric
+    base = f"lks-{role.name}{('-' + suffix) if suffix else ''}"
+    name = re.sub(r"-+", "-", re.sub(r"[^a-z0-9-]", "-", base.lower()))[:19].rstrip("-")
+    sb = Sandbox(name=name, role=role.name, exe=exe)
+    image = os.environ.get("LKS_SANDBOX_IMAGE", "docker.io/library/python:3.12-slim")
+    r = sb._run(
+        ["sandbox", "create", "--name", name, "--from", image], timeout=900
+    )
+    if r.returncode != 0:
+        sb.errors.append((r.stderr or r.stdout).strip()[:400])
+        _last_create_error.clear()
+        _last_create_error.append(sb.errors[-1])
+        return None
+    global _CREATE_PROVEN
+    _CREATE_PROVEN = True
+    for rel in role.reads:
+        src = REPO / rel
+        if src.exists():
+            sb.upload(src, f"/work/{rel}")
+    return sb
 
 
 def audit_isolation(role: Role) -> list[str]:
