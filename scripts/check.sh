@@ -74,7 +74,32 @@ else:
     print(f"   {len(rs)-len(bad)}/{len(rs)} counterexamples pass  (store: {s})")
 PYEOF
 
-echo "== 6. exception-branch coverage =="
+echo "== 6. vector store (files + mongo, both pinned to corpus AND triage) =="
+"$PY" - <<'PYEOF'
+from lks.vector import VectorStore, IndexStaleError, IndexMissingError
+try:
+    s = VectorStore.open()
+    m = s.manifest
+    print(f"   ok    files: {m['n_chunks']} chunks, {m['labels']}, "
+          f"corpus {m['corpus']['aggregate']}, triage {m['triage']['aggregate']}")
+except (IndexStaleError, IndexMissingError) as e:
+    print(f"   FAIL  files: {e}")
+    raise SystemExit(1)
+try:
+    from lks.mongo_store import MongoVectorStore, MongoUnavailable
+    ms = MongoVectorStore.open()
+    st = ms.status()
+    print(f"   ok    mongo: {st['n_chunks']} chunks via {st['search_path']}")
+    ms.close()
+except MongoUnavailable:
+    print("   skip  mongo: not running (start the container, then scripts/sync_mongo.py)")
+except IndexStaleError as e:
+    print(f"   FAIL  mongo: {e}")
+    raise SystemExit(1)
+PYEOF
+[ $? -ne 0 ] && rc=1
+
+echo "== 7. exception-branch coverage =="
 "$PY" - <<'PYEOF'
 from pathlib import Path
 from lks.reviewer import discover_scopes, exception_branches

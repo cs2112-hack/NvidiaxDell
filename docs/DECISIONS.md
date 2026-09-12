@@ -134,3 +134,24 @@ difference is never invisible.
 
 Embeddings remain the static model2vec vectors of D-4: moving the storage layer
 does not change what is embedded or make it non-deterministic.
+
+### D-6 addendum — verified behaviour
+
+Running against `mongodb/mongodb-atlas-local`, `mongot` is present and
+`$vectorSearch` is the live path (`status()` reports which). The Mongo-backed
+store and the file-backed store return **identical rankings** on every test
+query, which is what you would expect given both read the same committed,
+deterministic vectors — and is worth asserting, because a divergence would mean
+the materialised view had drifted from the artefact it was built from.
+
+All three staleness paths are verified to refuse rather than degrade:
+
+| Change | Result |
+|---|---|
+| a corpus clause edited (i.e. a different commit checked out) | refused, naming the manifest and corpus hashes |
+| a triage label changed with the corpus untouched | refused, naming the triage hashes |
+| Mongo holding fewer chunks than its own metadata claims | refused |
+
+The second case is the one that matters most and the one a corpus-hash-only
+design misses entirely: relabelling a clause changes *what may be quoted at
+all*, without changing a byte of the text.
