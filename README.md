@@ -123,8 +123,4 @@ Every rule-dense corpus is the same shape: benefits plans, insurance policies, p
 
 ## Team
 
-*[names]*
-
-## License
-
-*[TBD]*. IP is retained by the team per event rules. All third-party content in the corpus is public-domain or used under CC BY 4.0 with attribution recorded in `corpus/manifest.csv`.
+*Ruben Hayrapetyan, Jason Pitchford, Sheikh Gaye, Nirajan Nair*
