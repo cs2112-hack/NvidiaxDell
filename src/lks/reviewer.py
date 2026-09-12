@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from .catala_runner import (
+    AssertionFailed,
     CatalaError,
     exception_tree,
     run_scope,
@@ -358,19 +359,26 @@ def run_regression(component: str | None = None) -> list[RegressionResult]:
         if not path or not scope:
             out.append(RegressionResult(ce.id, ce.component, False, detail="missing target"))
             continue
+        detail = ""
         try:
             actual = run_scope(path, scope, ce.inputs)
         except CatalaError as e:
-            out.append(
-                RegressionResult(
-                    ce.id, ce.component, False, ce.expected,
-                    {"__error__": type(e).__name__},
-                    detail=e.diagnostic[:300],
-                )
-            )
-            continue
+            # An error is a legitimate expected RESULT, not automatically a
+            # failure. A counterexample may assert that impossible facts are
+            # refused (AssertionFailed), that the documents establish no
+            # priority (ScopeConflict), or that no rule applies (NoValue) --
+            # and for a legal system those are the correct answers, so they
+            # must be assertable. Hardcoding failure here made an expected
+            # refusal impossible to satisfy.
+            actual = {"__error__": type(e).__name__}
+            detail = e.diagnostic[:300]
         ok = _matches(ce.expected, actual)
-        out.append(RegressionResult(ce.id, ce.component, ok, ce.expected, actual))
+        out.append(
+            RegressionResult(
+                ce.id, ce.component, ok, ce.expected, actual,
+                detail="" if ok else detail,
+            )
+        )
     return out
 
 

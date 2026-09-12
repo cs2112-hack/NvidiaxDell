@@ -85,11 +85,16 @@ declaration scope RetentionEnd:
 | Rounding up would extend every such period by a day.
 |
 | That justification is about the Standard's own periods, and R-3.3's period
-| is not one of them: it is imposed by pensions or payroll legislation and is
-| a floor, not a maximum. So R-3.3 rounds the other way, by calling
-| `Date.add_round_up` explicitly rather than relying on the scope mode; the
-| reasoning is with the clause. The scope mode stays `date round down`
-| because every other limb here is an R-1.2 maximum.
+| is not one of them: it is imposed by pensions or payroll legislation, and a
+| statutory retention period is a floor rather than a maximum. Rounding it
+| down would have the Company destroy a record a day before the legislation
+| allows — a breach, where rounding an R-1.2 maximum down is at worst early
+| deletion the Standard positively encourages. So R-3.3 rounds the other way,
+| by calling `Date.add_round_up` explicitly rather than relying on the scope
+| mode, exactly as `NdaSurvival` rounds its periods of protection up
+| throughout. The scope mode stays `date round down` because every other
+| period in this scope is an R-1.2 maximum, and limb (a)'s own six years
+| keep rounding down even where R-3.3 displaces the result.
 
 ```catala
 scope RetentionEnd:
@@ -214,19 +219,14 @@ end of employment. The clause bites only where the statutory period is the
 *longer*, so the result is the later of the two dates — which also means a
 supplied period shorter than six years cannot cut limb (a) down.
 
-This is the one period in this scope that is a **floor rather than a
-maximum**, and it is therefore the one that must round *up*. Everywhere else
-`date round down` is right because R-1.2 makes the Standard's periods
-ceilings, so an ambiguous month-end resolved backwards can only delete
-earlier than permitted — which R-1.2 positively encourages. Here the period
-is "the period so required" by legislation: resolving ten years from 29
-February backwards to 28 February would have the Company destroy the record
-a day before the statute permits, which is a breach in the one direction
-rounding must not err in. `Date.add_round_up` is called explicitly so this
-limb rounds against the scope mode, for the same reason `NdaSurvival` rounds
-its periods of protection up throughout. Limb (a)'s own six years keep
-rounding down inside their maximum, so one record can see both directions —
-correctly, because the two periods are different kinds of thing.
+It is also the one period here that is a **floor rather than a maximum**, so
+it is the one that rounds *up*: resolving ten years from 29 February back to
+28 February would destroy the record a day before the legislation permits,
+which is the one direction rounding must not err in. Hence the explicit
+`Date.add_round_up` against the scope's own mode, argued in full in the
+rounding note above. Limb (a)'s six years keep rounding down inside their
+R-1.2 maximum, so one record can see both directions — correctly, because
+the two periods are different kinds of thing.
 
 ```catala
 scope RetentionEnd:

@@ -70,8 +70,24 @@ scope HourPremium:
 | worked in excess of 40 hours in a Payroll Week, calculated at 1.25 times the
 | Base Hourly Rate.
 
+C-4.1 is also what fixes the domain of `ordinal`. The entitlement attaches to
+"each hour worked in excess of 40 hours **in a Payroll Week**", so the ordinal
+is the hour's position within one Payroll Week: the first hour worked in the
+week is hour 1, and C-2.2 makes the Payroll Week "the period of seven
+consecutive days", which contains 168 hours and no more. Position 0, position
+-3 and position 200 are therefore not hours of any Payroll Week, and the
+threshold arithmetic on them is meaningless rather than merely odd — a position
+of 200 attracts the C-4.2 rate on a week that cannot have contained a 200th
+hour, and a position of 0 or below silently takes the ordinary-hour branch. The
+scope refuses them. The bound is the Annex's, not a programming convenience: it
+comes from C-2.2's definition of the week that C-4.1 counts within, and it
+bounds `WeeklyOvertime` as well, because the ordinal each row of a timesheet
+receives there is its position in that same week.
+
 ```catala
 scope HourPremium:
+  assertion ordinal >= 1 and ordinal <= 168
+
   label c4_1 exception ordinary definition multiplier
     under condition ordinal > 40
     consequence equals 1.25

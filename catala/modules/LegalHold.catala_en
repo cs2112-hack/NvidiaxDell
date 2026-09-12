@@ -226,43 +226,17 @@ scope HoldEffect:
 | Records deleted from production systems are deleted from backups at the
 | expiry of the backup rotation cycle, which must not exceed 90 days.
 
-**CE-0020.** This clause used to be encoded in `Retention`, as
-`retention_end_date + 90 day`. That substituted R-3's expiry for the event
-R-6.1 actually names: deletion **from production systems**. The two come
-apart exactly where R-4 bites. A record under a Legal Hold must not be
-deleted while the hold is in force (R-4.1) and is then deleted within 30 days
-of release if its period has already expired (R-4.3), which can fall years
-after the R-3 date — so the old encoding produced a backup deadline that had
-already passed before the record could lawfully leave production, an
-instruction compliable with on no facts at all. R-2.4 confirms the two dates
-are distinct steps of one deletion: a record is deleted when it is gone from
-production *and*, at the expiry of the rotation cycle, from backups.
+The clause measures its cycle from one event and one only: deletion **from
+production systems**. It takes that date from `deletion_due_date`, the output
+of the whole R-3-then-R-4 chain, and from no input of its own. The Standard
+fixes only the ceiling of the cycle, not its length, so what this computes is
+the outer bound: a record leaving production when deletion falls due must be
+gone from backups 90 days later.
 
-So R-6.1 belongs here, immediately below the clauses that fix the
-production-deletion date, and it takes that date from `deletion_due_date`
-rather than from any input of its own. That is deliberate. The date R-6.1
-depends on is the output of the whole R-3-then-R-4 chain — the R-3 limb that
-fixed the period, defeated by R-4.3 on release of a hold, defeated in turn by
-R-4.1 while one is in force — and a caller who had to supply it as an input
-could silently supply the R-3 expiry, which is the very error CE-0020
-records. Composed this way the wrong date cannot be passed in, because no
-date is passed in: `Retention.RetentionEnd.retention_end_date` feeds this
-scope's `retention_end_date`, and R-6.1 reads what R-4 made of it.
-
-`Absent` propagates for the same reason it arises: while a hold is in force
-no deletion date falls due, so no backup deadline can be computed either.
-Manufacturing one from the expired retention period would report a deadline
-for a purge R-4.1 forbids.
-
-The Standard fixes only the ceiling of the rotation cycle, not its length, so
-what this computes is the outer bound: a record deleted from production when
-deletion falls due must be gone from backups 90 days later. Where a business
-unit exercises the R-1.2 expectation and deletes earlier than it must, R-6.1
-runs its cycle from that earlier actual deletion and the deadline moves
-earlier with it. That actual date is not among the records this Standard
-defines — `deletion_due_date` is when deletion *falls due* — so the value
-here is the latest permissible purge deadline and never a licence to hold a
-backup for 90 days beyond a deletion that has already happened.
+`Absent` propagates for the same reason it arises. While a hold is in force
+no production-deletion date falls due, so no backup deadline can be computed
+either; manufacturing one from the expired retention period would name a
+purge deadline for a deletion R-4.1 forbids.
 
 ```catala
 scope HoldEffect:
@@ -272,3 +246,30 @@ scope HoldEffect:
     -- Present content deleted_from_production:
          Present content (deleted_from_production + 90 day)
 ```
+
+**CE-0020, and why the clause is encoded here.** R-6.1 used to live in
+`Retention`, as `retention_end_date + 90 day`, which substituted R-3's expiry
+for the event the clause actually names. The two come apart exactly where R-4
+bites: a record under a Legal Hold must not be deleted while the hold is in
+force (R-4.1) and is then deleted within 30 days of release if its period has
+already expired (R-4.3), which can fall years after the R-3 date. The old
+encoding therefore produced a backup deadline that had already passed before
+the record could lawfully leave production — an instruction compliable with
+on no facts at all. R-2.4 confirms the two dates are distinct steps of one
+deletion: a record is deleted when it is gone from production *and*, at the
+expiry of the rotation cycle, from backups.
+
+Taking the date from `deletion_due_date` rather than as an input of its own
+is the point of the fix. A caller asked to supply the production-deletion
+date could silently supply the R-3 expiry, which is precisely the error
+CE-0020 records; composed this way the wrong date cannot be passed in,
+because no date is passed in. `Retention.RetentionEnd.retention_end_date`
+feeds this scope's `retention_end_date`, and R-6.1 reads what R-4 made of it.
+
+The remaining inexactness is R-1.2's, and it is inexact in the safe
+direction. Where a business unit deletes earlier than it must, R-6.1 runs its
+cycle from that earlier actual deletion and the deadline moves earlier with
+it. No record defined by this Standard carries that actual date —
+`deletion_due_date` is when deletion *falls due* — so what this output states
+is the latest permissible purge deadline, never a licence to keep a backup
+for 90 days after a deletion that has already happened.

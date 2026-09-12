@@ -64,6 +64,19 @@ class NoApplicableRule(CatalaError):
     """No definition applies for these inputs. Usually a missing base case."""
 
 
+class AssertionFailed(CatalaError):
+    """An input-domain or internal assertion was violated.
+
+    Distinguished from other errors because it means something different: the
+    module was asked a question it has established cannot arise -- a negative
+    count of meals provided free, an hour outside the 168 of a Payroll Week --
+    and declined to answer. For a legal system that is the correct outcome, not
+    a malfunction: computing a figure from an impossible premise is how silent
+    over-payments happen. Callers and counterexamples can therefore assert
+    "this input is refused" as a legitimate expected result.
+    """
+
+
 def _env() -> dict[str, str]:
     env = os.environ.copy()
     bindirs = [str(OPAM_SWITCH / "bin"), str(Path.home() / ".local" / "bin")]
@@ -109,6 +122,7 @@ def _run(args: list[str], *, cwd: Path | None = None, stdin: str | None = None) 
 
 CONFLICT_RE = re.compile(r"conflict between multiple valid consequences", re.I)
 NOVALUE_RE = re.compile(r"no applicable rule to define this variable", re.I)
+ASSERT_RE = re.compile(r"assertion (?:failed|doesn't hold)", re.I)
 
 
 def _classify(msg: str, proc: subprocess.CompletedProcess) -> CatalaError:
@@ -118,6 +132,8 @@ def _classify(msg: str, proc: subprocess.CompletedProcess) -> CatalaError:
         return ScopeConflict(msg, **kw)
     if NOVALUE_RE.search(blob):
         return NoApplicableRule(msg, **kw)
+    if ASSERT_RE.search(blob):
+        return AssertionFailed(msg, **kw)
     return CatalaError(msg, **kw)
 
 

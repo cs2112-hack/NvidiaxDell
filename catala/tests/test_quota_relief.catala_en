@@ -1,16 +1,25 @@
 # Tests — FY26 Sales Commission Plan: quota relief
 
-Assertion-based tests for `Quota_relief`. The 30-day gate in S-6.1 is tested
+Assertion-based tests for `QuotaRelief`. The 30-day gate in S-6.1 is tested
 at 29 and at 30 days, each of the three qualifying absence categories is
 tested, and the non-qualifying category and the "continuous period" limb are
 tested for absence of relief.
 
-The last test is the S-6.2 test, and it is the important one. It composes
+Three sections then pin the defects the adversarial reviewer found in the
+quantum limb, each of which produced a plausible number: absence outside the
+Plan Year (CE-0012), absence straddling the Plan Year boundary (CE-0013) and
+overlapping absence records double-counting their shared days (CE-0014). Those
+tests assert a *difference* from the wrong figure as well as the right one,
+because the wrong figure is what a careless re-encoding would reproduce.
+
+The S-6.2 tests are the important ones. The first composes
 `QuotaRelief.RelievedQuota` with `Commission.Attainment` and
 `Commission.Accelerator` and asserts that the accelerator computed on the
 relieved Quota differs from the one computed on the assigned Quota — which is
 the only way to show that the ordering S-6.2 mandates has been honoured rather
-than merely described.
+than merely described. The last goes through `CommissionAfterRelief`, the scope
+in which that ordering is structural rather than remembered, and asserts that
+it cannot produce the unrelieved figure.
 
 > Using QuotaRelief
 > Using Commission
@@ -47,7 +56,7 @@ scope TestS6_1_DayCountInclusive:
     }
   assertion r.days_of_absence = 30
   assertion r.is_qualifying = true
-  assertion r.relief_days = 30
+  assertion r.in_year_days_of_absence = 30
 ```
 
 An absence recorded as starting and ending on the same day is one day.
@@ -64,7 +73,7 @@ scope TestS6_1_SingleDayAbsence:
     }
   assertion r.days_of_absence = 1
   assertion r.is_qualifying = false
-  assertion r.relief_days = 0
+  assertion r.in_year_days_of_absence = 1
 ```
 
 ## S-6.1 The 30-day gate, on both sides
@@ -146,7 +155,7 @@ scope TestS6_1_StatutoryParentalLeave:
     }
   assertion r.is_qualifying_category = true
   assertion r.days_of_absence = 90
-  assertion r.relief_days = 90
+  assertion r.in_year_days_of_absence = 90
 ```
 
 ```catala
@@ -160,7 +169,7 @@ scope TestS6_1_AdoptionLeave:
       -- absence: absence of AdoptionLeave, |2026-01-01|, |2026-03-31|
     }
   assertion r.is_qualifying_category = true
-  assertion r.relief_days = 90
+  assertion r.in_year_days_of_absence = 90
 ```
 
 ```catala
@@ -174,7 +183,7 @@ scope TestS6_1_LongTermSickness:
       -- absence: absence of LongTermSicknessAbsence, |2026-01-01|, |2026-03-31|
     }
   assertion r.is_qualifying_category = true
-  assertion r.relief_days = 90
+  assertion r.in_year_days_of_absence = 90
 ```
 
 An absence outside the three categories gives no relief however long it is.
@@ -192,7 +201,7 @@ scope TestS6_1_OtherAbsenceNoRelief:
   assertion r.is_qualifying_category = false
   assertion r.days_of_absence = 90
   assertion r.is_qualifying = false
-  assertion r.relief_days = 0
+  assertion r.in_year_days_of_absence = 90
 ```
 
 ## S-6.1 "A continuous period" — separate short absences do not combine
@@ -342,4 +351,279 @@ scope TestS6_1_NoAbsence:
   assertion r.relief_days = 0
   assertion r.relief = $0
   assertion r.quota_for_attainment = $1,000,000
+```
+
+## S-6.1 An absence outside the Plan Year relieves nothing — CE-0012
+
+S-1.1 confines the Plan to 1 October 2025 – 30 September 2026 and S-6.1's
+1/365th is a proration of that year, so a continuous absence lying wholly in a
+different financial year consumes no day of it. The gateway is still passed on
+the record's own length — that is the point of keeping the two questions apart —
+but there is nothing for it to relieve.
+
+```catala
+#[test]
+declaration scope TestS6_1_AbsenceWhollyAfterPlanYear:
+  output gate content QuotaRelief.QualifyingAbsence
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_AbsenceWhollyAfterPlanYear:
+  definition gate equals
+    output of QuotaRelief.QualifyingAbsence with {
+      -- absence: absence of LongTermSicknessAbsence, |2027-01-01|, |2027-06-30|
+    }
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2027-01-01|, |2027-06-30|
+         ]
+    }
+  assertion gate.days_of_absence = 181
+  assertion gate.is_qualifying = true
+  assertion gate.in_year_days_of_absence = 0
+  assertion r.relief_days = 0
+  assertion r.relief = $0
+  assertion r.relieved_quota = $1,000,000
+  assertion r.quota_for_attainment = $1,000,000
+  assertion r.relief != $495,890.41
+```
+
+The mirror image: an absence wholly before the Plan Year. 1 January to 30 June
+2024 is 182 days and relieves nothing either.
+
+```catala
+#[test]
+declaration scope TestS6_1_AbsenceWhollyBeforePlanYear:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_AbsenceWhollyBeforePlanYear:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of StatutoryParentalLeave, |2024-01-01|, |2024-06-30|
+         ]
+    }
+  assertion r.relief_days = 0
+  assertion r.relieved_quota = $1,000,000
+  assertion r.relief != $498,630.14
+```
+
+## S-6.1 An absence straddling the boundary relieves only its in-year days — CE-0013
+
+Statutory parental leave from 1 August to 30 October 2025 is continuous for 91
+days, so the gateway is passed on the whole of it; but only the 30 days from 1
+to 30 October 2025 fall in the Plan Year, so the relief is 30/365ths —
+$82,191.78 — and not 91/365ths. The 61 days in the preceding financial year
+belong to that year's target.
+
+```catala
+#[test]
+declaration scope TestS6_1_AbsenceStraddlingPlanYearStart:
+  output gate content QuotaRelief.QualifyingAbsence
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_AbsenceStraddlingPlanYearStart:
+  definition gate equals
+    output of QuotaRelief.QualifyingAbsence with {
+      -- absence: absence of StatutoryParentalLeave, |2025-08-01|, |2025-10-30|
+    }
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of StatutoryParentalLeave, |2025-08-01|, |2025-10-30|
+         ]
+    }
+  assertion gate.days_of_absence = 91
+  assertion gate.is_qualifying = true
+  assertion gate.in_year_days_of_absence = 30
+  assertion r.relief_days = 30
+  assertion r.relief = $82,191.78
+  assertion r.relieved_quota = $917,808.22
+  assertion r.quota_for_attainment = $917,808.22
+  assertion r.relief != $249,315.07
+```
+
+The same at the far end of the year: 1 September to 30 November 2026 is 91
+continuous days of which only September's 30 are in the Plan Year.
+
+```catala
+#[test]
+declaration scope TestS6_1_AbsenceStraddlingPlanYearEnd:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_AbsenceStraddlingPlanYearEnd:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-09-01|, |2026-11-30|
+         ]
+    }
+  assertion r.relief_days = 30
+  assertion r.relief = $82,191.78
+  assertion r.relieved_quota = $917,808.22
+```
+
+## S-6.1 Overlapping records: one day, one 1/365th — CE-0014
+
+Parental leave from 1 October to 30 November 2025 (61 days) and long-term
+sickness from 15 October to 15 December 2025 (62 days) overlap over 47 days.
+The Employee was absent on every day from 1 October to 15 December 2025 and on
+no other — 76 distinct days — so the relief is 76/365ths, $208,219.18. Summing
+the records gives 123 days and $336,986.30, which is relief for 47 days on
+which the Employee was absent once.
+
+```catala
+#[test]
+declaration scope TestS6_1_OverlappingRecordsCountedOnce:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_OverlappingRecordsCountedOnce:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of StatutoryParentalLeave, |2025-10-01|, |2025-11-30|;
+           absence of LongTermSicknessAbsence, |2025-10-15|, |2025-12-15|
+         ]
+    }
+  assertion r.relief_days = 76
+  assertion r.relief = $208,219.18
+  assertion r.relieved_quota = $791,780.82
+  assertion r.quota_for_attainment = $791,780.82
+  assertion r.relief_days != 123
+  assertion r.relief != $336,986.30
+```
+
+The same absence recorded twice is one absence.
+
+```catala
+#[test]
+declaration scope TestS6_1_DuplicateRecordCountedOnce:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_DuplicateRecordCountedOnce:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-03-14|;
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-03-14|
+         ]
+    }
+  assertion r.relief_days = 73
+  assertion r.relief = $200,000
+  assertion r.relieved_quota = $800,000
+```
+
+An absence longer than the Plan Year relieves the year and no more, so the
+relieved Quota reaches nil and never goes below it. 1 October 2025 to 31
+October 2026 is 396 continuous days, of which 365 are days of the Plan Year.
+
+```catala
+#[test]
+declaration scope TestS6_1_ReliefCannotExceedTheYear:
+  output gate content QuotaRelief.QualifyingAbsence
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_ReliefCannotExceedTheYear:
+  definition gate equals
+    output of QuotaRelief.QualifyingAbsence with {
+      -- absence: absence of LongTermSicknessAbsence, |2025-10-01|, |2026-10-31|
+    }
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2025-10-01|, |2026-10-31|
+         ]
+    }
+  assertion gate.days_of_absence = 396
+  assertion gate.in_year_days_of_absence = 365
+  assertion r.relief_days = 365
+  assertion r.relief = $1,000,000
+  assertion r.relieved_quota = $0
+  assertion r.relieved_quota >= $0
+  assertion r.relieved_quota != -$84,931.51
+```
+
+## S-6.2 The ordering made structural — CommissionAfterRelief
+
+The reviewer's point about the S-6.2 test above is that it proves the *caller*
+can honour the ordering, not that the encoding compels it: `CommissionPayable`
+takes `quota` as a free input, and no probe of it can tell a relieved Quota from
+an assigned one. `CommissionAfterRelief` takes the assigned Quota and the
+absence records instead, and reaches `CommissionPayable` only through
+`RelievedQuota`.
+
+On the facts of the note to CE-0012: an assigned Quota of $1,000,000, a 73-day
+qualifying absence and Net Booked Revenue of $800,000. Relieved, that is 100%
+Attainment, an accelerator of 1.5 and $96,000. Unrelieved it is 80%, an
+accelerator of 1.0 and $64,000 — a third less. The test asserts both figures
+and that the composing scope produces the first.
+
+```catala
+#[test]
+declaration scope TestS6_2_CommissionAfterReliefIsStructural:
+  output composed content QuotaRelief.CommissionAfterRelief
+  output unrelieved content Commission.CommissionPayable
+
+scope TestS6_2_CommissionAfterReliefIsStructural:
+  definition composed equals
+    output of QuotaRelief.CommissionAfterRelief with {
+      -- assigned_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-03-14|
+         ]
+      -- net_booked_revenue: $800,000
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $500,000
+    }
+
+  definition unrelieved equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $800,000
+      -- new_logo_share: 0%
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $500,000
+    }
+
+  assertion composed.quota_relief.relief_days = 73
+  assertion composed.quota_for_attainment = $800,000
+  assertion composed.commission.attainment_calc.attainment_pct = 100%
+  assertion composed.commission.accelerator_calc.accelerator = 1.5
+  assertion composed.commission_payable = $96,000
+  assertion unrelieved.attainment_calc.attainment_pct = 80%
+  assertion unrelieved.commission_payable = $64,000
+  assertion composed.commission_payable != unrelieved.commission_payable
+```
+
+An Employee with no absence is stated as the empty list, and gets the assigned
+Quota: the composition is inert where S-6.1 does not bite, which is what makes
+it safe to put every commission calculation through it.
+
+```catala
+#[test]
+declaration scope TestS6_2_CommissionAfterReliefWithNoAbsence:
+  output composed content QuotaRelief.CommissionAfterRelief
+
+scope TestS6_2_CommissionAfterReliefWithNoAbsence:
+  definition composed equals
+    output of QuotaRelief.CommissionAfterRelief with {
+      -- assigned_quota: $1,000,000
+      -- absence_periods: []
+      -- net_booked_revenue: $800,000
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $500,000
+    }
+  assertion composed.quota_relief.relief_days = 0
+  assertion composed.quota_for_attainment = $1,000,000
+  assertion composed.commission.attainment_calc.attainment_pct = 80%
+  assertion composed.commission_payable = $64,000
 ```

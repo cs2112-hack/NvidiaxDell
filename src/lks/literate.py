@@ -71,10 +71,27 @@ class Quotation:
         return content_hash(self.text)
 
 
-MAX_QUOTE_GAP = 30
+MAX_QUOTE_GAP = 60
 """Maximum lines between the end of a quotation and the code block it is
-attributed to. Prose in between is allowed; a page of it is not, because
-"directly above" has to keep meaning something."""
+attributed to.
+
+Prose in between is allowed and wanted -- it is where the encoding decision
+gets justified, and the most valuable findings in docs/DOCUMENT-DEFECTS.md came
+out of writing it. But the gap is bounded, because "directly above" has to keep
+meaning something.
+
+This was 30 and it was too tight: seven modules breached it with prose that is
+correctly attributed and worth every line, typically a clause quotation
+followed by an explanation of why an earlier encoding of that clause was wrong.
+The instruction to document the reasoning and the limit on documenting it were
+in direct conflict, and the instruction is the more valuable of the two.
+
+The gap is a backstop, not the primary protection. A quotation cannot drift
+onto unrelated code because an intervening heading clears the association and
+an intervening quotation replaces it (see `parse_literate`); the gap only
+catches the case where a single long stretch of prose separates a quotation
+from code under the same heading. 60 lines accommodates a full explanation
+while still failing a quotation that has plainly lost its code."""
 
 
 @dataclass

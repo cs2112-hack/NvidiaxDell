@@ -32,11 +32,16 @@ source_reasoning: 'E-3.1(c) fixes the Tier 3 entitlement at reimbursement of mea
   as nought or more so that E-3.4 applies no reduction and E-3.1(c) governs, giving GBP 40.
   On either correct behaviour the module''s GBP 190 is wrong, and it errs in the direction
   of over-payment, silently, with no error raised. Magnitude scales without bound with the
-  magnitude of the corrupt count.'
+  magnitude of the corrupt count. ADJUDICATION: the reviewer derived an expected figure of
+  40.00 on the ground that nothing in the Policy can carry the day above the Tier 3 cap, and
+  that is right as far as it goes. But the deeper point is that the input is impossible: E-3.4
+  is reduction-only in terms and its operative fact, a meal provided at no cost, cannot be
+  negative. A legal module asked a question that cannot arise should decline rather than compute,
+  because computing from an impossible premise is exactly how a silent over-payment occurs.
+  The expected result is therefore a refusal, and the module now asserts the input domain.
+  Recorded this way deliberately so the guard itself is what the test protects.'
 expected:
-  per_diem_cap: 40.0
-  adjusted_per_diem: 40.0
-  reimbursable_amount: 40.0
+  __error__: AssertionFailed
 observed:
   per_diem_cap: 40.0
   adjusted_per_diem: 190.0
@@ -60,7 +65,7 @@ inputs:
   on_critical_incident_response: false
 round: 1
 discovered: '2026-09-12'
-status: open
+status: fixed
 notes: 'free-meal count -1 on Tier 1: observed adjusted_per_diem 90.00 against an E-3.1(a)
   cap of 75.00, confirming the same defect at the other tier; free-meal counts 0,1,2,3,4 on
   Tier 3: 40/25/10/0/0, correct and correctly floored at nought by Money.max; same unguarded-domain
@@ -71,4 +76,4 @@ notes: 'free-meal count -1 on Tier 1: observed adjusted_per_diem 90.00 against a
   NightlyAccommodation: parking_cost -100 with Tier 1 room 400 yields reimbursable_amount
   120.00, i.e. below the E-4.1 cap the module itself computed. Not recorded separately for
   the same reason; negative meal_expense_incurred; sub-penny meal_expense_incurred 0.01: reimbursable
-  0.01, correct'
+  0.01, correct | expected changed from 40.00 to a refusal; see the ADJUDICATION note in source_reasoning'

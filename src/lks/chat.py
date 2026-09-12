@@ -36,7 +36,13 @@ from typing import Any
 
 import numpy as np
 
-from .catala_runner import CatalaError, NoApplicableRule, ScopeConflict, run_scope
+from .catala_runner import (
+    AssertionFailed,
+    CatalaError,
+    NoApplicableRule,
+    ScopeConflict,
+    run_scope,
+)
 from .registry import ScopeEntry, build_registry, load_registry
 from .segment import load_corpus
 from .triage import Label, load_ledger
@@ -315,6 +321,16 @@ class Chat:
                 ),
                 citations=support or entry.encodes[:4], scope=key, inputs=supplied, score=score,
             )
+        except AssertionFailed as e:
+            return AnswerPart(
+                engine=Engine.CATALA, kind="refused",
+                text=(
+                    "These facts cannot arise under the documents, so no answer is "
+                    "given. The module declines rather than computing a figure from "
+                    "an impossible premise.\n    " + e.diagnostic[:600]
+                ),
+                citations=support or entry.encodes[:4], scope=key, inputs=supplied, score=score,
+            )
         except CatalaError as e:
             return AnswerPart(
                 engine=Engine.CATALA, kind="error",
@@ -427,7 +443,7 @@ class Chat:
         # A rule question that executed cleanly does not need prose padding;
         # quoting loosely-related prose beside a computed figure is how the two
         # engines start to look like one.
-        if cat is None or cat.kind in ("needs-input", "error", "ambiguous-route"):
+        if cat is None or cat.kind in ("needs-input", "error", "ambiguous-route", "refused"):
             ans.parts.extend(vec)
         elif vec and vec[0].score and vec[0].score > 0.55:
             ans.parts.append(vec[0])

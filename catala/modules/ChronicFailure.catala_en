@@ -8,7 +8,9 @@ three consecutive Measurement Periods below 99.90%, or any four Measurement
 Periods in a rolling twelve-month period. Either suffices, so a history can
 satisfy the second without ever satisfying the first. L-6.2 then puts a 30-day
 exercise window on the right, running from the end of the Measurement Period
-which gives rise to it, and lapses it per occurrence.
+which gives rise to it, and lapses it per occurrence. That window has two ends
+and each occurrence has its own, so this scope identifies the occurrence it is
+assessing before it computes any deadline at all.
 
 The history is a list of Measurement Periods. Because L-2.1 makes a
 Measurement Period a calendar month, each period is identified by the first
