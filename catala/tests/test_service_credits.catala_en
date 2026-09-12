@@ -546,3 +546,181 @@ scope TestIntegration_OneMoreMinuteEarnsFivePercent:
   assertion r.credit_percentage = 5%
   assertion r.credit_amount = $500.00
 ```
+
+## InputDomain_L2_7_ZeroChargesForTheServiceIsTheFloor
+
+The module asserts that each of L-2.7's four figures is nought or more: every
+one of them is a charge payable by the Customer, and there is no negative
+charge. The lawful boundary for the gross figure is nil — a Measurement Period
+in which nothing was charged for the Service — and the Monthly Service Charge
+is then nil too. `probe.py` reports `AssertionFailed` for gross charges of
+-£1,000.
+
+```catala
+#[test]
+declaration scope TestInputDomain_L2_7_ZeroChargesForTheServiceIsTheFloor:
+  output r content ServiceCredits.MonthlyServiceCharge
+
+scope TestInputDomain_L2_7_ZeroChargesForTheServiceIsTheFloor:
+  definition r equals
+    output of ServiceCredits.MonthlyServiceCharge with {
+      -- charges_for_the_service: $0.00
+      -- one_off_charges: $0.00
+      -- professional_services_charges: $0.00
+      -- pass_through_charges: $0.00
+    }
+  assertion r.monthly_service_charge = $0.00
+```
+
+## InputDomain_L2_7_ZeroOneOffChargesIsTheFloor
+
+The lawful boundary of the first excluded category: a period with no one-off
+charges to exclude. `probe.py` reports `AssertionFailed` for one-off charges of
+-£1,000, which would otherwise inflate the credit base above the charges
+actually payable.
+
+```catala
+#[test]
+declaration scope TestInputDomain_L2_7_ZeroOneOffChargesIsTheFloor:
+  output r content ServiceCredits.MonthlyServiceCharge
+
+scope TestInputDomain_L2_7_ZeroOneOffChargesIsTheFloor:
+  definition r equals
+    output of ServiceCredits.MonthlyServiceCharge with {
+      -- charges_for_the_service: $10,000.00
+      -- one_off_charges: $0.00
+      -- professional_services_charges: $200.00
+      -- pass_through_charges: $300.00
+    }
+  assertion r.monthly_service_charge = $9,500.00
+```
+
+## InputDomain_L2_7_ZeroProfessionalServicesChargesIsTheFloor
+
+The lawful boundary of the second excluded category. `probe.py` reports
+`AssertionFailed` for professional services charges of -£200.
+
+```catala
+#[test]
+declaration scope TestInputDomain_L2_7_ZeroProfessionalServicesChargesIsTheFloor:
+  output r content ServiceCredits.MonthlyServiceCharge
+
+scope TestInputDomain_L2_7_ZeroProfessionalServicesChargesIsTheFloor:
+  definition r equals
+    output of ServiceCredits.MonthlyServiceCharge with {
+      -- charges_for_the_service: $10,000.00
+      -- one_off_charges: $100.00
+      -- professional_services_charges: $0.00
+      -- pass_through_charges: $300.00
+    }
+  assertion r.monthly_service_charge = $9,600.00
+```
+
+## InputDomain_L2_7_ZeroPassThroughChargesIsTheFloor
+
+The lawful boundary of the third excluded category. `probe.py` reports
+`AssertionFailed` for pass-through charges of -£300.
+
+```catala
+#[test]
+declaration scope TestInputDomain_L2_7_ZeroPassThroughChargesIsTheFloor:
+  output r content ServiceCredits.MonthlyServiceCharge
+
+scope TestInputDomain_L2_7_ZeroPassThroughChargesIsTheFloor:
+  definition r equals
+    output of ServiceCredits.MonthlyServiceCharge with {
+      -- charges_for_the_service: $10,000.00
+      -- one_off_charges: $100.00
+      -- professional_services_charges: $200.00
+      -- pass_through_charges: $0.00
+    }
+  assertion r.monthly_service_charge = $9,700.00
+```
+
+## InputDomain_L2_7_ExclusionsExactlyExhaustTheCharges
+
+The module also asserts that the three excluded categories do not between them
+exceed the charges payable, because L-2.7 defines the Monthly Service Charge by
+*excluding* them from that figure: they are categories within it. The lawful
+boundary is equality — a period whose charges were entirely one-off,
+professional services and pass-through — and the Monthly Service Charge is then
+nil, so no Service Credit can be struck on it. `probe.py` reports
+`AssertionFailed` where the exclusions exceed the gross figure (£2,000 of
+one-off charges against £1,000 of charges for the Service).
+
+```catala
+#[test]
+declaration scope TestInputDomain_L2_7_ExclusionsExactlyExhaustTheCharges:
+  output r content ServiceCredits.MonthlyServiceCharge
+
+scope TestInputDomain_L2_7_ExclusionsExactlyExhaustTheCharges:
+  definition r equals
+    output of ServiceCredits.MonthlyServiceCharge with {
+      -- charges_for_the_service: $600.00
+      -- one_off_charges: $100.00
+      -- professional_services_charges: $200.00
+      -- pass_through_charges: $300.00
+    }
+  assertion r.monthly_service_charge = $0.00
+```
+
+## InputDomain_L4_1_AvailabilityPercentageScaleEnds
+
+The module asserts that `availability_percentage` lies between 0.00 and 100.00,
+because L-2.3 constructs it as a proportion of the minutes in the Measurement
+Period expressed as a percentage. Both lawful ends are pinned: 100.00 is full
+availability and earns nothing, and 0.00 is a total outage, which is below
+95.00% and so attracts L-4.3's 50% of the Monthly Service Charge. `probe.py`
+reports `AssertionFailed` for -500 and for 200.
+
+```catala
+#[test]
+declaration scope TestInputDomain_L4_1_AvailabilityPercentageScaleEnds:
+  output at_one_hundred content ServiceCredits.ServiceCredit
+  output at_nought content ServiceCredits.ServiceCredit
+
+scope TestInputDomain_L4_1_AvailabilityPercentageScaleEnds:
+  definition at_one_hundred equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 100.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  definition at_nought equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 0.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion at_one_hundred.credit_percentage = 0%
+  assertion at_one_hundred.credit_amount = $0.00
+  assertion at_nought.credit_percentage = 50%
+  assertion at_nought.credit_cap_percentage = 50%
+  assertion at_nought.credit_amount = $5,000.00
+```
+
+## InputDomain_L4_4_ZeroArrearsDaysIsTheFloor
+
+The module asserts that `arrears_days` is nought or more: L-4.4 measures a
+period of arrears, and a Customer in arrears of nothing is in arrears for
+nought days. The lawful boundary is that nil, where L-4.4 does not bite and the
+L-4.1 band stands. `probe.py` reports `AssertionFailed` for -5 days.
+
+```catala
+#[test]
+declaration scope TestInputDomain_L4_4_ZeroArrearsDaysIsTheFloor:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestInputDomain_L4_4_ZeroArrearsDaysIsTheFloor:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 99.60
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 5%
+  assertion r.credit_amount = $500.00
+```

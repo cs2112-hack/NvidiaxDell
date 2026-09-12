@@ -68,6 +68,8 @@ declaration scope TaxiFare:
 
 ```catala
 scope RailFare:
+  assertion ticket_cost >= $0.00
+
   definition is_standard_class equals class_of_travel with pattern StandardClass
 
   label e5_1 definition reimbursable_amount
@@ -85,6 +87,8 @@ scope RailFare:
 
 ```catala
 scope RailFare:
+  assertion standard_class_fare_same_day >= $0.00
+
   definition is_first_class equals class_of_travel with pattern FirstClass
 
   definition pre_approval_obtained equals
@@ -116,6 +120,12 @@ scope RailFare:
 
 ```catala
 scope TaxiFare:
+  assertion journey_start_hour >= 0 and journey_start_hour <= 23
+
+  assertion journey_start_minute >= 0 and journey_start_minute <= 59
+
+  assertion journey_cost >= $0.00
+
   definition minutes_after_midnight equals
     journey_start_hour * 60 + journey_start_minute
 

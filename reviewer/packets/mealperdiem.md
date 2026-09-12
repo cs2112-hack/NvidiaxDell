@@ -178,6 +178,8 @@ scope MealPerDiemForDay:
 
 ```catala
 scope MealPerDiemForDay:
+  assertion meals_provided_free >= 0
+
   definition e3_4_reduction equals $15.00 * decimal of meals_provided_free
 
   definition adjusted_per_diem equals
@@ -197,6 +199,8 @@ scope MealPerDiemForDay:
 
 ```catala
 scope MealPerDiemForDay:
+  assertion meal_expense_incurred >= $0.00
+
   label e3_1_reimbursement definition reimbursable_amount equals
     Money.min of meal_expense_incurred, adjusted_per_diem
 ```

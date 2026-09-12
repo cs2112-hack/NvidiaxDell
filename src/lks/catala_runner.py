@@ -192,6 +192,70 @@ def run_scope(
         raise _classify(f"unparseable JSON from {scope}: {e}", proc) from e
 
 
+BUILD_LIB = REPO_ROOT / "_build" / "libcatala"
+
+
+def run_scope_traced(
+    path: str | Path, scope: str, inputs: dict[str, Any] | None = None
+) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Execute a scope and return (outputs, decisions).
+
+    Each decision records which source line the interpreter took to define one
+    variable, with the law headings attached to that line. That is how the
+    system can say *which provision governed* an answer without re-deciding it:
+    the compiler reports the definition it applied, and we look it up.
+
+    This goes through `catala interpret` rather than `clerk run`, because clerk
+    does not pass `--trace` through. It needs the already-built standard library
+    to be pointed at explicitly, which `clerk start`/`clerk test` will have
+    produced; if it has not, the caller gets a CatalaError telling them so.
+    """
+    args = [
+        toolchain()["catala"], "interpret", str(path), "-s", scope,
+        "--trace", "--trace-format=json",
+        "-I", str(BUILD_LIB), "--bin", str(BUILD_LIB / "ocaml"),
+    ]
+    stdin = None
+    if inputs is not None:
+        args += ["--input", "-"]
+        stdin = json.dumps(inputs)
+    proc = _run(args, stdin=stdin)
+    if proc.returncode != 0:
+        raise _classify(f"tracing {scope} in {path} failed", proc)
+
+    blob = proc.stdout
+    start = blob.find("[")
+    events: list[dict[str, Any]] = []
+    if start >= 0:
+        # the trace array is followed by the human RESULT block, so parse the
+        # first complete JSON value rather than the whole of stdout
+        try:
+            events, _idx = json.JSONDecoder().raw_decode(blob[start:])
+        except json.JSONDecodeError:
+            events = []
+
+    outputs: dict[str, Any] = {}
+    decisions: list[dict[str, Any]] = []
+    pending: dict[str, Any] | None = None
+    for ev in events if isinstance(events, list) else []:
+        kind = ev.get("event")
+        if kind == "DecisionTaken":
+            pending = ev.get("pos") or {}
+        elif kind == "VariableDefinition":
+            name = (ev.get("name") or "").split(".")[-1]
+            raw = ev.get("value")
+            outputs.setdefault(name, raw)
+            if pending:
+                decisions.append({
+                    "variable": name,
+                    "line": pending.get("start_line"),
+                    "law_headings": pending.get("law_headings") or [],
+                    "value": raw,
+                })
+            pending = None
+    return outputs, decisions
+
+
 def json_schema(path: str | Path, scope: str) -> tuple[dict[str, Any], dict[str, Any]]:
     """(input_schema, output_schema) for a scope. Used to generate the input
     battery for behavioural-equivalence checking."""
@@ -210,6 +274,11 @@ class ExceptionNode:
     label: str
     conditions: list[str] = field(default_factory=list)
     law_headings: list[str] = field(default_factory=list)
+    lines: list[int] = field(default_factory=list)
+    """Source lines of this node's definitions. Kept so that a decision in the
+    interpreter's trace can be matched back to the rung that took it -- which
+    is how the interface can say which provision actually governed an answer,
+    on the compiler's evidence rather than by re-deciding it."""
     exceptions: list["ExceptionNode"] = field(default_factory=list)
 
     def depth(self) -> int:
@@ -248,17 +317,25 @@ def _node_from_json(d: dict[str, Any], normalise_labels: bool) -> ExceptionNode:
             label = "<unlabeled>"
     conds: list[str] = []
     headings: list[str] = []
+    lines: list[int] = []
     for r in d.get("rules", []) or []:
         ct = r.get("condition_text")
         conds.append(_canonical_condition(ct) if ct else "<unconditional>")
-        lh = (r.get("pos") or {}).get("law_headings") or []
+        pos = r.get("pos") or {}
+        lh = pos.get("law_headings") or []
         for h in lh:
             if h not in headings:
                 headings.append(h)
+        # the consequence's own line, and the condition's, both identify the rung
+        for key in ("pos", "condition_pos"):
+            ln = (r.get(key) or {}).get("start_line")
+            if isinstance(ln, int) and ln not in lines:
+                lines.append(ln)
     node = ExceptionNode(
         label=label,
         conditions=sorted(conds),
         law_headings=headings,
+        lines=sorted(lines),
         exceptions=[
             _node_from_json(c, normalise_labels) for c in (d.get("exceptions") or [])
         ],

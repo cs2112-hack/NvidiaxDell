@@ -32,6 +32,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Iterable
 
@@ -56,7 +57,18 @@ class IndexMissingError(RuntimeError):
     pass
 
 
+@lru_cache(maxsize=4)
 def _load_model(model_dir: Path = MODEL_DIR):
+    """Load the static embedding model, once per process.
+
+    Memoised because callers treat `_load_model()` as free: the router encodes
+    one query per question, the caveat ranker encodes twice more, and each call
+    was re-reading 30MB of weights from disk. A static model is a stateless
+    token->vector lookup, so a shared instance returns bit-identical vectors to
+    a fresh one -- the whole reason this model was chosen (see the module
+    docstring). Memoising it is therefore a speedup with no effect on any
+    score, which is what made it safe to do mid-evaluation.
+    """
     from model2vec import StaticModel
 
     if not model_dir.exists():

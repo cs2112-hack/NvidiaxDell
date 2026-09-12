@@ -664,3 +664,50 @@ scope TestC2_6_EmptyGazette:
     }
   assertion r.is_gazetted_public_holiday = false
 ```
+
+## InputDomain_C2_1_ZeroSalaryIsTheFloor
+
+The module asserts that `annual_base_salary` is nought or more: C-2.1 divides
+"the Employee's annual base salary", which is a sum payable to the Employee.
+The lawful boundary is nil, which divides to a nil rate rather than an error.
+`probe.py` reports `AssertionFailed` for a salary of -£52,000, which the
+unguarded scope turned into a negative Base Hourly Rate and hence, through
+C-4 to C-7, into a negative overtime payment.
+
+```catala
+#[test]
+declaration scope TestInputDomain_C2_1_ZeroSalaryIsTheFloor:
+  output r content WTD.BaseHourlyRate
+
+scope TestInputDomain_C2_1_ZeroSalaryIsTheFloor:
+  definition r equals
+    output of WTD.BaseHourlyRate with {
+      -- annual_base_salary: $0.00
+    }
+  assertion r.base_hourly_rate = 0.0
+```
+
+## InputDomain_C2_3_ClockHourEnds
+
+The module asserts that `hour_beginning` is between 0 and 23, because C-2.3
+works in clock times and the hours of a day are the twenty-four beginning at
+00:00 through 23:00. Both lawful ends are pinned, and both happen to be Night
+Hours: the hour beginning at midnight falls before 06:00 and the hour beginning
+at 23:00 falls after 22:00. `probe.py` reports `AssertionFailed` for hour 24
+and for hour -1 — each of which the unguarded predicate answered `true`, so
+each would have attracted the C-6.1 night premium.
+
+```catala
+#[test]
+declaration scope TestInputDomain_C2_3_ClockHourEnds:
+  output at_hour_zero content WTD.NightHours
+  output at_hour_twenty_three content WTD.NightHours
+
+scope TestInputDomain_C2_3_ClockHourEnds:
+  definition at_hour_zero equals
+    output of WTD.NightHours with { -- hour_beginning: 0 }
+  definition at_hour_twenty_three equals
+    output of WTD.NightHours with { -- hour_beginning: 23 }
+  assertion at_hour_zero.is_night_hour = true
+  assertion at_hour_twenty_three.is_night_hour = true
+```

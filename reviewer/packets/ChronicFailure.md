@@ -46,10 +46,14 @@ declaration scope ChronicFailureRight:
   output rolling_trigger content boolean
   output right_arisen content boolean
   output completing_periods content list of PeriodAvailability
+  output arisen_occurrences content list of PeriodAvailability
+  output live_occurrences content list of PeriodAvailability
+  output assessed_occurrences content list of PeriodAvailability
   output trigger_period_end content optional of date
   output notice_period_days content integer
   output early_termination_charges_payable content boolean
   output exercise_deadline content optional of date
+  output notice_exercises_the_right content boolean
   output right_lapsed content boolean
   output right_exercisable content boolean
 ```
@@ -100,7 +104,7 @@ scope ChronicFailureRight:
   definition early_termination_charges_payable equals false
 ```
 
-## L-6.2 The exercise window
+## L-6.2 Which occurrence is assessed
 
 | MSA-SCH4 L-6.2 (004-msa-sla-credits.md:108)
 |
@@ -110,10 +114,23 @@ scope ChronicFailureRight:
 
 ```catala
 scope ChronicFailureRight:
+  definition arisen_occurrences equals
+    list of p among completing_periods such that
+      p.period_end <= assessment_date
+
+  definition live_occurrences equals
+    list of p among arisen_occurrences such that
+      (p.period_end + 30 day) >= assessment_date
+
+  definition assessed_occurrences equals
+    if (number of live_occurrences) > 0 then live_occurrences
+    else if (number of arisen_occurrences) > 0 then arisen_occurrences
+    else completing_periods
+
   definition trigger_period_end equals
     if right_arisen then
       Present content
-        (minimum of (map each p among completing_periods to p.period_end)
+        (maximum of (map each p among assessed_occurrences to p.period_end)
          or if list empty then assessment_date)
     else Absent
 
@@ -121,16 +138,36 @@ scope ChronicFailureRight:
     match trigger_period_end with pattern
     -- Absent: Absent
     -- Present content d: Present content (d + 30 day)
+```
+
+## L-6.2 Exercise inside the window, and lapse
+
+| MSA-SCH4 L-6.2 (004-msa-sla-credits.md:108)
+|
+| The right in L-6.1 must be exercised within 30 days after the end of the
+| Measurement Period which gives rise to it, failing which it lapses in respect of
+| that occurrence.
+
+```catala
+scope ChronicFailureRight:
+  definition notice_exercises_the_right equals
+    notice_given
+    and (match trigger_period_end with pattern
+         -- Absent: false
+         -- Present content t: notice_date > t)
+    and (match exercise_deadline with pattern
+         -- Absent: false
+         -- Present content d: notice_date <= d)
 
   label l6_2_not_lapsed definition right_lapsed equals false
 
   label l6_2_lapsed exception l6_2_not_lapsed definition right_lapsed
     under condition
       right_arisen
+      and (not notice_exercises_the_right)
       and (match exercise_deadline with pattern
            -- Absent: false
-           -- Present content d:
-               (if notice_given then notice_date > d else assessment_date > d))
+           -- Present content d: assessment_date > d)
     consequence equals true
 
   definition right_exercisable equals right_arisen and (not right_lapsed)
@@ -157,10 +194,14 @@ scope ChronicFailureRight:
         "rolling_trigger",
         "right_arisen",
         "completing_periods",
+        "arisen_occurrences",
+        "live_occurrences",
+        "assessed_occurrences",
         "trigger_period_end",
         "notice_period_days",
         "early_termination_charges_payable",
         "exercise_deadline",
+        "notice_exercises_the_right",
         "right_lapsed",
         "right_exercisable"
       ],

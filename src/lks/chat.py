@@ -31,6 +31,7 @@ implementation that would look fine in a demo:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -55,6 +56,23 @@ class Engine:
     NONE = "NONE"
 
 
+@lru_cache(maxsize=2048)
+def _embed_query(question: str) -> np.ndarray:
+    """The question as a unit vector, cached.
+
+    Cached because the router, the caveat ranker and any threshold sweep all
+    embed the same question string, and the model is static so the vector can
+    never differ between calls. The array is marked read-only: a cached vector
+    handed out by reference must not be mutable by a caller.
+    """
+    q = np.asarray(_load_model().encode([question]), dtype=np.float32)[0]
+    n = float(np.linalg.norm(q))
+    if n:
+        q = q / n
+    q.setflags(write=False)
+    return q
+
+
 @dataclass
 class AnswerPart:
     engine: str
@@ -65,6 +83,20 @@ class AnswerPart:
     inputs: dict[str, Any] | None = None
     outputs: dict[str, Any] | None = None
     score: float | None = None
+    reported: list[str] = field(default_factory=list)
+    """On an `ambiguous-route` part, the scopes actually named to the user."""
+
+    candidates: list[tuple[str, float]] = field(default_factory=list)
+    """Scopes the router considered, best first, with their scores.
+
+    Populated on every CATALA part, not only the ambiguous one. It exists so
+    that a routing evaluation (`scripts/eval_routing.py`) can read the router's
+    decision structurally instead of scraping the rendered prose, and so that a
+    thin-margin answer can be checked against the candidates it actually named.
+    It is diagnostic only: the rendered answer still shows candidates solely in
+    the `ambiguous-route` case, because listing runners-up beside a confident
+    answer invites the reader to treat a rejected scope as authority.
+    """
 
     def render(self) -> str:
         head = f"[{self.engine} — {self.kind}"
@@ -156,10 +188,7 @@ class RouteIndex:
     def _ranked(self, question: str, k: int = 3) -> list[tuple[str, float, list[str]]]:
         if not self.keys:
             return []
-        q = np.asarray(_load_model().encode([question]), dtype=np.float32)[0]
-        nn = float(np.linalg.norm(q))
-        if nn:
-            q = q / nn
+        q = _embed_query(question)
         scores = self.vectors @ q
         best: dict[str, float] = {}
         support: dict[str, list[tuple[float, str]]] = {}
@@ -217,6 +246,7 @@ class Chat:
         self.registry = registry if registry is not None else (load_registry() or build_registry())
         self.store = store
         self.route = route if route is not None else RouteIndex.build(self.registry)
+        self._caveat_cache: dict[str, tuple[int, np.ndarray]] = {}
 
     @classmethod
     def open(cls, backend: str = "auto") -> "Chat":
@@ -241,6 +271,18 @@ class Chat:
         cands = self.route.candidates(question, k=4)
         if scope_hint:
             cands = [c for c in cands if c[0] == scope_hint] or [(scope_hint, 1.0, [])]
+        part = self._route_to_part(question, inputs, scope_hint, cands)
+        if part is not None and not part.candidates:
+            part.candidates = [(k, round(s, 4)) for k, s, _ in cands]
+        return part
+
+    def _route_to_part(
+        self,
+        question: str,
+        inputs: dict[str, Any] | None,
+        scope_hint: str | None,
+        cands: list[tuple[str, float, list[str]]],
+    ) -> AnswerPart | None:
         if not cands:
             return None
         key, score, support = cands[0]
@@ -264,6 +306,7 @@ class Chat:
                 ),
                 citations=sorted({r for _k, _s, sup2 in close for r in sup2[:2]}),
                 score=score,
+                reported=[k2 for k2, _s2, _ in close],
             )
 
         entry = self.registry.get(key)
@@ -364,6 +407,25 @@ class Chat:
             )
         return parts
 
+    def _caveat_matrix(self, module: str, chunks: list[Chunk]) -> np.ndarray:
+        """Row-normalised embeddings of a module's qualifying prose, cached.
+
+        The set of clauses qualifying a module is fixed by triage, so these
+        vectors are the same for every question. Re-encoding them per question
+        was the single most expensive thing the chat layer did.
+        """
+        cached = self._caveat_cache.get(module)
+        if cached is not None and cached[0] == len(chunks):
+            return cached[1]
+        m = np.asarray(
+            _load_model().encode([c.embed_text() for c in chunks]), dtype=np.float32
+        )
+        norms = np.linalg.norm(m, axis=1, keepdims=True)
+        norms[norms == 0] = 1.0
+        m = m / norms
+        self._caveat_cache[module] = (len(chunks), m)
+        return m
+
     def _caveats(self, module: str, question: str) -> list[AnswerPart]:
         """Prose clauses qualifying `module`, closest to the question first.
 
@@ -378,16 +440,9 @@ class Chat:
         if not chunks:
             return []
         if len(chunks) > MAX_CAVEATS:
-            q = np.asarray(_load_model().encode([question]), dtype=np.float32)[0]
-            n = float(np.linalg.norm(q))
-            if n:
-                q = q / n
-            m = np.asarray(
-                _load_model().encode([c.embed_text() for c in chunks]), dtype=np.float32
-            )
-            norms = np.linalg.norm(m, axis=1, keepdims=True)
-            norms[norms == 0] = 1.0
-            scores = (m / norms) @ q
+            q = _embed_query(question)
+            m = self._caveat_matrix(module, chunks)
+            scores = m @ q
             order = np.argsort(-scores)[:MAX_CAVEATS]
             chosen = [(chunks[int(i)], float(scores[int(i)])) for i in order]
         else:

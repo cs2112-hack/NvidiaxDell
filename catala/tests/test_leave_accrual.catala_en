@@ -710,3 +710,34 @@ scope TestC9_5_NothingAccruedNothingForfeited:
   assertion r.forfeited_days = 0.0
   assertion r.forfeited_days_payable_on_termination = false
 ```
+
+## InputDomain_C9_2_ServiceEndingOnTheDayItBeganIsTheFloor
+
+The module asserts that `service_end`, where present, is not earlier than
+`service_start`: C-9.1 and C-9.2 both measure a period "of service" running
+from commencement to termination, and employment cannot terminate before it
+commences.
+
+The lawful boundary is a service period of a single day — commencing and
+terminating on the same date — which is one day of service in the month and
+accrues nothing once C-9.2's pro-rating is rounded to the nearest half day.
+`probe.py` reports `AssertionFailed` for a service end date earlier than the
+service start date.
+
+```catala
+#[test]
+declaration scope TestInputDomain_C9_2_ServiceEndingOnTheDayItBeganIsTheFloor:
+  output r content LA.MonthlyAccrual
+
+scope TestInputDomain_C9_2_ServiceEndingOnTheDayItBeganIsTheFloor:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2025-03-15|
+      -- service_start: |2025-03-10|
+      -- service_end: Present content |2025-03-10|
+    }
+  assertion r.days_in_month = 31
+  assertion r.days_of_service_in_month = 1
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 0.0
+```

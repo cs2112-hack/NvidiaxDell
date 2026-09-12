@@ -204,6 +204,7 @@ declaration scope LeaverCommission:
   output revenue scope NetBookedRevenue
   output entitlement scope CommissionPayable
   output commission_payable content money
+  output overpaid_amount content money
 ```
 
 ## S-1 Introduction
@@ -214,7 +215,7 @@ declaration scope LeaverCommission:
 | in a quota-bearing sales role during the financial year commencing 1 October 2025
 | and ending 30 September 2026 (the "Plan Year").
 
-```catala
+```catala-metadata
 declaration plan_year_start content date equals |2025-10-01|
 declaration plan_year_end content date equals |2026-09-30|
 
@@ -333,7 +334,10 @@ scope Attainment:
 ```catala
 scope CommissionPayable:
   definition commission_before_cap equals
-    accelerator_base * base_commission_rate * accelerator_calc.accelerator
+    money of
+      (decimal of accelerator_base
+       * base_commission_rate
+       * accelerator_calc.accelerator)
 ```
 
 ## S-4 Accelerators
@@ -500,7 +504,21 @@ scope LeaverCommission:
   definition entitlement.annual_base_salary equals annual_base_salary
 
   label s8_1 definition commission_payable equals
-    entitlement.commission_payable - commission_already_paid
+    Money.positive of
+      (entitlement.commission_payable - commission_already_paid)
+```
+
+| COMM-PLAN S-8.1 (003-sales-commission-plan.md:106)
+|
+| An Employee who ceases employment is entitled to commission in respect
+| of contracts signed on or before their last day of employment, payable in the
+| ordinary payment cycle.
+
+```catala
+scope LeaverCommission:
+  definition overpaid_amount equals
+    Money.positive of
+      (commission_already_paid - entitlement.commission_payable)
 ```
 
 | COMM-PLAN S-8.2 (003-sales-commission-plan.md:110)
@@ -630,7 +648,8 @@ scope LeaverCommission:
       ],
       "output": [
         "qualifying_contracts",
-        "commission_payable"
+        "commission_payable",
+        "overpaid_amount"
       ],
       "internal": [],
       "context": []

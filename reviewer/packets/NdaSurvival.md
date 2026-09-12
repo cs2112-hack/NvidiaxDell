@@ -4,6 +4,18 @@ target: {"module": "NdaSurvival", "path": "catala/modules/NdaSurvival.catala_en"
 
 ## Source document (authoritative)
 
+### NDA-MUT N-3.1 — Mutual Non-Disclosure Agreement (Standard Form) (v3.4, effective 2024-07-01)
+Section N-3 Obligations of the Recipient
+
+The Recipient will keep the Confidential Information confidential and
+will not disclose it to any person except as permitted by this Agreement.
+
+### NDA-MUT N-3.2 — Mutual Non-Disclosure Agreement (Standard Form) (v3.4, effective 2024-07-01)
+Section N-3 Obligations of the Recipient
+
+The Recipient will use the Confidential Information solely for the
+Permitted Purpose.
+
 ### NDA-MUT N-5.1 — Mutual Non-Disclosure Agreement (Standard Form) (v3.4, effective 2024-07-01)
 Section N-5 Term and survival
 
@@ -63,10 +75,45 @@ declaration scope SurvivalEnd:
 | has no corresponding day (an Effective Date of 29 February) the period is
 | taken to the next existing day rather than ending a day early. Rounding
 | down would curtail an obligation of confidence by a calendar artefact.
+|
+| The two assertions are structural well-formedness invariants, not rules of
+| the Agreement, and both are consequences of words already quoted below.
+| The Agreement "takes effect on the Effective Date", so it cannot end
+| before it begins — the invariant CE-0019 broke. And the N-3 obligations
+| "survive expiry or termination", which presupposes that they are still
+| running at that moment, so a produced confidentiality end date can never
+| precede the end of the Agreement — the invariant CE-0017 broke. They are
+| asserted rather than trusted so that any future limb which violates them
+| fails loudly at the point of computation instead of silently returning an
+| impossible date.
 
 ```catala
 scope SurvivalEnd:
   date round up
+  assertion agreement_end_date >= effective_date
+  assertion
+    (match survival_end_date with pattern
+     -- Absent: true
+     -- Present content ends: ends >= agreement_end_date)
+```
+
+## N-3 Obligations of the Recipient
+
+| NDA-MUT N-3.1 (005-mutual-nda.md:45)
+|
+| The Recipient will keep the Confidential Information confidential and will
+| not disclose it to any person except as permitted by this Agreement.
+
+| NDA-MUT N-3.2 (005-mutual-nda.md:48)
+|
+| The Recipient will use the Confidential Information solely for the
+| Permitted Purpose.
+
+```catala
+scope SurvivalEnd:
+  label n3_in_term definition obligations_subsist
+    under condition assessment_date <= agreement_end_date
+    consequence equals true
 ```
 
 ## N-5 Term and survival
@@ -87,7 +134,8 @@ scope SurvivalEnd:
       (match termination_notice_date with pattern
        -- Absent: false
        -- Present content notice:
-            notice + 30 day < effective_date + 2 year)
+            notice >= effective_date
+            and notice + 30 day < effective_date + 2 year)
     consequence equals
       (match termination_notice_date with pattern
        -- Absent: effective_date + 2 year
@@ -106,7 +154,8 @@ scope SurvivalEnd:
     equals Present content (agreement_end_date + 3 year)
 
   label n5_2_subsist definition obligations_subsist
-    equals assessment_date <= agreement_end_date + 3 year
+    under condition assessment_date > agreement_end_date
+    consequence equals assessment_date <= agreement_end_date + 3 year
 ```
 
 | NDA-MUT N-5.3 (005-mutual-nda.md:79)
@@ -124,7 +173,9 @@ scope SurvivalEnd:
 
   label n5_3_subsist exception n5_2_subsist definition obligations_subsist
     under condition
-      information_is_trade_secret and not is_personal_data
+      assessment_date > agreement_end_date
+      and information_is_trade_secret
+      and not is_personal_data
     consequence equals information_remains_trade_secret
 ```
 
@@ -139,15 +190,22 @@ scope SurvivalEnd:
   label n5_4 exception n5_2 definition survival_end_date
     under condition
       is_personal_data and not information_is_trade_secret
-    consequence equals date_ceased_to_hold
+    consequence equals
+      (match date_ceased_to_hold with pattern
+       -- Absent: Absent
+       -- Present content ceased:
+            Present content (Date.max of agreement_end_date, ceased))
 
   label n5_4_subsist exception n5_2_subsist definition obligations_subsist
     under condition
-      is_personal_data and not information_is_trade_secret
+      assessment_date > agreement_end_date
+      and is_personal_data
+      and not information_is_trade_secret
     consequence equals
       (match date_ceased_to_hold with pattern
        -- Absent: true
-       -- Present content ceased: assessment_date <= ceased)
+       -- Present content ceased:
+            assessment_date <= (Date.max of agreement_end_date, ceased))
 ```
 
 ## N-5.3 and N-5.4 applying to the same information
@@ -169,16 +227,25 @@ scope SurvivalEnd:
   label n5_34 exception n5_2 definition survival_end_date
     under condition
       information_is_trade_secret and is_personal_data
-    consequence equals Absent
+    consequence equals
+      (if information_remains_trade_secret then Absent
+       else
+         (match date_ceased_to_hold with pattern
+          -- Absent: Absent
+          -- Present content ceased:
+               Present content (Date.max of agreement_end_date, ceased)))
 
   label n5_34_subsist exception n5_2_subsist definition obligations_subsist
     under condition
-      information_is_trade_secret and is_personal_data
+      assessment_date > agreement_end_date
+      and information_is_trade_secret
+      and is_personal_data
     consequence equals
       information_remains_trade_secret
       or (match date_ceased_to_hold with pattern
           -- Absent: true
-          -- Present content ceased: assessment_date <= ceased)
+          -- Present content ceased:
+               assessment_date <= (Date.max of agreement_end_date, ceased))
 ```
 
 ```

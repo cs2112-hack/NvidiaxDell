@@ -32,6 +32,12 @@ Section R-4 Legal Hold
 A Legal Hold takes precedence over any request for erasure made by a
 data subject, to the extent permitted by applicable data protection law.
 
+### DATA-RET R-6.1 — Data Retention and Deletion Standard (v5.1, effective 2025-06-01)
+Section R-6 Deletion of backups
+
+Records deleted from production systems are deleted from backups at the
+expiry of the backup rotation cycle, which must not exceed 90 days.
+
 
 ## Artefact under review
 
@@ -51,6 +57,7 @@ declaration scope HoldEffect:
   input retention_under_hold_permitted_by_data_protection_law content boolean
   output hold_in_force content boolean
   output deletion_due_date content optional of date
+  output backup_purge_deadline content optional of date
   output erasure_blocked_by_hold content boolean
 ```
 
@@ -77,6 +84,14 @@ scope HoldEffect:
 
 ```catala
 scope HoldEffect:
+  assertion
+    match hold_released_date with pattern
+    -- Absent: true
+    -- Present content released:
+         (match hold_issued_date with pattern
+          -- Absent: false
+          -- Present content issued: released >= issued)
+
   label r2_3 definition hold_in_force equals
     match hold_issued_date with pattern
     -- Absent: false
@@ -151,6 +166,23 @@ scope HoldEffect:
     consequence equals false
 ```
 
+## R-6 Deletion of backups
+
+| DATA-RET R-6.1 (006-data-retention-standard.md:90)
+|
+| Records deleted from production systems are deleted from backups at the
+| expiry of the backup rotation cycle, which must not exceed 90 days.
+
+```catala
+scope HoldEffect:
+  label r6_1 definition backup_purge_deadline equals
+    match deletion_due_date with pattern
+    -- Absent: Absent
+    -- Present content deleted_from_production:
+         Present content (deleted_from_production + 90 day)
+```
+
+
 ```
 
 ## How to execute the artefact
@@ -170,6 +202,7 @@ scope HoldEffect:
       "output": [
         "hold_in_force",
         "deletion_due_date",
+        "backup_purge_deadline",
         "erasure_blocked_by_hold"
       ],
       "internal": [],

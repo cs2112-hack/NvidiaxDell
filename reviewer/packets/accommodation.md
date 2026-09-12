@@ -70,6 +70,8 @@ declaration tier_night_cap content money
     -- Tier3: $120.00
 
 scope NightlyAccommodation:
+  assertion room_cost >= $0.00
+
   definition base_cap equals tier_night_cap of city_tier
 
   label e4_1 definition applicable_cap equals base_cap
@@ -111,6 +113,12 @@ scope NightlyAccommodation:
 
 ```catala
 scope NightlyAccommodation:
+  assertion local_taxes >= $0.00
+
+  assertion mandatory_resort_or_city_charge >= $0.00
+
+  assertion parking_cost >= $0.00
+
   definition cost_against_cap equals
     room_cost + local_taxes + mandatory_resort_or_city_charge
 

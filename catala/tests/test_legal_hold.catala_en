@@ -476,3 +476,37 @@ scope TestR6_1_BackupRunsFromOrdinaryExpiryWhereNoHold:
   assertion r.deletion_due_date = Present content |2026-02-28|
   assertion r.backup_purge_deadline = Present content |2026-05-29|
 ```
+
+## InputDomain_ReleaseOnTheDayOfIssueIsTheFloor
+
+The module asserts that a `hold_released_date`, where present, is accompanied
+by a `hold_issued_date` and is not earlier than it: R-2.3 makes a Legal Hold
+something that is *issued*, and R-4.3 speaks of what follows "on release of a
+Legal Hold", so there is nothing to release until something has been issued and
+a release cannot precede its own issue.
+
+The lawful boundary is a hold issued and released on the same day. It was in
+force for no assessment date at all — a hold is spent on the day it is released
+— so R-4.3 governs: the retention period had already expired when the hold was
+released, and deletion falls due within 30 days of release, with the backup
+purge 90 days after that. `probe.py` reports `AssertionFailed` for a release
+date earlier than the issue date, and for a release date with no issue date.
+
+```catala
+#[test]
+declaration scope TestInputDomain_ReleaseOnTheDayOfIssueIsTheFloor:
+  output r content LegalHold.HoldEffect
+
+scope TestInputDomain_ReleaseOnTheDayOfIssueIsTheFloor:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2025-01-10|
+      -- hold_released_date: Present content |2025-01-10|
+      -- retention_end_date: |2024-01-01|
+      -- assessment_date: |2025-06-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = false
+  assertion r.deletion_due_date = Present content |2025-02-09|
+  assertion r.erasure_blocked_by_hold = false
+```

@@ -1042,3 +1042,51 @@ scope TestWeekly_EmptyWeek:
   assertion r.overtime_payment = $0.00
   assertion r.toil_hours = 0.0
 ```
+
+## InputDomain_C4_1_PayrollWeekHourEnds
+
+`HourPremium` asserts that `ordinal` is between 1 and 168. C-4.1 counts hours
+"in excess of 40 hours in a Payroll Week", so the ordinal is the hour's
+position within one Payroll Week, and C-2.2 makes that week seven consecutive
+days — 168 hours.
+
+Both lawful ends are pinned: the first hour of the week is an ordinary hour
+that salary already pays for, and the 168th is beyond 48 and so attracts
+C-4.2's rate in full. `probe.py` reports `AssertionFailed` for ordinal 0 and
+for ordinal 200, the second of which the unguarded scope priced at 1.5 times
+the Base Hourly Rate on a week that cannot contain a 200th hour.
+
+```catala
+#[test]
+declaration scope TestInputDomain_C4_1_PayrollWeekHourEnds:
+  output first_hour content Overtime.HourPremium
+  output last_hour content Overtime.HourPremium
+
+scope TestInputDomain_C4_1_PayrollWeekHourEnds:
+  definition first_hour equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 1
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  definition last_hour equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 168
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion first_hour.multiplier = 0.0
+  assertion first_hour.salaried_element = 1.0
+  assertion first_hour.additional_payable = 0.0
+  assertion first_hour.total_rate = 0.0
+  assertion last_hour.multiplier = 1.5
+  assertion last_hour.salaried_element = 0.0
+  assertion last_hour.additional_payable = 1.5
+  assertion last_hour.total_rate = 1.5
+```

@@ -1,0 +1,1321 @@
+_comment: |
+  Routing evaluation set for the chat layer.
+
+  Every label here is derived from the corpus text and the triage decisions, not
+  from what the router currently does. A case is written by reading the clause,
+  deciding which engine can honestly answer, and recording the clause refs a
+  correct answer must cite. Where the clause is RULE or HYBRID the engine is
+  CATALA and the answer comes from executing a scope; where it is PROSE the
+  engine is VECTOR and the answer is a verbatim quotation; where the corpus does
+  not address the question at all the engine is NONE.
+
+  Fields
+  ------
+  id         stable identifier, referenced by eval/BASELINE.md and the harness
+  question   what a user of this corpus would actually type
+  engine     CATALA | VECTOR | BOTH | NONE  (see "engine semantics" below)
+  scope      the scope that should answer. A list means any member is correct:
+             either because two scopes legitimately answer the same question, or
+             -- with `ambiguous: true` -- because the router SHOULD report the
+             candidates rather than pick one.
+  ambiguous  true where naming a single scope would be a guess. Reporting the
+             candidate list is the CORRECT behaviour for these, not a failure.
+  clauses    clause refs a correct answer must cite. Checked against the clause
+             text: a ref is listed only where that clause really says the thing.
+  judgement  scope inputs that are a judgement the documents do not define. The
+             system must say a human supplies them and must not decide them.
+  pair       near-miss pairs. Two cases sharing a `pair` differ by roughly one
+             word and must route differently. Listed so a change that helps one
+             at the cost of the other is visible.
+  tags       category, for the per-category breakdown
+  why        one line, from the clause text
+
+  Engine semantics
+  ----------------
+  The engine of an answer is the set of engines that contribute SUBSTANTIVE
+  parts. A CATALA part of any kind (computed, needs-input, ambiguous-route,
+  error, refused) contributes CATALA. A VECTOR part of kind `quotation`
+  contributes VECTOR. Parts of kind `caveat` are excluded: caveats are attached
+  automatically to every executed module that has qualifying prose, so they are
+  determined by triage's `qualifies` field and carry no routing signal. The
+  harness reports caveat counts separately.
+
+  CATALA covers the needs-input case. "How much overtime am I owed?" with no
+  hours supplied is answered correctly by naming the scope and its inputs; that
+  is a CATALA answer, not a failure to answer.
+
+  BOTH is reserved for questions with a genuine computational part AND a genuine
+  prose part -- not for a rule answer that happens to carry prose caveats.
+
+cases:
+
+# ---------------------------------------------------------------------------
+# Plainly computational. A scope executes and produces the figure.
+# ---------------------------------------------------------------------------
+
+- id: C-001
+  question: "What is the Base Hourly Rate for an employee on an annual base salary of 52000?"
+  engine: CATALA
+  scope: WorkingTimeDefs.BaseHourlyRate
+  clauses: ["EMP-ANNEX-C C-2.1"]
+  tags: [computational]
+  why: "C-2.1 defines Base Hourly Rate as annual base salary divided by 2,080 -- pure arithmetic."
+
+- id: C-002
+  question: "An employee works 52 hours in a payroll week on grade 3. What overtime payment is due?"
+  engine: CATALA
+  scope: [Overtime.WeeklyOvertime, Overtime.HourPremium]
+  clauses: ["EMP-ANNEX-C C-4.1", "EMP-ANNEX-C C-4.2"]
+  tags: [computational]
+  why: "C-4.1 pays 1.25x above 40 hours and C-4.2 pays 1.5x above 48; a weekly total is the aggregate over hours."
+
+- id: C-003
+  question: "What multiplier applies to the 49th hour worked in a payroll week?"
+  engine: CATALA
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-4.2"]
+  tags: [computational]
+  why: "C-4.2 is the exception to C-4.1 for hours in excess of 48, at 1.5 times Base Hourly Rate."
+
+- id: C-004
+  question: "What multiplier applies to the 45th hour worked in a payroll week?"
+  engine: CATALA
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-4.1"]
+  tags: [computational]
+  why: "C-4.1 applies 1.25x to each hour in excess of 40; 45 is above 40 but not above 48."
+
+- id: C-005
+  question: "Is an employee on grade 5 entitled to an overtime payment?"
+  engine: CATALA
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-5.1"]
+  tags: [computational]
+  why: "C-5.1 removes the overtime payment for grade 5 and above and substitutes time off in lieu."
+
+- id: C-006
+  question: "Is an employee on grade 5 paid overtime for hours worked on Critical Incident Response?"
+  engine: CATALA
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-5.2"]
+  tags: [computational]
+  why: "C-5.2 is the notwithstanding exception to C-5.1 restoring the C-4 payment for incident response hours."
+
+- id: C-007
+  question: "What rate is payable for an hour worked on a Gazetted Public Holiday?"
+  engine: CATALA
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-7.1"]
+  tags: [computational]
+  pair: PH
+  why: "C-7.1 sets 2.0 times Base Hourly Rate in substitution for any C-4 amount."
+
+- id: C-008
+  question: "What is a Gazetted Public Holiday?"
+  engine: CATALA
+  scope: WorkingTimeDefs.GazettedPublicHolidays
+  clauses: ["EMP-ANNEX-C C-2.6"]
+  tags: [computational, definition]
+  pair: PH
+  why: "C-2.6 defines it by reference to the principal place of work; the scope decides it for a given day."
+
+- id: C-009
+  question: "Hours on a public holiday are also above 48 in the week. What rate applies?"
+  engine: CATALA
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-7.2"]
+  tags: [computational]
+  why: "C-7.2 takes the greater of 2.0x and the C-4.2 rate plus 0.25 where both limbs bite."
+
+- id: C-010
+  question: "Is the night premium payable to an employee who receives a standing shift allowance?"
+  engine: CATALA
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-6.2"]
+  tags: [computational]
+  why: "C-6.2 is the exception to C-6.1 disapplying the premium where a standing shift allowance is paid."
+
+- id: C-011
+  question: "Is the night premium added on top of the public holiday rate or replaced by it?"
+  engine: CATALA
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-8.2"]
+  tags: [computational]
+  why: "C-8.2 exempts the C-6 night premium from the single-highest-multiplier rule in C-8.1, so it is cumulative."
+
+- id: C-012
+  question: "Two overtime provisions apply to the same hour. Do they stack?"
+  engine: CATALA
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-8.1"]
+  tags: [computational]
+  why: "C-8.1 allows only the single highest applicable multiplier across C-4, C-5 and C-7."
+
+- id: C-013
+  question: "Is an hour beginning at 23:00 a Night Hour?"
+  engine: CATALA
+  scope: WorkingTimeDefs.NightHours
+  clauses: ["EMP-ANNEX-C C-2.3"]
+  tags: [computational, definition]
+  why: "C-2.3 defines Night Hours as 22:00 to 06:00 the following day."
+
+- id: C-014
+  question: "Which payroll week does Wednesday 5 March 2025 fall in?"
+  engine: CATALA
+  scope: WorkingTimeDefs.PayrollWeekOf
+  clauses: ["EMP-ANNEX-C C-2.2"]
+  tags: [computational, definition]
+  why: "C-2.2 defines the Payroll Week as the seven days from 00:00 Monday, so the week is derived from the date."
+
+- id: C-015
+  question: "Which grade applies if an employee is regraded mid-week?"
+  engine: CATALA
+  scope: WorkingTimeDefs.GradeForPayrollWeek
+  clauses: ["EMP-ANNEX-C C-2.4"]
+  tags: [computational]
+  why: "C-2.4 fixes Grade as recorded at the first day of the Payroll Week in question."
+
+- id: C-016
+  question: "How many days of annual leave accrue for a completed calendar month of service?"
+  engine: CATALA
+  scope: LeaveAccrual.MonthlyAccrual
+  clauses: ["EMP-ANNEX-C C-9.1"]
+  tags: [computational]
+  why: "C-9.1 sets the accrual rate at 2.0 days per completed calendar month."
+
+- id: C-017
+  question: "How is leave accrual pro-rated for an employee who starts on the 12th of the month?"
+  engine: CATALA
+  scope: LeaveAccrual.MonthlyAccrual
+  clauses: ["EMP-ANNEX-C C-9.2"]
+  tags: [computational]
+  why: "C-9.2 pro-rates by days of service over days in the month, rounded to the nearest half day."
+
+- id: C-018
+  question: "How many accrued but untaken days can be carried forward to the next leave year?"
+  engine: CATALA
+  scope: LeaveAccrual.CarryForward
+  clauses: ["EMP-ANNEX-C C-9.3"]
+  tags: [computational]
+  why: "C-9.3 caps ordinary carry-forward at 5 accrued but untaken days."
+
+- id: C-019
+  question: "Is leave forfeited at the end of the leave year payable on termination?"
+  engine: CATALA
+  scope: LeaveAccrual.CarryForward
+  clauses: ["EMP-ANNEX-C C-9.5"]
+  tags: [computational]
+  why: "C-9.5 forfeits the excess and states it is not payable on termination."
+
+- id: C-020
+  question: "What is the meal per diem in a Tier 1 city?"
+  engine: CATALA
+  scope: MealPerDiem.MealPerDiemForDay
+  clauses: ["EXP-POL E-3.1"]
+  tags: [computational]
+  pair: TIER1
+  why: "E-3.1(a) sets 75 pounds per Travel Day for a Tier 1 city."
+
+- id: C-021
+  question: "What is the accommodation cap in a Tier 1 city?"
+  engine: CATALA
+  scope: Accommodation.NightlyAccommodation
+  clauses: ["EXP-POL E-4.1"]
+  tags: [computational]
+  pair: TIER1
+  why: "E-4.1 caps accommodation at 220 pounds per night in a Tier 1 city -- a different scope from the per diem."
+
+- id: C-022
+  question: "The travel is Client-Billable and the statement of work says nothing about per diem. What applies?"
+  engine: CATALA
+  scope: MealPerDiem.MealPerDiemForDay
+  clauses: ["EXP-POL E-3.2"]
+  tags: [computational]
+  why: "E-3.2 applies 1.5 times the E-3.1 amount where the SOW specifies none."
+
+- id: C-023
+  question: "Two free meals were provided at a conference. How is the per diem reduced?"
+  engine: CATALA
+  scope: MealPerDiem.MealPerDiemForDay
+  clauses: ["EXP-POL E-3.4"]
+  tags: [computational]
+  why: "E-3.4 reduces the per diem by 15 pounds in respect of each meal provided at no cost."
+
+- id: C-024
+  question: "Is a per diem payable for a Travel Day on which no meal expense was incurred?"
+  engine: CATALA
+  scope: MealPerDiem.MealPerDiemForDay
+  clauses: ["EXP-POL E-3.5"]
+  tags: [computational]
+  why: "E-3.5 pays no per diem for a Travel Day with no meal expense."
+
+- id: C-025
+  question: "How much extra per diem applies while on Critical Incident Response?"
+  engine: CATALA
+  scope: MealPerDiem.MealPerDiemForDay
+  clauses: ["EXP-POL E-7.2"]
+  tags: [computational]
+  why: "E-7.2 increases the E-3.1 per diem by 20 pounds per Travel Day and waives Pre-Approval for the increase."
+
+- id: C-026
+  question: "How many Travel Days are there if I leave on 3 June and return on 6 June?"
+  engine: CATALA
+  scope: ExpenseDefs.TravelDayCount
+  clauses: ["EXP-POL E-2.3"]
+  tags: [computational, definition]
+  why: "E-2.3 counts each calendar day or part day away overnight, including both departure and return days."
+
+- id: C-027
+  question: "Are local taxes and a mandatory city charge inside or outside the accommodation cap?"
+  engine: CATALA
+  scope: Accommodation.NightlyAccommodation
+  clauses: ["EXP-POL E-4.3"]
+  tags: [computational]
+  why: "E-4.3 makes the caps inclusive of local taxes and mandatory resort or city charges, and exclusive of parking."
+
+- id: C-028
+  question: "Is a standard class rail ticket reimbursable?"
+  engine: CATALA
+  scope: GroundTransport.RailFare
+  clauses: ["EXP-POL E-5.1"]
+  tags: [computational]
+  why: "E-5.1 reimburses standard class rail travel at actual cost."
+
+- id: C-029
+  question: "Is a first class rail ticket reimbursable?"
+  engine: CATALA
+  scope: GroundTransport.RailFare
+  clauses: ["EXP-POL E-5.2"]
+  tags: [computational]
+  why: "E-5.2 allows first class only where it does not exceed the same-day standard fare, or Pre-Approval was obtained."
+
+- id: C-030
+  question: "How much of an 80 pound taxi fare is reimbursable?"
+  engine: CATALA
+  scope: GroundTransport.TaxiFare
+  clauses: ["EXP-POL E-5.3"]
+  tags: [computational]
+  why: "E-5.3 caps private hire and taxi journeys at 60 pounds per journey."
+
+- id: C-031
+  question: "Is an airport taxi at 04:30 reimbursable without limit?"
+  engine: CATALA
+  scope: GroundTransport.TaxiFare
+  clauses: ["EXP-POL E-5.3"]
+  tags: [computational]
+  why: "E-5.3 lifts the 60 pound cap for an airport journey before 06:00 or after 22:00."
+
+- id: C-032
+  question: "What is a valid Pre-Approval for an expense?"
+  engine: CATALA
+  scope: ExpenseDefs.PreApprovalValid
+  clauses: ["EXP-POL E-2.4"]
+  tags: [computational, definition]
+  why: "E-2.4 requires written approval obtained before the expense from a person with authority at or above the amount."
+
+- id: C-033
+  question: "How many days do I have to submit an expense claim?"
+  engine: CATALA
+  scope: ClaimWindow.ClaimAdmissible
+  clauses: ["EXP-POL E-6.1"]
+  tags: [computational]
+  pair: DEADLINE
+  why: "E-6.1 requires submission within 60 days after the date the expense was incurred."
+
+- id: C-034
+  question: "How many days do I have to claim a service credit?"
+  engine: CATALA
+  scope: ServiceCreditClaim.CreditClaim
+  clauses: ["MSA-SCH4 L-5.1"]
+  tags: [computational]
+  pair: DEADLINE
+  why: "L-5.1 requires a written claim within 30 days after the end of the Measurement Period -- a different scope."
+
+- id: C-034b
+  question: "Can an expense claim submitted 130 days after the expense be reimbursed?"
+  engine: CATALA
+  scope: ClaimWindow.ClaimAdmissible
+  clauses: ["EXP-POL E-6.3"]
+  tags: [computational]
+  why: "E-6.3 bars any claim submitted more than 120 days after the expense, in any circumstances."
+
+- id: C-035
+  question: "What is my Attainment if Net Booked Revenue is 1.2 million against a 1 million quota?"
+  engine: CATALA
+  scope: Commission.Attainment
+  clauses: ["COMM-PLAN S-2.2"]
+  tags: [computational]
+  why: "S-2.2 defines Attainment as Net Booked Revenue expressed as a percentage of Quota."
+
+- id: C-036
+  question: "What accelerator applies at 160% Attainment?"
+  engine: CATALA
+  scope: Commission.Accelerator
+  clauses: ["COMM-PLAN S-4.1"]
+  tags: [computational]
+  why: "S-4.1(d) sets an accelerator of 2.0 at Attainment of 150% or more."
+
+- id: C-037
+  question: "Does the accelerator apply only to revenue above the threshold?"
+  engine: CATALA
+  scope: [Commission.Accelerator, Commission.CommissionPayable]
+  clauses: ["COMM-PLAN S-4.2"]
+  tags: [computational]
+  why: "S-4.2 applies the accelerator to the whole of Net Booked Revenue, not only the portion above the threshold."
+
+- id: C-038
+  question: "What is the accelerator cap for an employee who joined part way through the Plan Year?"
+  engine: CATALA
+  scope: Commission.Accelerator
+  clauses: ["COMM-PLAN S-4.4"]
+  tags: [computational]
+  why: "S-4.4 caps the accelerator at 1.5 for the Plan Year in which the employee commenced."
+
+- id: C-039
+  question: "What is the cap on total commission as a percentage of base salary?"
+  engine: CATALA
+  scope: Commission.CommissionPayable
+  clauses: ["COMM-PLAN S-5.1"]
+  tags: [computational]
+  why: "S-5.1 caps total commission for the Plan Year at 250% of annual base salary."
+
+- id: C-040
+  question: "What is the commission cap where Attainment exceeds 200%?"
+  engine: CATALA
+  scope: Commission.CommissionPayable
+  clauses: ["COMM-PLAN S-5.3"]
+  tags: [computational]
+  why: "S-5.3 is the exception to S-5.1 raising the cap to 400% of annual base salary."
+
+- id: C-041
+  question: "Is the commission cap applied before or after the accelerator?"
+  engine: CATALA
+  scope: Commission.CommissionPayable
+  clauses: ["COMM-PLAN S-5.2"]
+  tags: [computational]
+  why: "S-5.2 applies the cap after the S-4 accelerator and after any S-6 adjustment."
+
+- id: C-042
+  question: "Is a customer a New Logo if it had a contract 30 months ago?"
+  engine: CATALA
+  scope: Commission.NewLogo
+  clauses: ["COMM-PLAN S-2.6"]
+  tags: [computational, definition]
+  why: "S-2.6 requires no contract at any time in the 24 months preceding the signature date."
+
+- id: C-043
+  question: "Is a contract not renewed at its first renewal date 150 days after signature a Churned Contract?"
+  engine: CATALA
+  scope: Commission.ChurnedContract
+  clauses: ["COMM-PLAN S-2.4"]
+  tags: [computational, definition]
+  why: "S-2.4 covers termination by the customer or non-renewal at first renewal within 180 days of signature."
+
+- id: C-044
+  question: "How is Net Booked Revenue calculated?"
+  engine: CATALA
+  scope: Commission.NetBookedRevenue
+  clauses: ["COMM-PLAN S-2.3"]
+  tags: [computational]
+  why: "S-2.3 aggregates annual contract value of contracts signed in the Plan Year less the ACV of Churned Contracts."
+
+- id: C-045
+  question: "When is Quota assigned to an employee who joins mid-year?"
+  engine: CATALA
+  scope: Commission.AssignedQuota
+  clauses: ["COMM-PLAN S-2.1"]
+  tags: [computational]
+  why: "S-2.1 sets Quota in writing at the start of the Plan Year, or on joining if later."
+
+- id: C-046
+  question: "How much quota relief is given for 45 days of long-term sickness absence?"
+  engine: CATALA
+  scope: [QuotaRelief.RelievedQuota, QuotaRelief.QualifyingAbsence]
+  clauses: ["COMM-PLAN S-6.1"]
+  tags: [computational]
+  why: "S-6.1 reduces Quota by 1/365th of the annual Quota for each day of a qualifying absence of 30 days or more."
+
+- id: C-047
+  question: "Is commission payable to an employee dismissed for gross misconduct?"
+  engine: CATALA
+  scope: Commission.LeaverCommission
+  clauses: ["COMM-PLAN S-8.2"]
+  tags: [computational]
+  pair: LEAVE
+  why: "S-8.2 forfeits any commission not yet paid where employment is terminated for gross misconduct."
+
+- id: C-048
+  question: "Is commission payable to a leaver on contracts signed before their last day?"
+  engine: CATALA
+  scope: Commission.LeaverCommission
+  clauses: ["COMM-PLAN S-8.1"]
+  tags: [computational]
+  pair: LEAVE
+  why: "S-8.1 entitles a leaver to commission on contracts signed on or before their last day of employment."
+
+- id: C-049
+  question: "Can commission paid 30 months ago be clawed back?"
+  engine: CATALA
+  scope: Clawback.RecoverableCommission
+  clauses: ["COMM-PLAN S-7.3"]
+  tags: [computational]
+  why: "S-7.3 bars recovery more than 24 months after the date the commission was paid."
+
+- id: C-050
+  question: "A contract has churned. Can the Company recover the commission paid on it?"
+  engine: CATALA
+  scope: Clawback.RecoverableCommission
+  clauses: ["COMM-PLAN S-7.1"]
+  tags: [computational]
+  pair: CHURN
+  why: "S-7.1 permits recovery of commission attributable to a contract that becomes a Churned Contract."
+
+- id: C-051
+  question: "What Service Credit is payable at an Availability Percentage of 98.50%?"
+  engine: CATALA
+  scope: ServiceCredits.ServiceCredit
+  clauses: ["MSA-SCH4 L-4.1"]
+  tags: [computational]
+  why: "L-4.1(c) gives 20% of the Monthly Service Charge for less than 99.00% but not less than 98.00%."
+
+- id: C-052
+  question: "What Service Credit is payable at an Availability Percentage of 94.00%?"
+  engine: CATALA
+  scope: ServiceCredits.ServiceCredit
+  clauses: ["MSA-SCH4 L-4.3"]
+  tags: [computational]
+  why: "L-4.3 sets the credit and the cap at 50% of the Monthly Service Charge below 95.00%."
+
+- id: C-053
+  question: "What is the maximum aggregate Service Credit for a Measurement Period?"
+  engine: CATALA
+  scope: ServiceCredits.ServiceCredit
+  clauses: ["MSA-SCH4 L-4.2"]
+  tags: [computational]
+  pair: REMEDY
+  why: "L-4.2 caps the aggregate credit at 30% of the Monthly Service Charge."
+
+- id: C-054
+  question: "What is the committed Availability Percentage under the Service Level?"
+  engine: CATALA
+  scope: [Availability.AvailabilityPercentage, Availability.ServiceAvailability]
+  clauses: ["MSA-SCH4 L-3.1"]
+  tags: [computational]
+  why: "L-3.1 requires the Availability Percentage in each Measurement Period to be not less than 99.90%."
+
+- id: C-055
+  question: "What is the Monthly Service Charge if professional services and pass-through charges are billed too?"
+  engine: CATALA
+  scope: ServiceCredits.MonthlyServiceCharge
+  clauses: ["MSA-SCH4 L-2.7"]
+  tags: [computational]
+  why: "L-2.7 excludes one-off, professional services and pass-through charges from the Monthly Service Charge."
+
+- id: C-056
+  question: "How is the Availability Percentage calculated and rounded?"
+  engine: CATALA
+  scope: Availability.AvailabilityPercentage
+  clauses: ["MSA-SCH4 L-2.3"]
+  tags: [computational]
+  why: "L-2.3 gives the formula and requires rounding to two decimal places."
+
+- id: C-057
+  question: "What is a Measurement Period?"
+  engine: CATALA
+  scope: Availability.MeasurementPeriod
+  clauses: ["MSA-SCH4 L-2.1"]
+  tags: [computational, definition]
+  why: "L-2.1 defines the Measurement Period as each calendar month; the scope derives its end and total minutes."
+
+- id: C-058
+  question: "When is the Service Available for the purposes of the SLA?"
+  engine: CATALA
+  scope: Availability.RequestAvailable
+  clauses: ["MSA-SCH4 L-2.2"]
+  tags: [computational, definition]
+  why: "L-2.2 defines Available as responding to a well-formed request at the documented endpoint within the latency threshold."
+
+- id: C-059
+  question: "Emergency maintenance was notified 30 minutes in advance. Are those minutes excluded?"
+  engine: CATALA
+  scope: Availability.ExcludedMinutes
+  clauses: ["MSA-SCH4 L-2.5"]
+  tags: [computational]
+  why: "L-2.5(b) excludes emergency maintenance only where at least 60 minutes' notice was given."
+
+- id: C-060
+  question: "Scheduled maintenance ran to 10 hours this month. What happens to the excess 2 hours?"
+  engine: CATALA
+  scope: [Availability.ScheduledMaintenance, Availability.AvailabilityPercentage]
+  clauses: ["MSA-SCH4 L-4.5"]
+  tags: [computational]
+  why: "L-4.5 makes minutes above the 8 hour aggregate count as Unavailable Minutes rather than Excluded Minutes."
+
+- id: C-061
+  question: "How many Business Days notice does Scheduled Maintenance need?"
+  engine: CATALA
+  scope: [Availability.ScheduledMaintenanceWindow, Availability.ScheduledMaintenance]
+  clauses: ["MSA-SCH4 L-2.6"]
+  tags: [computational]
+  pair: NOTICE
+  why: "L-2.6 requires a window notified not less than 5 Business Days in advance."
+
+- id: C-062
+  question: "When is the Service Credit paid if no further invoice will be issued?"
+  engine: CATALA
+  scope: ServiceCreditClaim.CreditClaim
+  clauses: ["MSA-SCH4 L-5.2"]
+  tags: [computational]
+  why: "L-5.2 pays the credit to the Customer within 30 days where no further invoice will be issued."
+
+- id: C-063
+  question: "Availability was below 99.90% in three consecutive months. Can we terminate?"
+  engine: CATALA
+  scope: ChronicFailure.ChronicFailureRight
+  clauses: ["MSA-SCH4 L-6.1"]
+  tags: [computational]
+  why: "L-6.1 gives a right to terminate the affected Service on 30 days' notice on three consecutive failing periods."
+
+- id: C-064
+  question: "How long does the chronic failure termination right stay exercisable?"
+  engine: CATALA
+  scope: ChronicFailure.ChronicFailureRight
+  clauses: ["MSA-SCH4 L-6.2"]
+  tags: [computational]
+  why: "L-6.2 requires exercise within 30 days after the end of the Measurement Period giving rise to it, or it lapses."
+
+- id: C-065
+  question: "How much notice is needed to terminate the NDA early?"
+  engine: CATALA
+  scope: NdaSurvival.SurvivalEnd
+  clauses: ["NDA-MUT N-5.1"]
+  tags: [computational]
+  pair: NOTICE
+  why: "N-5.1 allows termination on 30 days' written notice within the 2 year term."
+
+- id: C-066
+  question: "How long do the confidentiality obligations survive termination of the NDA?"
+  engine: CATALA
+  scope: NdaSurvival.SurvivalEnd
+  clauses: ["NDA-MUT N-5.2"]
+  tags: [computational]
+  pair: SURVIVE
+  why: "N-5.2 continues the N-3 obligations for 3 years from expiry or termination."
+
+- id: C-067
+  question: "How long do confidentiality obligations last for personal data?"
+  engine: CATALA
+  scope: NdaSurvival.SurvivalEnd
+  clauses: ["NDA-MUT N-5.4"]
+  tags: [computational]
+  why: "N-5.4 continues the obligations for so long as the Recipient holds the personal data."
+
+- id: C-068
+  question: "How long is an Employee Record retained?"
+  engine: CATALA
+  scope: Retention.RetentionEnd
+  clauses: ["DATA-RET R-3.1"]
+  tags: [computational]
+  why: "R-3.1(a) retains an Employee Record for 6 years from the end of employment."
+
+- id: C-069
+  question: "How long is a Security Log retained?"
+  engine: CATALA
+  scope: Retention.RetentionEnd
+  clauses: ["DATA-RET R-3.1"]
+  tags: [computational]
+  pair: HOLD
+  why: "R-3.1(e) retains a Security Log for 13 months from the date of the logged event."
+
+- id: C-070
+  question: "How long is a Candidate Record retained where the candidate consented to a talent pool?"
+  engine: CATALA
+  scope: Retention.RetentionEnd
+  clauses: ["DATA-RET R-3.2"]
+  tags: [computational]
+  why: "R-3.2 is the exception to R-3.1(f): 24 months from consent, restarting on each renewal."
+
+- id: C-071
+  question: "Can a record under a Legal Hold be deleted when its retention period expires?"
+  engine: CATALA
+  scope: LegalHold.HoldEffect
+  clauses: ["DATA-RET R-4.1"]
+  tags: [computational]
+  pair: HOLD
+  why: "R-4.1 forbids deletion while the Legal Hold is in force irrespective of the retention period expiring."
+
+- id: C-072
+  question: "A Legal Hold was released and the retention period had already expired. When is the record deleted?"
+  engine: CATALA
+  scope: LegalHold.HoldEffect
+  clauses: ["DATA-RET R-4.3"]
+  tags: [computational]
+  why: "R-4.3 deletes within 30 days of release where the retention period has already expired."
+
+- id: C-073
+  question: "How long can backups keep a record after it is deleted from production?"
+  engine: CATALA
+  scope: LegalHold.HoldEffect
+  clauses: ["DATA-RET R-6.1"]
+  tags: [computational]
+  why: "R-6.1 requires backup deletion at the expiry of the backup rotation cycle, which must not exceed 90 days."
+
+- id: C-074
+  question: "Who can issue a Legal Hold?"
+  engine: CATALA
+  scope: LegalHold.HoldEffect
+  clauses: ["DATA-RET R-2.3"]
+  tags: [computational, definition]
+  why: "R-2.3 defines a Legal Hold as a documented instruction from the General Counsel or their delegate."
+
+- id: C-075
+  question: "How many days after verifying a valid erasure request must personal data be deleted?"
+  engine: CATALA
+  scope: ErasureRequest.ErasureDeadline
+  clauses: ["DATA-RET R-5.1"]
+  tags: [computational]
+  why: "R-5.1 requires deletion within 30 days of verifying the request."
+
+# ---------------------------------------------------------------------------
+# Judgement questions. A HYBRID clause whose predicate the documents do not
+# define. The system must name the judgement input and say a human supplies it;
+# it must never silently decide it inside a computation.
+# ---------------------------------------------------------------------------
+
+- id: J-001
+  question: "An expense claim was submitted 90 days after the expense. Can it still be reimbursed?"
+  engine: CATALA
+  scope: ClaimWindow.ClaimAdmissible
+  clauses: ["EXP-POL E-6.2"]
+  judgement: [delay_certified_for_good_reason]
+  tags: [judgement]
+  why: "E-6.2 turns on the line manager certifying the delay was for good reason -- undefined, so a human decides."
+
+- id: J-002
+  question: "Was the delay in submitting my claim for a good reason?"
+  engine: CATALA
+  scope: ClaimWindow.ClaimAdmissible
+  clauses: ["EXP-POL E-6.2"]
+  judgement: [delay_certified_for_good_reason]
+  tags: [judgement, asks-the-judgement]
+  why: "The question asks the system to make the E-6.2 judgement; the correct reply is that a human certifies it."
+
+- id: J-003
+  question: "No hotel was available within the cap at the time of booking. How much can I claim?"
+  engine: CATALA
+  scope: Accommodation.NightlyAccommodation
+  clauses: ["EXP-POL E-4.2"]
+  judgement: [no_compliant_accommodation_available_evidenced]
+  tags: [judgement]
+  why: "E-4.2 allows 1.4 times the cap but only on evidence of no compliant accommodation -- an evidenced judgement."
+
+- id: J-004
+  question: "Is our pricing model a trade secret?"
+  engine: CATALA
+  scope: NdaSurvival.SurvivalEnd
+  clauses: ["NDA-MUT N-5.3"]
+  judgement: [information_is_trade_secret]
+  tags: [judgement, asks-the-judgement]
+  why: "N-5.3 depends on the information being a trade secret; the NDA nowhere defines that, so a human decides."
+
+- id: J-005
+  question: "How long do confidentiality obligations last for information that is a trade secret?"
+  engine: CATALA
+  scope: NdaSurvival.SurvivalEnd
+  clauses: ["NDA-MUT N-5.3"]
+  judgement: [information_is_trade_secret, information_remains_trade_secret]
+  tags: [judgement]
+  pair: SURVIVE
+  why: "N-5.3 continues the obligations for so long as the information remains a trade secret -- a standing judgement."
+
+- id: J-006
+  question: "Was the outage attributable to the Customer's own act or omission?"
+  engine: CATALA
+  scope: Availability.ExcludedMinutes
+  clauses: ["MSA-SCH4 L-2.5"]
+  judgement: [outage_attributable_to_customer]
+  tags: [judgement, asks-the-judgement]
+  why: "L-2.5(d) excludes customer-caused minutes; attribution is not defined in the Schedule, so a human decides."
+
+- id: J-007
+  question: "Was the outage caused by a Force Majeure Event?"
+  engine: CATALA
+  scope: Availability.ExcludedMinutes
+  clauses: ["MSA-SCH4 L-2.5"]
+  judgement: [force_majeure_event_certified]
+  tags: [judgement, asks-the-judgement]
+  why: "L-2.5(c) excludes Force Majeure minutes but Schedule 4 does not define the event, so it is certified by a human."
+
+- id: J-008
+  question: "The Customer is 40 days in arrears on an invoice it disputes. Is a Service Credit payable?"
+  engine: CATALA
+  scope: ServiceCredits.ServiceCredit
+  clauses: ["MSA-SCH4 L-4.4"]
+  judgement: [invoice_undisputed]
+  tags: [judgement]
+  why: "L-4.4 removes the credit only for arrears on an UNDISPUTED invoice; whether it is disputed is a human call."
+
+- id: J-009
+  question: "The customer terminated because we breached. Is clawback still available?"
+  engine: CATALA
+  scope: Clawback.RecoverableCommission
+  clauses: ["COMM-PLAN S-7.2"]
+  judgement: [terminated_for_company_material_breach]
+  tags: [judgement]
+  pair: CHURN
+  why: "S-7.2 bars recovery where the customer terminated for a material breach by the Company -- material breach is undefined."
+
+- id: J-010
+  question: "Is this a valid request for erasure?"
+  engine: CATALA
+  scope: ErasureRequest.ErasureDeadline
+  clauses: ["DATA-RET R-5.1"]
+  judgement: [erasure_request_valid]
+  tags: [judgement, asks-the-judgement]
+  why: "R-5.1 turns on the request being valid; the Standard does not define validity, so a human decides."
+
+- id: J-011
+  question: "Must we keep this personal data to defend a legal claim despite an erasure request?"
+  engine: CATALA
+  scope: ErasureRequest.ErasureDeadline
+  clauses: ["DATA-RET R-5.2"]
+  judgement: [retention_required_for_legal_claims, retention_required_by_legal_obligation]
+  tags: [judgement]
+  why: "R-5.2 excepts data needed for legal obligations or legal claims -- both are judgements a human must supply."
+
+- id: J-012
+  question: "Does payroll legislation require us to keep an Employee Record for longer than 6 years?"
+  engine: CATALA
+  scope: Retention.RetentionEnd
+  clauses: ["DATA-RET R-3.3"]
+  judgement: [statutory_retention_applies, statutory_retention_period]
+  tags: [judgement, asks-the-judgement]
+  why: "R-3.3 defers to pensions or payroll legislation without stating it; the applicable period is supplied by a human."
+
+- id: J-013
+  question: "Is retaining a record under Legal Hold permitted by data protection law?"
+  engine: CATALA
+  scope: LegalHold.HoldEffect
+  clauses: ["DATA-RET R-4.2"]
+  judgement: [retention_under_hold_permitted_by_data_protection_law]
+  tags: [judgement, asks-the-judgement]
+  why: "R-4.2 gives the hold precedence only to the extent permitted by applicable data protection law."
+
+- id: J-014
+  question: "An employee was off sick all year. Can they carry forward their whole leave balance?"
+  engine: CATALA
+  scope: LeaveAccrual.CarryForward
+  clauses: ["EMP-ANNEX-C C-9.4"]
+  judgement: [prevented_from_taking_leave_by_long_term_sickness]
+  tags: [judgement]
+  why: "C-9.4 lifts the 5 day cap where the employee was PREVENTED from taking leave by long-term sickness."
+
+# ---------------------------------------------------------------------------
+# Plainly prose. The clause is PROSE: it is quotable and nothing computes.
+# ---------------------------------------------------------------------------
+
+- id: P-001
+  question: "Who does Annex C apply to?"
+  engine: VECTOR
+  clauses: ["EMP-ANNEX-C C-1.1"]
+  tags: [prose]
+  why: "C-1.1 states the scope of the Annex in prose; there is nothing to compute."
+
+- id: P-002
+  question: "What happens if Annex C would give an employee less than the statutory minimum?"
+  engine: VECTOR
+  clauses: ["EMP-ANNEX-C C-1.2"]
+  tags: [prose, prose-no-computation]
+  why: "C-1.2 makes the statutory minimum prevail, but the Annex never states the statutory figure, so no scope can compute it."
+
+- id: P-003
+  question: "Do the headings in Annex C affect its construction?"
+  engine: VECTOR
+  clauses: ["EMP-ANNEX-C C-1.3"]
+  tags: [prose]
+  why: "C-1.3 is an interpretation provision, PROSE, answerable only by quotation."
+
+- id: P-004
+  question: "How much notice must the Company give to vary Annex C?"
+  engine: VECTOR
+  clauses: ["EMP-ANNEX-C C-10.1"]
+  tags: [prose, prose-no-computation]
+  why: "C-10.1 states one month's written notice, but it is triaged PROSE and no scope encodes it, so the honest answer is the quotation."
+
+- id: P-005
+  question: "This Policy does not cover my situation. What should I do?"
+  engine: VECTOR
+  clauses: ["EXP-POL E-1.2"]
+  tags: [prose, undefined-judgement]
+  why: "E-1.2 leaves it to the Employee's judgement and their line manager -- expressly not something the system decides."
+
+- id: P-006
+  question: "Does reimbursement of an expense settle its tax treatment?"
+  engine: VECTOR
+  clauses: ["EXP-POL E-1.3"]
+  tags: [prose]
+  why: "E-1.3 disclaims any tax consequence and puts personal tax on the Employee."
+
+- id: P-007
+  question: "Who is covered by the Expense Reimbursement Policy?"
+  engine: VECTOR
+  clauses: ["EXP-POL E-1.1"]
+  tags: [prose]
+  why: "E-1.1 states the Policy covers Employees and Contingent Workers on Company business."
+
+- id: P-008
+  question: "What happens if I knowingly submit a false expense claim?"
+  engine: VECTOR
+  clauses: ["EXP-POL E-8.1"]
+  tags: [prose, prose-no-computation]
+  why: "E-8.1 makes it a disciplinary matter possibly amounting to gross misconduct -- a consequence, not a computation."
+
+- id: P-009
+  question: "Does the Expense Policy cut across my Annex C entitlements?"
+  engine: VECTOR
+  clauses: ["EXP-POL E-7.1"]
+  tags: [prose]
+  why: "E-7.1 preserves Annex C entitlements; a pure precedence statement in prose."
+
+- id: P-010
+  question: "Do I have a contractual right to be in next year's commission plan?"
+  engine: VECTOR
+  clauses: ["COMM-PLAN S-1.2"]
+  tags: [prose]
+  why: "S-1.2 makes continuation discretionary and denies any right to a successor plan."
+
+- id: P-011
+  question: "Is commission pensionable?"
+  engine: VECTOR
+  clauses: ["COMM-PLAN S-1.3"]
+  tags: [prose]
+  pair: PENSION
+  why: "S-1.3 states commission is a variable element of remuneration and is not pensionable."
+
+- id: P-012
+  question: "Who decides a question about the interpretation or operation of the Plan?"
+  engine: VECTOR
+  clauses: ["COMM-PLAN S-9.1"]
+  tags: [prose, undefined-judgement]
+  pair: DECIDES
+  why: "S-9.1 gives the Chief Revenue Officer the final determination; the Plan does not reduce it to a rule."
+
+- id: P-013
+  question: "Are the Service Credits the Customer's only financial remedy?"
+  engine: VECTOR
+  clauses: ["MSA-SCH4 L-1.2"]
+  tags: [prose]
+  pair: REMEDY
+  why: "L-1.2 makes them the sole financial remedy save for a failure amounting to a material breach."
+
+- id: P-014
+  question: "Are the Service Credits a penalty?"
+  engine: VECTOR
+  clauses: ["MSA-SCH4 L-1.3"]
+  tags: [prose]
+  why: "L-1.3 records the parties' acknowledgement that they are a genuine pre-estimate of loss."
+
+- id: P-015
+  question: "Where are capitalised terms not defined in Schedule 4 defined?"
+  engine: VECTOR
+  clauses: ["MSA-SCH4 L-1.1"]
+  tags: [prose]
+  why: "L-1.1 points to clause 1 of the Agreement -- a pointer, not a computation."
+
+- id: P-016
+  question: "What information is excluded from Confidential Information?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-2.3"]
+  tags: [prose]
+  why: "N-2.3 lists four exclusions, each a factual judgement stated in prose."
+
+- id: P-017
+  question: "Is the fact that the parties are in discussions confidential?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-2.2"]
+  tags: [prose]
+  why: "N-2.2 includes the existence and contents of the Agreement and the fact of discussions."
+
+- id: P-018
+  question: "What degree of care must the Recipient apply to Confidential Information?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-3.3"]
+  tags: [prose, prose-no-computation]
+  why: "N-3.3 sets a reasonable-degree-of-care standard; there is no figure and nothing to execute."
+
+- id: P-019
+  question: "Can I share Confidential Information with our group companies and advisers?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-3.4"]
+  tags: [prose]
+  why: "N-3.4 permits need-to-know disclosure to officers, employees, advisers and group companies on back-to-back terms."
+
+- id: P-020
+  question: "A court has ordered us to disclose Confidential Information. What must we do?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-4.1"]
+  tags: [prose]
+  why: "N-4.1 permits compelled disclosure with prior notice to the Discloser where lawful and practicable."
+
+- id: P-021
+  question: "Must the Recipient return or destroy Confidential Information on request?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-6.1"]
+  tags: [prose]
+  why: "N-6.1 requires prompt return or destruction and certification if requested."
+
+- id: P-022
+  question: "Can we keep one archival copy of Confidential Information?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-6.2"]
+  tags: [prose]
+  why: "N-6.2 allows one retained copy for law or record-keeping, still subject to the Agreement."
+
+- id: P-023
+  question: "Does the NDA grant a licence to any intellectual property?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-7.1"]
+  tags: [prose]
+  why: "N-7.1 grants no licence of any intellectual property right."
+
+- id: P-024
+  question: "Does the Discloser warrant that the Confidential Information is accurate?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-7.2"]
+  tags: [prose]
+  why: "N-7.2 provides the information as is with no warranty as to accuracy or completeness."
+
+- id: P-025
+  question: "Can the Discloser get an injunction for a breach of the NDA?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-8.1"]
+  tags: [prose]
+  why: "N-8.1 acknowledges damages may be inadequate and preserves injunctive relief."
+
+- id: P-026
+  question: "Which law governs the mutual NDA?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-9.1"]
+  tags: [prose]
+  why: "N-9.1 is an England and Wales governing law and exclusive jurisdiction clause."
+
+- id: P-027
+  question: "Can the NDA be varied by an exchange of emails?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-9.2"]
+  tags: [prose]
+  why: "N-9.2 requires any variation to be in writing and signed by both parties."
+
+- id: P-028
+  question: "Does the NDA create a partnership or joint venture?"
+  engine: VECTOR
+  clauses: ["NDA-MUT N-9.3"]
+  tags: [prose]
+  why: "N-9.3 denies any partnership, agency or joint venture and any duty to contract further."
+
+- id: P-029
+  question: "What does Deletion mean under the Data Retention Standard?"
+  engine: VECTOR
+  clauses: ["DATA-RET R-2.4"]
+  tags: [prose]
+  why: "R-2.4 defines Deletion as destruction beyond ordinary reconstruction, including from backups."
+
+- id: P-030
+  question: "Should a business unit delete a record before the maximum retention period?"
+  engine: VECTOR
+  clauses: ["DATA-RET R-1.2"]
+  tags: [prose, undefined-judgement]
+  why: "R-1.2 expects earlier deletion once the collection purpose is achieved -- a judgement, not a period."
+
+- id: P-031
+  question: "Who is accountable for applying the Data Retention Standard?"
+  engine: VECTOR
+  clauses: ["DATA-RET R-7.1"]
+  tags: [prose]
+  why: "R-7.1 places accountability on each business unit with Privacy Office oversight."
+
+- id: P-032
+  question: "What approval is needed to depart from the Data Retention Standard?"
+  engine: VECTOR
+  clauses: ["DATA-RET R-7.2"]
+  tags: [prose]
+  why: "R-7.2 requires written Privacy Office approval recorded in the exceptions register."
+
+- id: P-033
+  question: "What is the purpose of the Data Retention Standard and what does it apply to?"
+  engine: VECTOR
+  clauses: ["DATA-RET R-1.1"]
+  tags: [prose]
+  why: "R-1.1 states the purpose and that it applies to all records in any form."
+
+# ---------------------------------------------------------------------------
+# Both engines. A genuine computational part and a genuine prose part.
+# ---------------------------------------------------------------------------
+
+- id: B-001
+  question: "What Service Credit is payable at 98.50% availability, and is that credit our only remedy?"
+  engine: BOTH
+  scope: ServiceCredits.ServiceCredit
+  clauses: ["MSA-SCH4 L-4.1", "MSA-SCH4 L-1.2"]
+  tags: [both]
+  why: "The percentage comes from executing L-4.1; the sole-remedy point is L-1.2, which is PROSE and must be quoted."
+
+- id: B-002
+  question: "What is the Tier 2 meal per diem, and what should I do about a cost the Policy does not address?"
+  engine: BOTH
+  scope: MealPerDiem.MealPerDiemForDay
+  clauses: ["EXP-POL E-3.1", "EXP-POL E-1.2"]
+  tags: [both]
+  why: "E-3.1(b) gives 55 pounds by execution; E-1.2 answers the uncovered-circumstance half and is PROSE."
+
+- id: B-003
+  question: "When do the NDA confidentiality obligations end, and what counts as Confidential Information?"
+  engine: BOTH
+  scope: NdaSurvival.SurvivalEnd
+  clauses: ["NDA-MUT N-5.2", "NDA-MUT N-2.1"]
+  tags: [both]
+  why: "N-5.2's 3 year survival is computed; the definition in N-2.1 is PROSE and can only be quoted."
+
+- id: B-004
+  question: "How long is a Candidate Record kept, and who is accountable for deleting it?"
+  engine: BOTH
+  scope: Retention.RetentionEnd
+  clauses: ["DATA-RET R-3.1", "DATA-RET R-7.1"]
+  tags: [both]
+  why: "R-3.1(f) gives 12 months by execution; accountability is R-7.1, PROSE."
+
+- id: B-005
+  question: "What accelerator applies at 160% attainment, and is the resulting commission pensionable?"
+  engine: BOTH
+  scope: Commission.Accelerator
+  clauses: ["COMM-PLAN S-4.1", "COMM-PLAN S-1.3"]
+  tags: [both]
+  pair: PENSION
+  why: "S-4.1(d) is executed for the accelerator; pensionability is S-1.3, PROSE."
+
+- id: B-006
+  question: "What multiplier applies to the 45th hour, and what if that is below the statutory minimum?"
+  engine: BOTH
+  scope: Overtime.HourPremium
+  clauses: ["EMP-ANNEX-C C-4.1", "EMP-ANNEX-C C-1.2"]
+  tags: [both]
+  why: "C-4.1 is executed; C-1.2's statutory override is PROSE and cannot be computed, so both engines are needed."
+
+- id: B-007
+  question: "Can we terminate for chronic failure, and are service credits our sole financial remedy?"
+  engine: BOTH
+  scope: ChronicFailure.ChronicFailureRight
+  clauses: ["MSA-SCH4 L-6.1", "MSA-SCH4 L-1.2"]
+  tags: [both]
+  why: "L-6.1 is executed for the termination right; L-1.2 is PROSE and expressly carves out material breach."
+
+- id: B-008
+  question: "How much commission does a leaver get, and who decides if we disagree about it?"
+  engine: BOTH
+  scope: Commission.LeaverCommission
+  clauses: ["COMM-PLAN S-8.1", "COMM-PLAN S-9.1"]
+  tags: [both]
+  pair: DECIDES
+  why: "S-8.1 is executed for the entitlement; S-9.1 gives the CRO the final determination and is PROSE."
+
+# ---------------------------------------------------------------------------
+# Genuinely ambiguous between two scopes. Reporting the candidates is correct;
+# naming one of them would be a guess.
+# ---------------------------------------------------------------------------
+
+- id: A-001
+  question: "What is the rounding rule for pro-rated leave accrual?"
+  engine: CATALA
+  ambiguous: true
+  scope: [LeaveAccrual.HalfDayRounding, LeaveAccrual.MonthlyAccrual]
+  clauses: ["EMP-ANNEX-C C-9.2"]
+  tags: [ambiguous]
+  why: "C-9.2 is encoded in both scopes -- the rounding proviso and the accrual that applies it."
+
+- id: A-002
+  question: "What counts as Scheduled Maintenance?"
+  engine: CATALA
+  ambiguous: true
+  scope: [Availability.ScheduledMaintenance, Availability.ScheduledMaintenanceWindow]
+  clauses: ["MSA-SCH4 L-2.6"]
+  tags: [ambiguous]
+  why: "L-2.6 is encoded in both: the window-notice test and the 8 hour aggregate cap."
+
+- id: A-003
+  question: "How does scheduled maintenance feed into the availability calculation?"
+  engine: CATALA
+  ambiguous: true
+  scope: [Availability.ScheduledMaintenance, Availability.AvailabilityPercentage]
+  clauses: ["MSA-SCH4 L-4.5"]
+  tags: [ambiguous]
+  why: "L-4.5 is encoded in both scopes; the excess is computed in one and consumed in the other."
+
+- id: A-004
+  question: "How does a qualifying absence change my quota?"
+  engine: CATALA
+  ambiguous: true
+  scope: [QuotaRelief.QualifyingAbsence, QuotaRelief.RelievedQuota]
+  clauses: ["COMM-PLAN S-6.1"]
+  tags: [ambiguous]
+  why: "S-6.1 is encoded in both: qualification of the absence and the resulting quota reduction."
+
+- id: A-005
+  question: "How does quota relief affect the commission finally payable?"
+  engine: CATALA
+  ambiguous: true
+  scope: [QuotaRelief.RelievedQuota, QuotaRelief.CommissionAfterRelief]
+  clauses: ["COMM-PLAN S-6.2"]
+  tags: [ambiguous]
+  why: "S-6.2 is encoded in both: the relieved quota used for attainment and the commission computed from it."
+
+- id: A-006
+  question: "How does New Logo revenue affect the accelerator?"
+  engine: CATALA
+  ambiguous: true
+  scope: [Commission.Accelerator, Commission.NetBookedRevenue]
+  clauses: ["COMM-PLAN S-4.3"]
+  tags: [ambiguous]
+  why: "S-4.3 is encoded in both: the new-logo share is measured in one scope and uplifts the accelerator in the other."
+
+- id: A-007
+  question: "What was the Availability Percentage for the month?"
+  engine: CATALA
+  ambiguous: true
+  scope: [Availability.AvailabilityPercentage, Availability.ServiceAvailability]
+  clauses: ["MSA-SCH4 L-2.3"]
+  tags: [ambiguous]
+  why: "Both scopes output availability_percentage -- one from minute totals, one end to end from outages."
+
+- id: A-008
+  question: "What overtime is payable for hours worked above 40 in a payroll week?"
+  engine: CATALA
+  ambiguous: true
+  scope: [Overtime.HourPremium, Overtime.WeeklyOvertime]
+  clauses: ["EMP-ANNEX-C C-4.1"]
+  tags: [ambiguous]
+  why: "C-4.1 is answered per hour by HourPremium and per week by WeeklyOvertime; the question does not say which."
+
+- id: A-009
+  question: "When is a record that is subject to a Legal Hold finally deleted?"
+  engine: CATALA
+  ambiguous: true
+  scope: [LegalHold.HoldEffect, Retention.RetentionEnd]
+  clauses: ["DATA-RET R-4.3"]
+  tags: [ambiguous]
+  why: "R-4.3 makes the date the later of hold release plus 30 days and the ordinary retention expiry computed elsewhere."
+
+- id: A-010
+  question: "Can a Legal Hold block an erasure request?"
+  engine: CATALA
+  ambiguous: true
+  scope: [LegalHold.HoldEffect, ErasureRequest.ErasureDeadline]
+  clauses: ["DATA-RET R-4.2", "DATA-RET R-5.2"]
+  tags: [ambiguous, judgement]
+  judgement: [retention_under_hold_permitted_by_data_protection_law]
+  why: "R-4.2 sits in HoldEffect and R-5.2 in ErasureDeadline; both scopes model the interaction from their own side."
+
+- id: A-011
+  question: "How is the per diem affected by Critical Incident Response?"
+  engine: CATALA
+  ambiguous: true
+  scope: [MealPerDiem.MealPerDiemForDay, WorkingTimeDefs.CriticalIncidentResponse]
+  clauses: ["EXP-POL E-7.2", "EMP-ANNEX-C C-2.5"]
+  tags: [ambiguous]
+  why: "E-7.2 sets the uplift but C-2.5 decides whether the work is Critical Incident Response at all."
+
+- id: A-012
+  question: "What happens to a contract that churns within 180 days of signature?"
+  engine: CATALA
+  ambiguous: true
+  scope: [Commission.ChurnedContract, Clawback.RecoverableCommission]
+  clauses: ["COMM-PLAN S-2.4", "COMM-PLAN S-7.1"]
+  tags: [ambiguous]
+  why: "S-2.4 classifies the contract and S-7.1 recovers the commission; either could be the question being asked."
+
+# ---------------------------------------------------------------------------
+# Not covered. The corpus does not answer these and the honest reply says so.
+# ---------------------------------------------------------------------------
+
+- id: N-001
+  question: "How many days of paid sick leave does an employee get?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "Sickness appears only as a carry-forward exception (C-9.4) and a quota-relief category (S-6.1); no sick pay entitlement is stated anywhere."
+
+- id: N-002
+  question: "What is the Company's parental leave entitlement?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "S-6.1 names statutory parental leave only as a quota-relief trigger; no document in the corpus states an entitlement."
+
+- id: N-003
+  question: "What notice period must an employee give to resign?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "Annex C covers working time, overtime and leave only; notice of resignation is not in the corpus."
+
+- id: N-004
+  question: "What is the Company's pension contribution rate?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "Pensions appear only in R-3.3 as a retention override; no contribution rate exists in the corpus."
+
+- id: N-005
+  question: "What mileage rate applies if I drive my own car on business?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "E-5 covers rail and private hire or taxi only; there is no mileage provision."
+
+- id: N-006
+  question: "Can I book business class for a long-haul flight?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "The Policy's ground transport section says nothing about air travel or cabin class."
+
+- id: N-007
+  question: "What interest is charged on a Customer invoice paid late?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "L-4.4 mentions 30 days' arrears only to disapply a credit; no interest or late payment charge is stated."
+
+- id: N-008
+  question: "Which cloud region is the Service hosted in?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "Schedule 4 defines availability and credits; hosting location is nowhere in the corpus."
+
+- id: N-009
+  question: "How do we report a personal data breach to the regulator?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "The Data Retention Standard covers retention, holds and erasure; breach notification is absent."
+
+- id: N-010
+  question: "What is the Company's policy on remote and hybrid working?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "Annex C governs working time and leave, not place of work; no remote working policy is in the corpus."
+
+- id: N-011
+  question: "Who owns intellectual property an employee creates at work?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "N-7.1 only denies a licence under the NDA; employee IP ownership is not addressed by any document."
+
+- id: N-012
+  question: "What is the maximum number of authorised users under the Master Services Agreement?"
+  engine: NONE
+  clauses: []
+  tags: [no-coverage]
+  why: "Only Schedule 4 is in the corpus, and it says nothing about user counts or licence limits."

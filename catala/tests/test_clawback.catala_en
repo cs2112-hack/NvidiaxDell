@@ -276,3 +276,31 @@ scope TestS7_3_LeapDayLongStopOutOfTime:
   assertion r.recovery_time_barred = true
   assertion r.recoverable_amount = $0
 ```
+
+## InputDomain_S7_1_ZeroCommissionPaidIsTheFloor
+
+The module asserts that `commission_paid` is nought or more: S-7.1 operates
+"where commission has been paid", and what it makes recoverable is a sum
+actually paid out. The lawful boundary is nil — a churned contract on which no
+commission was ever paid — and nothing is recoverable, which is the answer
+S-7.1 gives rather than a refusal. `probe.py` reports `AssertionFailed` for a
+commission paid of -£40,000, which the unguarded scope turned into a recovery
+of -£40,000: a payment to the employee made by the clawback clause.
+
+```catala
+#[test]
+declaration scope TestInputDomain_S7_1_ZeroCommissionPaidIsTheFloor:
+  output r content Clawback.RecoverableCommission
+
+scope TestInputDomain_S7_1_ZeroCommissionPaidIsTheFloor:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $0
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2026-06-30|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.recovery_time_barred = false
+  assertion r.recoverable_amount = $0
+```

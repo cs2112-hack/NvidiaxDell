@@ -1,0 +1,97 @@
+MASTER SERVICES AGREEMENT
+
+Acme Holdings Limited and Northwind Data Services Limited
+
+CONFIDENTIAL
+
+This Agreement is made on 14 March 2025 and takes effect from 1 April 2025.
+
+RECITALS
+
+WHEREAS the Customer wishes to procure data processing services on the terms
+set out below;
+
+WHEREAS the Supplier is willing to supply those services;
+
+NOW THEREFORE the parties agree as follows.
+
+1. DEFINITIONS AND INTERPRETATION
+
+1.1 "Service Fee" means the monthly charge for the Services set out in the
+Order Form, exclusive of value added tax.
+
+1.2 "Measurement Month" means a calendar month during which the Services are
+provided for at least one day.
+
+1.3 A reference to a clause is a reference to a clause of this Agreement.
+
+CONFIDENTIAL
+
+2. CHARGES AND PAYMENT
+
+2.1 The Customer shall pay the Service Fee monthly in arrears within 30 days
+of the date of the Supplier's invoice.
+
+2.2 Where any undisputed sum is not paid within 30 days of its due date, the
+Supplier may charge interest on the overdue amount at 4% per annum above the
+Bank of England base rate, accruing daily.
+
+2.3 The Customer may withhold payment of a disputed sum, provided that the
+Customer notifies the Supplier of the dispute within 10 days of receipt of the
+invoice and pays all undisputed sums when due.
+
+3. SERVICE LEVELS
+
+3.1 The Supplier shall provide the Services with an availability of at least
+99.90% in each Measurement Month.
+
+3.2 Availability is calculated as the total number of minutes in the
+Measurement Month less Excluded Minutes, divided by the total number of
+minutes in the Measurement Month, expressed as a percentage.
+
+3.3 The following are Excluded Minutes:
+
+  (a) Scheduled Maintenance notified at least 5 days in advance;
+  (b) an outage caused by the Customer's own network;
+  (c) a Force Majeure Event.
+
+CONFIDENTIAL
+
+Page 3 of 4
+
+4. SERVICE CREDITS
+
+4.1 Where availability in a Measurement Month is below the level required by
+clause 3.1, the Customer is entitled to a service credit calculated as a
+percentage of the Service Fee for that Measurement Month.
+
+4.2 The applicable percentage is determined by reference to the shortfall.
+
+4.2.1 Where availability is less than 99.90% but not less than 99.50%, the
+applicable percentage is 5%.
+
+4.2.2 Where availability is less than 99.50% but not less than 99.00%, the
+applicable percentage is 10%.
+
+4.2.3 Where availability is less than 99.00%, the applicable percentage is
+20%, and this is the maximum credit payable in respect of any one Measurement
+Month.
+
+4.3 A service credit is the Customer's sole financial remedy for a failure to
+meet the availability level in clause 3.1, save in respect of a failure
+continuing for more than 3 consecutive Measurement Months.
+
+5. TERM AND TERMINATION
+
+5.1 This Agreement continues for an initial term of 24 months from the date it
+takes effect.
+
+5.2 Either party may terminate this Agreement on 3 months' written notice
+given after the initial term.
+
+5.3 Notwithstanding clause 5.2, either party may terminate this Agreement
+immediately on written notice where the other party commits a material breach
+that remains unremedied 30 days after notice of the breach.
+
+IN WITNESS WHEREOF the parties have executed this Agreement on the date first
+written above.

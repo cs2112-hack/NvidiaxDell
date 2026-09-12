@@ -58,6 +58,8 @@ declaration scope RecoverableCommission:
 
 ```catala
 scope RecoverableCommission:
+  assertion commission_paid >= $0
+
   label no_recovery definition recoverable_amount equals $0
 
   label s7_1 exception no_recovery definition recoverable_amount

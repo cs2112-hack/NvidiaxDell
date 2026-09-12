@@ -97,6 +97,8 @@ declaration scope PreApprovalValid:
 
 ```catala
 scope TravelDayCount:
+  assertion return_date >= departure_date
+
   label e2_3 definition travel_days
     under condition return_date <= departure_date
     consequence equals 0
@@ -126,6 +128,10 @@ scope TravelDayCount:
 
 ```catala
 scope PreApprovalValid:
+  assertion expense_amount >= $0.00
+
+  assertion pre_approval.approver_authority_limit >= $0.00
+
   definition valid equals
     pre_approval.obtained
     and pre_approval.in_writing

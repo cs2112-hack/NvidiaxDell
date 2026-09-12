@@ -134,6 +134,7 @@ declaration scope AvailabilityPercentage:
   input minutes_not_available content integer
   input excluded_minutes content integer
   input scheduled_maintenance_excess_minutes content integer
+  output excluded_minutes_before_l4_5 content integer
   output unavailable_minutes content integer
   output availability_percentage_unrounded content decimal
   output availability_percentage content decimal
@@ -145,6 +146,7 @@ declaration scope ServiceAvailability:
   input business_day_calendar content list of date
   output total_minutes content integer
   output minutes_not_available content integer
+  output excluded_minutes_before_l4_5 content integer
   output excluded_minutes content integer
   output scheduled_maintenance_aggregate_minutes content integer
   output scheduled_maintenance_excess_minutes content integer
@@ -297,13 +299,16 @@ scope ScheduledMaintenance:
 
 ```catala
 scope AvailabilityPercentage:
+  definition excluded_minutes_before_l4_5 equals
+    excluded_minutes + scheduled_maintenance_excess_minutes
+
   label l2_4 definition unavailable_minutes equals
-    minutes_not_available - excluded_minutes
+    minutes_not_available - excluded_minutes_before_l4_5
 
   label l4_5 exception l2_4 definition unavailable_minutes
     under condition scheduled_maintenance_excess_minutes > 0
     consequence equals
-      minutes_not_available - excluded_minutes
+      minutes_not_available - excluded_minutes_before_l4_5
       + scheduled_maintenance_excess_minutes
 ```
 
@@ -366,7 +371,7 @@ scope ServiceAvailability:
        -- business_day_calendar: business_day_calendar
      }).excess_minutes
 
-  definition excluded_minutes equals
+  definition excluded_minutes_before_l4_5 equals
     Integer.sum of (map each o among outages to
       (output of ExcludedMinutes with {
          -- minutes: o.minutes
@@ -383,6 +388,9 @@ scope ServiceAvailability:
          -- outage_attributable_to_customer: o.outage_attributable_to_customer
          -- is_suspension_under_clause_9: o.is_suspension_under_clause_9
        }).excluded_minutes)
+
+  definition excluded_minutes equals
+    excluded_minutes_before_l4_5 - scheduled_maintenance_excess_minutes
 
   definition unavailable_minutes equals
     (output of AvailabilityPercentage with {
@@ -498,6 +506,7 @@ scope ServiceAvailability:
         "scheduled_maintenance_excess_minutes"
       ],
       "output": [
+        "excluded_minutes_before_l4_5",
         "unavailable_minutes",
         "availability_percentage_unrounded",
         "availability_percentage",
@@ -515,6 +524,7 @@ scope ServiceAvailability:
       "output": [
         "total_minutes",
         "minutes_not_available",
+        "excluded_minutes_before_l4_5",
         "excluded_minutes",
         "scheduled_maintenance_aggregate_minutes",
         "scheduled_maintenance_excess_minutes",

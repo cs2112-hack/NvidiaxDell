@@ -549,3 +549,51 @@ scope TestR3_3_StatutoryPeriodMonthEndRoundsUp:
     }
   assertion r.retention_end_date = |2030-03-01|
 ```
+
+## InputDomain_R3_3_ZeroStatutoryPeriodIsTheFloor
+
+The module asserts, where `statutory_retention_applies` is true, that the
+statutory period does not run backwards from the Retention Trigger: R-3.3
+receives a period for which records "are required to be retained", and the
+least such requirement is to retain for no time at all.
+
+Two lawful boundaries are pinned. A nil period is the floor, and R-3.3's own
+"longer period" test then leaves limb (a)'s six years standing. A period stated
+in **mixed units** — six months and fifteen days — is equally lawful, and this
+is what the assertion is written to accommodate: expressed as a comparison of
+durations against `0 day` the guard would raise "ambiguous comparison between
+durations in different units" on exactly this input, so it is expressed as a
+comparison of the *dates* the period reaches instead. `probe.py` reports
+`AssertionFailed` for a period of -6 months and for one of -30 days, and
+answers normally for the mixed-unit period.
+
+```catala
+#[test]
+declaration scope TestInputDomain_R3_3_ZeroStatutoryPeriodIsTheFloor:
+  output at_nil_period content Retention.RetentionEnd
+  output at_mixed_unit_period content Retention.RetentionEnd
+
+scope TestInputDomain_R3_3_ZeroStatutoryPeriodIsTheFloor:
+  definition at_nil_period equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2018-01-01|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 0 day
+    }
+  definition at_mixed_unit_period equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2018-01-01|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 6 month + 15 day
+    }
+  assertion at_nil_period.retention_end_date = |2024-01-01|
+  assertion at_mixed_unit_period.retention_end_date = |2024-01-01|
+```

@@ -29,10 +29,6 @@ paid to the Customer within 30 days.
 ## Prologue — declarations
 
 ```catala-metadata
-declaration enumeration Settlement:
-  -- AppliedAgainstNextInvoice
-  -- PaidToCustomer
-
 declaration scope CreditClaim:
   input measurement_period_end content date
   input claim_made content boolean
@@ -43,7 +39,8 @@ declaration scope CreditClaim:
   output claim_deadline content date
   output claim_in_time content boolean
   output waived content boolean
-  output settlement content Settlement
+  output applied_against_next_invoice content boolean
+  output paid_to_customer content boolean
   output settlement_due_date content date
 ```
 
@@ -75,11 +72,14 @@ scope CreditClaim:
 
 ```catala
 scope CreditClaim:
-  label l5_2_setoff definition settlement equals AppliedAgainstNextInvoice
+  label l5_2_setoff definition applied_against_next_invoice equals true
 
-  label l5_2_payment exception l5_2_setoff definition settlement
+  label l5_2_payment exception l5_2_setoff
+    definition applied_against_next_invoice
     under condition not further_invoice_expected
-    consequence equals PaidToCustomer
+    consequence equals false
+
+  definition paid_to_customer equals not applied_against_next_invoice
 
   label l5_2_setoff_date definition settlement_due_date equals next_invoice_date
 
@@ -109,7 +109,8 @@ scope CreditClaim:
         "claim_deadline",
         "claim_in_time",
         "waived",
-        "settlement",
+        "applied_against_next_invoice",
+        "paid_to_customer",
         "settlement_due_date"
       ],
       "internal": [],

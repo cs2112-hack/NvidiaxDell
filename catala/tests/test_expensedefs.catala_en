@@ -296,3 +296,100 @@ scope TestE2_4_AuthorityAPennyBelowTheThreshold:
     }
   assertion r.valid = false
 ```
+
+## InputDomain_E2_3_ReturnOnTheDayOfDepartureIsTheFloor
+
+The module asserts that `return_date` is not earlier than `departure_date`: the
+second sentence of E-2.3 names the day of departure and the day of return as
+the two ends of an absence, and a return cannot precede the departure it ends.
+The lawful boundary is the two dates falling on the same day, which is a real
+trip that E-2.3 answers with nought Travel Days because no night was spent
+away. `probe.py` reports `AssertionFailed` for a return date two days before
+the departure date.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E2_3_ReturnOnTheDayOfDepartureIsTheFloor:
+  output r content ExpenseDefs.TravelDayCount
+
+scope TestInputDomain_E2_3_ReturnOnTheDayOfDepartureIsTheFloor:
+  definition r equals
+    output of ExpenseDefs.TravelDayCount with {
+      -- departure_date: |2025-03-10|
+      -- return_date: |2025-03-10|
+    }
+  assertion r.travel_days = 0
+```
+
+## InputDomain_E2_4_ZeroExpenseAmountIsTheFloor
+
+The module asserts that `expense_amount` is nought or more: it is "the
+threshold of the expense" against which E-2.4 measures the approver's
+delegated authority, and an expense is a sum to be spent. The lawful boundary
+is nil, and an approval in writing obtained the day before is valid for it.
+`probe.py` reports `AssertionFailed` for an expense amount of -£150.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E2_4_ZeroExpenseAmountIsTheFloor:
+  output r content ExpenseDefs.PreApprovalValid
+
+scope TestInputDomain_E2_4_ZeroExpenseAmountIsTheFloor:
+  definition r equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $500.00
+           -- specified_amount: Present content $150.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $0.00
+    }
+  assertion r.valid = true
+```
+
+## InputDomain_E2_4_ZeroAuthorityLimitIsTheFloor
+
+The module asserts that `approver_authority_limit` is nought or more: it is the
+"delegated financial authority" held by the approver, and the least authority a
+person can hold is none at all, which is nil. The lawful boundary is that nil
+authority, which E-2.4 leaves sufficient only for an expense of nil, since the
+clause requires the authority to be "at or above" the threshold. `probe.py`
+reports `AssertionFailed` for an authority limit of -£1.
+
+```catala
+#[test]
+declaration scope TestInputDomain_E2_4_ZeroAuthorityLimitIsTheFloor:
+  output for_a_nil_expense content ExpenseDefs.PreApprovalValid
+  output for_a_penny content ExpenseDefs.PreApprovalValid
+
+scope TestInputDomain_E2_4_ZeroAuthorityLimitIsTheFloor:
+  definition for_a_nil_expense equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $0.00
+           -- specified_amount: Present content $0.00
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $0.00
+    }
+  definition for_a_penny equals
+    output of ExpenseDefs.PreApprovalValid with {
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $0.00
+           -- specified_amount: Present content $0.01
+         }
+      -- expense_incurred_at: |2025-06-10|
+      -- expense_amount: $0.01
+    }
+  assertion for_a_nil_expense.valid = true
+  assertion for_a_penny.valid = false
+```

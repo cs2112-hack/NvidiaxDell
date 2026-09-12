@@ -48,17 +48,11 @@ By way of exception to R-3.1(a), records required to be retained for a
 longer period under pensions or payroll legislation are retained for the period
 so required.
 
-### DATA-RET R-6.1 — Data Retention and Deletion Standard (v5.1, effective 2025-06-01)
-Section R-6 Deletion of backups
-
-Records deleted from production systems are deleted from backups at the
-expiry of the backup rotation cycle, which must not exceed 90 days.
-
 
 ## Artefact under review
 
 ```
-# Data Retention and Deletion Standard — R-2, R-3 and R-6 retention periods
+# Data Retention and Deletion Standard — R-2 and R-3 retention periods
 
 > Module Retention
 
@@ -94,7 +88,6 @@ declaration scope RetentionEnd:
   input statutory_retention_applies content boolean
   input statutory_retention_period content duration
   output retention_end_date content date
-  output backup_purge_deadline content date
 ```
 
 | NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Catala
@@ -106,6 +99,18 @@ declaration scope RetentionEnd:
 | ceiling, so resolving an ambiguous month-end to the previous existing day
 | never authorises retention for a day the Standard does not allow.
 | Rounding up would extend every such period by a day.
+|
+| That justification is about the Standard's own periods, and R-3.3's period
+| is not one of them: it is imposed by pensions or payroll legislation, and a
+| statutory retention period is a floor rather than a maximum. Rounding it
+| down would have the Company destroy a record a day before the legislation
+| allows — a breach, where rounding an R-1.2 maximum down is at worst early
+| deletion the Standard positively encourages. So R-3.3 rounds the other way,
+| by calling `Date.add_round_up` explicitly rather than relying on the scope
+| mode, exactly as `NdaSurvival` rounds its periods of protection up
+| throughout. The scope mode stays `date round down` because every other
+| period in this scope is an R-1.2 maximum, and limb (a)'s own six years
+| keep rounding down even where R-3.3 displaces the result.
 
 ```catala
 scope RetentionEnd:
@@ -195,6 +200,13 @@ scope RetentionEnd:
 
 ```catala
 scope RetentionEnd:
+  assertion
+    if statutory_retention_applies
+    then (Date.add_round_up of
+            retention_trigger_date, statutory_retention_period)
+         >= retention_trigger_date
+    else true
+
   label r3_3 exception r3_1_a definition retention_end_date
     under condition
       (data_class with pattern EmployeeRecord)
@@ -202,20 +214,8 @@ scope RetentionEnd:
     consequence equals
       Date.max of
         (retention_trigger_date + 6 year),
-        (retention_trigger_date + statutory_retention_period)
-```
-
-## R-6 Deletion of backups
-
-| DATA-RET R-6.1 (006-data-retention-standard.md:90)
-|
-| Records deleted from production systems are deleted from backups at the
-| expiry of the backup rotation cycle, which must not exceed 90 days.
-
-```catala
-scope RetentionEnd:
-  label r6_1 definition backup_purge_deadline
-    equals retention_end_date + 90 day
+        (Date.add_round_up of
+           retention_trigger_date, statutory_retention_period)
 ```
 
 ```
@@ -237,8 +237,7 @@ scope RetentionEnd:
         "statutory_retention_period"
       ],
       "output": [
-        "retention_end_date",
-        "backup_purge_deadline"
+        "retention_end_date"
       ],
       "internal": [],
       "context": []

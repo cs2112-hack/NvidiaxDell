@@ -82,6 +82,18 @@ declaration scope ServiceCredit:
 
 ```catala
 scope MonthlyServiceCharge:
+  assertion charges_for_the_service >= $0.00
+
+  assertion one_off_charges >= $0.00
+
+  assertion professional_services_charges >= $0.00
+
+  assertion pass_through_charges >= $0.00
+
+  assertion
+    one_off_charges + professional_services_charges + pass_through_charges
+      <= charges_for_the_service
+
   definition monthly_service_charge equals
     charges_for_the_service
     - one_off_charges
@@ -104,6 +116,9 @@ scope MonthlyServiceCharge:
 
 ```catala
 scope ServiceCredit:
+  assertion
+    availability_percentage >= 0.00 and availability_percentage <= 100.00
+
   label l4_1_base definition credit_percentage equals 0%
 
   label l4_1 exception l4_1_base definition credit_percentage
@@ -175,6 +190,8 @@ scope ServiceCredit:
 
 ```catala
 scope ServiceCredit:
+  assertion arrears_days >= 0
+
   label l4_4 exception l4_3_credit definition credit_percentage
     under condition
       (availability_percentage < 99.90)

@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Legal Knowledge System</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wordmark">Legal <span>knowledge</span></div>
+  <nav class="nav" id="nav">
+    <button class="navlink" data-view="ask" aria-current="page">Ask</button>
+    <button class="navlink" data-view="rules">Rules</button>
+    <button class="navlink" data-view="clause">Clause</button>
+    <button class="navlink" data-view="intake">Intake</button>
+    <button class="navlink" data-view="verify">Verification</button>
+  </nav>
+  <div class="statusline" id="statusline">Loading…</div>
+</header>
+
+<div class="frame">
+  <aside class="rail">
+    <div class="railhead">The corpus, as ingested</div>
+    <div id="rail"></div>
+  </aside>
+
+  <main class="main">
+
+    <section class="view" id="view-ask">
+      <h1 class="lede">What does the policy require?</h1>
+      <p class="subhead">A question about a rule is answered by executing that rule. A question
+        about wording is answered by quoting the clause. Both may appear, and each is labelled
+        with the engine that produced it.</p>
+      <form class="askrow" id="askform">
+        <input class="askfield" id="askfield" autocomplete="off"
+               placeholder="How much service credit do we owe at 98.5% uptime?">
+        <button class="askbtn" id="askbtn" type="submit">Ask</button>
+      </form>
+      <div class="answer" id="answer"></div>
+    </section>
+
+    <section class="view" id="view-rules" hidden>
+      <h1 class="lede">Rules the system can execute</h1>
+      <p class="subhead">Each scope encodes named clauses and computes a result from facts you
+        supply. Where a clause turns on a judgement the documents do not define, that judgement is
+        an input a person fills in — the rule never decides it.</p>
+      <div id="rulesbody"></div>
+    </section>
+
+    <section class="view" id="view-clause" hidden>
+      <h1 class="lede">Clauses</h1>
+      <p class="subhead">Pick a clause from the corpus on the left. Each shows its verbatim text,
+        how it was triaged, and which rule encodes it.</p>
+      <div id="clausebody"><p class="empty">Nothing selected.</p></div>
+    </section>
+
+    <section class="view" id="view-intake" hidden>
+      <h1 class="lede">Documents awaiting a decision</h1>
+      <p class="subhead">An incoming document becomes a proposal, never a merge. Every blocking
+        conflict needs a person to record how it is resolved and who resolved it before the
+        document can join the corpus.</p>
+      <div id="intakebody"></div>
+    </section>
+
+    <section class="view" id="view-verify" hidden>
+      <h1 class="lede">What has been checked</h1>
+      <p class="subhead">Every way this system has been shown to be wrong is kept here as a test
+        and re-run. Defects found in the source documents themselves are listed separately,
+        because those need amending rather than fixing.</p>
+      <div id="verifybody"></div>
+    </section>
+
+  </main>
+</div>
+
+<aside class="drawer" id="drawer" hidden aria-label="Clause detail">
+  <button class="drawerclose" id="drawerclose" aria-label="Close">×</button>
+  <div id="drawerbody"></div>
+</aside>
+
+<script src="/app.js"></script>
+</body>
+</html>
