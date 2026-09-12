@@ -1,0 +1,2317 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2020 Inria, contributor:
+   Nicolas Chataing <nicolas.chataing@ens.fr> Denis Merigoux
+   <denis.merigoux@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+open Catala_utils
+module S = Surface.Ast
+module SurfacePrint = Surface.Print
+open Shared_ast
+module Runtime = Catala_runtime
+
+let fold_left_catch_errors f init l =
+  List.fold_left
+    (fun acc e ->
+      Message.wrap_to_delayed_error ~kind:Parsing acc @@ fun () -> f acc e)
+    init l
+
+(** Translation from {!module: Surface.Ast} to {!module: Desugaring.Ast}.
+
+    - Removes syntactic sugars
+    - Separate code from legislation *)
+
+(** {1 Translating expressions} *)
+
+(* Resolves the operator kinds into the expected operator operand types.
+
+   This gives only partial typing information, in the case it is enforced using
+   the operator suffixes for explicit typing. See {!modules:
+   Shared_ast.Operator} for detail. *)
+
+let translate_binop :
+    S.binop Mark.pos ->
+    Pos.t ->
+    Ast.expr boxed ->
+    Ast.expr boxed ->
+    Ast.expr boxed =
+ fun (op, op_pos) pos lhs rhs ->
+  let op_expr op tys =
+    Expr.eappop ~op:(op, op_pos)
+      ~tys:(List.map (Mark.add op_pos) tys)
+      ~args:[lhs; rhs]
+      (Untyped { pos })
+  in
+  let tany () = Mark.remove (Type.fresh_var op_pos) in
+  match op with
+  | S.And -> op_expr And [TLit TBool; TLit TBool]
+  | S.Or -> op_expr Or [TLit TBool; TLit TBool]
+  | S.Xor -> op_expr Xor [TLit TBool; TLit TBool]
+  | S.Add k ->
+    op_expr Add
+      (match k with
+      | S.KPoly -> [tany (); tany ()]
+      | S.KInt -> [TLit TInt; TLit TInt]
+      | S.KDec -> [TLit TRat; TLit TRat]
+      | S.KMoney -> [TLit TMoney; TLit TMoney]
+      | S.KDate -> [TLit TDate; TLit TDuration]
+      | S.KDuration -> [TLit TDuration; TLit TDuration])
+  | S.Sub k ->
+    op_expr Sub
+      (match k with
+      | S.KPoly -> [tany (); tany ()]
+      | S.KInt -> [TLit TInt; TLit TInt]
+      | S.KDec -> [TLit TRat; TLit TRat]
+      | S.KMoney -> [TLit TMoney; TLit TMoney]
+      | S.KDate -> [TLit TDate; TLit TDate]
+      | S.KDuration -> [TLit TDuration; TLit TDuration])
+  | S.Mult k ->
+    op_expr Mult
+      (match k with
+      | S.KPoly -> [tany (); tany ()]
+      | S.KInt -> [TLit TInt; TLit TInt]
+      | S.KDec -> [TLit TRat; TLit TRat]
+      | S.KMoney -> [TLit TMoney; TLit TRat]
+      | S.KDate ->
+        Message.error ~pos:op_pos
+          "This operator doesn't exist, dates can't be multiplied."
+      | S.KDuration -> [TLit TDuration; TLit TInt])
+  | S.Div k ->
+    op_expr Div
+      (match k with
+      | S.KPoly -> [tany (); tany ()]
+      | S.KInt -> [TLit TInt; TLit TInt]
+      | S.KDec -> [TLit TRat; TLit TRat]
+      | S.KMoney -> [TLit TMoney; TLit TMoney]
+      | S.KDate ->
+        Message.error ~pos:op_pos
+          "This operator doesn't exist, dates can't be divided."
+      | S.KDuration -> [TLit TDuration; TLit TDuration])
+  | S.Lt k | S.Lte k | S.Gt k | S.Gte k ->
+    op_expr
+      (match op with
+      | S.Lt _ -> Lt
+      | S.Lte _ -> Lte
+      | S.Gt _ -> Gt
+      | S.Gte _ -> Gte
+      | _ -> assert false)
+      (match k with
+      | S.KPoly ->
+        let a = tany () in
+        [a; a]
+      | S.KInt -> [TLit TInt; TLit TInt]
+      | S.KDec -> [TLit TRat; TLit TRat]
+      | S.KMoney -> [TLit TMoney; TLit TMoney]
+      | S.KDate -> [TLit TDate; TLit TDate]
+      | S.KDuration -> [TLit TDuration; TLit TDuration])
+  | S.Eq ->
+    let a = tany () in
+    op_expr Eq [a; a]
+    (* This is a truly polymorphic operator, not an overload *)
+  | S.Neq -> assert false (* desugared already *)
+  | S.ListConcat ->
+    let a = Type.any op_pos in
+    op_expr Concat [TArray a; TArray a]
+  | S.ListMember ->
+    (* -> (find (λx. x == rhs) lhs) with pattern Some) *)
+    let ty_elt = Type.fresh_var pos in
+    let ty_lst = TArray ty_elt, pos in
+    let f =
+      let x = Var.make "x" in
+      let body =
+        Expr.eappop ~op:(Op.Eq, op_pos)
+          ~args:[rhs; Expr.evar x (Untyped { pos })]
+          ~tys:[ty_elt; ty_elt]
+          (Untyped { pos })
+      in
+      Expr.make_abs [x, pos] body [ty_elt] pos
+    in
+    let find_expr =
+      Expr.eappop ~op:(Op.Find, op_pos) ~args:[f; lhs]
+        ~tys:[TArrow ([ty_elt], (TLit TBool, op_pos)), pos; ty_lst]
+        (Untyped { pos })
+    in
+    Expr.eappop
+      ~op:
+        ( Op.ConstructorCheck
+            (ConstantNames.option_enum, ConstantNames.some_constr),
+          op_pos )
+      ~args:[find_expr]
+      ~tys:[TOption ty_elt, op_pos]
+      (Untyped { pos })
+  | S.ListExists ->
+    (* -> ((find lhs rhs) with pattern Some) *)
+    let ty_elt = Type.fresh_var op_pos in
+    let ty_lst = TArray ty_elt, op_pos in
+    let find_expr =
+      Expr.eappop ~op:(Op.Find, op_pos) ~args:[lhs; rhs]
+        ~tys:[TArrow ([ty_elt], (TLit TBool, op_pos)), pos; ty_lst]
+        (Untyped { pos })
+    in
+    Expr.eappop
+      ~op:
+        ( Op.ConstructorCheck
+            (ConstantNames.option_enum, ConstantNames.some_constr),
+          op_pos )
+      ~args:[find_expr]
+      ~tys:[TOption ty_elt, op_pos]
+      (Untyped { pos })
+  | S.ListFind ->
+    (* -> find lhs rhs *)
+    let ty_elt = Type.fresh_var op_pos in
+    op_expr Find [TArrow ([ty_elt], (TLit TBool, op_pos)); TArray ty_elt]
+  | S.ListForall ->
+    (* -> ((find (not lhs) rhs) with pattern None) *)
+    let ty_elt = Type.fresh_var op_pos in
+    let ty_lst = TArray ty_elt, op_pos in
+    let f =
+      let x = Var.make "x" in
+      let body =
+        Expr.eappop ~op:(Op.Not, op_pos)
+          ~args:[Expr.make_app lhs [Expr.evar x (Untyped { pos })] [ty_elt] pos]
+          ~tys:[TLit TBool, op_pos]
+          (Untyped { pos })
+      in
+      Expr.make_abs [x, op_pos] body [ty_elt] pos
+    in
+    let find_expr =
+      Expr.eappop ~op:(Op.Find, op_pos) ~args:[f; rhs]
+        ~tys:[TArrow ([ty_elt], (TLit TBool, pos)), pos; ty_lst]
+        (Untyped { pos })
+    in
+    Expr.eappop
+      ~op:
+        ( Op.ConstructorCheck
+            (ConstantNames.option_enum, ConstantNames.none_constr),
+          op_pos )
+      ~args:[find_expr]
+      ~tys:[TOption ty_elt, pos]
+      (Untyped { pos })
+  | S.ListMap ->
+    let ty_elt = Type.fresh_var op_pos in
+    let ty_relt = Type.fresh_var (Expr.pos lhs) in
+    op_expr Map [TArrow ([ty_elt], ty_relt); TArray ty_elt]
+  | S.ListFilter ->
+    let ty_elt = Type.fresh_var op_pos in
+    op_expr Filter [TArrow ([ty_elt], (TLit TBool, op_pos)); TArray ty_elt]
+  | S.ListMax | S.ListMin ->
+    (* -> match (reduce (fun x y -> if x > y then x else y) lhs) with | Some x
+       -> x | None -> rhs // impossible *)
+    let op = if op = S.ListMax then Op.Gt, op_pos else Op.Lt, op_pos in
+    let ty_elt = Type.fresh_var op_pos in
+    let ty_lst = TArray ty_elt, op_pos in
+    let m = Untyped { pos } in
+    let f =
+      let x = Var.make "x" in
+      let y = Var.make "y" in
+      Expr.make_abs
+        [x, op_pos; y, op_pos]
+        (Expr.eifthenelse
+           (Expr.eappop m ~op
+              ~args:[Expr.evar x m; Expr.evar y m]
+              ~tys:[ty_elt; ty_elt])
+           (Expr.evar x m) (Expr.evar y m) m)
+        [ty_elt; ty_elt] pos
+    in
+    let reduced =
+      Expr.eappop ~op:(Reduce, op_pos)
+        ~tys:[TArrow ([ty_elt; ty_elt], ty_elt), pos; ty_lst]
+        ~args:[f; lhs]
+        (Untyped { pos })
+    in
+    let default =
+      Expr.Box.app1 rhs
+        (function
+          | ETuple [], _ -> EFatalError Runtime.ListEmpty
+          | ETuple [(dft, _)], _ -> dft
+          | _ -> assert false)
+        m
+    in
+    Expr.ematch
+      (Untyped { pos })
+      ~name:ConstantNames.option_enum ~e:reduced
+      ~cases:
+        (EnumConstructor.Map.of_list
+           [
+             ConstantNames.none_constr, Expr.thunk_term default;
+             ConstantNames.some_constr, Expr.fun_id (Untyped { pos });
+           ])
+  | S.ListSort order ->
+    let ty_elt = Type.fresh_var op_pos in
+    let ty_proj = Type.fresh_var op_pos in
+    op_expr (Sort order) [TArrow ([ty_elt], ty_proj); TArray ty_elt]
+
+let translate_unop ((op, op_pos) : S.unop Mark.pos) pos arg : Ast.expr boxed =
+  let m = Untyped { pos } in
+  let op_expr op ty =
+    Expr.eappop ~op:(op, op_pos) ~tys:[Mark.add op_pos ty] ~args:[arg] m
+  in
+  match op with
+  | S.Not -> op_expr Not (TLit TBool)
+  | S.Minus k ->
+    op_expr Minus
+      (match k with
+      | S.KPoly -> Mark.remove (Type.any op_pos)
+      | S.KInt -> TLit TInt
+      | S.KDec -> TLit TRat
+      | S.KMoney -> TLit TMoney
+      | S.KDate ->
+        Message.error ~pos:op_pos
+          "This operator doesn't exist, dates can't be negative."
+      | S.KDuration -> TLit TDuration)
+  | S.ListSum pty ->
+    let default, ty =
+      let i0 = Runtime.integer_of_int 0 in
+      match pty with
+      | S.Integer, pos -> LInt i0, (TLit TInt, pos)
+      | S.Decimal, pos -> LRat (Runtime.decimal_of_integer i0), (TLit TRat, pos)
+      | S.Money, pos ->
+        LMoney (Runtime.money_of_cents_integer i0), (TLit TMoney, pos)
+      | S.Duration, pos ->
+        LDuration (Runtime.duration_of_numbers 0 0 0), (TLit TDuration, pos)
+      | t, pos ->
+        Message.error ~pos "It is impossible to sum values of type %a together."
+          SurfacePrint.format_primitive_typ t
+    in
+    Message.warning ~pos
+      "@[<v>@[<hov>@{<yellow>Deprecated:@} the construction @{<cyan>'sum \
+       <type> of'@}@ is@ deprecated@ and@ will@ be@ removed@ in@ the@ next@ \
+       release.@]@ Use the function @{<cyan>'%s.sum of'@} instead@]"
+      (match Mark.remove pty with
+      | S.Integer -> "Integer"
+      | S.Decimal -> "Decimal"
+      | S.Money -> "Money"
+      | S.Duration -> "Duration"
+      | _ -> assert false);
+    let op_f =
+      (* fun x1 x2 -> op x1 x2 *)
+      (* we're not allowed pass the operator directly as argument, it must
+         appear inside an [EApp] *)
+      let v1, v2 = Var.make "sum1", Var.make "sum2" in
+      Expr.make_abs
+        [v1, pos; v2, pos]
+        (Expr.eappop m ~op:(Add, pos)
+           ~args:[Expr.make_var v1 m; Expr.make_var v2 m]
+           ~tys:[ty; ty])
+        [ty; ty] pos
+    in
+    let reduced =
+      Expr.eappop ~op:(Reduce, op_pos)
+        ~tys:[TArrow ([ty; ty], ty), pos; TArray ty, pos]
+        ~args:[op_f; arg] m
+    in
+    Expr.ematch m ~name:ConstantNames.option_enum ~e:reduced
+      ~cases:
+        (EnumConstructor.Map.of_list
+           [
+             ConstantNames.none_constr, Expr.thunk_term (Expr.elit default m);
+             ConstantNames.some_constr, Expr.fun_id m;
+           ])
+
+let translate_ternop :
+    S.ternop Mark.pos ->
+    Pos.t ->
+    Ast.expr boxed ->
+    Ast.expr boxed ->
+    Ast.expr boxed ->
+    Ast.expr boxed =
+ fun (op, op_pos) pos arg1 arg2 arg3 ->
+  match op with
+  | S.ListFold ->
+    (* -> fold (uncurry arg1) arg2 arg3 *)
+    let tacc = Type.fresh_var op_pos in
+    let telt = Type.fresh_var op_pos in
+    (* The arg1 function is returned by the parser in curried form: λacc . λelt
+       . body. the subterms have been translated already, so acc is a single
+       argument or a tuple, and elt is a single list, possibly zipped. Just
+       uncurry it into a single EAbs of two arguments. *)
+    let fct =
+      Expr.Box.app1 arg1
+        (function
+          | EAbs { binder = outer; tys = tys1; pos = pos1 }, _ -> (
+            match Bindlib.unmbind outer with
+            | [| v_acc |], (EAbs { binder = inner; tys = tys2; pos = pos2 }, _)
+              -> (
+              match Bindlib.unmbind inner with
+              | [| v_elt |], body ->
+                let bnd =
+                  Bindlib.bind_mvar [| v_acc; v_elt |]
+                    (Expr.Box.lift (Expr.rebox body))
+                in
+                Expr.eabs bnd (pos1 @ pos2) (tys1 @ tys2) (Untyped { pos })
+                |> Expr.unbox
+                |> Mark.remove
+              | _ -> assert false)
+            | _ -> assert false)
+          | _ -> assert false)
+        (Untyped { pos })
+    in
+    Expr.eappop ~op:(Fold, op_pos)
+      ~tys:
+        [TArrow ([tacc; telt], tacc), op_pos; tacc; TArray telt, Mark.get telt]
+      ~args:[fct; arg2; arg3]
+      (Untyped { pos })
+  | S.ListArgMin | S.ListArgMax ->
+    (* {v x among l such that scale(x) is minimum v}
+       is transformed into
+       {v
+         let weights = map (fun x -> x, scale(x)) l in
+         let weighted_result =
+           reduce
+             (fun (x1,w1) (x2,w2) ->
+                if CMP w1 w2 then (x1, w1) else (x2, w2))
+             weights
+         in
+         match weighted_result with
+         | Some r -> r.0
+         | None -> default
+       v} *)
+    let cmp_op =
+      match op with S.ListArgMax -> Op.Gt, op_pos | _ -> Op.Lt, op_pos
+    in
+    let m = Untyped { pos } in
+    let scale = arg1 in
+    let coll = arg2 in
+    let default =
+      match Expr.unbox arg3 with
+      | ETuple [], _ -> Expr.box (EFatalError Runtime.ListEmpty, Mark.get arg2)
+      | ETuple [dft], _ -> Expr.rebox dft
+      | _ -> assert false
+    in
+    let telt = Type.fresh_var op_pos in
+    let tweight = Type.fresh_var op_pos in
+    let tweighted = TTuple [telt; tweight], op_pos in
+    let add_weight_f =
+      (* fun x -> (x, scale(x)) *)
+      match Expr.unbox scale with
+      | EAbs { binder; pos = [arg_pos]; tys = [arg_ty] }, mscale -> (
+        match Bindlib.unmbind binder with
+        | [| arg |], body ->
+          let body =
+            Expr.etuple
+              [Expr.evar arg (Untyped { pos = arg_pos }); Expr.rebox body]
+              mscale
+          in
+          Expr.eabs (Expr.bind [| arg |] body) [arg_pos] [arg_ty] mscale
+        | _ -> assert false (* Lambda always produces a unary function *))
+      | _ -> assert false
+    in
+    let reduce_f =
+      (* fun x1 x2 -> if cmp_op (x1.2) (x2.2) then x1 else x2 *)
+      let v1, v2 = Var.make "x1", Var.make "x2" in
+      let x1, x2 = Expr.make_var v1 m, Expr.make_var v2 m in
+      Expr.make_abs
+        [v1, pos; v2, pos]
+        (Expr.eifthenelse
+           (Expr.eappop ~op:cmp_op ~tys:[tweight; tweight]
+              ~args:
+                [
+                  Expr.etupleaccess ~e:x1 ~index:1 ~size:2 m;
+                  Expr.etupleaccess ~e:x2 ~index:1 ~size:2 m;
+                ]
+              m)
+           x1 x2 m)
+        [tweighted; tweighted] pos
+    in
+    let weighted_var = Var.make "weighted" in
+    let result_opt =
+      (* let weights = map add_weight_f coll in reduce reduce_f (fun () ->
+         default) weights *)
+      Expr.make_let_in (Mark.ghost weighted_var) (TArray tweighted, pos)
+        (Expr.eappop ~op:(Map, op_pos)
+           ~tys:[TArrow ([telt], tweighted), pos; TArray telt, pos]
+           ~args:[add_weight_f; coll] m)
+        (Expr.eappop ~op:(Reduce, op_pos)
+           ~tys:
+             [
+               TArrow ([tweighted; tweighted], tweighted), pos;
+               TArray tweighted, pos;
+             ]
+           ~args:[reduce_f; Expr.evar weighted_var m]
+           m)
+        pos
+    in
+    (* match result_opt with Some x -> x.1 | None -> default *)
+    Expr.ematch m ~name:ConstantNames.option_enum ~e:result_opt
+      ~cases:
+        (EnumConstructor.Map.of_list
+           [
+             ConstantNames.none_constr, Expr.thunk_term default;
+             ( ConstantNames.some_constr,
+               let x = Var.make "result" in
+               Expr.make_abs
+                 [x, op_pos]
+                 (Expr.etupleaccess ~e:(Expr.evar x m) ~index:0 ~size:2 m)
+                 [tweighted] pos );
+           ])
+
+let raise_error_cons_not_found
+    (ctxt : Name_resolution.context)
+    (constructor : string Mark.pos) =
+  let constructors = Ident.Map.keys ctxt.local.constructor_idmap in
+  let closest_constructors =
+    Suggestions.best_candidates constructors (Mark.remove constructor)
+  in
+  Message.error
+    ~pos_msg:(fun ppf -> Format.fprintf ppf "Here is your code :")
+    ~pos:(Mark.get constructor) ~suggestion:closest_constructors
+    "The name of this constructor has not been defined before@ (it's probably \
+     a typographical error)."
+
+let get_possible_c_uids ctxt constructor =
+  try
+    let possible =
+      Ident.Map.find (Mark.remove constructor)
+        ctxt.Name_resolution.local.constructor_idmap
+    in
+    (* Eliminate candidates from other modules if there exists some from the
+       current one *)
+    let current_module =
+      EnumName.Map.filter
+        (fun struc _ ->
+          EnumName.path struc = []
+          || Global.options.whole_program
+             &&
+             match ctxt.local.current_revpath with
+             | [] -> false
+             | rpath -> EnumName.path struc = List.rev rpath)
+        possible
+    in
+    if EnumName.Map.is_empty current_module then possible else current_module
+  with Ident.Map.Not_found _ -> raise_error_cons_not_found ctxt constructor
+
+let get_possible_unqualified_c_uids ctxt constructor =
+  let possible_c_uids = get_possible_c_uids ctxt constructor in
+  let possible_c_uids =
+    if Global.options.whole_program && EnumName.Map.cardinal possible_c_uids > 1
+    then
+      let used_modules =
+        ModuleName.Set.of_seq
+          (Ident.Map.to_seq ctxt.local.used_modules |> Seq.map snd)
+      in
+      EnumName.Map.filter
+        (fun ename _ ->
+          match List.rev (EnumName.path ename) with
+          | [] -> true
+          | mn :: _ -> ModuleName.Set.mem mn used_modules)
+        possible_c_uids
+    else possible_c_uids
+  in
+  if EnumName.Map.cardinal possible_c_uids > 1 then
+    Message.error ~pos:(Mark.get constructor)
+      "This constructor name is ambiguous, it can belong to@ %a.@ Disambiguate \
+       it by prefixing it with the enum name."
+      (EnumName.Map.format_keys ~pp_sep:(fun fmt () ->
+           Format.pp_print_string fmt " or "))
+      possible_c_uids;
+  EnumName.Map.choose possible_c_uids
+
+let rec disambiguate_constructor
+    (ctxt : Name_resolution.context)
+    (constructor0 : S.enum_constr Mark.pos list)
+    (pos : Pos.t) : EnumName.t * EnumConstructor.t =
+  match constructor0 with
+  | [(CBuiltin Present, _)] ->
+    ConstantNames.option_enum, ConstantNames.some_constr
+  | [(CBuiltin Absent, _)] ->
+    ConstantNames.option_enum, ConstantNames.none_constr
+  | [] | _ :: _ :: _ ->
+    Message.error ~pos
+      "The deep pattern matching syntactic sugar is not yet supported."
+  | [(CConstr (path, constructor), _)] -> (
+    match path with
+    | [] -> get_possible_unqualified_c_uids ctxt constructor
+    | [enum] -> (
+      let possible_c_uids =
+        try
+          Ident.Map.find (Mark.remove constructor) ctxt.local.constructor_idmap
+        with Ident.Map.Not_found _ ->
+          raise_error_cons_not_found ctxt constructor
+      in
+      (* The path is fully qualified *)
+      let e_uid = Name_resolution.get_enum ctxt enum in
+      try
+        let c_uid = EnumName.Map.find e_uid possible_c_uids in
+        e_uid, c_uid
+      with EnumName.Map.Not_found _ ->
+        Message.error ~pos "Enum %s@ does@ not@ contain@ case@ %s."
+          (Mark.remove enum) (Mark.remove constructor))
+    | mod_id :: path ->
+      let constructor = [S.CConstr (path, constructor), pos] in
+      disambiguate_constructor
+        (Name_resolution.get_module_ctx ctxt mod_id)
+        constructor pos)
+
+let int1 = Runtime.integer_of_int 1
+let intminus1 = Runtime.integer_of_int (-1)
+let int100 = Runtime.integer_of_int 100
+let rat100 = Runtime.decimal_of_integer int100
+
+(** The parser allows any combination of logical operators with right
+    associativity. We actually want to reject anything that mixes operators
+    without parens, so that is handled here. *)
+let rec check_formula (op, pos_op) e =
+  match Mark.remove e with
+  | S.Binop ((((S.And | S.Or | S.Xor) as op1), pos_op1), e1, e2) ->
+    if op = S.Xor || op <> op1 then
+      (* Xor is mathematically associative, but without a useful semantics ([a
+         xor b xor c] is most likely an error since it's true for [a = b = c =
+         true]) *)
+      Message.error
+        ~extra_pos:["", pos_op; "", pos_op1]
+        "%a" Format.pp_print_text
+        "Please add parentheses to explicit which of these operators should be \
+         applied first.";
+    check_formula (op1, pos_op1) e1;
+    check_formula (op1, pos_op1) e2
+  | _ -> ()
+
+let translate_literal l pos =
+  match l with
+  | S.LNumber ((Int i, _), None) -> LInt (Runtime.integer_of_string i)
+  | S.LNumber ((Int i, _), Some (Percent, _)) ->
+    LRat
+      Runtime.(
+        Oper.o_div_rat_rat (Expr.pos_to_runtime pos) (decimal_of_string i)
+          rat100)
+  | S.LNumber ((Dec (i, f), _), None) ->
+    LRat Runtime.(decimal_of_string (i ^ "." ^ f))
+  | S.LNumber ((Dec (i, f), _), Some (Percent, _)) ->
+    LRat
+      Runtime.(
+        Oper.o_div_rat_rat (Expr.pos_to_runtime pos)
+          (decimal_of_string (i ^ "." ^ f))
+          rat100)
+  | S.LBool b -> LBool b
+  | S.LMoneyAmount i ->
+    LMoney
+      Runtime.(
+        money_of_cents_integer
+          (Oper.o_mult_int_int
+             (if i.money_amount_sign then int1 else intminus1)
+             (Oper.o_add_int_int
+                (Oper.o_mult_int_int
+                   (integer_of_string i.money_amount_units)
+                   int100)
+                (integer_of_string i.money_amount_cents))))
+  | S.LNumber ((Int i, _), Some (Year, _)) ->
+    LDuration (Runtime.duration_of_numbers (int_of_string i) 0 0)
+  | S.LNumber ((Int i, _), Some (Month, _)) ->
+    LDuration (Runtime.duration_of_numbers 0 (int_of_string i) 0)
+  | S.LNumber ((Int i, _), Some (Day, _)) ->
+    LDuration (Runtime.duration_of_numbers 0 0 (int_of_string i))
+  | S.LNumber ((Dec (_, _), _), Some ((Year | Month | Day), _)) ->
+    Message.error ~pos
+      "Impossible to specify decimal amounts of days, months or years."
+  | S.LDate date ->
+    if date.literal_date_month > 12 then
+      Message.error ~pos
+        "There is an error in this date: the month number is bigger than 12.";
+    if date.literal_date_day > 31 then
+      Message.error ~pos
+        "There is an error in this date: the day number is bigger than 31.";
+    LDate
+      (try
+         Runtime.date_of_numbers date.literal_date_year date.literal_date_month
+           date.literal_date_day
+       with Failure _ ->
+         Message.error ~pos
+           "There is an error in this date, it does not correspond to a \
+            correct calendar day.")
+
+let nary_binder_to_tuple_function arg_ty pos binder argname pos_binder =
+  let arg_types = match arg_ty with TTuple tl, _ -> tl | t -> [t] in
+  let m = Untyped { pos } in
+  let v = Var.make argname in
+  let body =
+    Expr.detuplify_application
+      [Expr.evar v m]
+      arg_types
+      (fun args ->
+        let body =
+          let args = Bindlib.box_list (List.map Mark.remove args) in
+          Bindlib.box_apply2
+            (fun bnd args ->
+              Mark.remove (Bindlib.msubst bnd (Array.of_list args)))
+            binder args
+        in
+        body, m)
+  in
+  Expr.eabs
+    (Bindlib.bind_mvar [| v |] (Expr.Box.lift body))
+    [List.fold_left Pos.join Pos.void pos_binder]
+    [arg_ty] m
+
+(** Usage: [translate_expr scope ctxt naked_expr]
+
+    Translates [expr] into its desugared equivalent. [scope] is used to
+    disambiguate the scope and subscopes variables than occur in the expression,
+    [None] is assumed to mean a toplevel definition *)
+let rec translate_expr
+    (scope : ScopeName.t option)
+    (inside_definition_of : Ast.ScopeDef.t Mark.pos option)
+    (ctxt : Name_resolution.context)
+    (local_vars : Ast.expr Var.t Ident.Map.t)
+    ?(no_wildcard_warning = false)
+    (expr : S.expression) : Ast.expr boxed =
+  let pos = Name_resolution.(translate_pos (Expression expr) (Mark.get expr)) in
+  let emark = Untyped { pos } in
+  Message.wrap_to_delayed_error (Expr.ebad emark) ~kind:Parsing
+  @@ fun () ->
+  let scope_vars =
+    match scope with
+    | None -> Ident.Map.empty
+    | Some s -> (ScopeName.Map.find s ctxt.scopes).var_idmap
+  in
+  let rec_helper ?(local_vars = local_vars) ?no_wildcard_warning e =
+    translate_expr scope inside_definition_of ctxt local_vars
+      ?no_wildcard_warning e
+  in
+  match Mark.remove expr with
+  | Paren e -> rec_helper (Mark.set (Pos.join pos (Mark.get e)) e)
+  | Binop ((S.And, _), (TestMatchCase (e1_sub, pattern), pos_e1), e2) ->
+    (* This sugar corresponds to [e is P x && e'] and should desugar to [match e
+       with P x -> e' | _ -> false] *)
+    let cases =
+      [
+        ( S.MatchCase { match_case_pattern = pattern; match_case_expr = e2 },
+          Mark.get pattern );
+        ( S.WildCard (S.Literal (S.LBool false), Mark.get pattern),
+          Mark.get pattern );
+      ]
+    in
+    rec_helper ~no_wildcard_warning:true
+      (S.MatchWith (e1_sub, (cases, pos)), pos_e1)
+  | Binop ((((S.And | S.Or | S.Xor), _) as op), e1, e2) ->
+    check_formula op e1;
+    check_formula op e2;
+    translate_binop op pos (rec_helper e1) (rec_helper e2)
+  | IfThenElse (e_if, e_then, e_else) ->
+    let e_if = Expr.etag BranchingCondition (rec_helper e_if) in
+    let e_then = Expr.etag (Branching None) (rec_helper e_then) in
+    let e_else = Expr.etag (Branching None) (rec_helper e_else) in
+    Expr.eifthenelse e_if e_then e_else emark
+  | Ternop (op, e1, e2, e3) ->
+    translate_ternop op pos (rec_helper e1) (rec_helper e2) (rec_helper e3)
+  | Binop ((S.Neq, posn), e1, e2) ->
+    (* Neq is just sugar *)
+    rec_helper (Unop ((S.Not, posn), (Binop ((S.Eq, posn), e1, e2), posn)), pos)
+  | Binop (op, e1, e2) -> translate_binop op pos (rec_helper e1) (rec_helper e2)
+  | Unop (op, e) -> translate_unop op pos (rec_helper e)
+  | Literal l ->
+    let lit = translate_literal l pos in
+    Expr.elit lit emark
+  | Ident ([], (x, pos), state) -> (
+    (* first we check whether this is a local var, then we resort to scope-wide
+       variables, then global variables *)
+    match Ident.Map.find_opt x local_vars, state with
+    | Some uid, None ->
+      Expr.make_var uid emark
+      (* the whole box thing is to accomodate for this case *)
+    | Some uid, Some state ->
+      Message.error ~pos:(Mark.get state)
+        "%a is a local variable, it has no states." Print.var uid
+    | None, state -> (
+      match Ident.Map.find_opt x scope_vars with
+      | Some (ScopeVar uid) ->
+        (* If the referenced variable has states, then here are the rules to
+           desambiguate. In general, the last state is referenced by default.
+           Except if defining a state of the same variable, then it references
+           the previous state in the chain. *)
+        let x_sig = ScopeVar.Map.find uid ctxt.var_typs in
+        let x_state =
+          match state, x_sig.var_sig_states_list, inside_definition_of with
+          | None, [], _ -> None
+          | Some st, [], _ ->
+            Message.error ~pos:(Mark.get st)
+              "Variable %a does not define states." ScopeVar.format uid
+          | st, states, Some (((x'_uid, _), Ast.ScopeDef.Var sx'), _)
+            when ScopeVar.equal uid x'_uid -> (
+            if st <> None then
+              (* TODO *)
+              Message.error
+                ~pos:(Mark.get (Option.get st))
+                "%a" Format.pp_print_text
+                "Referring to a previous state of the variable being defined \
+                 is not supported at the moment.";
+            match sx' with
+            | None ->
+              Message.error ~internal:true
+                "inconsistent state: inside a definition of a variable with no \
+                 state but variable has states."
+            | Some inside_def_state ->
+              if StateName.compare inside_def_state (List.hd states) = 0 then
+                Message.error ~pos "%a" Format.pp_print_text
+                  "The definition of the initial state of this variable refers \
+                   to itself."
+              else
+                (* Tricky: we have to retrieve in the list the previous state
+                   with respect to the state that we are defining. *)
+                let rec find_prev_state = function
+                  | [] -> None
+                  | st0 :: st1 :: _ when StateName.equal inside_def_state st1 ->
+                    Some st0
+                  | _ :: states -> find_prev_state states
+                in
+                find_prev_state states)
+          | Some st, states, _ -> (
+            match
+              Ident.Map.find_opt (Mark.remove st) x_sig.var_sig_states_idmap
+            with
+            | None ->
+              Message.error
+                ~suggestion:(List.map StateName.to_string states)
+                ~extra_pos:
+                  [
+                    "", Mark.get st;
+                    "Variable defined here", Mark.get (ScopeVar.get_info uid);
+                  ]
+                "Reference to unknown variable state."
+            | some -> some)
+          | _, states, _ ->
+            (* we take the last state in the chain *)
+            Some (List.hd (List.rev states))
+        in
+        Expr.elocation
+          (DesugaredScopeVar { name = uid, pos; state = x_state })
+          emark
+      | Some (SubScope (uid, _)) ->
+        Expr.elocation
+          (DesugaredScopeVar { name = uid, pos; state = None })
+          emark
+      | None -> (
+        match Ident.Map.find_opt x ctxt.local.topdefs with
+        | Some v ->
+          if state <> None then
+            Message.error ~pos
+              "Access to intermediate states is only allowed for variables of \
+               the current scope.";
+          Expr.elocation
+            (ToplevelVar
+               {
+                 name = v, Mark.get (TopdefName.get_info v);
+                 is_external = ctxt.local.is_external;
+               })
+            emark
+        | None ->
+          Name_resolution.raise_unknown_identifier
+            "for a local, scope-wide or global variable" (x, pos))))
+  | Ident (_ :: _, (_, pos), Some _) ->
+    Message.error ~pos
+      "Access to intermediate states is only allowed for variables of the \
+       current scope."
+  | Ident (path, name, None) -> (
+    let ml, ctxt = Name_resolution.module_ctx ctxt path in
+    match Ident.Map.find_opt (Mark.remove name) ctxt.local.topdefs with
+    | Some topdef ->
+      let path : Uid.Path.t =
+        List.map2
+          (fun (_, pos) mname ->
+            ModuleName.map_info (fun (name, _) -> name, pos) mname)
+          path ml
+      in
+      let v = TopdefName.map_info (fun _ -> path, name) topdef in
+      Expr.elocation
+        (ToplevelVar
+           {
+             name = v, Mark.get (TopdefName.get_info topdef);
+             is_external = ctxt.local.is_external;
+           })
+        emark
+    | None ->
+      Name_resolution.raise_unknown_identifier "for an external variable" name)
+  | Dotted (e, ((path, field), _ppos)) ->
+    (* e.x is the struct field x access of expression e *)
+    let e = rec_helper e in
+    let rec get_str ctxt = function
+      | [] -> None
+      | [c] -> Some (Name_resolution.get_struct ctxt c)
+      | mod_id :: path ->
+        get_str (Name_resolution.get_module_ctx ctxt mod_id) path
+    in
+    Expr.edstructaccess ~e ~field ~name_opt:(get_str ctxt path) emark
+  | FunCall ((Builtin (S.Impossible | S.External _), pos), [_]) ->
+    Message.error ~pos "This built-in cannot be applied as a function"
+  | FunCall ((Builtin b, pos), [arg]) ->
+    let op, ty =
+      match b with
+      | S.ToInteger -> Op.ToInt, Mark.remove (Type.any pos)
+      | S.ToDecimal -> Op.ToRat, Mark.remove (Type.any pos)
+      | S.ToMoney -> Op.ToMoney, Mark.remove (Type.any pos)
+      | S.Round -> Op.Round, Mark.remove (Type.any pos)
+      | S.Cardinal -> Op.Length, TArray (Type.any pos)
+      | S.External _ | S.Impossible -> assert false
+    in
+    Expr.eappop ~op:(op, pos) ~tys:[ty, pos] ~args:[rec_helper arg] emark
+  | S.Builtin Impossible -> Expr.efatalerror Runtime.Impossible emark
+  | EnumInject ((CConstr (path, constructor), _), None)
+    when (Pos.get_attr pos @@ function JsonPayload _ -> Some () | _ -> None)
+         <> None
+         (* FIXME: Temporary syntax, an attribute can normally not be used to
+            alter the syntax. The point is not to break syntax tools right away.
+            See also <name_resolution.ml:268>. *)
+    ->
+    rec_helper
+      ( S.Builtin
+          (External (Base (Data (Primitive (Named (path, constructor)))), pos)),
+        pos )
+  | S.Builtin (External ty) -> (
+    match
+      Pos.get_attr pos @@ function JsonPayload s -> Some s | _ -> None
+    with
+    | None ->
+      Message.error
+        "The @{<cyan>external(typ)@} construct must be prefixed with a \
+         @{<magenta>#[json = \"contents\"]@} attribute"
+    | Some s ->
+      Expr.eappop
+        ~op:(ValueFromJson (Name_resolution.process_type ctxt ty, s), pos)
+        ~args:[Expr.elit LUnit emark]
+        ~tys:[TLit TUnit, pos]
+        emark)
+  | S.Builtin _ ->
+    Message.error ~pos "Invalid use of built-in: needs one operand"
+  | FunCall (f, args) ->
+    let args = List.map rec_helper args in
+    Expr.eapp ~f:(rec_helper f) ~args ~tys:[] emark
+  | ScopeCall (((path, id), _), fields) ->
+    if scope = None then
+      Message.error ~pos "Scope calls are not allowed outside of a scope.";
+    let called_scope, scope_def =
+      let resolved_path, ctxt = Name_resolution.module_ctx ctxt path in
+      let uid =
+        let uid = Name_resolution.get_scope ctxt id in
+        (* Retain the correct positions *)
+        ScopeName.map_info
+          (fun (path1, pos) ->
+            (if resolved_path = [] then path1 else resolved_path), pos)
+          uid
+      in
+      uid, ScopeName.Map.find uid ctxt.scopes
+    in
+    let in_struct =
+      fold_left_catch_errors
+        (fun acc (fld_id, e) ->
+          let var =
+            match
+              Ident.Map.find_opt (Mark.remove fld_id) scope_def.var_idmap
+            with
+            | Some (ScopeVar v) -> v
+            | Some (SubScope _) | None ->
+              Message.error
+                ~suggestion:(Ident.Map.keys scope_def.var_idmap)
+                ~extra_pos:
+                  [
+                    "", Mark.get fld_id;
+                    ( Format.asprintf "Scope %a declared here" ScopeName.format
+                        called_scope,
+                      Mark.get (ScopeName.get_info called_scope) );
+                  ]
+                "Scope %a has no input variable %a." ScopeName.format
+                called_scope Print.lit_style (Mark.remove fld_id)
+          in
+          ScopeVar.Map.update var
+            (function
+              | None -> Some (Mark.get fld_id, rec_helper e)
+              | Some _ ->
+                Message.error ~pos:(Mark.get fld_id)
+                  "Duplicate definition of scope input variable '%a'."
+                  ScopeVar.format var)
+            acc)
+        ScopeVar.Map.empty fields
+    in
+    Expr.escopecall ~scope:called_scope ~args:in_struct emark
+  | LetIn (xs, e1, e2) ->
+    let m_xs : _ Var.t Mark.pos list =
+      List.map (fun x -> Mark.map Var.make x) xs
+    in
+    let local_vars =
+      List.fold_left2
+        (fun local_vars x v ->
+          Ident.Map.add (Mark.remove x) (Mark.remove v) local_vars)
+        local_vars xs m_xs
+    in
+    let tys = List.map (fun x -> Type.any (Mark.get x)) xs in
+    (* This type will be resolved in Scopelang.Desambiguation *)
+    let f = Expr.make_abs m_xs (rec_helper ~local_vars e2) tys pos in
+    let e1 =
+      let e = rec_helper e1 in
+      match xs with
+      | [] -> e
+      | [(name, decl_pos)] -> Expr.etag ~pos:decl_pos (LocalVarDef { name }) e
+      | vs ->
+        let names, lpos = List.split vs in
+        let tup_pos = List.fold_left Pos.join (List.hd lpos) (List.tl lpos) in
+        Expr.etag ~pos:tup_pos (LocalTupDef { names }) e
+    in
+    Expr.detuplify_application [e1] tys (fun args ->
+        Expr.eapp ~f ~args ~tys emark)
+  | StructReplace (e, fields) ->
+    let fields =
+      fold_left_catch_errors
+        (fun acc (field_id, field_expr) ->
+          if MarkedIdent.Map.mem field_id acc then
+            Message.error ~pos:(Mark.get field_id)
+              "Duplicate redefinition of field@ %a." MarkedIdent.format field_id;
+          MarkedIdent.Map.add field_id (rec_helper field_expr) acc)
+        MarkedIdent.Map.empty fields
+    in
+    Expr.edstructamend ~fields ~e:(rec_helper e) ~name_opt:None emark
+  | StructLit (((path, s_name), _), fields) ->
+    let resolved_path, ctxt = Name_resolution.module_ctx ctxt path in
+    let s_uid =
+      match Ident.Map.find_opt (Mark.remove s_name) ctxt.local.typedefs with
+      | Some (Name_resolution.TStruct s_uid)
+      | Some (Name_resolution.TScope (_, { out_struct_name = s_uid; _ })) ->
+        (* Retain the correct positions *)
+        StructName.map_info
+          (fun (path1, (s, _pos)) ->
+            ( (if resolved_path = [] then path1 else resolved_path),
+              (s, Mark.get s_name) ))
+          s_uid
+      | _ ->
+        Message.error ~pos:(Mark.get s_name)
+          "This identifier should refer to a struct name."
+    in
+    let s_fields =
+      fold_left_catch_errors
+        (fun s_fields (f_name, f_e) ->
+          let f_uid =
+            try
+              StructName.Map.find s_uid
+                (Ident.Map.find (Mark.remove f_name) ctxt.local.field_idmap)
+              |> StructField.map_info (Mark.map_mark (fun _ -> Mark.get f_name))
+            with StructName.Map.Not_found _ | Ident.Map.Not_found _ ->
+              Message.error ~pos:(Mark.get f_name)
+                "This identifier should refer to a field of struct %s."
+                (Mark.remove s_name)
+          in
+          (match StructField.Map.find_opt f_uid s_fields with
+          | None -> ()
+          | Some e_field ->
+            Message.error
+              ~extra_pos:["", Mark.get f_e; "", Expr.pos e_field]
+              "The field %a has been defined twice." StructField.format f_uid);
+          let f_e = rec_helper f_e in
+          StructField.Map.add f_uid f_e s_fields)
+        StructField.Map.empty fields
+    in
+    let expected_s_fields, _ = StructName.Map.find s_uid ctxt.structs in
+    if
+      StructField.Map.exists
+        (fun expected_f _ -> not (StructField.Map.mem expected_f s_fields))
+        expected_s_fields
+    then
+      Message.error ~pos "Missing field(s) for structure %a:@\n%a."
+        StructName.format s_uid
+        (Format.pp_print_list
+           ~pp_sep:(fun fmt () -> Format.fprintf fmt ",@ ")
+           (fun fmt (expected_f, _) ->
+             Format.fprintf fmt "\"%a\"" StructField.format expected_f))
+        (StructField.Map.bindings
+           (StructField.Map.filter
+              (fun expected_f _ ->
+                not (StructField.Map.mem expected_f s_fields))
+              expected_s_fields));
+
+    Expr.estruct ~name:s_uid ~fields:s_fields emark
+  | EnumInject ((CBuiltin ((Present | Absent) as c), cpos), payload) ->
+    let payload = Option.map rec_helper payload in
+    let e_uid, c_uid =
+      match c with
+      | Present -> ConstantNames.option_enum, ConstantNames.some_constr
+      | Absent -> ConstantNames.option_enum, ConstantNames.none_constr
+    in
+    Expr.einj
+      ~e:
+        (match payload with
+        | Some e' -> e'
+        | None -> Expr.elit LUnit (Untyped { pos = cpos }))
+      ~cons:c_uid ~name:e_uid emark
+  | EnumInject ((CConstr (path, constructor), _), payload) -> (
+    let pos_constructor = Mark.get constructor in
+    let mark_constructor = Untyped { pos = pos_constructor } in
+    match path with
+    | [] ->
+      let e_uid, c_uid = get_possible_unqualified_c_uids ctxt constructor in
+      let c_uid =
+        (* Retain the correct position *)
+        EnumConstructor.map_info
+          (fun (v, p) -> v, Pos.add_attrs pos_constructor (Pos.attrs p))
+          c_uid
+      in
+      let payload = Option.map rec_helper payload in
+      Expr.einj
+        ~e:
+          (match payload with
+          | Some e' -> e'
+          | None -> Expr.elit LUnit mark_constructor)
+        ~cons:c_uid ~name:e_uid emark
+    | path_enum -> (
+      let path, enum =
+        match List.rev path_enum with
+        | enum :: rpath -> List.rev rpath, enum
+        | _ -> assert false
+      in
+      let resolved_path, ctxt = Name_resolution.module_ctx ctxt path in
+      let possible_c_uids = get_possible_c_uids ctxt constructor in
+      (* The path has been qualified *)
+      let e_uid =
+        let e_uid = Name_resolution.get_enum ctxt enum in
+        (* Retain the correct positions *)
+        EnumName.map_info
+          (fun (path1, (x, _pos)) ->
+            ( (if resolved_path = [] then path1 else resolved_path),
+              (x, Mark.get enum) ))
+          e_uid
+      in
+      try
+        let c_uid =
+          EnumName.Map.find e_uid possible_c_uids
+          |>
+          (* Retain the correct position *)
+          EnumConstructor.map_info (fun (v, p) ->
+              v, Pos.add_attrs pos_constructor (Pos.attrs p))
+        in
+        let payload = Option.map rec_helper payload in
+        Expr.einj
+          ~e:
+            (match payload with
+            | Some e' -> e'
+            | None -> Expr.elit LUnit mark_constructor)
+          ~cons:c_uid ~name:e_uid emark
+      with EnumName.Map.Not_found _ ->
+        Message.error ~pos "Enum %s does not contain case %s."
+          (Mark.remove enum) (Mark.remove constructor)))
+  | MatchWith (e1, (cases, _cases_pos)) ->
+    let e1 = Expr.etag BranchingCondition @@ rec_helper e1 in
+    let cases_d, e_uid =
+      disambiguate_match_and_build_expression scope inside_definition_of ctxt
+        local_vars ~no_wildcard_warning cases
+    in
+    Expr.ematch ~e:e1 ~name:e_uid ~cases:cases_d emark
+  | TestMatchCase (e1, pattern) ->
+    (match snd (Mark.remove pattern) with
+    | [] -> ()
+    | binding :: _ ->
+      Message.warning ~pos:(Mark.get binding)
+        "This binding will be ignored (remove it to suppress this warning).");
+    let cases =
+      [
+        ( S.MatchCase
+            {
+              match_case_pattern = pattern;
+              match_case_expr = S.Literal (S.LBool true), Mark.get pattern;
+            },
+          Mark.get pattern );
+        ( S.WildCard (S.Literal (S.LBool false), Mark.get pattern),
+          Mark.get pattern );
+      ]
+    in
+    rec_helper ~no_wildcard_warning:true (S.MatchWith (e1, (cases, pos)), pos)
+  | ArrayLit es -> Expr.earray (List.map rec_helper es) emark
+  | Tuple es -> Expr.etuple (List.map rec_helper es) emark
+  | TupleAccess (e, n) ->
+    Expr.etupleaccess ~e:(rec_helper e) ~index:(Mark.remove n - 1) ~size:0 emark
+  | ListZip (names, S.Tuple ls) ->
+    (* Where a list is expected (e.g. after [among]), as syntactic sugar, if a
+       tuple is found instead we transpose it into a list of tuples *)
+    let ls = List.map (fun (e, m) -> rec_helper (ListZip ([], e), m)) ls in
+    let m = Untyped { pos } in
+    let rec zip names = function
+      (* We only have map2, so this needs to be done (n-1) times to collate n
+         lists *)
+      | [] -> assert false
+      | [l] -> l
+      | l1 :: r ->
+        let name1, names =
+          match names with
+          | name1 :: names -> name1, names
+          | [] -> ("x", pos), []
+        in
+        let rhs = zip names r in
+        let rtys, explode =
+          match List.length r with
+          | 1 -> Type.any pos, fun e -> [e]
+          | size ->
+            ( (TTuple (List.map (fun _ -> Type.any pos) r), pos),
+              fun e ->
+                List.init size (fun index ->
+                    Expr.etupleaccess ~e ~size ~index m) )
+        in
+        let tys = [Type.any pos; rtys] in
+        let f_join =
+          let x1, pos1 = Var.make (Mark.remove name1), Mark.get name1 in
+          let x2, pos2 =
+            match names with
+            | [] -> Var.make "zip", pos
+            | names ->
+              ( Var.make (String.concat "_" (List.map Mark.remove names)),
+                List.fold_left Pos.join Pos.void (List.map Mark.get names) )
+          in
+          Expr.make_ghost_abs [x1; x2]
+            (Expr.make_tuple
+               (Expr.evar x1 (Untyped { pos = pos1 })
+               :: explode (Expr.evar x2 (Untyped { pos = pos2 })))
+               m)
+            tys pos
+        in
+        Expr.eappop ~op:(Map2, pos) ~args:[f_join; l1; rhs]
+          ~tys:(Type.any pos :: List.map (fun ty -> TArray ty, pos) tys)
+          m
+    in
+    zip names ls
+  | ListZip (_, e) -> rec_helper (e, pos)
+  | Lambda ([(arg, arg_pos)], body) ->
+    let var = Var.make arg in
+    let body = rec_helper ~local_vars:(Ident.Map.add arg var local_vars) body in
+    Expr.eabs (Expr.bind [| var |] body) [arg_pos]
+      [Type.fresh_var arg_pos]
+      emark
+  | Lambda (ids, body) ->
+    (* This lambda construction is intended for arguments of operators. There
+       might be multiple arguments, but the expected result function always
+       takes a tuple *)
+    let nary_binder =
+      let vars = List.map (fun (v, _) -> Var.make v) ids in
+      let local_vars =
+        List.fold_left2
+          (fun vars n p -> Ident.Map.add (Mark.remove n) p vars)
+          local_vars ids vars
+      in
+      let body = rec_helper ~local_vars body in
+      Expr.bind (Array.of_list vars) body
+    in
+    let varpos = List.map Mark.get ids in
+    let tys = List.map Type.fresh_var varpos in
+    nary_binder_to_tuple_function
+      (TTuple tys, List.fold_left Pos.join Pos.void varpos)
+      pos nary_binder
+      (String.concat "_" (List.map Mark.remove ids))
+      varpos
+  | Assert (e1, e2, apos) ->
+    let pos = Pos.set_attrs apos (Pos.attrs pos) in
+    Expr.make_let_in
+      (Var.make "_", Mark.get e1)
+      (TLit TUnit, Mark.get e1)
+      (Expr.etag ~pos Shared_ast.Assertion
+         (Expr.eassert (rec_helper e1) (Untyped { pos })))
+      (rec_helper e2) apos
+
+and disambiguate_match_and_build_expression
+    (scope : ScopeName.t option)
+    (inside_definition_of : Ast.ScopeDef.t Mark.pos option)
+    (ctxt : Name_resolution.context)
+    (local_vars : Ast.expr Var.t Ident.Map.t)
+    ?(no_wildcard_warning = false)
+    (cases : S.match_case Mark.pos list) :
+    Ast.expr boxed EnumConstructor.Map.t * EnumName.t =
+  let create_var local_vars = function
+    | None -> local_vars, Var.make "_"
+    | Some param ->
+      let param_var = Var.make param in
+      Ident.Map.add param param_var local_vars, param_var
+  in
+  let bind_case_body
+      (c_uid : EnumConstructor.t)
+      (e_uid : EnumName.t)
+      (ctxt : Name_resolution.context)
+      case_body
+      e_binder
+      pos_binder =
+    let cell_type =
+      EnumConstructor.Map.find c_uid
+        (fst (EnumName.Map.find e_uid ctxt.Name_resolution.enums))
+    in
+    let arity = List.length pos_binder in
+    match cell_type with
+    | TTuple tl, _ when arity > 1 ->
+      (* Matching a n-uple payload to a n-ary function : we de-tuplify the payload to have a one-argument function as expected by the match construct *)
+      if List.length tl <> arity then
+        Message.error
+          ~pos:(List.fold_left Pos.join Pos.void pos_binder)
+          "This pattern has %d arguments, while %d are expected by \
+           constructor@ %a."
+          arity (List.length tl) EnumConstructor.format c_uid;
+      nary_binder_to_tuple_function cell_type (Expr.pos case_body) e_binder
+        "payload" pos_binder
+    | TForAll _, _ when arity > 1 ->
+      assert (Type.is_universal cell_type);
+      (* Matching a polymorphic payload (ie we are in an option) to a n-ary function: we assume a n-uple and will let the typer validate it *)
+      nary_binder_to_tuple_function
+        ( TTuple (List.map Type.fresh_var pos_binder),
+          List.fold_left Pos.join Pos.void pos_binder )
+        (Expr.pos case_body) e_binder "payload" pos_binder
+    | t ->
+      (* It's allowed to match the tuple into a single variable (TTuple but arity = 1). We will let the type-checker report the error in case of mismatch *)
+      Expr.eabs e_binder pos_binder [t] (Mark.get case_body)
+  in
+  let bind_match_cases (cases_d, e_uid, curr_index) (case, case_pos) =
+    match case with
+    | S.MatchCase case ->
+      let constructor, binding = Mark.remove case.S.match_case_pattern in
+      let e_uid', c_uid =
+        disambiguate_constructor ctxt constructor
+          (Mark.get case.S.match_case_pattern)
+      in
+      let e_uid =
+        match e_uid with
+        | None -> e_uid'
+        | Some e_uid ->
+          if EnumName.equal e_uid e_uid' then e_uid
+          else
+            Message.error
+              ~pos:(Mark.get case.S.match_case_pattern)
+              "This case matches a constructor of enumeration@ %a@ but@ \
+               previous@ cases@ were@ matching@ constructors@ of@ enumeration@ \
+               %a."
+              EnumName.format e_uid EnumName.format e_uid'
+      in
+      (match EnumConstructor.Map.find_opt c_uid cases_d with
+      | None -> ()
+      | Some e_case ->
+        Message.error
+          ~extra_pos:["", Mark.get case.match_case_expr; "", Expr.pos e_case]
+          "The constructor %a@ has@ been@ matched@ twice."
+          EnumConstructor.format c_uid);
+      let binding = match binding with [] -> ["_", Pos.void] | bnd -> bnd in
+      let local_vars, param_var =
+        List.fold_left_map
+          (fun local_vars b -> create_var local_vars (Some (Mark.remove b)))
+          local_vars binding
+      in
+      let case_body =
+        Expr.etag
+          (Branching (Some (EnumConstructor.to_string c_uid)))
+          (translate_expr scope inside_definition_of ctxt local_vars
+             case.S.match_case_expr)
+      in
+      let e_binder = Expr.bind (Array.of_list param_var) case_body in
+      let pos_binder =
+        match binding with
+        | [] -> [Pos.void]
+        | binding -> List.map Mark.get binding
+      in
+      let case_expr =
+        bind_case_body c_uid e_uid ctxt case_body e_binder pos_binder
+      in
+      ( EnumConstructor.Map.add c_uid case_expr cases_d,
+        Some e_uid,
+        curr_index + 1 )
+    | S.WildCard match_case_expr -> (
+      let nb_cases = List.length cases in
+      let raise_wildcard_not_last_case_err () =
+        Message.error
+          ~extra_pos:
+            [
+              "Not ending wildcard:", case_pos;
+              ( "Next reachable case:",
+                curr_index + 1 |> List.nth cases |> Mark.get );
+            ]
+          "Wildcard must be the last match case."
+      in
+      match e_uid with
+      | None ->
+        if 1 = nb_cases then
+          Message.error ~pos:case_pos "%a" Format.pp_print_text
+            "Couldn't infer the enumeration name from lonely wildcard \
+             (wildcard cannot be used as single match case)."
+        else raise_wildcard_not_last_case_err ()
+      | Some e_uid ->
+        if curr_index < nb_cases - 1 then raise_wildcard_not_last_case_err ();
+        let missing_constructors =
+          EnumName.Map.find e_uid ctxt.Name_resolution.enums
+          |> fst
+          |> EnumConstructor.Map.filter_map (fun c_uid _ ->
+              match EnumConstructor.Map.find_opt c_uid cases_d with
+              | Some _ -> None
+              | None -> Some c_uid)
+        in
+        if
+          EnumConstructor.Map.is_empty missing_constructors
+          && not no_wildcard_warning
+        then
+          Message.warning ~pos:case_pos
+            "Unreachable match case, all constructors of the enumeration@ %a@ \
+             are@ already@ specified."
+            EnumName.format e_uid;
+        (* The current used strategy is to replace the wildcard branch:
+               match foo with
+               | Case1 x -> x
+               | _ -> 1
+           with:
+               let wildcard_payload = 1 in
+               match foo with
+               | Case1 x -> x
+               | Case2 -> wildcard_payload
+                ...
+               | CaseN -> wildcard_payload *)
+        (* Creates the wildcard payload *)
+        let local_vars, payload_var = create_var local_vars None in
+        let case_body =
+          translate_expr scope inside_definition_of ctxt local_vars
+            match_case_expr
+        in
+        let e_binder = Expr.bind [| payload_var |] case_body in
+        let pos_binder = [Pos.void] in
+        (* For each missing cases, binds the wildcard payload. *)
+        EnumConstructor.Map.fold
+          (fun c_uid _ (cases_d, e_uid_opt, curr_index) ->
+            let case_body =
+              Expr.etag
+                (Branching (Some (EnumConstructor.to_string c_uid)))
+                case_body
+            in
+            let case_expr =
+              bind_case_body c_uid e_uid ctxt case_body e_binder pos_binder
+            in
+            ( EnumConstructor.Map.add c_uid case_expr cases_d,
+              e_uid_opt,
+              curr_index + 1 ))
+          missing_constructors
+          (cases_d, Some e_uid, curr_index))
+  in
+  let naked_expr, e_name, _ =
+    List.fold_left bind_match_cases (EnumConstructor.Map.empty, None, 0) cases
+  in
+  naked_expr, Option.get e_name
+[@@ocamlformat "wrap-comments=false"]
+
+(** {1 Translating scope definitions} *)
+
+(** A scope use can be annotated with a pervasive precondition, in which case
+    this precondition has to be appended to the justifications of each
+    definition in the subscope use. This is what this function does. *)
+let merge_conditions
+    (precond : Ast.expr boxed option)
+    (cond : Ast.expr boxed option)
+    (default_pos : Pos.t) : Ast.expr boxed =
+  match precond, cond with
+  | Some precond, Some cond ->
+    Expr.eappop ~op:(And, default_pos)
+      ~tys:[TLit TBool, default_pos; TLit TBool, default_pos]
+      ~args:[precond; cond] (Mark.get cond)
+  | Some precond, None -> Mark.remove precond, Untyped { pos = default_pos }
+  | None, Some cond -> cond
+  | None, None -> Expr.elit (LBool true) (Untyped { pos = default_pos })
+
+let rec arglist_eq_check pos_decl pos_def pdecl pdefs =
+  match pdecl, pdefs with
+  | [], [] -> ()
+  | [], (arg, apos) :: _ ->
+    Message.error
+      ~extra_pos:["Declared here:", pos_decl; "Extra argument:", apos]
+      "This definition has an extra, undeclared argument '%a'." Print.lit_style
+      arg
+  | (arg, apos) :: _, [] ->
+    Message.error
+      ~extra_pos:
+        ["Argument declared here:", apos; "Mismatching definition:", pos_def]
+      "This definition is missing argument '%a'." Print.lit_style arg
+  | decl :: pdecl, def :: pdefs when Uid.MarkedString.equal decl def ->
+    arglist_eq_check pos_decl pos_def pdecl pdefs
+  | (decl_arg, decl_apos) :: _, (def_arg, def_apos) :: _ ->
+    Message.error
+      ~extra_pos:
+        ["Argument declared here:", decl_apos; "Defined here:", def_apos]
+      "Function argument name mismatch between declaration@ ('%a')@ and@ \
+       definition@ ('%a')."
+      Print.lit_style decl_arg Print.lit_style def_arg
+
+let process_rule_parameters
+    ctxt
+    (def_key : Ast.ScopeDef.t Mark.pos)
+    (def : S.definition) :
+    Ast.expr Var.t Ident.Map.t
+    * (Ast.expr Var.t Mark.pos * typ) list Mark.pos option =
+  let decl_name, decl_pos = def_key in
+  (* let decl_pos = translate_pos RuleParam decl_pos in *)
+  let declared_params = Name_resolution.get_params ctxt decl_name in
+  match declared_params, def.S.definition_parameter with
+  | None, None -> Ident.Map.empty, None
+  | None, Some (_, pos) ->
+    Message.error
+      ~extra_pos:
+        [
+          "Declared here without arguments", decl_pos;
+          "Unexpected arguments appearing here", pos;
+        ]
+      "Extra arguments in this definition of@ %a." Ast.ScopeDef.format decl_name
+  | Some (_, pos), None ->
+    Message.error
+      ~extra_pos:
+        [
+          "Arguments declared here", pos;
+          "Definition missing the arguments", Mark.get def.S.definition_name;
+        ]
+      "This definition for %a is missing the arguments." Ast.ScopeDef.format
+      decl_name
+  | Some (pdecl, pos_decl), Some (pdefs, pos_def) ->
+    arglist_eq_check pos_decl pos_def (List.map fst pdecl) pdefs;
+    let local_vars, params =
+      List.fold_left_map
+        (fun local_vars ((lbl, pos), ty) ->
+          let v = Var.make lbl in
+          let local_vars = Ident.Map.add lbl v local_vars in
+          local_vars, ((v, pos), ty))
+        Ident.Map.empty pdecl
+    in
+    local_vars, Some (params, pos_def)
+
+(** Translates a surface definition into condition into a desugared
+    {!type:
+    Ast.rule} *)
+let process_default
+    (ctxt : Name_resolution.context)
+    (local_vars : Ast.expr Var.t Ident.Map.t)
+    (scope : ScopeName.t)
+    (def_key : Ast.ScopeDef.t Mark.pos)
+    (rule_id : RuleName.t)
+    (params : (Ast.expr Var.t Mark.pos * typ) list Mark.pos option)
+    (precond : Ast.expr boxed option)
+    (exception_situation : Ast.exception_situation)
+    (label_situation : Ast.label_situation)
+    (just : S.expression option)
+    (cons : S.expression) : Ast.rule =
+  let just =
+    match just with
+    | Some just ->
+      Some (translate_expr (Some scope) (Some def_key) ctxt local_vars just)
+    | None -> None
+  in
+  let just = merge_conditions precond just (Mark.get def_key) in
+  let cons = translate_expr (Some scope) (Some def_key) ctxt local_vars cons in
+  {
+    Ast.rule_just = just;
+    rule_cons = cons;
+    rule_parameter = params;
+    rule_exception = exception_situation;
+    rule_id;
+    rule_label = label_situation;
+  }
+
+(** Wrapper around {!val: process_default} that performs some name
+    disambiguation *)
+let process_def
+    (precond : Ast.expr boxed option)
+    (scope_uid : ScopeName.t)
+    (ctxt : Name_resolution.context)
+    (modul : Ast.modul)
+    (def : S.definition) : Ast.modul =
+  let scope : Ast.scope = ScopeName.Map.find scope_uid modul.module_scopes in
+  let scope_ctxt = ScopeName.Map.find scope_uid ctxt.scopes in
+  let def =
+    {
+      def with
+      definition_id =
+        RuleName.map_info
+          (Mark.map_mark Name_resolution.(translate_pos ScopeDef))
+          def.definition_id;
+    }
+  in
+  let def_key =
+    Name_resolution.get_def_key
+      (Mark.remove def.definition_name)
+      def.definition_state scope_uid ctxt
+      (Mark.get def.definition_name)
+  in
+  let scope_def_ctxt =
+    Ast.ScopeDef.Map.find def_key scope_ctxt.scope_defs_contexts
+  in
+  (* We add to the name resolution context the name of the parameter variable *)
+  let local_vars, param_uids =
+    process_rule_parameters ctxt (Mark.copy def.definition_name def_key) def
+  in
+  let scope_updated =
+    let scope_def = Ast.ScopeDef.Map.find def_key scope.scope_defs in
+    let rule_name = def.definition_id in
+    let label_situation =
+      match def.definition_label with
+      | Some (label_str, label_pos) ->
+        Ast.ExplicitlyLabeled
+          (Ident.Map.find label_str scope_def_ctxt.label_idmap, label_pos)
+      | None -> Ast.Unlabeled
+    in
+    let exception_situation =
+      match def.S.definition_exception_to with
+      | NotAnException -> Ast.BaseCase
+      | UnlabeledException -> (
+        match scope_def_ctxt.default_exception_rulename with
+        | None | Some (Name_resolution.Ambiguous _) ->
+          (* This should have been caught previously by
+             check_unlabeled_exception *)
+          assert false (* should not happen *)
+        | Some (Name_resolution.Unique (name, pos)) ->
+          ExceptionToRule (name, pos))
+      | ExceptionToLabel label_str -> (
+        try
+          let label_id =
+            Ident.Map.find (Mark.remove label_str) scope_def_ctxt.label_idmap
+          in
+          ExceptionToLabel (label_id, Mark.get label_str)
+        with Ident.Map.Not_found _ ->
+          Message.error ~pos:(Mark.get label_str)
+            "Unknown label for the scope variable %a: \"%s\"."
+            Ast.ScopeDef.format def_key (Mark.remove label_str))
+    in
+    let scope_def =
+      {
+        scope_def with
+        scope_def_rules =
+          RuleName.Map.add
+            (RuleName.map_info
+               (fun (s, _) -> s, Mark.get def.definition_name)
+               rule_name)
+            (process_default ctxt local_vars scope_uid
+               (def_key, Mark.get def.definition_name)
+               rule_name param_uids precond exception_situation label_situation
+               def.definition_condition def.definition_expr)
+            scope_def.scope_def_rules;
+      }
+    in
+    {
+      scope with
+      scope_defs = Ast.ScopeDef.Map.add def_key scope_def scope.scope_defs;
+    }
+  in
+  let module_scopes =
+    ScopeName.Map.add scope_uid scope_updated modul.module_scopes
+  in
+  { modul with module_scopes }
+
+(** Translates a {!type: S.rule} from the surface language *)
+let process_rule
+    (precond : Ast.expr boxed option)
+    (scope : ScopeName.t)
+    (ctxt : Name_resolution.context)
+    (modul : Ast.modul)
+    (rule : S.rule) : Ast.modul =
+  let rule =
+    {
+      rule with
+      rule_id =
+        RuleName.map_info
+          (Mark.map_mark Name_resolution.(translate_pos ScopeDef))
+          rule.rule_id;
+    }
+  in
+  let def = Name_resolution.surface_rule_to_def rule in
+  process_def precond scope ctxt modul def
+
+(** Translates assertions *)
+let process_assert
+    (precond : Ast.expr boxed option)
+    (scope_uid : ScopeName.t)
+    (ctxt : Name_resolution.context)
+    (modul : Ast.modul)
+    (asrt : S.expression)
+    (pos : Pos.t) : Ast.modul =
+  let scope : Ast.scope = ScopeName.Map.find scope_uid modul.module_scopes in
+  let asrt = translate_expr (Some scope_uid) None ctxt Ident.Map.empty asrt in
+  let assertion =
+    match precond with
+    | Some precond ->
+      Expr.eifthenelse precond asrt
+        (Expr.elit (LBool true) (Mark.get precond))
+        (Mark.get precond)
+    | None -> asrt
+  in
+  (* The assertion name is not very relevant and should not be used in error
+     messages, it is only a reference to designate the assertion instead of its
+     expression. *)
+  let assertion_name =
+    Ast.AssertionName.fresh
+      ("assert", Name_resolution.translate_pos Assertion pos)
+  in
+  let new_scope =
+    {
+      scope with
+      scope_assertions =
+        Ast.AssertionName.Map.add assertion_name assertion
+          scope.scope_assertions;
+    }
+  in
+  let module_scopes =
+    ScopeName.Map.add scope_uid new_scope modul.module_scopes
+  in
+  { modul with module_scopes }
+
+(** Translates a surface definition, rule or assertion *)
+let process_scope_use_item
+    (precond : S.expression option)
+    (scope : ScopeName.t)
+    (ctxt : Name_resolution.context)
+    (modul : Ast.modul)
+    (item : S.scope_use_item Mark.pos) : Ast.modul =
+  let precond =
+    Option.map (translate_expr (Some scope) None ctxt Ident.Map.empty) precond
+  in
+  match Mark.remove item with
+  | S.Rule rule -> process_rule precond scope ctxt modul rule
+  | S.Definition def -> process_def precond scope ctxt modul def
+  | S.Assertion asrt ->
+    process_assert precond scope ctxt modul asrt (Mark.get item)
+  | S.DateRounding (r, _) ->
+    let scope_uid = scope in
+    let scope : Ast.scope = ScopeName.Map.find scope_uid modul.module_scopes in
+    let r =
+      match r with
+      | S.Increasing -> Ast.Increasing
+      | S.Decreasing -> Ast.Decreasing
+    in
+    let new_scope =
+      match
+        List.find_opt
+          (fun (scope_opt, _) ->
+            scope_opt = Ast.DateRounding Ast.Increasing
+            || scope_opt = Ast.DateRounding Ast.Decreasing)
+          scope.scope_options
+      with
+      | Some (_, old_pos) ->
+        Message.error
+          ~extra_pos:["", old_pos; "", Mark.get item]
+          "You cannot set multiple date rounding modes."
+      | None ->
+        {
+          scope with
+          scope_options =
+            Mark.copy item (Ast.DateRounding r) :: scope.scope_options;
+        }
+    in
+    let module_scopes =
+      ScopeName.Map.add scope_uid new_scope modul.module_scopes
+    in
+    { modul with module_scopes }
+
+(** {1 Translating top-level items} *)
+
+(* If this is an unlabeled exception, ensures that it has a unique default
+   definition *)
+let check_unlabeled_exception
+    (scope : ScopeName.t)
+    (ctxt : Name_resolution.context)
+    (item : S.scope_use_item Mark.pos) : unit =
+  let scope_ctxt = ScopeName.Map.find scope ctxt.scopes in
+  match Mark.remove item with
+  | S.Rule _ | S.Definition _ -> (
+    let def_key, exception_to =
+      match Mark.remove item with
+      | S.Rule rule ->
+        ( Name_resolution.get_def_key
+            (Mark.remove rule.rule_name)
+            rule.rule_state scope ctxt (Mark.get rule.rule_name),
+          rule.rule_exception_to )
+      | S.Definition def ->
+        ( Name_resolution.get_def_key
+            (Mark.remove def.definition_name)
+            def.definition_state scope ctxt
+            (Mark.get def.definition_name),
+          def.definition_exception_to )
+      | _ -> assert false
+      (* should not happen *)
+    in
+    let scope_def_ctxt =
+      Ast.ScopeDef.Map.find def_key scope_ctxt.scope_defs_contexts
+    in
+    match exception_to with
+    | S.NotAnException | S.ExceptionToLabel _ -> ()
+    (* If this is an unlabeled exception, we check that it has a unique default
+       definition *)
+    | S.UnlabeledException -> (
+      match scope_def_ctxt.default_exception_rulename with
+      | None ->
+        Message.error ~pos:(Mark.get item)
+          "This exception does not have a corresponding definition."
+      | Some (Ambiguous pos) ->
+        Message.error ~pos:(Mark.get item)
+          ~pos_msg:(fun ppf -> Format.pp_print_text ppf "Ambiguous exception")
+          ~extra_pos:(List.map (fun p -> "Candidate definition", p) pos)
+          "%a" Format.pp_print_text
+          "This exception can refer to several definitions. Try using labels \
+           to disambiguate."
+      | Some (Unique _) -> ()))
+  | _ -> ()
+
+(** Translates a surface scope use, which is a bunch of definitions *)
+let process_scope_use
+    (ctxt : Name_resolution.context)
+    (modul : Ast.modul)
+    (use : S.scope_use) : Ast.modul =
+  let scope_uid = Name_resolution.get_scope ctxt use.scope_use_name in
+  (* Make sure the scope exists *)
+  let () = assert (ScopeName.Map.mem scope_uid modul.module_scopes) in
+  let precond = use.scope_use_condition in
+  List.iter (check_unlabeled_exception scope_uid ctxt) use.scope_use_items;
+  fold_left_catch_errors
+    (process_scope_use_item precond scope_uid ctxt)
+    modul use.scope_use_items
+
+let process_topdef
+    (ctxt : Name_resolution.context)
+    (modul : Ast.modul)
+    (is_public : bool)
+    (is_module_external : bool)
+    (def : S.top_def) : Ast.modul =
+  let id =
+    Ident.Map.find
+      (Mark.remove def.S.topdef_name)
+      ctxt.Name_resolution.local.topdefs
+  in
+  let translate_typ t = Name_resolution.process_type ctxt t in
+  let typ = translate_typ def.S.topdef_type in
+  let expr_opt =
+    match def.S.topdef_expr, def.S.topdef_args with
+    | None, _ -> None
+    | Some e, None ->
+      Some (Expr.unbox_closed (translate_expr None None ctxt Ident.Map.empty e))
+    | Some e, Some (args, _) ->
+      let local_vars, args =
+        List.fold_left_map
+          (fun local_vars ((lbl, pos), _) ->
+            let v = Var.make lbl in
+            Ident.Map.add lbl v local_vars, (v, pos))
+          Ident.Map.empty args
+      in
+      let body = translate_expr None None ctxt local_vars e in
+      let tys =
+        match Type.unquantify typ with
+        | TArrow (targs, _tret), _ -> targs
+        | _ -> assert false
+      in
+      let () =
+        match tys with
+        | [(TTuple _, pos)] ->
+          Message.error ~pos
+            "This functions has only one argument that is a tuple, which might \
+             be confused with a function having multiple arguments, one per \
+             element of the tuple. Please decompose the tuple into multiple \
+             arguments in this function declaration to avoid the ambiguity."
+        | _ -> ()
+      in
+      let e = Expr.make_abs args body tys (Mark.get def.S.topdef_name) in
+      Some (Expr.unbox_closed e)
+  in
+  let topdef_visibility = if is_public then Public else Private in
+  let module_topdefs =
+    let err msg =
+      Message.error
+        ~extra_pos:
+          [
+            "", Mark.get (TopdefName.get_info id); "", Mark.get def.S.topdef_name;
+          ]
+        (msg ^^ " for %a.") TopdefName.format id
+    in
+    let topdef_arg_names =
+      match def.topdef_args with
+      | None -> []
+      | Some l ->
+        List.map
+          (fun (arg, _ty) ->
+            Mark.map_mark Name_resolution.(translate_pos FunctionArgument) arg)
+          (Mark.remove l)
+    in
+    TopdefName.Map.update id
+      (fun def0 ->
+        match def0, expr_opt with
+        | None, Some _ when is_module_external ->
+          err "Unexpected definition contents in an external module"
+        | None, eopt ->
+          Some
+            {
+              Ast.topdef_expr = eopt;
+              topdef_visibility;
+              topdef_type = typ;
+              topdef_arg_names;
+              topdef_external = is_module_external;
+            }
+        | Some def0, eopt -> (
+          if not (Type.equal def0.Ast.topdef_type typ) then
+            err "Conflicting type definitions"
+          else
+            let topdef_visibility =
+              match def0.topdef_visibility, topdef_visibility with
+              | Private, Private -> Private
+              | Public, _ | _, Public -> Public
+            in
+            match def0.Ast.topdef_expr, eopt with
+            | None, None -> err "Multiple declarations"
+            | Some _, Some _ -> err "Multiple definitions"
+            | (Some _ as topdef_expr), None ->
+              Some
+                {
+                  Ast.topdef_expr;
+                  topdef_visibility;
+                  topdef_type = typ;
+                  topdef_arg_names;
+                  topdef_external = false;
+                }
+            | None, (Some _ as topdef_expr) ->
+              Some { def0 with Ast.topdef_expr; topdef_visibility }))
+      modul.module_topdefs
+  in
+  { modul with module_topdefs }
+
+let attribute_to_io (attr : S.scope_decl_context_io) : Ast.io =
+  {
+    Ast.io_output = attr.scope_decl_context_io_output;
+    Ast.io_input =
+      Mark.map
+        (fun io ->
+          match io with
+          | S.Input -> Runtime.OnlyInput
+          | S.Internal -> Runtime.NoInput
+          | S.Context -> Runtime.Reentrant)
+        attr.scope_decl_context_io_input;
+  }
+
+let init_scope_defs
+    (ctxt : Name_resolution.context)
+    (scope_context : Name_resolution.scope_context) :
+    Ast.scope_def Ast.ScopeDef.Map.t =
+  (* Initializing the definitions of all scopes and subscope vars, with no rules
+     yet inside *)
+  let add_def _ v scope_def_map =
+    let pos =
+      match v with
+      | ScopeVar v | SubScope (v, _) ->
+        Name_resolution.(
+          translate_pos ScopeDef (Mark.get (ScopeVar.get_info v)))
+    in
+    let new_def v_sig io =
+      {
+        Ast.scope_def_rules = RuleName.Map.empty;
+        Ast.scope_def_typ = v_sig.Name_resolution.var_sig_typ;
+        Ast.scope_def_is_condition = v_sig.var_sig_is_condition;
+        Ast.scope_def_parameters = v_sig.var_sig_parameters;
+        Ast.scope_def_io = io;
+      }
+    in
+    match v with
+    | ScopeVar v -> (
+      let v_sig = ScopeVar.Map.find v ctxt.Name_resolution.var_typs in
+      match v_sig.var_sig_states_list with
+      | [] ->
+        let def_key = (v, pos), Ast.ScopeDef.Var None in
+        Ast.ScopeDef.Map.add def_key
+          (new_def v_sig (attribute_to_io v_sig.var_sig_io))
+          scope_def_map
+      | states ->
+        let last_state = List.length states - 1 in
+        let scope_def, _ =
+          List.fold_left
+            (fun (acc, i) state ->
+              let def_key = (v, pos), Ast.ScopeDef.Var (Some state) in
+              let original_io = attribute_to_io v_sig.var_sig_io in
+              (* The first state should have the input I/O of the original
+                 variable, and the last state should have the output I/O of the
+                 original variable. All intermediate states shall have
+                 "internal" I/O.*)
+              let io_input =
+                if i = 0 then original_io.io_input
+                else NoInput, Mark.get (StateName.get_info state)
+              in
+              let io_output =
+                if i = last_state then original_io.io_output
+                else false, Mark.get (StateName.get_info state)
+              in
+              let def = new_def v_sig { io_input; io_output } in
+              Ast.ScopeDef.Map.add def_key def acc, i + 1)
+            (scope_def_map, 0) states
+        in
+        scope_def)
+    | SubScope (v0, subscope_uid) ->
+      let sub_scope_def = Name_resolution.get_scope_context ctxt subscope_uid in
+      let forward_out =
+        (Name_resolution.get_var_io ctxt v0).scope_decl_context_io_output
+      in
+      let ctxt =
+        List.fold_left
+          (fun ctx m ->
+            {
+              ctxt with
+              local = ModuleName.Map.find m ctx.Name_resolution.modules;
+            })
+          ctxt
+          (ScopeName.path subscope_uid)
+      in
+      let var_def =
+        {
+          Ast.scope_def_rules = RuleName.Map.empty;
+          Ast.scope_def_typ =
+            ( TStruct sub_scope_def.scope_out_struct,
+              Mark.get (ScopeVar.get_info v0) );
+          Ast.scope_def_is_condition = false;
+          Ast.scope_def_parameters = None;
+          Ast.scope_def_io =
+            {
+              io_input = NoInput, Mark.get forward_out;
+              io_output = forward_out;
+            };
+        }
+      in
+      let scope_def_map =
+        Ast.ScopeDef.Map.add
+          ((v0, pos), Ast.ScopeDef.Var None)
+          var_def scope_def_map
+      in
+      Ident.Map.fold
+        (fun _ v scope_def_map ->
+          match v with
+          | SubScope _ ->
+            (* TODO: if we consider "input subscopes" at some point their inputs
+               will need to be forwarded here *)
+            scope_def_map
+          | ScopeVar v ->
+            (* TODO: shouldn't we ignore internal variables too at this point
+               ? *)
+            let v_sig = ScopeVar.Map.find v ctxt.Name_resolution.var_typs in
+            let def_key =
+              ( (v0, Mark.get (ScopeVar.get_info v)),
+                Ast.ScopeDef.SubScopeInput
+                  { name = subscope_uid; var_within_origin_scope = v } )
+            in
+            Ast.ScopeDef.Map.add def_key
+              {
+                Ast.scope_def_rules = RuleName.Map.empty;
+                Ast.scope_def_typ = v_sig.var_sig_typ;
+                Ast.scope_def_is_condition = v_sig.var_sig_is_condition;
+                Ast.scope_def_parameters = v_sig.var_sig_parameters;
+                Ast.scope_def_io = attribute_to_io v_sig.var_sig_io;
+              }
+              scope_def_map)
+        sub_scope_def.Name_resolution.var_idmap scope_def_map
+  in
+  Ident.Map.fold add_def scope_context.var_idmap Ast.ScopeDef.Map.empty
+
+(** Main function of this module *)
+let translate_program
+    (ctxt : Name_resolution.context)
+    ?(allow_external = Global.options.gen_external)
+    (modules_contents : Surface.Ast.module_content ModuleName.Map.t)
+    (surface : S.program) : Ast.program =
+  let get_scope s_uid =
+    let s_context = ScopeName.Map.find s_uid ctxt.scopes in
+    let scope_vars =
+      Ident.Map.fold
+        (fun _ v acc ->
+          match v with
+          | SubScope _ -> acc
+          | ScopeVar v -> (
+            let v_sig = ScopeVar.Map.find v ctxt.Name_resolution.var_typs in
+            match v_sig.Name_resolution.var_sig_states_list with
+            | [] -> ScopeVar.Map.add v Ast.WholeVar acc
+            | states -> ScopeVar.Map.add v (Ast.States states) acc))
+        s_context.Name_resolution.var_idmap ScopeVar.Map.empty
+    in
+    let scope_sub_scopes =
+      Ident.Map.fold
+        (fun _ v acc ->
+          match v with
+          | ScopeVar _ -> acc
+          | SubScope (sub_var, sub_scope) ->
+            ScopeVar.Map.add sub_var sub_scope acc)
+        s_context.Name_resolution.var_idmap ScopeVar.Map.empty
+    in
+    {
+      Ast.scope_vars;
+      scope_sub_scopes;
+      scope_defs = init_scope_defs ctxt s_context;
+      scope_assertions = Ast.AssertionName.Map.empty;
+      scope_meta_assertions = [];
+      scope_options = [];
+      scope_uid = s_uid;
+      scope_visibility = s_context.Name_resolution.scope_visibility;
+    }
+  in
+  let get_scopes mctx =
+    Ident.Map.fold
+      (fun _ tydef acc ->
+        match tydef with
+        | Name_resolution.TScope (s_uid, _) ->
+          ScopeName.Map.add s_uid (get_scope s_uid) acc
+        | _ -> acc)
+      mctx.Name_resolution.typedefs ScopeName.Map.empty
+  in
+  let program_modules =
+    let module_topdefs (mctx : Name_resolution.module_context) =
+      if Global.options.whole_program then
+        (* This will be populated later on *)
+        TopdefName.Map.empty
+      else
+        Ident.Map.fold
+          (fun _ name acc ->
+            let topdef_type, topdef_visibility =
+              TopdefName.Map.find name ctxt.Name_resolution.topdefs
+            in
+            TopdefName.Map.add name
+              {
+                Ast.topdef_expr = None;
+                topdef_visibility;
+                topdef_type;
+                topdef_arg_names = [];
+                topdef_external = mctx.is_external;
+              }
+              acc)
+          mctx.topdefs TopdefName.Map.empty
+    in
+    ModuleName.Map.mapi
+      (fun mname mctx ->
+        let m =
+          {
+            Ast.module_scopes = get_scopes mctx;
+            module_topdefs = module_topdefs mctx;
+          }
+        in
+        m, Ast.Hash.module_binding mname m)
+      ctxt.modules
+  in
+  let program_root =
+    {
+      Ast.module_scopes = get_scopes ctxt.Name_resolution.local;
+      Ast.module_topdefs = TopdefName.Map.empty;
+    }
+  in
+  let program_ctx =
+    let open Name_resolution in
+    let ctx_scopes mctx acc =
+      Ident.Map.fold
+        (fun _ tydef acc ->
+          match tydef with
+          | TScope (s_uid, info) -> ScopeName.Map.add s_uid info acc
+          | _ -> acc)
+        mctx.Name_resolution.typedefs acc
+    in
+    let ctx_modules =
+      let rec aux mctx =
+        let subs =
+          Ident.Map.fold
+            (fun _ m acc ->
+              let mctx = ModuleName.Map.find m ctxt.Name_resolution.modules in
+              let deps = aux mctx in
+              let hash = snd (ModuleName.Map.find m program_modules) in
+              ModuleName.Map.add m
+                {
+                  deps;
+                  intf_id =
+                    {
+                      hash;
+                      is_external = mctx.is_external;
+                      is_stdlib =
+                        (ModuleName.Map.find m modules_contents)
+                          .S.module_is_stdlib;
+                    };
+                }
+                acc)
+            mctx.used_modules ModuleName.Map.empty
+        in
+        subs
+      in
+      aux ctxt.local
+    in
+    let ctx_public_types =
+      StructName.Map.fold
+        (fun name (_, visibility) acc ->
+          if visibility = Public then TypeIdent.Set.add (Struct name) acc
+          else acc)
+        ctxt.structs
+      @@ EnumName.Map.fold
+           (fun name (_, visibility) acc ->
+             if visibility = Public then TypeIdent.Set.add (Enum name) acc
+             else acc)
+           ctxt.enums
+      @@ AbstractType.Map.fold
+           (fun name visibility acc ->
+             if visibility = Public then TypeIdent.Set.add (Abstract name) acc
+             else acc)
+           ctxt.abstract_types TypeIdent.Set.empty
+    in
+    {
+      ctx_structs = StructName.Map.map fst ctxt.structs;
+      ctx_enums = EnumName.Map.map fst ctxt.enums;
+      ctx_abstract_types =
+        AbstractType.(
+          Map.fold (fun t _ -> Set.add t) ctxt.abstract_types Set.empty);
+      ctx_scopes =
+        ModuleName.Map.fold
+          (fun _ -> ctx_scopes)
+          ctxt.modules
+          (ctx_scopes ctxt.local ScopeName.Map.empty);
+      ctx_topdefs = ctxt.topdefs;
+      ctx_struct_fields = ctxt.local.field_idmap;
+      ctx_enum_constrs = ctxt.local.constructor_idmap;
+      ctx_public_types;
+      ctx_scope_index =
+        Ident.Map.filter_map
+          (fun _ -> function
+            | Name_resolution.TScope (s, _) -> Some s | _ -> None)
+          ctxt.local.typedefs;
+      ctx_modules;
+    }
+  in
+  let program_module_name =
+    surface.Surface.Ast.program_module
+    |> Option.map
+       @@ fun { Surface.Ast.module_name; module_external } ->
+       let mname = ModuleName.fresh module_name in
+       let hash_placeholder = Hash.raw 0 in
+       ( mname,
+         {
+           hash = hash_placeholder;
+           is_external = module_external;
+           is_stdlib = false;
+         } )
+  in
+  let desugared =
+    {
+      Ast.program_lang = surface.program_lang;
+      Ast.program_module_name;
+      Ast.program_modules = ModuleName.Map.map fst program_modules;
+      Ast.program_ctx;
+      Ast.program_root;
+    }
+  in
+  let process_code_block ctxt modul ~is_meta block =
+    fold_left_catch_errors
+      (fun modul item ->
+        match Mark.remove item with
+        | S.ScopeUse use -> process_scope_use ctxt modul use
+        | S.Topdef def ->
+          process_topdef ctxt modul is_meta ctxt.local.is_external def
+        | S.ScopeDecl _ | S.StructDecl _ | S.EnumDecl _ | S.AbstractTypeDecl _
+          ->
+          modul)
+      modul block
+  in
+  let rec process_structure ctxt (modul : Ast.modul) (item : S.law_structure) :
+      Ast.modul =
+    match item with
+    | S.LawHeading (_, children) ->
+      fold_left_catch_errors
+        (fun modul child -> process_structure ctxt modul child)
+        modul children
+    | S.CodeBlock (block, _, is_meta) ->
+      process_code_block ctxt modul ~is_meta block
+    | S.ModuleDef _ | S.LawInclude _ | S.LawText _ | S.ModuleUse _ -> modul
+  in
+  let desugared =
+    {
+      desugared with
+      program_root =
+        fold_left_catch_errors (process_structure ctxt) desugared.program_root
+          surface.S.program_items;
+    }
+  in
+  let desugared =
+    match Global.options.gen_external, ctxt.local.is_external with
+    | true, false -> (
+      match desugared.program_module_name with
+      | None ->
+        Message.error
+          "Flag @{<cyan>--gen-external@} was supplied, but the given file is \
+           not marked as an external module."
+      | Some (modname, _) ->
+        Message.error
+          ~pos:(Mark.get (ModuleName.get_info modname))
+          "Flag @{<cyan>--gen-external@} was supplied, but %a is not marked as \
+           external."
+          ModuleName.format modname)
+    | false, false -> desugared
+    | false, true ->
+      if allow_external then desugared
+      else
+        let modname, _ = Option.get desugared.program_module_name in
+        Message.error
+          ~pos:(Mark.get (ModuleName.get_info modname))
+          "@[<v>@[<hov>This module is marked as \"@{<cyan>external@}\", which \
+           means@ that@ its@ implementation@ in@ the@ backend@ language@ is@ \
+           expected@ to@ be@ supplied@ by@ the@ user@ rather@ than@ \
+           compiled.@]@,\
+           @,\
+           @[<hov 2>@{<bold>Hint:@} You may want to use the flag \
+           @{<cyan>--gen-external@}@ to@ generate@ a@ template@ \
+           implementation.@]@]"
+    | true, true ->
+      {
+        desugared with
+        program_root =
+          {
+            desugared.program_root with
+            module_topdefs =
+              TopdefName.Map.mapi
+                (fun name topdef ->
+                  let typ, _visibility =
+                    TopdefName.Map.find name ctxt.topdefs
+                  in
+                  let pos = Mark.get (TopdefName.get_info name) in
+                  let impossible =
+                    EFatalError Runtime.Impossible, Untyped { pos }
+                  in
+                  let expr =
+                    match topdef.Ast.topdef_arg_names, Type.unquantify typ with
+                    | [], _ -> impossible
+                    | args, (TArrow (targs, _), _) ->
+                      let body =
+                        Expr.bind
+                          (Array.of_list
+                             (List.map (fun (s, _) -> Var.make s) args))
+                          (Expr.box impossible)
+                      in
+                      Expr.eabs body (List.map Mark.get args) targs
+                        (Untyped { pos })
+                      |> Expr.unbox
+                    | _ -> impossible
+                  in
+                  {
+                    topdef with
+                    Ast.topdef_expr = Some expr;
+                    topdef_external = false;
+                  })
+                desugared.program_root.module_topdefs;
+          };
+      }
+  in
+  let desugared =
+    if Global.options.whole_program then
+      (* Now, we can populate modules code items with their actual code *)
+      ModuleName.Map.fold
+        (fun mn content (prgm : Ast.program) ->
+          let local = ModuleName.Map.find mn ctxt.modules in
+          let ctxt = { ctxt with local } in
+          let modul = ModuleName.Map.find mn prgm.program_modules in
+          let modul =
+            match content.S.module_items with
+            | Interface _decl_items ->
+              (* Unreachable: nothing to do *)
+              assert false
+            | Code module_items ->
+              fold_left_catch_errors (process_structure ctxt) modul module_items
+          in
+          let program_modules =
+            ModuleName.Map.add mn modul prgm.program_modules
+          in
+          { prgm with program_modules })
+        modules_contents desugared
+    else desugared
+  in
+  let program_module_name =
+    Option.map
+      (fun (mname, intf_id) ->
+        ( mname,
+          {
+            intf_id with
+            hash = Ast.Hash.module_binding mname desugared.Ast.program_root;
+          } ))
+      desugared.Ast.program_module_name
+  in
+  { desugared with Ast.program_module_name }

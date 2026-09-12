@@ -1,0 +1,137 @@
+{0 The Catala compiler}
+
+{1 Architecture}
+
+The architecture of the Catala compiler is inspired by
+{{: https://compcert.org/} CompCert} or the {{: https://nanopass.org/} Nanopass}
+framework, and is structured around many intermediate representations connected
+by successive translations passes.
+
+Here is the recap picture of the different intermediate representations of the
+Catala compiler. This process is gathered inside {!module: Driver}.
+
+{v
+                             |
+surface/                     |   Parsing
+  .                          |   Separate code from legislation
+  .                          v
+                     +---------------+
+                     |               |
+                     |  Surface AST  |----------> HTML, pdf
+                     |               |
+                     +---------------+
+                             |
+                             v
+desugared/                   |   Name resolution
+  .                          |   Remove syntactic sugar
+  .                          |   Disambiguation
+                             v
+                   +------------------+
+                   |                  |
+                   |  Desugared AST   |
+                   |                  |
+                   +------------------+
+                             |
+                             |   Build rule trees for each definition
+                             |   Intra-scope dependency analysis
+                             v
+scopelang/                   |   Overload resolution
+  .                          |   Thunking of subscope arguments
+  .                          v
+                  +--------------------+
+                  |                    |
+                  | Scope language AST |
+                  |                    |
+                  +--------------------+
+                             |
+                             |   Inter-scope dependency analysis
+                             |   Typing
+                             v
+dcalc/                       |   Convert scopes into functions
+  .                          v
+  .              +----------------------+
+                 |                      |
+                 | Default calculus AST |-------> (interpret)
+                 |                      |
+                 +----------------------+
+                             |
+                             |   Invariant checks
+                             |   Automatic backend test generation
+                             v
+lcalc/                       |   Compile the default terms
+  .                          |   Expansion of assertions
+  .                          v
+                 +----------------------+
+                 |                      |
+                 | Lambda calculus AST  |----+--> (interpret)
+                 |                      |    |
+                 +----------------------+    +--> OCaml
+                             |
+                             |   (optional) closure conversion
+                             |   (optional) monomorphisation
+                             |   Reification of positions
+                             |   (optional) large expression splitting
+                             |   Collision-free renaming
+                             v
+scalc/                       |   Turn expressions into statements
+  .                          v
+  .            +--------------------------+
+               |                          |
+               |  Statement calculus AST  |--+--> Python
+               |                          |  |
+               +--------------------------+  +--> C
+                                             |
+                                             +--> Java
+v}
+
+{1 List of top-level modules }
+
+Each of those intermediate representation is bundled into its own [dune] bundle
+module. Click on the items below if you want to dive straight into the signatures.
+
+{!modules: Surface Desugared Scopelang Dcalc Lcalc Scalc }
+
+More documentation can be found on each intermediate representations here.
+
+{ul
+{li {{: surface.html} The surface representation}}
+{li {{: desugared.html} The desugared representation}}
+{li {{: scopelang.html} The scope language }}
+{li {{: dcalc.html} The default calculus}}
+{li {{: lcalc.html} The lambda calculus}}
+{li {{: scalc.html} The statement calculus}}
+}
+
+Most of these intermediate representations use a {{: shared_ast.html} shared AST libary}.
+The main compilation chain is defined in {!module: Driver}.
+
+{!modules: Shared_ast Driver}
+
+Additionally, the compiler features a verification plugin that generates
+verification condition for proof backends. More information can be found here:
+
+{ul
+{li {{: verification.html} Verification}}
+}
+
+Two more modules contain additional features for the compiler:
+
+{ul
+{li {{: literate.html} Literate programming}}
+{li {{: catala_utils.html} Compiler utilities}}
+}
+
+The Catala runtimes documentation is available here:
+
+{!modules: Runtime Runtime_jsoo.Runtime}
+
+Last, it is possible to customize the backend to the compiler using a plugin
+mechanism. The API is defined inside the following module:
+
+{!module: Driver.Plugin}
+
+See the examples in the [plugins/] subdirectory:
+
+{ul
+{li {{: plugins.html} Backend plugin examples}}
+}

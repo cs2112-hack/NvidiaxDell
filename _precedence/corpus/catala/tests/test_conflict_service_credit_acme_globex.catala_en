@@ -1,0 +1,43 @@
+# Expected conflict — Globex service credits (gold CONF-002)
+
+A 99.4% month sits in the first band, where SYN-009 says 10% and SYN-010 says 20%. Both
+definitions apply, neither is an exception to the other, and the interpreter says so. This
+test exists to lock that behaviour in: if it ever starts returning a number, someone has
+invented a precedence the documents do not contain.
+
+> Using Conflict_service_credit_acme_globex as G
+
+```catala
+declaration scope TestGlobexConflict:
+  output computation content G.GlobexServiceCredit
+
+scope TestGlobexConflict:
+  definition computation equals
+    output of G.GlobexServiceCredit with {
+      -- monthly_uptime: 99.4
+      -- monthly_service_fee: $30,000
+    }
+```
+
+```catala-test-cli
+$ catala test-scope TestGlobexConflict
+┌─[ERROR]─
+│
+│  During evaluation: conflict between multiple valid consequences for
+│  assigning the same variable.
+│
+├─➤ src/conflict_service_credit_acme_globex.catala_en:39.24-27:
+│    │
+│ 39 │     consequence equals 10%
+│    │                        ‾‾‾
+├─ CONFLICT — service credits, Acme Cloud Systems / Globex Retail Group (ACME-GBX-MSA-2026)
+│  └─ SYN-009 § 2.1 — Service Level Exhibit tier table
+│
+├─➤ src/conflict_service_credit_acme_globex.catala_en:59.24-27:
+│    │
+│ 59 │     consequence equals 20%
+│    │                        ‾‾‾
+└─ CONFLICT — service credits, Acme Cloud Systems / Globex Retail Group (ACME-GBX-MSA-2026)
+   └─ SYN-010 § 2.1 — Service Level Addendum tier table
+#return code 123#
+```

@@ -1,0 +1,47 @@
+# Unrecognised code block labels
+
+Only ```` ```catala ```` and ```` ```catala-metadata ```` are compiled. A block
+labelled with anything else is plain text, so code inside it is silently
+dropped; that is easy to do by accident since the file extension is
+`.catala_en`. Such a label now raises a warning.
+
+```catala_en
+declaration scope Dropped:
+  output a content integer
+```
+
+Labels that are not Catala-like stay silent:
+
+```python
+print("not catala")
+```
+
+```
+plain block
+```
+
+And the recognised ones are unaffected:
+
+```catala
+declaration scope Kept:
+  output a content integer
+scope Kept:
+  definition a equals 1
+```
+
+```catala-test-cli
+$ catala test-scope Kept
+┌─[WARNING]─
+│
+│  Unrecognised code block label ```catala_en: this block is treated as plain text, so any code inside it is ignored.
+│  Did you mean ```catala or ```catala-metadata ?
+│
+├─➤ tests/parsing/good/unrecognised_code_fence.catala_en:8:
+│   │
+│ 8 │ ```catala_en
+│   │ ‾‾‾‾‾‾‾‾‾‾‾‾
+└─
+┌─[RESULT]─ Kept ─
+│ a = 1
+└─
+```

@@ -1,0 +1,46 @@
+```catala
+declaration scope A:
+  output w content integer
+
+scope A:
+  #[error.message = "Bad attribute"]
+  definition w equals 1 + 2 + 3
+  #[error.message = "Upper bound for w"]
+  assertion w < 6
+  #[error.message = "Test resulting value for w"]
+  assertion w = 6
+  assertion w > 6
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[WARNING]─
+│
+│  Attribute #[error.message] is not allowed in this context.
+│  It must be put before an assertion or impossible.
+│
+├─➤ tests/assertions/bad/simple.catala_en:6.3-37:
+│   │
+│ 6 │   #[error.message = "Bad attribute"]
+│   │   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─
+┌─[ERROR]─ 1/2 ─
+│
+│  Assertion failed: Upper bound for w: 6 ≮ 6
+│
+├─➤ tests/assertions/bad/simple.catala_en:9.3-18:
+│   │
+│ 9 │   assertion w < 6
+│   │   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─
+┌─[ERROR]─ 2/2 ─
+│
+│  Assertion failed: 6 ≯ 6
+│
+├─➤ tests/assertions/bad/simple.catala_en:12.3-18:
+│    │
+│ 12 │   assertion w > 6
+│    │   ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─
+#return code 123#
+```

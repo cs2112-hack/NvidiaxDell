@@ -1,0 +1,28 @@
+# Fact pattern — Acme target bonus (FP-059)
+
+> Using Incentive_comp_acme as I
+
+## FP-059 — 15% of a $165,000 base
+
+```catala
+#[test]
+declaration scope TestFp059:
+  output computation content I.IncentiveCompAcme
+
+scope TestFp059:
+  definition computation equals
+    output of I.IncentiveCompAcme with { -- annual_base_salary: $165,000 }
+  assertion computation.target_bonus = $24,750
+  assertion computation.target_bonus_rate = 15%
+```
+
+```catala-test-cli
+$ catala test-scope TestFp059
+┌─[RESULT]─ TestFp059 ─
+│ computation =
+│   IncentiveCompAcme {
+│     -- target_bonus_rate: 0.15
+│     -- target_bonus: $24,750.00
+│   }
+└─
+```

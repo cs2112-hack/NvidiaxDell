@@ -1,0 +1,456 @@
+/* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2024 Inria, contributor:
+   Denis Merigoux <denis.merigoux@inria.fr>, Louis Gesbert
+   <louis.gesbert@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. */
+
+#ifndef __CATALA_RUNTIME_H__
+#define __CATALA_RUNTIME_H__
+
+#include <gmp.h>
+#include <dates_calc.h>
+
+/* --- Error handling --- */
+
+typedef enum catala_error_code
+{
+  catala_assertion_failed,
+  catala_no_value,
+  catala_conflict,
+  catala_division_by_zero,
+  catala_list_empty,
+  catala_not_same_length,
+  catala_uncomparable_values,
+  catala_date_error,
+  catala_impossible,
+  catala_malloc_error
+} catala_error_code;
+
+typedef struct catala_code_position
+{
+    const char *filename;
+    unsigned int start_line;
+    unsigned int start_column;
+    unsigned int end_line;
+    unsigned int end_column;
+} catala_code_position;
+
+struct catala_error
+{
+  const catala_code_position * position;
+  int nb_positions;
+  catala_error_code code;
+  const char * note; /* Can be NULL */
+};
+
+void catala_error(catala_error_code code,
+                  const catala_code_position * pos,
+                  const int nb_pos,
+                  const char * note);
+
+/* --- Memory allocations --- */
+
+void* catala_malloc (size_t sz);
+
+void catala_free_all(void);
+
+void catala_set_persistent_malloc(void);
+void catala_unset_persistent_malloc(void);
+/* These two functions can be used for switching an init section to persistent
+   malloc, then switching back to catala built-in malloc. In other words, any
+   calls to `catala_malloc` done between the two will not be affected by
+   `catala_free_all()`. Calls can be nested, but errors reset the context. */
+#define CATALA_GET_LAZY(X, X_INIT) (X ? X : (catala_set_persistent_malloc(), X = X_INIT, catala_unset_persistent_malloc(), X))
+
+/* --- Base types --- */
+
+#define CATALA_BOOL const int*
+#define CATALA_UNIT const void*
+#define CATALA_INT mpz_srcptr
+#define CATALA_DEC mpq_srcptr
+#define CATALA_MONEY mpz_srcptr
+#define CATALA_DATE const dc_date*
+#define CATALA_DURATION const dc_period*
+#define CATALA_ARRAY(_) catala_array*
+#define CATALA_POSITION const catala_code_position*
+
+typedef struct tuple_element {
+  const void* content;
+} tuple_element;
+#define CATALA_TUPLE(_) tuple_element*
+
+#define CATALA_EXN(X) CATALA_OPTION(CATALA_TUPLE(X,CATALA_POSITION))
+
+#define CLOSURE_ENV void**
+
+typedef struct catala_closure {
+  void (*funcp)(void);
+  const CLOSURE_ENV env;
+} catala_closure;
+
+extern const int * const catala_true;
+#define CATALA_TRUE catala_true
+
+extern const int * const catala_false;
+#define CATALA_FALSE catala_false
+
+extern const int catala_unitval;
+#define CATALA_UNITVAL &catala_unitval
+
+typedef struct catala_array {
+  size_t size;
+  void const ** elements;
+} catala_array;
+
+enum catala_option_code {
+  catala_option_none,
+  catala_option_some
+};
+
+typedef struct catala_option {
+  enum catala_option_code code;
+  const void* payload;
+} catala_option;
+
+#define CATALA_OPTION(_) catala_option*
+
+extern const catala_option catala_none;
+#define CATALA_NONE &catala_none
+
+const CATALA_OPTION(X) catala_some (const void* x);
+
+CATALA_BOOL catala_isnone (const CATALA_OPTION() opt);
+
+/* --- Constructors --- */
+
+CATALA_BOOL catala_new_bool(const int);
+
+CATALA_INT catala_new_int(const signed long int val);
+
+/* Arg is a null-terminated string */
+CATALA_INT catala_new_int_str(const char* val);
+
+CATALA_DEC catala_new_dec (const signed long int units,
+                           const unsigned long int decimals);
+
+CATALA_DEC catala_new_frac (const signed long int num,
+                            const unsigned long int den);
+
+/* Arg is a null-terminated string that must be in fraction form (eg 1234/100,
+   not 12.34) */
+CATALA_DEC catala_new_dec_str(const char* val);
+
+CATALA_MONEY catala_new_money(const signed long int val);
+
+/* Arg is a null-terminated string */
+CATALA_MONEY catala_new_money_str(const char* val);
+
+CATALA_DATE catala_new_date(const signed long int year,
+                            const unsigned long int month,
+                            const unsigned long int day);
+
+CATALA_DURATION catala_new_duration(const long int years,
+                                    const long int months,
+                                    const long int days);
+
+CATALA_ARRAY(X) catala_new_array(const int size, ...);
+void catala_set_array(CATALA_ARRAY(X) ret, const int size, ...);
+
+CATALA_TUPLE(_) catala_new_tuple(const int size, ...);
+
+/* --- Value embedding --- */
+
+/*   - type definitions - */
+
+/* For printing */
+struct catala_buf {
+  /* Format is expected to understand gmp specifiers
+     (https://gmplib.org/manual/Formatted-Output-Strings) */
+  void (*printf)(const char * format, ...);
+  int indent;
+  const void* (*flush)(void);
+  /* return NULL if printing is to a device, return the final result of the
+     printings if it is to an object */
+};
+extern struct catala_buf catala_stdbuf;
+extern struct catala_buf catala_errbuf;
+extern struct catala_buf catala_strbuf;
+
+enum catala_type_kind {
+  UNINITIALIZED,
+  UNIT,
+  BOOL,
+  INTEGER,
+  MONEY,
+  DECIMAL,
+  DATE,
+  DURATION,
+  POSITION,
+  ARRAY,
+  TUPLE,
+  STRUCT,
+  ENUM,
+  EXTERNAL,
+  FUNCTION,
+  POLY
+};
+
+struct catala_label_type;
+
+struct catala_tstruct {
+  const char* name;
+  int size;
+  struct catala_label_type * fields;
+};
+
+struct catala_tenum {
+  const char* name;
+  int size;
+  struct catala_label_type * cases;
+};
+
+struct catala_texternal {
+  const char* name;
+  int (*equal)(const catala_code_position*, const void*, const void*);
+  int (*compare)(const catala_code_position*, const void*, const void*);
+  void (*print)(struct catala_buf, const void*);
+  void (*to_json)(struct catala_buf, const void*);
+  void* (*from_json)(const catala_code_position*, const char *);
+};
+
+typedef struct catala_type {
+  enum catala_type_kind kind;
+  union {
+    struct catala_type* tarray; /* element type */
+    catala_array /* of catala_type */ ttuple;
+    struct catala_tstruct tstruct;
+    struct catala_tenum tenum;
+    struct catala_texternal texternal;
+  } contents;
+} catala_type;
+
+struct catala_label_type {
+  const char* name;
+  struct catala_type ty;
+};
+
+typedef struct catala_value {
+  catala_type t;
+  const void* v;
+} catala_value;
+
+/*   - embedding operators -    */
+
+catala_value embed (catala_type t, const void* v);
+int catala_equal (const catala_type ty, const catala_code_position* pos, const void* x, const void* y);
+int catala_compare (const catala_type ty, const catala_code_position* pos, const void* x, const void* y);
+
+void catala_print (struct catala_buf, const catala_value val);
+void catala_tojson (struct catala_buf, const catala_value val);
+void* catala_fromjson (const catala_type, const catala_code_position*, const char*);
+
+/*   - base embedded types -    */
+
+extern const catala_type catala_type_unit;
+extern const catala_type catala_type_bool;
+extern const catala_type catala_type_integer;
+extern const catala_type catala_type_decimal;
+extern const catala_type catala_type_money;
+extern const catala_type catala_type_date;
+extern const catala_type catala_type_duration;
+extern const catala_type catala_type_position;
+extern const catala_type catala_type_function;
+extern const catala_type catala_type_poly;
+const catala_type catala_type_array(const catala_type);
+const catala_type catala_type_tuple(int size, ...);
+const catala_type catala_type_struct(catala_type* ret,
+                                     struct catala_label_type *const fields,
+                                     const char* name,
+                                     int size, ...);
+const catala_type catala_type_enum(catala_type* ret,
+                                   struct catala_label_type *const cases,
+                                   const char* name,
+                                   int size, ...);
+const catala_type catala_type_optional(const catala_type);
+
+/* --- Operators --- */
+
+CATALA_BOOL o_not(CATALA_BOOL b);
+
+CATALA_INT o_length(const CATALA_ARRAY() arr);
+
+CATALA_INT o_getDay(CATALA_DATE date);
+
+CATALA_INT o_getMonth(CATALA_DATE date);
+
+CATALA_INT o_getYear(CATALA_DATE date);
+
+CATALA_DATE o_firstDayOfMonth(CATALA_DATE date);
+
+CATALA_DATE o_lastDayOfMonth(CATALA_DATE date);
+
+CATALA_INT o_minus_int (CATALA_INT x);
+
+CATALA_DEC o_minus_rat (CATALA_DEC x);
+
+CATALA_MONEY o_minus_mon (CATALA_MONEY x);
+
+CATALA_DURATION o_minus_dur (CATALA_DURATION dur);
+
+CATALA_INT o_toint_rat (CATALA_DEC x);
+
+CATALA_INT o_toint_mon (CATALA_MONEY x);
+
+CATALA_DEC o_torat_int (CATALA_INT x);
+
+CATALA_DEC o_torat_mon (CATALA_MONEY x);
+
+CATALA_MONEY o_tomoney_rat (CATALA_DEC x);
+
+CATALA_MONEY o_tomoney_int (CATALA_INT x);
+
+CATALA_DEC o_round_rat (CATALA_DEC x);
+
+CATALA_MONEY o_round_mon (CATALA_MONEY x);
+
+CATALA_BOOL o_and (CATALA_BOOL x1, CATALA_BOOL x2);
+
+CATALA_BOOL o_or (CATALA_BOOL x1, CATALA_BOOL x2);
+
+CATALA_BOOL o_xor (CATALA_BOOL x1, CATALA_BOOL x2);
+
+CATALA_INT o_add_int_int (CATALA_INT x1, CATALA_INT x2);
+
+CATALA_DEC o_add_rat_rat (CATALA_DEC x1, CATALA_DEC x2);
+
+CATALA_MONEY o_add_mon_mon (CATALA_MONEY x1, CATALA_MONEY x2);
+
+CATALA_DATE o_add_dat_dur (dc_date_rounding mode,
+                           const catala_code_position* pos,
+                           CATALA_DATE x1,
+                           CATALA_DURATION x2);
+
+CATALA_DURATION o_add_dur_dur (CATALA_DURATION x1, CATALA_DURATION x2);
+
+CATALA_INT o_sub_int_int (CATALA_INT x1, CATALA_INT x2);
+
+CATALA_DEC o_sub_rat_rat (CATALA_DEC x1, CATALA_DEC x2);
+
+CATALA_MONEY o_sub_mon_mon (CATALA_MONEY x1, CATALA_MONEY x2);
+
+CATALA_DURATION o_sub_dat_dat (CATALA_DATE x1, CATALA_DATE x2);
+
+CATALA_DATE o_sub_dat_dur (dc_date_rounding mode,
+                           const catala_code_position* pos,
+                           CATALA_DATE x1, CATALA_DURATION x2);
+
+CATALA_DURATION o_sub_dur_dur (CATALA_DURATION x1, CATALA_DURATION x2);
+
+CATALA_INT o_mult_int_int (CATALA_INT x1, CATALA_INT x2);
+
+CATALA_DEC o_mult_rat_rat (CATALA_DEC x1, CATALA_DEC x2);
+
+CATALA_MONEY o_mult_mon_int (CATALA_MONEY x1, CATALA_INT x2);
+
+CATALA_MONEY o_mult_mon_rat (CATALA_MONEY x1, CATALA_DEC x2);
+
+CATALA_DURATION o_mult_dur_int (CATALA_DURATION x1, CATALA_INT x2);
+
+CATALA_DEC o_div_int_int (const catala_code_position* pos,
+                          CATALA_INT x1,
+                          CATALA_INT x2);
+
+CATALA_DEC o_div_rat_rat (const catala_code_position* pos,
+                          CATALA_DEC x1,
+                          CATALA_DEC x2);
+
+CATALA_DEC o_div_mon_mon (const catala_code_position* pos,
+                          CATALA_MONEY x1,
+                          CATALA_MONEY x2);
+
+CATALA_MONEY o_div_mon_int (const catala_code_position* pos,
+                            CATALA_MONEY x1,
+                            CATALA_INT x2);
+
+CATALA_MONEY o_div_mon_rat (const catala_code_position* pos,
+                            CATALA_MONEY x1,
+                            CATALA_DEC x2);
+
+CATALA_DEC o_div_dur_dur (const catala_code_position* pos,
+                          CATALA_DURATION x1,
+                          CATALA_DURATION x2);
+
+CATALA_BOOL o_eq (const catala_type ty, const catala_code_position* pos,
+                  const void* x1, const void* x2);
+
+CATALA_BOOL o_lt (const catala_type ty, const catala_code_position* pos,
+                  const void* x1, const void* x2);
+
+CATALA_BOOL o_lte (const catala_type ty, const catala_code_position* pos,
+                  const void* x1, const void* x2);
+
+CATALA_BOOL o_gt (const catala_type ty, const catala_code_position* pos,
+                  const void* x1, const void* x2);
+
+CATALA_BOOL o_gte (const catala_type ty, const catala_code_position* pos,
+                   const void* x1, const void* x2);
+
+const CATALA_ARRAY(X) o_filter (const catala_closure* cls, const CATALA_ARRAY(X) x);
+
+const CATALA_ARRAY(Y) o_map (const catala_closure* cls, const CATALA_ARRAY(X) x);
+
+const void* o_fold (const catala_closure* cls,
+                    const void* init, const CATALA_ARRAY(X) x);
+
+const CATALA_OPTION(X) o_reduce (const catala_closure* cls, const CATALA_ARRAY(X) x);
+
+const CATALA_OPTION(X) o_find (const catala_closure* cls, const CATALA_ARRAY(X) x);
+
+const CATALA_ARRAY(X) o_sort_asc (const catala_type ty, const catala_code_position* pos,
+                                  const catala_closure* cls, const CATALA_ARRAY(X) x);
+
+const CATALA_ARRAY(X) o_sort_desc (const catala_type ty, const catala_code_position* pos,
+                                   const catala_closure* cls, const CATALA_ARRAY(X) x);
+
+const CATALA_ARRAY(Z) o_map2 (const catala_code_position* pos,
+                        const catala_closure* cls,
+                        const CATALA_ARRAY(X) x,
+                        const CATALA_ARRAY(Y) y);
+
+const CATALA_ARRAY(Z) o_concat (const CATALA_ARRAY(X) x,
+                                const CATALA_ARRAY(Y) y);
+
+const CATALA_EXN(X) handle_exceptions
+  (const CATALA_ARRAY(const CATALA_EXN(X)) e);
+
+/* --- Runtime initialisation --- */
+
+void register_error_handler(void* (*f)(const struct catala_error *));
+
+void catala_init(void);
+/* This must be called before any use of the functions above, to perform
+   necessary initialisations of our memory allocator and GMP */
+
+enum catala_language { Catala_lang_En, Catala_lang_Fr, Catala_lang_Pl };
+
+void catala_set_lang (enum catala_language lg);
+void set_max_decimals (int n);
+
+void* catala_do(void* (*f)(void));
+/* This performs [catala_init], and additionally setups error handling
+   mechanisms for the computation of the provided callback. On error, it will
+   print a message to stderr (with source position when applicable), and return
+   NULL. Use [register_error_handler] to customise this behaviour. */
+
+#endif /* __CATALA_RUNTIME_H__ */

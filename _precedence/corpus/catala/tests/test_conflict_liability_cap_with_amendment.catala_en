@@ -1,0 +1,44 @@
+# Expected conflict — liability cap vs Amendment No. 1 (gold CONF-001)
+
+An ordinary claim on 2026-09-15 is inside both definitions: $720,000 under the Order Form
+and $500,000 under the Amendment. SYN-004 § 3.2 removed the tie-breaker, so the answer is
+the conflict, not a number. This is the document that ingestion must refuse to merge.
+
+> Using Legal_types as T
+> Using Conflict_liability_cap_with_amendment as A
+
+```catala
+declaration scope TestAmendmentConflict:
+  output computation content A.AmendedLiabilityCap
+
+scope TestAmendmentConflict:
+  definition computation equals
+    output of A.AmendedLiabilityCap with {
+      -- annual_fees: $240,000
+      -- claim_type: T.ClaimType.Ordinary
+      -- claim_date: |2026-09-15|
+    }
+```
+
+```catala-test-cli
+$ catala test-scope TestAmendmentConflict
+┌─[ERROR]─
+│
+│  During evaluation: conflict between multiple valid consequences for
+│  assigning the same variable.
+│
+├─➤ src/conflict_liability_cap_with_amendment.catala_en:40.24-41:
+│    │
+│ 40 │     consequence equals annual_fees * 3.0
+│    │                        ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+├─ CONFLICT — liability cap with Amendment No. 1 (ACME-NW-MSA-2026)
+│  └─ SYN-003 § 5.1 — the Order Form's general cap
+│
+├─➤ src/conflict_liability_cap_with_amendment.catala_en:54.24-32:
+│    │
+│ 54 │     consequence equals $500,000
+│    │                        ‾‾‾‾‾‾‾‾
+└─ CONFLICT — liability cap with Amendment No. 1 (ACME-NW-MSA-2026)
+   └─ SYN-004 § 2.1 — the Amendment's flat cap
+#return code 123#
+```

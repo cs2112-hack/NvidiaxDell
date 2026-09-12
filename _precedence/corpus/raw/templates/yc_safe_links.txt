@@ -1,0 +1,14 @@
+SOURCE PAGE: https://www.ycombinator.com/documents
+RETRIEVED: 2026-09-12
+
+//bookface-static.ycombinator.com/assets/ycdc/Postmoney Safe - Discount Only - FINAL-b9ecb516615d60c6c4653507442aa2561023004368232b7d6e75edc9629acc99.docx
+//bookface-static.ycombinator.com/assets/ycdc/Postmoney Safe - MFN Only - FINAL-2bc87fa3d2ec5072a60d653aec9a885fb43879781e44341fa720a8e7d1cc42ff.docx
+//bookface-static.ycombinator.com/assets/ycdc/Postmoney Safe - Valuation Cap Only (Canada) FINAL-908361f232fb25ff961560a0b959cd4f656ca944f84d6009f7cab56e629f79f2.docx
+//bookface-static.ycombinator.com/assets/ycdc/Postmoney Safe - Valuation Cap Only (Cayman) FINAL-7b3206e15466942b218b31118667593d735ee05a39d5390ad78dc7cc74310d33.docx
+//bookface-static.ycombinator.com/assets/ycdc/Postmoney Safe - Valuation Cap Only (Singapore) FINAL-3ce53fbce48b42a5a2a4e657654d78ec40310d43b318802ef7039cb9260783ce.docx
+//bookface-static.ycombinator.com/assets/ycdc/Postmoney Safe - Valuation Cap Only - FINAL-f2a64add6d21039ab347ee2e7194141a4239e364ffed54bad0fe9cf623bf1691.docx
+//bookface-static.ycombinator.com/assets/ycdc/Pro Rata Side Letter (Canada)-199957825465a7b592b0a04464b22a76dc7ced40bc828cce858cb5f39527084f.docx
+//bookface-static.ycombinator.com/assets/ycdc/Pro Rata Side Letter (Cayman)-ec1289f5f228237488f011bce2279d8cb4fd90db676a89e7fa4e02abe441b93a.docx
+//bookface-static.ycombinator.com/assets/ycdc/Pro Rata Side Letter (Singapore)-22ef48dda1009ab83ab9162cbdaae846ec480b9796bb453532dd747edb5d9c25.docx
+//bookface-static.ycombinator.com/assets/ycdc/Pro Rata Side Letter-d6dd8d827741862b18fba0f658da17fb4e787e5f2dda49584b9caea89bf42302.docx
+//bookface-static.ycombinator.com/assets/ycdc/SAFE User Guide-a47c6588327d73aa2799e61ed7c2cae9f1a0ee9acfa9c43b62039dc06e715832.pdf

@@ -1,0 +1,65 @@
+(documentation
+ (package catala))
+
+(dirs jsoo ocaml python java r rescript c)
+
+; Installation is done as source under catala lib directory
+; For dev version this makes it easy to install the proper runtime with just
+; `pip install dir` and be sure to get the right version
+
+(install
+ (package catala)
+ (files
+  (ocaml/catala_runtime.ml as runtime/ocaml/catala_runtime.ml)
+  (ocaml/catala_runtime.mli as runtime/ocaml/catala_runtime.mli)
+  (ocaml/catala_runtime.cmi as runtime/ocaml/catala_runtime.cmi)
+  (ocaml/dates_calc.ml as runtime/ocaml/dates_calc.ml)
+  (ocaml/dates_calc.mli as runtime/ocaml/dates_calc.mli)
+  (ocaml/dates_calc.cmi as runtime/ocaml/dates_calc.cmi))
+ (section lib))
+
+(install
+ (package catala-js)
+ (files
+  (jsoo/runtime_jsoo.ml as runtime/jsoo/runtime_jsoo.ml)
+  (jsoo/runtime_jsoo.mli as runtime/jsoo/runtime_jsoo.mli))
+ (section lib))
+
+; Python runtime
+
+(install
+ (package catala)
+ (source_trees
+  (python as runtime/python))
+ (section lib))
+
+(install
+ (package catala)
+ (source_trees
+  (java as runtime/java))
+ (section lib))
+
+;; ; Rescript runtime -- disabled
+;;
+;; (install
+;;  (files
+;;   (glob_files_rec
+;;    (rescript/** with_prefix runtime/rescript)))
+;;  (section lib))
+
+(install
+ (package catala)
+ (files
+  (c/catala_runtime.c as runtime/c/catala_runtime.c)
+  (c/catala_runtime.h as runtime/c/catala_runtime.h)
+  (c/dates_calc.c as runtime/c/dates_calc.c)
+  (c/dates_calc.h as runtime/c/dates_calc.h))
+ (section lib))
+
+(alias
+ (name runtimes)
+ (deps
+  ocaml/dates_calc.ml
+  ocaml/dates_calc.mli
+  ocaml/dates_calc.cmi
+  ocaml/catala_runtime.cmi))

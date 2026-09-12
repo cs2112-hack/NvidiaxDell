@@ -1,0 +1,26 @@
+```catala
+declaration scope Test:
+  internal bday content date
+  internal today content date
+  output ambiguous content boolean
+
+scope Test:
+  definition bday equals |2000-02-29|
+  definition today equals |2018-03-01|
+  definition ambiguous equals bday + 18 year <= today 
+```
+
+```catala-test-cli
+$ catala test-scope Test
+┌─[ERROR]─
+│
+│  During evaluation: ambiguous date computation with no rounding mode
+│  specified.
+│
+├─➤ tests/date/bad/rounding_option_en.catala_en:10.36-37:
+│    │
+│ 10 │   definition ambiguous equals bday + 18 year <= today 
+│    │                                    ‾
+└─
+#return code 123#
+```

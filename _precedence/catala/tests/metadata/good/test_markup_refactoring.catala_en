@@ -1,0 +1,55 @@
+# Test the refactored metatdata markup
+
+```catala-metadata
+declaration enumeration E:
+  -- A
+  -- B
+
+#[test] declaration scope S:
+  context output a content E
+```
+
+Some law text...
+
+```catala-metadata
+#[test] declaration scope S2:
+  context output b content E
+```
+
+## PROGRAM
+
+```catala
+scope S:
+  definition a equals A
+```
+
+```catala
+scope S2:
+  definition b equals B
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope S2
+┌─[RESULT]─ S2 ─
+│ b = B
+└─
+```
+
+```catala-test-cli
+$ catala test-scope S
+┌─[RESULT]─ S ─
+│ a = A
+└─
+```

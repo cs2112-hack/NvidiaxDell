@@ -1,0 +1,42 @@
+# Shared types
+
+> Module Legal_types
+
+These enumerations are the typed vocabulary the modules share. They are declared once so
+that a claim type or a work state means the same thing in every agreement's scope.
+
+```catala-metadata
+declaration enumeration ClaimType:
+  -- Ordinary
+  -- Confidentiality
+  -- IpIndemnity
+  -- GrossNegligence
+  -- UnpaidFees
+  -- BodilyInjury
+
+declaration enumeration WorkState:
+  -- CA
+  -- CO
+  -- WA
+  -- NY
+  -- TX
+  -- Other
+
+declaration enumeration Department:
+  -- Engineering
+  -- Sales
+  -- Marketing
+  -- Finance
+  -- OtherDepartment
+
+declaration enumeration ApprovalLevel:
+  -- Manager
+  -- Director
+  -- VicePresident
+  -- ChiefFinancialOfficer
+
+declaration enumeration Separation:
+  -- InvoluntaryTermination
+  -- QuitWithNotice
+  -- QuitWithoutNotice
+```

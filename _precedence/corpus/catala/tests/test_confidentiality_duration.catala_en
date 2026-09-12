@@ -1,0 +1,94 @@
+# Fact patterns — confidentiality survival (FP-055 … FP-057)
+
+The three-year MSA period and the five-year NDA period are both live; the agreement input
+selects between them, which is why this is a calibration case and not a conflict.
+
+> Using Confidentiality_duration as C
+
+## FP-055 — Northwind MSA § 11.2: three years from disclosure
+
+```catala
+#[test]
+declaration scope TestFp055:
+  output computation content C.ConfidentialityDuration
+
+scope TestFp055:
+  definition computation equals
+    output of C.ConfidentialityDuration with {
+      -- disclosure_date: |2026-06-01|
+      -- agreement: C.Agreement.NorthwindMsa
+      -- is_trade_secret: false
+    }
+  assertion computation.obligation_end = |2029-06-01|
+  assertion computation.indefinite = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp055
+┌─[RESULT]─ TestFp055 ─
+│ computation =
+│   ConfidentialityDuration {
+│     -- obligation_end: |2029-06-01|
+│     -- indefinite: false
+│   }
+└─
+```
+
+## FP-056 — Vertex NDA § 4.2: five years from disclosure
+
+```catala
+#[test]
+declaration scope TestFp056:
+  output computation content C.ConfidentialityDuration
+
+scope TestFp056:
+  definition computation equals
+    output of C.ConfidentialityDuration with {
+      -- disclosure_date: |2026-06-01|
+      -- agreement: C.Agreement.VertexNda
+      -- is_trade_secret: false
+    }
+  assertion computation.obligation_end = |2031-06-01|
+```
+
+```catala-test-cli
+$ catala test-scope TestFp056
+┌─[RESULT]─ TestFp056 ─
+│ computation =
+│   ConfidentialityDuration {
+│     -- obligation_end: |2031-06-01|
+│     -- indefinite: false
+│   }
+└─
+```
+
+## FP-057 — a trade secret survives indefinitely
+
+`obligation_end` is still computed; `indefinite` is the output that governs.
+
+```catala
+#[test]
+declaration scope TestFp057:
+  output computation content C.ConfidentialityDuration
+
+scope TestFp057:
+  definition computation equals
+    output of C.ConfidentialityDuration with {
+      -- disclosure_date: |2026-06-01|
+      -- agreement: C.Agreement.NorthwindMsa
+      -- is_trade_secret: true
+    }
+  assertion computation.indefinite = true
+  assertion computation.obligation_end = |2029-06-01|
+```
+
+```catala-test-cli
+$ catala test-scope TestFp057
+┌─[RESULT]─ TestFp057 ─
+│ computation =
+│   ConfidentialityDuration {
+│     -- obligation_end: |2029-06-01|
+│     -- indefinite: true
+│   }
+└─
+```

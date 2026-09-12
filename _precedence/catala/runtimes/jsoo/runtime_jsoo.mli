@@ -1,0 +1,75 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2020 Inria, contributor:
+   Emile Rolley <emile.rolley@tuta.io>.
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+(** A {{:http://ocsigen.org/js_of_ocaml/latest/manual/overview} js_of_ocaml}
+    wrapper around the {!module: Runtime}. *)
+
+open Js_of_ocaml
+
+(** {1 Log events} *)
+
+(** Information about the position of the log inside the Catala source file. *)
+class type code_location = object
+  method fileName : Js.js_string Js.t Js.prop
+  method startLine : int Js.prop
+  method endLine : int Js.prop
+  method startColumn : int Js.prop
+  method endColumn : int Js.prop
+  method lawHeadings : Js.js_string Js.t Js.js_array Js.t Js.prop
+end
+
+class type event_manager = object
+  method resetTrace : unit Js.meth
+  (** Reset the registered trace. *)
+
+  method retrieveTrace : Js.js_string Js.meth
+  (** Returns a JSON string of the trace. *)
+end
+
+val event_manager : event_manager Js.t
+(** JS object usable to retrieve and reset trace. *)
+
+(** {1 Duration} *)
+
+(** Simple JSOO wrapper around {!type: Runtime.duration}.*)
+class type duration = object
+  method years : int Js.readonly_prop
+  method months : int Js.readonly_prop
+  method days : int Js.readonly_prop
+end
+
+val duration_of_js : duration Js.t -> Catala_runtime.duration
+val duration_to_js : Catala_runtime.duration -> duration Js.t
+
+(** {1 Date conversion} *)
+
+(** Date values are encoded to a string in the
+    {{:https://www.iso.org/iso-8601-date-and-time-format.html} ISO8601 format}:
+    'YYYY-MM-DD'. *)
+
+val date_of_js : Js.js_string Js.t -> Catala_runtime.date
+val date_to_js : Catala_runtime.date -> Js.js_string Js.t
+
+(** {1 Error management} *)
+
+val position_of_js : code_location Js.t -> Catala_runtime.code_location
+val position_to_js : Catala_runtime.code_location -> code_location Js.t
+
+val execute_or_throw_error : (unit -> 'a) -> 'a
+(** [execute_or_throw_error f] calls [f ()] and propagates the
+    {!Catala_runtime.NoValue}, {!Catala_runtime.Conflict}
+    {!Catala_runtime.AssertionFailed} exceptions by raising a JS error if
+    needed.*)

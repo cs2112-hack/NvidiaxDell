@@ -1,0 +1,52 @@
+## 'xor' should be a boolean operator
+
+```catala
+declaration scope TestXorWithInt:
+  context test_var content integer
+
+scope TestXorWithInt:
+  definition test_var equals 10 xor 20
+```
+
+```catala-test-cli
+$ catala Typecheck
+┌─[ERROR]─ 1/2 ─
+│
+│  Incompatible types:
+│    got      integer,
+│    expected bool
+│
+│ This expression has type integer:
+├─➤ tests/bool/bad/test_xor_with_int.catala_en:8.30-32:
+│   │
+│ 8 │   definition test_var equals 10 xor 20
+│   │                              ‾‾
+├─ 'xor' should be a boolean operator
+│
+│ Expected type bool coming from expression:
+├─➤ tests/bool/bad/test_xor_with_int.catala_en:8.33-36:
+│   │
+│ 8 │   definition test_var equals 10 xor 20
+│   │                                 ‾‾‾
+└─ 'xor' should be a boolean operator
+┌─[ERROR]─ 2/2 ─
+│
+│  Incompatible types:
+│    got      integer,
+│    expected bool
+│
+│ This expression has type integer:
+├─➤ tests/bool/bad/test_xor_with_int.catala_en:8.37-39:
+│   │
+│ 8 │   definition test_var equals 10 xor 20
+│   │                                     ‾‾
+├─ 'xor' should be a boolean operator
+│
+│ Expected type bool coming from expression:
+├─➤ tests/bool/bad/test_xor_with_int.catala_en:8.33-36:
+│   │
+│ 8 │   definition test_var equals 10 xor 20
+│   │                                 ‾‾‾
+└─ 'xor' should be a boolean operator
+#return code 123#
+```

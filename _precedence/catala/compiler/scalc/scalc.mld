@@ -1,0 +1,28 @@
+{0 Statement calculus}
+
+This representation is the sixth in the compilation chain
+(see {{: index.html#architecture} Architecture}). Its main difference
+with the previous {{: Lcalc.html} default calculus} is the switch to a
+statement-based language. This representation does not assume any scoping
+rules in the language, every local variable has a unique id.
+
+The module describing the abstract syntax tree is:
+
+{!modules: Scalc.Ast Scalc.Print}
+
+{1 Compilation from lambda calculus }
+
+{!module: Scalc.From_lcalc} Performs the classical translation
+from an expression-based language to a statement-based language. Union types
+are eliminated in favor of tagged unions.
+
+Related modules:
+
+{!modules: Scalc.From_lcalc}
+
+{1 Backends}
+
+Related modules:
+
+{!modules: Scalc.To_python}
+

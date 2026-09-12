@@ -1,0 +1,1380 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2020 Inria, contributor:
+   Denis Merigoux <denis.merigoux@inria.fr>, Emile Rolley
+   <emile.rolley@tuta.io>, Alain Delaët <alain.delaet--tixeuil@inria.Fr>, Louis
+   Gesbert <louis.gesbert@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+(** Reference interpreter for the default calculus *)
+
+open Catala_utils
+open Definitions
+open Op
+module Runtime = Catala_runtime
+
+(** {1 Helpers} *)
+
+let is_empty_error : type a. (a, 'm) gexpr -> bool =
+ fun e -> match Mark.remove e with EEmpty -> true | _ -> false
+
+(** {1 Evaluation} *)
+
+let handle_eq ctx pos e1 e2 =
+  Runtime.Value.equal (Expr.pos_to_runtime pos) (Expr.embed_value ctx e1)
+    (Expr.embed_value ctx e2)
+
+let handle_compare ctx pos e1 e2 =
+  Runtime.Value.compare (Expr.pos_to_runtime pos) (Expr.embed_value ctx e1)
+    (Expr.embed_value ctx e2)
+
+(* This evaluation of functional application is used by operators in order to
+   make them compatible with execution after closure-conversion: the case where
+   we need to apply a closure instead is detected and handled transparently *)
+let eval_application evaluate_expr f args =
+  match f with
+  | EAbs _, _ ->
+    let ty =
+      match Expr.maybe_ty (Mark.get f) with TArrow (_, ty), _ -> ty | ty -> ty
+    in
+    evaluate_expr
+      ( EApp
+          { f; args; tys = List.map (fun e -> Expr.maybe_ty (Mark.get e)) args },
+        Expr.with_ty (Mark.get f) ty )
+  | ETuple [closure; closure_env], _ ->
+    let ty =
+      match Expr.maybe_ty (Mark.get closure) with
+      | TArrow (_, ty), _ -> ty
+      | ty -> ty
+    in
+    evaluate_expr
+      ( EApp
+          {
+            f = closure;
+            args = closure_env :: args;
+            tys =
+              (TClosureEnv, Expr.pos closure)
+              :: List.map (fun e -> Expr.maybe_ty (Mark.get e)) args;
+          },
+        Expr.with_ty (Mark.get f) ty )
+  | _ ->
+    Message.error ~internal:true
+      "Trying to apply non-function passed as operator argument"
+
+let get_bool ~pos = function
+  | ELit (LBool b), _ -> b
+  | _ ->
+    Message.error ~internal:true ~pos "%a" Format.pp_print_text
+      "This predicate evaluated to something else than a boolean"
+
+(* Call-by-value: the arguments are expected to be already evaluated here *)
+let rec evaluate_operator
+    ctx
+    evaluate_expr
+    ((op, opos) : < overloaded : no ; .. > operator Mark.pos)
+    m
+    args =
+  let pos = Expr.mark_pos m in
+  let rpos () = Expr.pos_to_runtime opos in
+  let div_pos () =
+    (* Division by 0 errors point to their 2nd operand *)
+    Expr.pos_to_runtime
+    @@ match args with _ :: denom :: _ -> Expr.pos denom | _ -> opos
+  in
+  let err () =
+    Message.error ~internal:true
+      ~extra_pos:
+        ([
+           ( Format.asprintf "Operator (value %a):"
+               (Print.operator ~debug:true)
+               op,
+             opos );
+         ]
+        @ List.mapi
+            (fun i arg ->
+              ( Format.asprintf "Argument n°%d, value %a" (i + 1)
+                  Print.UserFacing.expr arg,
+                Expr.pos arg ))
+            args)
+      "Operator %a applied to the wrong@ arguments"
+      (Print.operator ~debug:true)
+      op
+  in
+  let open Runtime.Oper in
+  Mark.add m
+  @@
+  match op, args with
+  | Length, [(EArray es, _)] ->
+    ELit (LInt (Runtime.integer_of_int (List.length es)))
+  | Tag _, [(e', _)] -> e'
+  | (FromClosureEnv | ToClosureEnv), [e'] ->
+    (* [FromClosureEnv] and [ToClosureEnv] are just there to bypass the need for
+       existential types when typing code after closure conversion. There are
+       effectively no-ops. *)
+    Mark.remove e'
+  | (ToClosureEnv | FromClosureEnv), _ -> err ()
+  | ArrayAccess n, [(EArray es, _)] -> Mark.remove (List.nth es n)
+  | ArrayAccess _, _ -> err ()
+  | ConstructorCheck (_, cstr), [(EInj { cons; _ }, _)] ->
+    ELit (LBool (EnumConstructor.equal cstr cons))
+  | ConstructorCheck _, _ -> err ()
+  | Eq, [e1; e2] -> ELit (LBool (handle_eq ctx opos e1 e2))
+  | Lt, [e1; e2] -> ELit (LBool (handle_compare ctx opos e1 e2 < 0))
+  | Lte, [e1; e2] -> ELit (LBool (handle_compare ctx opos e1 e2 <= 0))
+  | Gt, [e1; e2] -> ELit (LBool (handle_compare ctx opos e1 e2 > 0))
+  | Gte, [e1; e2] -> ELit (LBool (handle_compare ctx opos e1 e2 >= 0))
+  | Map, [f; (EArray es, _)] ->
+    EArray (List.map (fun e' -> eval_application evaluate_expr f [e']) es)
+  | Map2, [f; (EArray es1, _); (EArray es2, _)] -> (
+    try
+      EArray
+        (List.map2
+           (fun e1 e2 -> eval_application evaluate_expr f [e1; e2])
+           es1 es2)
+    with Invalid_argument _ ->
+      raise Runtime.(Error (NotSameLength, [Expr.pos_to_runtime opos], None)))
+  | Reduce, [_; (EArray [], m)] ->
+    EInj
+      {
+        name = ConstantNames.option_enum;
+        cons = ConstantNames.none_constr;
+        e = ELit LUnit, Expr.with_ty m (TLit TUnit, pos);
+      }
+  | Reduce, [f; (EArray (x0 :: xn), _)] ->
+    EInj
+      {
+        name = ConstantNames.option_enum;
+        cons = ConstantNames.some_constr;
+        e =
+          List.fold_left
+            (fun acc x -> eval_application evaluate_expr f [acc; x])
+            x0 xn;
+      }
+  | Concat, [(EArray es1, _); (EArray es2, _)] -> EArray (es1 @ es2)
+  | Filter, [f; (EArray es, _)] ->
+    EArray
+      (List.filter
+         (fun e' ->
+           eval_application evaluate_expr f [e']
+           |> get_bool ~pos:(Expr.pos (List.nth args 0)))
+         es)
+  | Fold, [f; init; (EArray es, _)] ->
+    Mark.remove
+      (List.fold_left
+         (fun acc e' -> eval_application evaluate_expr f [acc; e'])
+         init es)
+  | Find, [f; (EArray es, _)] -> (
+    match
+      List.find_opt
+        (fun e ->
+          eval_application evaluate_expr f [e] |> get_bool ~pos:(Expr.pos f))
+        es
+    with
+    | None ->
+      EInj
+        {
+          name = ConstantNames.option_enum;
+          cons = ConstantNames.none_constr;
+          e = ELit LUnit, Expr.with_ty m (TLit TUnit, pos);
+        }
+    | Some e ->
+      EInj
+        {
+          name = ConstantNames.option_enum;
+          cons = ConstantNames.some_constr;
+          e;
+        })
+  | Sort updown, [f; (EArray es, _)] ->
+    let weighted =
+      List.map (fun e -> e, eval_application evaluate_expr f [e]) es
+    in
+    let sorted =
+      List.stable_sort
+        (fun (_, w1) (_, w2) ->
+          (match updown with `Asc -> 1 | `Desc -> -1)
+          * handle_compare ctx opos w1 w2)
+        weighted
+    in
+    EArray (List.map fst sorted)
+  | ( ( Length | Tag _ | Eq | Map | Map2 | Concat | Filter | Fold | Reduce
+      | Find | Sort _ ),
+      _ ) ->
+    err ()
+  | Not, [(ELit (LBool b), _)] -> ELit (LBool (o_not b))
+  | And, [(ELit (LBool b1), _); (ELit (LBool b2), _)] ->
+    ELit (LBool (o_and b1 b2))
+  | Or, [(ELit (LBool b1), _); (ELit (LBool b2), _)] ->
+    ELit (LBool (o_or b1 b2))
+  | Xor, [(ELit (LBool b1), _); (ELit (LBool b2), _)] ->
+    ELit (LBool (o_xor b1 b2))
+  | (Not | And | Or | Xor), _ -> err ()
+  | Minus_int, [(ELit (LInt x), _)] -> ELit (LInt (o_minus_int x))
+  | Minus_rat, [(ELit (LRat x), _)] -> ELit (LRat (o_minus_rat x))
+  | Minus_mon, [(ELit (LMoney x), _)] -> ELit (LMoney (o_minus_mon x))
+  | Minus_dur, [(ELit (LDuration x), _)] -> ELit (LDuration (o_minus_dur x))
+  | ToInt_rat, [(ELit (LRat x), _)] -> ELit (LInt (o_toint_rat x))
+  | ToInt_mon, [(ELit (LMoney x), _)] -> ELit (LInt (o_toint_mon x))
+  | ToRat_int, [(ELit (LInt i), _)] -> ELit (LRat (o_torat_int i))
+  | ToRat_mon, [(ELit (LMoney i), _)] -> ELit (LRat (o_torat_mon i))
+  | ToMoney_rat, [(ELit (LRat i), _)] -> ELit (LMoney (o_tomoney_rat i))
+  | ToMoney_int, [(ELit (LInt i), _)] -> ELit (LMoney (o_tomoney_int i))
+  | Round_mon, [(ELit (LMoney m), _)] -> ELit (LMoney (o_round_mon m))
+  | Round_rat, [(ELit (LRat m), _)] -> ELit (LRat (o_round_rat m))
+  | Add_int_int, [(ELit (LInt x), _); (ELit (LInt y), _)] ->
+    ELit (LInt (o_add_int_int x y))
+  | Add_rat_rat, [(ELit (LRat x), _); (ELit (LRat y), _)] ->
+    ELit (LRat (o_add_rat_rat x y))
+  | Add_mon_mon, [(ELit (LMoney x), _); (ELit (LMoney y), _)] ->
+    ELit (LMoney (o_add_mon_mon x y))
+  | Add_dat_dur r, [(ELit (LDate x), _); (ELit (LDuration y), _)] ->
+    ELit (LDate (o_add_dat_dur r (rpos ()) x y))
+  | Add_dur_dur, [(ELit (LDuration x), _); (ELit (LDuration y), _)] ->
+    ELit (LDuration (o_add_dur_dur x y))
+  | Sub_int_int, [(ELit (LInt x), _); (ELit (LInt y), _)] ->
+    ELit (LInt (o_sub_int_int x y))
+  | Sub_rat_rat, [(ELit (LRat x), _); (ELit (LRat y), _)] ->
+    ELit (LRat (o_sub_rat_rat x y))
+  | Sub_mon_mon, [(ELit (LMoney x), _); (ELit (LMoney y), _)] ->
+    ELit (LMoney (o_sub_mon_mon x y))
+  | Sub_dat_dat, [(ELit (LDate x), _); (ELit (LDate y), _)] ->
+    ELit (LDuration (o_sub_dat_dat x y))
+  | Sub_dat_dur r, [(ELit (LDate x), _); (ELit (LDuration y), _)] ->
+    ELit (LDate (o_sub_dat_dur r (rpos ()) x y))
+  | Sub_dur_dur, [(ELit (LDuration x), _); (ELit (LDuration y), _)] ->
+    ELit (LDuration (o_sub_dur_dur x y))
+  | Mult_int_int, [(ELit (LInt x), _); (ELit (LInt y), _)] ->
+    ELit (LInt (o_mult_int_int x y))
+  | Mult_rat_rat, [(ELit (LRat x), _); (ELit (LRat y), _)] ->
+    ELit (LRat (o_mult_rat_rat x y))
+  | Mult_mon_int, [(ELit (LMoney x), _); (ELit (LInt y), _)] ->
+    ELit (LMoney (o_mult_mon_int x y))
+  | Mult_mon_rat, [(ELit (LMoney x), _); (ELit (LRat y), _)] ->
+    ELit (LMoney (o_mult_mon_rat x y))
+  | Mult_dur_int, [(ELit (LDuration x), _); (ELit (LInt y), _)] ->
+    ELit (LDuration (o_mult_dur_int x y))
+  | Div_int_int, [(ELit (LInt x), _); (ELit (LInt y), _)] ->
+    ELit (LRat (o_div_int_int (div_pos ()) x y))
+  | Div_rat_rat, [(ELit (LRat x), _); (ELit (LRat y), _)] ->
+    ELit (LRat (o_div_rat_rat (div_pos ()) x y))
+  | Div_mon_mon, [(ELit (LMoney x), _); (ELit (LMoney y), _)] ->
+    ELit (LRat (o_div_mon_mon (div_pos ()) x y))
+  | Div_mon_int, [(ELit (LMoney x), _); (ELit (LInt y), _)] ->
+    ELit (LMoney (o_div_mon_int (div_pos ()) x y))
+  | Div_mon_rat, [(ELit (LMoney x), _); (ELit (LRat y), _)] ->
+    ELit (LMoney (o_div_mon_rat (div_pos ()) x y))
+  | Div_dur_dur, [(ELit (LDuration x), _); (ELit (LDuration y), _)] ->
+    ELit (LRat (o_div_dur_dur (div_pos ()) x y))
+  | HandleExceptions, [(EArray exps, _)] -> (
+    (* Shallow conversion to runtime option, so that we can call
+       [handle_exceptions] *)
+    let exps =
+      List.map
+        (function
+          | EInj { name; cons; e }, _
+            when EnumName.equal name ConstantNames.option_enum ->
+            if EnumConstructor.equal cons ConstantNames.some_constr then
+              match e with
+              | ETuple [e; (EPos p, _)], _ ->
+                Runtime.Optional.Present (e, Expr.pos_to_runtime p)
+              | _ -> err ()
+            else Runtime.Optional.Absent
+          | _ -> err ())
+        exps
+    in
+    match Runtime.handle_exceptions (Array.of_list exps) with
+    | Runtime.Optional.Absent ->
+      EInj
+        {
+          name = ConstantNames.option_enum;
+          cons = ConstantNames.none_constr;
+          e = ELit LUnit, m;
+        }
+    | Runtime.Optional.Present (e, rpos) ->
+      let p = Expr.runtime_to_pos rpos in
+      EInj
+        {
+          name = ConstantNames.option_enum;
+          cons = ConstantNames.some_constr;
+          e = ETuple [e; EPos p, Expr.with_pos p m], m;
+        })
+  | DebugPrint s, [v] ->
+    Format.fprintf (Message.err_ppf ()) "@{<blue>%s@} = %a@," s Expr.format v;
+    ELit LUnit
+  | ValueFromJson (((TAbstract tid, _) as ty), str), [(ELit LUnit, _)] ->
+    let module E = (val Type.lookup_external tid) in
+    runtime_to_val ctx m ty
+      (Obj.repr
+         (Catala_runtime.Value.from_json E.rtype
+            (Expr.pos_to_runtime (Expr.mark_pos m))
+            str))
+    |> Mark.remove
+  | ValueFromJson _, _ -> failwith "todo"
+  | ( ( Minus_int | Minus_rat | Minus_mon | Minus_dur | ToInt_rat | ToInt_mon
+      | ToRat_int | ToRat_mon | ToMoney_rat | ToMoney_int | Round_rat
+      | Round_mon | Add_int_int | Add_rat_rat | Add_mon_mon | Add_dat_dur _
+      | Add_dur_dur | Sub_int_int | Sub_rat_rat | Sub_mon_mon | Sub_dat_dat
+      | Sub_dat_dur _ | Sub_dur_dur | Mult_int_int | Mult_rat_rat | Mult_mon_int
+      | Mult_mon_rat | Mult_dur_int | Div_int_int | Div_rat_rat | Div_mon_mon
+      | Div_mon_int | Div_mon_rat | Div_dur_dur | Lt | Lte | Gt | Gte
+      | HandleExceptions | DebugPrint _ ),
+      _ ) ->
+    err ()
+
+(* /S\ dark magic here. This relies both on internals of [Lcalc.to_ocaml] *and*
+   of the OCaml runtime *)
+and runtime_to_val : type d r.
+    decl_ctx -> 'm mark -> typ -> Obj.t -> ((d, r, yes) interpr_kind, 'm) gexpr
+    =
+ fun ctx m ty o ->
+  let m = Expr.map_ty (fun _ -> ty) m in
+  let open struct
+    (* The OCaml typer can't know if we are retrieving dcalc or lcalc terms, so
+       we require this additional cast on e.g. default terms *)
+    external cast :
+      (('d, 'r, 'c) interpr_kind, 't) gexpr ->
+      (('d2, 'r2, 'c) interpr_kind, 't) gexpr = "%identity"
+  end in
+  match Mark.remove ty with
+  | TLit TBool -> ELit (LBool (Obj.obj o)), m
+  | TLit TUnit -> ELit LUnit, m
+  | TLit TInt -> ELit (LInt (Obj.obj o)), m
+  | TLit TRat -> ELit (LRat (Obj.obj o)), m
+  | TLit TMoney -> ELit (LMoney (Obj.obj o)), m
+  | TLit TDate -> ELit (LDate (Obj.obj o)), m
+  | TLit TDuration -> ELit (LDuration (Obj.obj o)), m
+  | TLit TPos ->
+    let rpos : Runtime.code_location = Obj.obj o in
+    let p =
+      Pos.from_info rpos.filename rpos.start_line rpos.start_column
+        rpos.end_line rpos.end_column
+    in
+    let p = Pos.overwrite_law_info p rpos.law_headings in
+    cast (EPos p, m)
+  | TTuple ts ->
+    ETuple (List.map2 (runtime_to_val ctx m) ts (Array.to_list (Obj.obj o))), m
+  | TStruct name ->
+    StructName.Map.find name ctx.ctx_structs
+    |> StructField.Map.to_seq
+    |> Seq.map2
+         (fun o (fld, ty) -> fld, runtime_to_val ctx m ty o)
+         (Array.to_seq (Obj.obj o))
+    |> StructField.Map.of_seq
+    |> fun fields -> EStruct { name; fields }, m
+  | TEnum name -> (
+    let cons_map = EnumName.Map.find name ctx.ctx_enums in
+    let tag = Obj.tag o in
+    if tag = Obj.int_tag then
+      (* constant constructor case *)
+      let exception Found of EnumConstructor.t in
+      match
+        EnumConstructor.Map.fold
+          (fun cons ty skip ->
+            match ty with
+            | TLit TUnit, _ -> if skip = 0 then raise (Found cons) else skip - 1
+            | _ -> skip)
+          cons_map
+          (Obj.obj o : int)
+      with
+      | _ -> assert false
+      | exception Found cons ->
+        ( EInj
+            {
+              name;
+              cons;
+              e = ELit LUnit, Expr.with_ty m (TLit TUnit, Pos.void);
+            },
+          m )
+    else
+      (* non-constant constructor *)
+      let exception Found of EnumConstructor.t * typ in
+      match
+        EnumConstructor.Map.fold
+          (fun cons ty skip ->
+            match ty with
+            | TLit TUnit, _ -> skip
+            | _ -> if skip = 0 then raise (Found (cons, ty)) else skip - 1)
+          cons_map
+          (tag - Obj.first_non_constant_constructor_tag)
+      with
+      | _ -> assert false
+      | exception Found (cons, ty) ->
+        let payload =
+          Obj.field o 0
+          (* Arity is always 1 in the runtime *)
+        in
+        let e = runtime_to_val ctx m ty payload in
+        EInj { name; cons; e }, m)
+  | TOption ty ->
+    if Obj.is_int o then
+      (* constant constructor => None case *)
+      ( EInj
+          {
+            name = ConstantNames.option_enum;
+            cons = ConstantNames.none_constr;
+            e = ELit LUnit, Expr.with_ty m (TLit TUnit, Pos.void);
+          },
+        m )
+    else
+      (* Some case *)
+      let e = runtime_to_val ctx m ty (Obj.field o 0) in
+      ( EInj
+          {
+            name = ConstantNames.option_enum;
+            cons = ConstantNames.some_constr;
+            e;
+          },
+        m )
+  | TClosureEnv ->
+    (* By construction, a closure environment can only be consumed from the same
+       scope where it was built (compiled or not) ; for this reason, we can
+       safely avoid converting in depth here *)
+    Obj.obj o, m
+  | TArray ty ->
+    EArray (List.map (runtime_to_val ctx m ty) (Array.to_list (Obj.obj o))), m
+  | TArrow (targs, tret) -> ECustom { obj = o; targs; tret }, m
+  | TDefault ty -> (
+    match (Obj.obj o : 'a Runtime.Optional.t) with
+    | Runtime.Optional.Absent -> cast (EEmpty, m)
+    | Runtime.Optional.Present o -> (
+      match runtime_to_val ctx m ty o with
+      | ETuple [(e, m); (EPos pos, _)], _ -> cast (e, Expr.with_pos pos m)
+      | _ -> assert false))
+  | TForAll tb ->
+    let _v, ty = Bindlib.unmbind tb in
+    runtime_to_val ctx m ty o
+  | TVar _ ->
+    (* A type variable being an unresolved type, it can't be deconstructed, so
+       we can let it pass through. *)
+    Obj.obj o, m
+  | TAbstract _ -> ECustom { obj = o; targs = []; tret = ty }, m
+  | TError -> assert false
+
+and val_to_runtime : type d r.
+    (decl_ctx ->
+    ((d, r, _) interpr_kind, 'm) gexpr ->
+    ((d, r, _) interpr_kind, 'm) gexpr) ->
+    decl_ctx ->
+    typ ->
+    ((d, r, _) interpr_kind, 'm) gexpr ->
+    Obj.t =
+ fun eval_expr ctx ty v ->
+  match Mark.remove ty, Mark.remove v with
+  | TLit TBool, ELit (LBool b) -> Obj.repr b
+  | TLit TUnit, ELit LUnit -> Obj.repr ()
+  | TLit TInt, ELit (LInt i) -> Obj.repr i
+  | TLit TRat, ELit (LRat r) -> Obj.repr r
+  | TLit TMoney, ELit (LMoney m) -> Obj.repr m
+  | TLit TDate, ELit (LDate t) -> Obj.repr t
+  | TLit TDuration, ELit (LDuration d) -> Obj.repr d
+  | TLit TPos, EPos p ->
+    let rpos : Runtime.code_location =
+      {
+        Runtime.filename = Pos.get_file p;
+        start_line = Pos.get_start_line p;
+        start_column = Pos.get_start_column p;
+        end_line = Pos.get_end_line p;
+        end_column = Pos.get_end_column p;
+        law_headings = Pos.get_law_info p;
+      }
+    in
+    Obj.repr rpos
+  | TTuple ts, ETuple es ->
+    List.map2 (val_to_runtime eval_expr ctx) ts es |> Array.of_list |> Obj.repr
+  | TStruct name1, EStruct { name; fields } ->
+    assert (StructName.equal name name1);
+    let fld_tys = StructName.Map.find name ctx.ctx_structs in
+    Seq.map2
+      (fun (_, ty) (_, v) -> val_to_runtime eval_expr ctx ty v)
+      (StructField.Map.to_seq fld_tys)
+      (StructField.Map.to_seq fields)
+    |> Array.of_seq
+    |> Obj.repr
+  | TEnum name1, EInj { name; cons; e } -> (
+    assert (EnumName.equal name name1);
+    let cons_map = EnumName.Map.find name ctx.ctx_enums in
+    match EnumConstructor.Map.find cons cons_map with
+    | TLit TUnit, _ -> (
+      let exception
+        (* Constant constructor case *)
+        Found of int
+      in
+      match
+        EnumConstructor.Map.fold
+          (fun c ty n ->
+            if EnumConstructor.equal c cons then raise (Found n)
+            else match ty with TLit TUnit, _ -> n + 1 | _ -> n)
+          cons_map 0
+      with
+      | _ -> assert false
+      | exception Found constant_tag -> Obj.repr constant_tag)
+    | ty -> (
+      let exception
+        (* Non-constant constructor *)
+        Found of int
+      in
+      match
+        EnumConstructor.Map.fold
+          (fun c ty n ->
+            if EnumConstructor.equal c cons then raise (Found n)
+            else match ty with TLit TUnit, _ -> n | _ -> n + 1)
+          cons_map Obj.first_non_constant_constructor_tag
+      with
+      | _ -> assert false
+      | exception Found tag ->
+        let field = val_to_runtime eval_expr ctx ty e in
+        let o = Obj.with_tag tag (Obj.repr (Some ())) in
+        Obj.set_field o 0 field;
+        o))
+  | TOption ty, EInj { name; cons; e } ->
+    assert (EnumName.equal name ConstantNames.option_enum);
+    if EnumConstructor.equal cons ConstantNames.none_constr then Obj.repr None
+    else Obj.repr (Some (val_to_runtime eval_expr ctx ty e))
+  | TArray ty, EArray es ->
+    Array.of_list (List.map (val_to_runtime eval_expr ctx ty) es) |> Obj.repr
+  | TArrow (targs, tret), _ ->
+    let m = Mark.get v in
+    (* we want stg like [fun args -> val_to_runtime (eval_expr ctx (EApp (v,
+       args)))] but in curried form *)
+    let rec curry acc = function
+      | [] ->
+        let args = List.rev acc in
+        let tys = List.map (fun a -> Expr.maybe_ty (Mark.get a)) args in
+        val_to_runtime eval_expr ctx tret
+          (eval_expr ctx (EApp { f = v; args; tys }, m))
+      | targ :: targs ->
+        Obj.repr (fun x -> curry (runtime_to_val ctx m targ x :: acc) targs)
+    in
+    curry [] targs
+  | TDefault ty, _ -> (
+    (* In dcalc, this is an expression. in the runtime (lcalc), this is an
+       option(pair(expression, pos)) *)
+    match v with
+    | EEmpty, _ -> Obj.repr Runtime.Optional.Absent
+    | EPureDefault e, m | ((_, m) as e) ->
+      let e = eval_expr ctx e in
+      let pos = Expr.pos e in
+      let ty = TTuple [ty; TLit TPos, pos], pos in
+      let cast : type a b a2 b2.
+          ((a, b, 'c) interpr_kind, 'm) gexpr ->
+          ((a2, b2, 'c) interpr_kind, 'm) gexpr =
+        Obj.magic
+      in
+      let with_pos =
+        ( ETuple [e; cast (EPos pos, Expr.with_ty m (TLit TPos, pos))],
+          Expr.with_ty m ty )
+      in
+      Obj.repr
+        (Runtime.Optional.Present (val_to_runtime eval_expr ctx ty with_pos)))
+  | TForAll tb, _ ->
+    let _v, ty = Bindlib.unmbind tb in
+    val_to_runtime eval_expr ctx ty v
+  | TVar _, v ->
+    (* A type variable being an unresolved type, it can't be deconstructed, so
+       we can let it pass through. *)
+    Obj.repr v
+  | TClosureEnv, v ->
+    (* By construction, a closure environment can only be consumed from the same
+       scope where it was built (compiled or not) ; for this reason, we can
+       safely avoid converting in depth here *)
+    Obj.repr v
+  | TAbstract _, ECustom { obj; _ } -> obj
+  | _ ->
+    Message.error ~internal:true
+      "Could not convert value of type %a@ to@ runtime:@ %a" Print.typ ty
+      Expr.format v
+
+let tag_to_runtime = function
+  | ScopeCall scope_name ->
+    let name = ScopeName.original_base scope_name in
+    let _, decl_pos = ScopeName.get_info scope_name in
+    Runtime.ScopeCall { name; decl_pos = Expr.pos_to_runtime decl_pos }
+  | ScopeVarDef { var; io } ->
+    let name = ScopeVar.to_string var in
+    let _, decl_pos = ScopeVar.get_info var in
+    Runtime.ScopeVarDef
+      { var = { name; decl_pos = Expr.pos_to_runtime decl_pos }; io }
+  | LocalVarDef { name } -> Runtime.LocalVarDef name
+  | LocalTupDef { names } -> Runtime.LocalTupDef names
+  | FunCall topdef ->
+    let name = TopdefName.original_base topdef in
+    let _, decl_pos = TopdefName.get_info topdef in
+    Runtime.FunCall { name; decl_pos = Expr.pos_to_runtime decl_pos }
+  | BranchingCondition -> BranchingCondition
+  | Branching None -> IfBranching
+  | Branching (Some constructor_name) -> MatchBranching { constructor_name }
+  | Exception { label; cons_pos } ->
+    let label =
+      match label with
+      | None -> None
+      | Some (l, p) -> Some (l, Expr.pos_to_runtime p)
+    in
+    Exception { label; cons_pos = Expr.pos_to_runtime cons_pos }
+  | Assertion -> Assertion
+
+let rec handle_assert : type d r.
+    eval_expr:
+      (((d, r, yes) interpr_kind, 't) gexpr ->
+      ((d, r, yes) interpr_kind, 't) gexpr) ->
+    ((d, r, yes) interpr_kind, 't) gexpr ->
+    't mark ->
+    Pos.t ->
+    ((d, r, yes) interpr_kind, 't) gexpr =
+ fun ~eval_expr pred m pos ->
+  match Mark.remove (eval_expr pred) with
+  | ELit (LBool true) -> ELit LUnit, m
+  | ELit (LBool false) ->
+    let msg ppf =
+      match
+        Pos.get_attr (Expr.mark_pos m) (function
+          | ErrorMessage m -> Some m
+          | _ -> None)
+      with
+      | Some note ->
+        Format.fprintf ppf "@[<hv 4>Assertion failed:@ @[<hov>%a@]@]"
+          Format.pp_print_text note
+      | None -> Format.fprintf ppf "Assertion failed"
+    in
+    let partially_evaluated_assertion_failure_expr =
+      partially_evaluate_expr_for_assertion_failure_message ~eval_expr
+        (Expr.skip_wrappers pred)
+      |> Expr.distribute_negation pos
+    in
+    (match Mark.remove partially_evaluated_assertion_failure_expr with
+    | ELit (LBool false) ->
+      let bt = Printexc.get_raw_backtrace () in
+      if Global.options.no_fail_on_assert then Message.warning ~pos "%t." msg
+      else if Global.options.trace <> None then
+        let msg = Format.asprintf "%t" msg in
+        (* We raise a runtime error so that the trace builder catches
+           its expected type of error. *)
+        Printexc.raise_with_backtrace
+          Runtime.(Error (AssertionFailed, [Expr.pos_to_runtime pos], Some msg))
+          bt
+      else Message.delayed_error ~kind:AssertFailure () ~pos "%t." msg
+    | _ ->
+      (if Global.options.no_fail_on_assert then Message.warning
+       else if Global.options.trace <> None then
+         let bt = Printexc.get_raw_backtrace () in
+         let msg = Format.asprintf "%t" msg in
+         (* We raise a runtime error so that the trace builder catches
+            its expected type of error. *)
+         Printexc.raise_with_backtrace
+           Runtime.(
+             Error (AssertionFailed, [Expr.pos_to_runtime pos], Some msg))
+           bt
+       else Message.delayed_error ~kind:AssertFailure ())
+        ~pos "@[<hv>%t:@ @[<hv 4>%a@]@]" msg Print.UserFacing.expr
+        partially_evaluated_assertion_failure_expr);
+    Mark.add m (ELit LUnit)
+  | _ ->
+    Message.error ~internal:true ~pos:(Expr.pos pred) "%a" Format.pp_print_text
+      "Expected a boolean literal for the result of this assertion"
+
+and partially_evaluate_expr_for_assertion_failure_message : type d r.
+    eval_expr:
+      (((d, r, yes) interpr_kind, 't) gexpr ->
+      ((d, r, yes) interpr_kind, 't) gexpr) ->
+    ?neg:bool ->
+    ((d, r, yes) interpr_kind, 't) gexpr ->
+    ((d, r, yes) interpr_kind, 't) gexpr =
+ fun ~eval_expr ?(neg = false) e ->
+  (* Here we want to print an expression that explains why an assertion has
+     failed. Since assertions have type [bool] and are usually constructed with
+     comparisons and logical operators, we leave those unevaluated at the top of
+     the AST while evaluating everything below ; we also skip all true subterms
+     within an [And]. This makes for a good error message. *)
+  match Mark.remove e with
+  | EAppOp { op = And, _; args = [e1; e2]; _ } when not neg -> (
+    match eval_expr e1 with
+    | ELit (LBool true), _ ->
+      partially_evaluate_expr_for_assertion_failure_message ~eval_expr e2
+    | _ -> partially_evaluate_expr_for_assertion_failure_message ~eval_expr e1)
+  | EAppOp { op = Or, _; args = [e1; e2]; _ } when neg -> (
+    match eval_expr e1 with
+    | ELit (LBool false), _ ->
+      partially_evaluate_expr_for_assertion_failure_message ~eval_expr e2
+    | _ -> partially_evaluate_expr_for_assertion_failure_message ~eval_expr e1)
+  | EAppOp
+      {
+        args = [e1; e2];
+        tys;
+        op = ((And | Or | Xor | Eq | Lt | Lte | Gt | Gte), _) as op;
+      } ->
+    ( EAppOp
+        {
+          op;
+          tys;
+          args =
+            [
+              partially_evaluate_expr_for_assertion_failure_message ~eval_expr
+                ~neg e1;
+              partially_evaluate_expr_for_assertion_failure_message ~eval_expr
+                ~neg e2;
+            ];
+        },
+      Mark.get e )
+  | EAppOp { args = [e1]; tys; op = (Not, _) as op } ->
+    ( EAppOp
+        {
+          op;
+          tys;
+          args =
+            [
+              partially_evaluate_expr_for_assertion_failure_message ~eval_expr
+                ~neg:(not neg) e1;
+            ];
+        },
+      Mark.get e )
+  | _ -> eval_expr e
+
+let rec evaluate_expr : type d r.
+    ?on_expr:(((d, r, yes) interpr_kind, 'm) gexpr -> unit) ->
+    decl_ctx ->
+    Global.backend_lang ->
+    ((d, r, yes) interpr_kind, 't) gexpr ->
+    ((d, r, yes) interpr_kind, 't) gexpr =
+ fun ?on_expr ctx lang e ->
+  let debug_print, e =
+    Expr.take_attr e (function DebugPrint { label } -> Some label | _ -> None)
+  in
+  let evaluate_expr = evaluate_expr ?on_expr in
+  Option.iter (fun f -> f e) on_expr;
+  let m = Mark.get e in
+  let pos = Expr.mark_pos m in
+  (match debug_print with
+    | None -> fun r -> r
+    | Some label_opt ->
+      fun r ->
+        Message.debug "%a%a @{<grey>(at %a)@}"
+          (fun ppf -> function
+            | Some s -> Format.fprintf ppf "@{<bold;yellow>%s@} = " s
+            | None -> ())
+          label_opt (Print.expr ()) r Message.pp_pos pos;
+        r)
+  @@
+  match Mark.remove e with
+  | EVar _ ->
+    Message.error ~internal:true ~pos "%a" Format.pp_print_text
+      "free variable found at evaluation"
+  | EExternal { name } ->
+    let path =
+      match Mark.remove name with
+      | External_value td -> TopdefName.path td
+      | External_scope s -> ScopeName.path s
+    in
+    let ty =
+      try
+        match Mark.remove name with
+        | External_value name ->
+          let typ, _vis = TopdefName.Map.find name ctx.ctx_topdefs in
+          typ
+        | External_scope name ->
+          let scope_info = ScopeName.Map.find name ctx.ctx_scopes in
+          ( TArrow
+              ( [TStruct scope_info.in_struct_name, pos],
+                (TStruct scope_info.out_struct_name, pos) ),
+            pos )
+      with TopdefName.Map.Not_found _ | ScopeName.Map.Not_found _ ->
+        Message.error ~pos "Reference to %a@ could@ not@ be@ resolved"
+          Print.external_ref name
+    in
+    let runtime_modname =
+      ( ModuleName.to_string (Option.get (Uid.Path.last_member path)),
+        match Mark.remove name with
+        | External_value name -> TopdefName.base name
+        | External_scope name -> ScopeName.base name )
+      (* we have the guarantee that the two cases won't collide because they
+         have different capitalisation rules inherited from the input *)
+    in
+    let o = Runtime.lookup_value runtime_modname in
+    runtime_to_val ctx m ty o
+  | EApp { f = e1; args; _ } -> (
+    let e1 = evaluate_expr ctx lang e1 in
+    let args = List.map (evaluate_expr ctx lang) args in
+    match Mark.remove e1 with
+    | EAbs { binder; _ } ->
+      if Bindlib.mbinder_arity binder = List.length args then
+        evaluate_expr ctx lang
+          (Bindlib.msubst binder (Array.of_list (List.map Mark.remove args)))
+      else
+        Message.error ~internal:true ~pos
+          "Bad function call, expected %d arguments, got %d"
+          (Bindlib.mbinder_arity binder)
+          (List.length args)
+    | ECustom { obj; targs; tret } ->
+      (* Applies the arguments one by one to the curried form *)
+      let o =
+        List.fold_left2
+          (fun fobj targ arg ->
+            let arg =
+              val_to_runtime (fun ctx -> evaluate_expr ctx lang) ctx targ arg
+            in
+            let f : Obj.t -> Obj.t =
+              if Obj.tag fobj = Obj.first_non_constant_constructor_tag then
+                (* Function is not a closure, but a pair, we assume closure
+                   conversion has been done *)
+                let (f, x0) : ('a -> Obj.t -> Obj.t) * 'a = Obj.obj fobj in
+                f x0
+              else Obj.obj fobj
+            in
+            f arg)
+          obj targs args
+      in
+      runtime_to_val ctx m tret o
+    | _ ->
+      Message.error ~pos ~internal:true "%a%a" Format.pp_print_text
+        "function has not been reduced to a lambda at evaluation"
+        (fun ppf e ->
+          if Global.options.debug then Format.fprintf ppf ":@ %a" Expr.format e
+          else ())
+        e1)
+  | EAppOp { op = Tag t, _; args = [e]; _ } when Global.options.trace <> None ->
+    let pos = Expr.pos e in
+    let kind = tag_to_runtime t in
+    Runtime.with_trace ~embed:(Expr.embed_value ctx) kind
+      (Expr.pos_to_runtime pos) (fun () -> evaluate_expr ctx lang e)
+  | EAppOp { op; args; _ } ->
+    let args = List.map (evaluate_expr ctx lang) args in
+    evaluate_operator ctx (evaluate_expr ctx lang) op m args
+  | EAbs _ | ELit _ | EPos _ | ECustom _ | EEmpty -> e (* these are values *)
+  | EStruct { fields = es; name } ->
+    let fields, es = List.split (StructField.Map.bindings es) in
+    let es = List.map (evaluate_expr ctx lang) es in
+    let name =
+      (* Ensures the returned module path is consistent between separate and
+         whole-program interpretation *)
+      match Expr.maybe_ty m with
+      | TStruct name, _ -> name
+      | _ -> name
+    in
+    Mark.add m
+      (EStruct
+         {
+           fields =
+             StructField.Map.of_seq
+               (Seq.zip (List.to_seq fields) (List.to_seq es));
+           name;
+         })
+  | EStructAccess { e; name = s; field } -> (
+    let e = evaluate_expr ctx lang e in
+    match Mark.remove e with
+    | EStruct { fields = es; name } -> (
+      if not (StructName.equal s name) then
+        Message.error ~internal:true
+          ~extra_pos:["", pos; "", Expr.pos e]
+          "%a" Format.pp_print_text
+          "Error during struct access: not the same structs";
+      match StructField.Map.find_opt field es with
+      | Some e' -> e'
+      | None ->
+        Message.error ~pos:(Expr.pos e) ~internal:true
+          "Invalid field access %a@ in@ struct@ %a.@ Fields: %a"
+          StructField.format field StructName.format s
+          (fun ppf -> StructField.Map.format_keys ppf)
+          es)
+    | _ ->
+      Message.error ~pos:(Expr.pos e) ~internal:true
+        "The expression %a@ should@ be@ a@ struct@ %a@ but@ is@ not@ one"
+        Print.UserFacing.expr e StructName.format s)
+  | ETuple es -> Mark.add m (ETuple (List.map (evaluate_expr ctx lang) es))
+  | ETupleAccess { e = e1; index; size } -> (
+    match evaluate_expr ctx lang e1 with
+    | ETuple es, _ when List.length es = size -> List.nth es index
+    | e ->
+      Message.error ~internal:true ~pos:(Expr.pos e)
+        "The expression %a@ was@ expected@ to@ be@ a@ tuple@ of@ size@ %d"
+        Print.UserFacing.expr e size)
+  | EInj { e; name; cons } ->
+    let e = evaluate_expr ctx lang e in
+    let name =
+      (* Ensures the returned module path is consistent between separate and
+         whole-program interpretation *)
+      match Expr.maybe_ty m with
+      | TEnum name, _ -> name
+      | _ -> name
+    in
+    Mark.add m (EInj { e; name; cons })
+  | EMatch { e; cases; name } -> (
+    let e = evaluate_expr ctx lang e in
+    match Mark.remove e with
+    | EInj { e = e1; cons; name = name' } ->
+      if not (EnumName.equal name name') then
+        Message.error ~internal:true
+          ~extra_pos:["", Expr.pos e; "", Expr.pos e1]
+          "%a" Format.pp_print_text
+          "Error during match: two different enums found";
+      let f, tys =
+        match
+          Option.map (evaluate_expr ctx lang)
+            (EnumConstructor.Map.find_opt cons cases)
+        with
+        | Some ((EAbs { tys; _ }, _) as f) -> f, tys
+        | _ ->
+          Message.error ~internal:true ~pos:(Expr.pos e) "Match branch error"
+      in
+      let args =
+        match tys, e1 with _ :: _ :: _, (ETuple args, _) -> args | _, e -> [e]
+      in
+      let new_e = Mark.add m (EApp { f; args; tys }) in
+      evaluate_expr ctx lang new_e
+    | _ ->
+      Message.error ~pos:(Expr.pos e) ~internal:true
+        "Expected a term having a sum type as an argument to a match, got@ %a"
+        Expr.format e)
+  | EIfThenElse
+      {
+        cond = EAppOp { op = Not, _; args = [pred]; _ }, _;
+        efalse = ELit LUnit, _;
+        etrue = seq;
+      }
+    when match Expr.seq_last_element seq with
+         | EFatalError_pos { error = AssertionFailed; _ }, _ -> true
+         | _ -> false ->
+    (* For lcalc's already compiled assertions *)
+    let pos =
+      match Expr.seq_last_element seq with
+      | EFatalError_pos { pos_expr = EPos pos, _; _ }, _ -> pos
+      | _ -> assert false
+    in
+    handle_assert ~eval_expr:(evaluate_expr ctx lang) pred m pos
+  | EAssert pred -> handle_assert ~eval_expr:(evaluate_expr ctx lang) pred m pos
+  | EIfThenElse { cond; etrue; efalse } -> (
+    let cond = evaluate_expr ctx lang cond in
+    match Mark.remove cond with
+    | ELit (LBool true) -> evaluate_expr ctx lang etrue
+    | ELit (LBool false) -> evaluate_expr ctx lang efalse
+    | _ ->
+      Message.error ~pos:(Expr.pos cond) ~internal:true "%a"
+        Format.pp_print_text
+        "Expected a boolean literal for the result of this condition")
+  | EArray es ->
+    let es = List.map (evaluate_expr ctx lang) es in
+    Mark.add m (EArray es)
+  | EFatalError error | EFatalError_pos { error; _ } ->
+    let note =
+      Pos.get_attr (Expr.mark_pos m) (function
+        | ErrorMessage m -> Some m
+        | _ -> None)
+    in
+    raise (Runtime.Error (error, [Expr.pos_to_runtime pos], note))
+  | EErrorOnEmpty e' -> (
+    match evaluate_expr ctx lang e' with
+    | EEmpty, _ ->
+      raise Runtime.(Error (NoValue, [Expr.pos_to_runtime pos], None))
+    | exception Runtime.Empty ->
+      raise Runtime.(Error (NoValue, [Expr.pos_to_runtime pos], None))
+    | e -> e)
+  | EDefault { excepts; just; cons } -> (
+    let excepts = List.map (evaluate_expr ctx lang) excepts in
+    let empty_count = List.length (List.filter is_empty_error excepts) in
+    match List.length excepts - empty_count with
+    | 0 -> (
+      let just = evaluate_expr ctx lang just in
+      match Mark.remove just with
+      | ELit (LBool true) -> evaluate_expr ctx lang cons
+      | ELit (LBool false) -> Mark.copy e EEmpty
+      | _ ->
+        Message.error ~pos:(Expr.pos e) ~internal:true "%a" Format.pp_print_text
+          "Default justification has not been reduced to a boolean at \
+           evaluation")
+    | 1 -> List.find (fun sub -> not (is_empty_error sub)) excepts
+    | _ ->
+      let poslist =
+        List.filter_map
+          (fun ex ->
+            if is_empty_error ex then None
+            else Some Expr.(pos_to_runtime (pos ex)))
+          excepts
+      in
+      raise Runtime.(Error (Conflict, poslist, None)))
+  | EPureDefault e -> evaluate_expr ctx lang e
+  | EBad ->
+    Message.error ~internal:true ~pos:(Expr.pos e) "%a" Format.pp_print_text
+      "Attempting to evaluate a EBad node which should have been previously \
+       filtered."
+  | _ -> .
+
+let evaluate_expr_trace : type d r.
+    ?on_expr:(((d, r, yes) interpr_kind, 'm) gexpr -> unit) ->
+    ?disable_trace:bool ->
+    decl_ctx ->
+    Global.backend_lang ->
+    ScopeName.t ->
+    ((d, r, yes) interpr_kind, 't) gexpr ->
+    ((d, r, yes) interpr_kind, 't) gexpr =
+ fun ?on_expr ?(disable_trace = false) ctx lang s e ->
+  Fun.protect
+    (fun () ->
+      let f () = evaluate_expr ?on_expr ctx lang e in
+      if (not disable_trace) && Global.options.trace <> None then
+        let scope_pos = Expr.pos_to_runtime (snd (ScopeName.get_info s)) in
+        (* [ScopeCall] tags are defined at call-sites, we must add an
+            artificial one here. *)
+        Runtime.with_trace ~embed:(Expr.embed_value ctx)
+          (ScopeCall { name = ScopeName.original_base s; decl_pos = scope_pos })
+          scope_pos f
+      else f ())
+    ~finally:(fun () ->
+      match Global.options.trace with
+      | None -> ()
+      | Some _ when disable_trace -> ()
+      | Some (lazy ppf) ->
+        let trace = Runtime.retrieve_trace () in
+        let output_trace ppf =
+          match Global.options.trace_format with
+          | Human -> Format.fprintf ppf "%a@\n" Print.trace trace
+          | JSON -> Format.fprintf ppf "%s@\n" (Runtime.Json.trace trace)
+        in
+        Fun.protect
+          (fun () -> output_trace ppf)
+          ~finally:(fun () -> Format.pp_print_flush ppf ()))
+
+let evaluate_expr_safe : type d r.
+    ?on_expr:(((d, r, yes) interpr_kind, 'm) gexpr -> unit) ->
+    ?disable_trace:bool ->
+    decl_ctx ->
+    Global.backend_lang ->
+    ScopeName.t ->
+    ((d, r, yes) interpr_kind, 't) gexpr ->
+    ((d, r, yes) interpr_kind, 't) gexpr =
+ fun ?on_expr ?disable_trace ctx lang s e ->
+  try
+    let r = evaluate_expr_trace ?on_expr ?disable_trace ctx lang s e in
+    Message.report_delayed_errors_if_any ();
+    r
+  with Runtime.Error (err, rpos, note) ->
+    Message.error
+      ~extra_pos:(List.map (fun rp -> "", Expr.runtime_to_pos rp) rpos)
+      "@[<v>@[<hov>During evaluation:@ %a.@]%t@]" Format.pp_print_text
+      (Runtime.error_message err)
+      (fun ppf ->
+        match note with
+        | None -> ()
+        | Some n -> Format.fprintf ppf "@,@[<hov>%a@]" Format.pp_print_text n)
+
+(* Typing shenanigan to add custom terms to the AST type. *)
+let addcustom e =
+  let rec f : type c r d.
+      ((d, r, c) interpr_kind, 't) gexpr ->
+      ((d, r, yes) interpr_kind, 't) gexpr boxed = function
+    | (ECustom _, _) as e -> Expr.map ~f e
+    | EAppOp { op; tys; args }, m ->
+      Expr.eappop ~tys ~args:(List.map f args) ~op:(Operator.translate op) m
+    | (EDefault _, _) as e -> Expr.map ~f e
+    | (EPureDefault _, _) as e -> Expr.map ~f e
+    | (EEmpty, _) as e -> Expr.map ~f e
+    | (EErrorOnEmpty _, _) as e -> Expr.map ~f e
+    | (EPos _, _) as e -> Expr.map ~f e
+    | (EAssert _, _) as e -> Expr.map ~f e
+    | (EFatalError _, _) as e -> Expr.map ~f e
+    | (EFatalError_pos _, _) as e -> Expr.map ~f e
+    | ( ( ELit _ | EApp _ | EArray _ | EVar _ | EExternal _ | EAbs _
+        | EIfThenElse _ | ETuple _ | ETupleAccess _ | EInj _ | EStruct _
+        | EStructAccess _ | EMatch _ | EBad ),
+        _ ) as e ->
+      Expr.map ~f e
+    | _ -> .
+  in
+  let open struct
+    external id :
+      (('d, 'r, 'c) interpr_kind, 't) gexpr ->
+      (('d, 'r, yes) interpr_kind, 't) gexpr = "%identity"
+  end in
+  if false then Expr.unbox (f e)
+    (* We keep the implementation as a typing proof, but bypass the AST
+       traversal for performance. Note that it's not completely 1-1 since the
+       traversal would do a reboxing of all bound variables *)
+  else id e
+
+let delcustom e =
+  let rec f : type c r d.
+      ((d, r, c) interpr_kind, 't) gexpr ->
+      ((d, r, no) interpr_kind, 't) gexpr boxed = function
+    | ECustom { obj; targs = []; tret = (TAbstract tid, _) as ty }, m ->
+      let module E = (val Type.lookup_external_handling tid) in
+      let json = E.to_json (Obj.obj obj) in
+      let pos = Expr.mark_pos m in
+      let tunit = TLit TUnit, pos in
+      Expr.eappop
+        ~op:(ValueFromJson (ty, json), pos)
+        ~args:[Expr.elit LUnit (Expr.with_ty m tunit)]
+        ~tys:[tunit] m
+    | ECustom _, _ -> invalid_arg "Custom term remaining in evaluated term"
+    | EAppOp { op; args; tys }, m ->
+      Expr.eappop ~tys ~args:(List.map f args) ~op:(Operator.translate op) m
+    | (EDefault _, _) as e -> Expr.map ~f e
+    | (EPureDefault _, _) as e -> Expr.map ~f e
+    | (EEmpty, _) as e -> Expr.map ~f e
+    | (EErrorOnEmpty _, _) as e -> Expr.map ~f e
+    | (EPos _, _) as e -> Expr.map ~f e
+    | (EAssert _, _) as e -> Expr.map ~f e
+    | (EFatalError _, _) as e -> Expr.map ~f e
+    | (EFatalError_pos _, _) as e -> Expr.map ~f e
+    | ( ( ELit _ | EApp _ | EArray _ | EVar _ | EExternal _ | EAbs _
+        | EIfThenElse _ | ETuple _ | ETupleAccess _ | EInj _ | EStruct _
+        | EStructAccess _ | EMatch _ | EBad ),
+        _ ) as e ->
+      Expr.map ~f e
+    | _ -> .
+  in
+  (* /!\ don't be tempted to use the same trick here, the function does one
+     thing: validate at runtime that the term does not contain [ECustom]
+     nodes. *)
+  Expr.unbox (f e)
+
+let convert_json_input ctx scope_ty json =
+  let encoding = Encoding.make_encoding ctx scope_ty in
+  Encoding.parse_json encoding json
+
+let interpret_program_lcalc ?input p s :
+    (Uid.MarkedString.info * ('a, 'm) gexpr) list =
+  let e = Expr.unbox @@ Program.to_expr p s in
+  let ctx = p.decl_ctx in
+  (* We disable tracing here as we first evaluate the lambda-term to
+     perform toplevel reductions: this would yield spurious traces. *)
+  match evaluate_expr_safe ~disable_trace:true ctx p.lang s (addcustom e) with
+  | (EAbs { tys = [((TStruct s_in, _) as scope_ty)]; _ }, mark_e) as e -> begin
+    (* At this point, the interpreter seeks to execute the scope but does not
+       have a way to retrieve input values from the command line. [taus] contain
+       the types of the scope arguments. For [context] arguments, we can provide
+       an empty term. But for [input] arguments of another type, we cannot
+       provide anything so we have to fail. *)
+    let application_term =
+      match input with
+      | None -> Scope.empty_input_struct_lcalc ctx s_in mark_e
+      | Some json ->
+        let rval = convert_json_input ctx scope_ty json in
+        let mark = Expr.with_ty mark_e scope_ty in
+        Encoding.convert_to_lcalc ctx mark scope_ty rval
+        |> Expr.unbox
+        |> addcustom
+        |> Expr.box
+    in
+    let to_interpret =
+      Expr.make_app (Expr.box e) [application_term]
+        [TStruct s_in, Expr.pos e]
+        (Expr.pos e)
+    in
+    match
+      Mark.remove (evaluate_expr_safe ctx p.lang s (Expr.unbox to_interpret))
+    with
+    | EStruct { fields; _ } ->
+      List.map
+        (fun (fld, e) -> StructField.get_info fld, e)
+        (StructField.Map.bindings fields)
+    (* | exception Runtime.Error (err, rpos) ->
+     *   Message.error
+     *     ~extra_pos:(List.map (fun rp -> "", Expr.runtime_to_pos rp) rpos)
+     *     "%a" Format.pp_print_text
+     *     (Runtime.error_message err) *)
+    | _ ->
+      Message.error ~pos:(Expr.pos e) ~internal:true "%a" Format.pp_print_text
+        "The interpretation of the program doesn't yield a struct \
+         corresponding to the scope variables"
+  end
+  | _ ->
+    Message.error ~pos:(Expr.pos e) "%a" Format.pp_print_text
+      "The interpreter can only interpret terms starting with functions having \
+       thunked arguments"
+
+(** {1 API} *)
+let interpret_program_dcalc ?input ?on_expr p s :
+    (Uid.MarkedString.info * ('a, 'm) gexpr) list =
+  let ctx = p.decl_ctx in
+  let e = Expr.unbox (Program.to_expr p s) in
+  match
+    evaluate_expr_safe ?on_expr ~disable_trace:true p.decl_ctx p.lang s
+      (addcustom e)
+  with
+  | (EAbs { tys = [((TStruct s_in, _) as scope_ty)]; _ }, mark_e) as e -> begin
+    (* At this point, the interpreter seeks to execute the scope but does not
+       have a way to retrieve input values from the command line. [taus] contain
+       the types of the scope arguments. For [context] arguments, we can provide
+       an empty thunked term. But for [input] arguments of another type, we
+       cannot provide anything so we have to fail. *)
+    let application_term =
+      match input with
+      | None -> Scope.empty_input_struct_dcalc ctx s_in mark_e
+      | Some json ->
+        let rval = convert_json_input ctx scope_ty json in
+        let mark = Expr.with_ty mark_e scope_ty in
+        Encoding.convert_to_dcalc ctx mark scope_ty rval
+        |> Expr.unbox
+        |> addcustom
+        |> Expr.box
+    in
+    let to_interpret =
+      Expr.make_app (Expr.box e) [application_term]
+        [TStruct s_in, Expr.pos e]
+        (Expr.pos e)
+    in
+    match
+      evaluate_expr_safe ?on_expr ctx p.lang s (Expr.unbox to_interpret)
+    with
+    | EStruct { fields; _ }, _ ->
+      List.map
+        (fun (fld, e) -> StructField.get_info fld, e)
+        (StructField.Map.bindings fields)
+    | _ ->
+      Message.error ~pos:(Expr.pos e) ~internal:true "%a" Format.pp_print_text
+        "The interpretation of a program should always yield a struct \
+         corresponding to the scope variables"
+  end
+  | _ ->
+    Message.error ~pos:(Expr.pos e) ~internal:true "%a" Format.pp_print_text
+      "The interpreter can only interpret terms starting with functions having \
+       thunked arguments"
+
+let interpret_program_dcalc_with_coverage
+    ?(stdlib : Global.raw_file option)
+    (p : (dcalc, 'm) gexpr program)
+    scope :
+    (Uid.MarkedString.info * ((yes, no, yes) interpr_kind, 'm) gexpr) list
+    * Coverage.coverage_map =
+  let reachable_map =
+    (* Mark program positions as unreached *)
+    Coverage.reachable_positions p
+  in
+  let coverage_map = ref Coverage.empty in
+  let on_expr (e : ((yes, no, yes) interpr_kind, 'm) gexpr) =
+    match Mark.remove e with
+    | EDefault _ ->
+      ()
+      (* Bad location, ignore this case, sub-nodes positions will still be added
+         later on *)
+    | _ -> coverage_map := Coverage.reached_pos (Expr.pos e) scope !coverage_map
+  in
+  let r = interpret_program_dcalc ~on_expr p scope in
+  Option.iter
+    (fun (stdlib_dir : Global.raw_file) ->
+      let stdlib_dir = Global.options.path_rewrite stdlib_dir in
+      (* Remove stdlib's files reached positions if provided. Reachable stdlib
+         positions in 'reachable_map' will be discarded when the follow-up merge
+         occurs. *)
+      coverage_map :=
+        Coverage.filter_files
+          (fun path -> not (String.starts_with ~prefix:stdlib_dir path))
+          !coverage_map)
+    stdlib;
+  let coverage =
+    Coverage.(
+      merge_with_reachable_positions ~reachable:reachable_map
+        ~reached:!coverage_map)
+  in
+  r, coverage
+
+let interpret_program_dcalc ?input p s = interpret_program_dcalc ?input p s
+
+(* Evaluation may introduce intermediate custom terms ([ECustom], pointers to
+   external functions), straying away from the DCalc and LCalc ASTS. [addcustom]
+   and [delcustom] are needed to expand and shrink the type of the terms to
+   reflect that. *)
+let evaluate_expr ctx lang e =
+  Fun.protect ~finally:Runtime.reset_trace
+  @@ fun () ->
+  let dummy_scope = ScopeName.fresh [] ("dummy", Pos.void) in
+  evaluate_expr_safe ctx lang dummy_scope (addcustom e)
+
+let loaded_modules = Hashtbl.create 17
+
+let load_runtime_modules ~hashf prg =
+  let load (mname, intf_id) =
+    let hash = hashf intf_id.hash in
+    if Hashtbl.mem loaded_modules mname then ()
+    else
+      let expect_hash =
+        if intf_id.is_external then Hash.external_placeholder
+        else Hash.to_string hash
+      in
+      let obj_file =
+        let src = Pos.get_file (Mark.get (ModuleName.get_info mname)) in
+        let dir = File.dirname src in
+        let f =
+          Dynlink.adapt_filename
+            File.(
+              (dir / "ocaml" / ModuleName.to_string (ModuleName.normalise mname))
+              ^ ".cmo")
+        in
+        if Sys.file_exists f then f
+        else
+          let root = File.common_prefix Global.options.bin_dir dir in
+          File.(Global.options.bin_dir / File.remove_prefix root f)
+      in
+      (if not (Sys.file_exists obj_file) then
+         Message.error
+           ~pos_msg:(fun ppf ->
+             Format.pp_print_string ppf "Module defined here")
+           ~pos:(Mark.get (ModuleName.get_info mname))
+           "Compiled OCaml object %a@ not@ found.@ Make sure it has been \
+            suitably compiled."
+           File.format obj_file
+       else
+         try Dynlink.loadfile obj_file
+         with Dynlink.Error dl_err ->
+           Message.error
+             "While loading compiled module from %a:@;<1 2>@[<hov>%a@]"
+             File.format obj_file Format.pp_print_text
+             (Dynlink.error_message dl_err));
+      match Runtime.check_module (ModuleName.to_string mname) expect_hash with
+      | Ok () -> Hashtbl.add loaded_modules mname hash
+      | Error _ when Global.options.whole_program ->
+        (* Either this is an external module, and the hash doesn't matter; or
+           it's a dependency of an external module, for which we may have a
+           distinct hash (because of the whole-program mode), and it's the
+           responsibility of the external module to check it anyway? *)
+        Hashtbl.add loaded_modules mname hash
+      | Error bad_hash ->
+        Message.debug
+          "Module hash mismatch for %a:@ @[<v>Expected: %a@,Found:    %a@]"
+          ModuleName.format mname Hash.format hash
+          (fun ppf h ->
+            try Hash.format ppf (Hash.of_string h)
+            with Failure _ ->
+              if h = Hash.external_placeholder then
+                Format.fprintf ppf "@{<cyan>%s@}" Hash.external_placeholder
+              else Format.fprintf ppf "@{<red><invalid>@}")
+          bad_hash;
+        Message.error
+          "Module %a@ needs@ recompiling:@ %a@ was@ likely@ compiled@ from@ \
+           an@ older@ version@ or@ with@ incompatible@ flags."
+          ModuleName.format mname File.format obj_file
+      | exception Not_found ->
+        Message.error
+          "Module %a@ was loaded from file %a but did not register properly, \
+           there is something wrong in its code."
+          ModuleName.format mname File.format obj_file
+  in
+  let modules_to_load =
+    if Global.options.whole_program then
+      (* In whole-program, we only need to load external modules, and modules
+         they depend on *)
+      let rec extern_only module_tree =
+        ModuleName.Map.fold
+          (fun id mn acc ->
+            if mn.intf_id.is_external then ModuleName.Map.add id mn acc
+            else
+              ModuleName.Map.union
+                (fun _ m _ -> Some m)
+                acc (extern_only mn.deps))
+          ModuleName.Map.empty module_tree
+      in
+      extern_only prg.decl_ctx.ctx_modules
+    else prg.decl_ctx.ctx_modules
+  in
+  let modules_list_topo = Program.modules_to_list modules_to_load in
+  if modules_list_topo <> [] then
+    Message.debug "Loading shared modules... %a"
+      (Format.pp_print_list ~pp_sep:Format.pp_print_space (fun ppf (m, _) ->
+           ModuleName.format ppf m))
+      modules_list_topo;
+  List.iter load modules_list_topo

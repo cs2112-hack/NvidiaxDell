@@ -1,0 +1,144 @@
+# Fact patterns — Pinnacle consulting fees (SOW No. 2)
+
+Generated from `corpus/gold/fact_patterns.jsonl` (FP-051 … FP-054). FP-054 is the pattern
+that corrected the gold set: the original expected date was inside the 90-day window, and
+encoding § 5.3 made that visible.
+
+> Using Consulting_fees_pinnacle as C
+
+## FP-051 — 320 hours, invoiced on time, below the notice threshold
+
+```catala
+#[test]
+declaration scope TestFp051:
+  output computation content C.ConsultingFees
+
+scope TestFp051:
+  definition computation equals
+    output of C.ConsultingFees with {
+      -- hours: 320.0
+      -- month_of_service: |2026-04-01|
+      -- invoice_date: |2026-04-08|
+    }
+  assertion computation.fees = $72,000
+  assertion computation.fees_payable = $72,000
+  assertion computation.change_order_required = false
+  assertion computation.eighty_percent_notice_required = false
+  assertion computation.invoice_payable = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp051
+┌─[RESULT]─ TestFp051 ─
+│ computation =
+│   ConsultingFees {
+│     -- fees: $72,000.00
+│     -- fees_payable: $72,000.00
+│     -- change_order_required: false
+│     -- eighty_percent_notice_required: false
+│     -- invoice_payable: true
+│   }
+└─
+```
+
+## FP-052 — 420 hours crosses the 80% notice threshold (§ 3.3)
+
+```catala
+#[test]
+declaration scope TestFp052:
+  output computation content C.ConsultingFees
+
+scope TestFp052:
+  definition computation equals
+    output of C.ConsultingFees with {
+      -- hours: 420.0
+      -- month_of_service: |2026-06-01|
+      -- invoice_date: |2026-06-09|
+    }
+  assertion computation.fees = $94,500
+  assertion computation.eighty_percent_notice_required = true
+  assertion computation.change_order_required = false
+```
+
+```catala-test-cli
+$ catala test-scope TestFp052
+┌─[RESULT]─ TestFp052 ─
+│ computation =
+│   ConsultingFees {
+│     -- fees: $94,500.00
+│     -- fees_payable: $94,500.00
+│     -- change_order_required: false
+│     -- eighty_percent_notice_required: true
+│     -- invoice_payable: true
+│   }
+└─
+```
+
+## FP-053 — 520 hours exceeds the § 3.2 ceiling
+
+```catala
+#[test]
+declaration scope TestFp053:
+  output computation content C.ConsultingFees
+
+scope TestFp053:
+  definition computation equals
+    output of C.ConsultingFees with {
+      -- hours: 520.0
+      -- month_of_service: |2026-07-01|
+      -- invoice_date: |2026-07-08|
+    }
+  assertion computation.fees = $117,000
+  assertion computation.fees_payable = $112,500
+  assertion computation.change_order_required = true
+```
+
+```catala-test-cli
+$ catala test-scope TestFp053
+┌─[RESULT]─ TestFp053 ─
+│ computation =
+│   ConsultingFees {
+│     -- fees: $117,000.00
+│     -- fees_payable: $112,500.00
+│     -- change_order_required: true
+│     -- eighty_percent_notice_required: true
+│     -- invoice_payable: true
+│   }
+└─
+```
+
+## FP-054 — invoiced more than 90 days after month end (§ 5.3)
+
+April ends on 2026-04-30, so the deadline is 2026-07-29 and a 2026-08-15 invoice is out of
+time.
+
+```catala
+#[test]
+declaration scope TestFp054:
+  output computation content C.ConsultingFees
+
+scope TestFp054:
+  definition computation equals
+    output of C.ConsultingFees with {
+      -- hours: 100.0
+      -- month_of_service: |2026-04-01|
+      -- invoice_date: |2026-08-15|
+    }
+  assertion computation.fees = $22,500
+  assertion computation.invoice_payable = false
+  assertion computation.fees_payable = $0
+```
+
+```catala-test-cli
+$ catala test-scope TestFp054
+┌─[RESULT]─ TestFp054 ─
+│ computation =
+│   ConsultingFees {
+│     -- fees: $22,500.00
+│     -- fees_payable: $0.00
+│     -- change_order_required: false
+│     -- eighty_percent_notice_required: false
+│     -- invoice_payable: false
+│   }
+└─
+```

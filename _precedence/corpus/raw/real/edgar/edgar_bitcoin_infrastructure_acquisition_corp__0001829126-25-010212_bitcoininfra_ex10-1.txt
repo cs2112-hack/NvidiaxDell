@@ -1,0 +1,214 @@
+SOURCE: https://www.sec.gov/Archives/edgar/data/2082542/000182912625010212/bitcoininfra_ex10-1.htm
+FORM: None EX-10.1
+FILED: 2025-12-22
+MATCHED QUERY: "shall not exceed the fees paid"
+LICENSE: public SEC disclosure (EDGAR); underlying contract publicly filed
+
+EX-10.1
+2
+bitcoininfra_ex10-1.htm
+EXHIBIT 10.1
+
+Exhibit 10.1
+
+CONSULTING SERVICES AGREEMENT
+
+This Consulting Services Agreement (the
+“Agreement”) is made and entered into as of this 19th day of December, 2025 (“Start Date”) by and between
+Ryan Gentry (“Consultant”), whose address is 631 Hidden View St New Braunfels, TX 78130, and Bitcoin Infrastructure
+Acquisition Corp Ltd. (“BIXI”). and its affiliates (the “Company”), whose address is 1200 N Federal Highway,
+Suite 200, Boca Raton, FL 33432.
+
+RECITALS
+
+WHEREAS, the Company, is a special purpose acquisition vehicle (“SPAC”);
+
+WHEREAS, the Company wishes to retain Consultant to provide certain consulting services for and on behalf of the Company;
+
+WHEREAS, The Consultant acknowledges that monetary damages may be inadequate to compensate the Company for a breach of the confidentiality or non-circumvention provisions of this Agreement, and that the Company shall be entitled to seek injunctive relief, specific performance, or any other form of equitable relief in addition to any other remedies available at law or in equity, without the necessity of proving actual damages or posting bond.
+
+WHEREAS, the Consultant acknowledges this is a hybrid, remote consulting engagement where the Consultant provide consulting services and advice, which may include but are not limited to assisting with analysis and advice regarding the potential investment opportunities for special purpose acquisition companies, accounting and bookkeeping, and administrative support; and
+
+WHEREAS, the Company and the Consultant believe it to be in their respective best interests to enter into an agreement regarding such retention on the terms and conditions hereinafter set forth.
+
+AGREEMENT
+
+NOW, THEREFORE, in consideration of the foregoing premises, the mutual covenants herein contained and other good and valuable consideration the receipt of which is hereby acknowledged, the parties hereto hereby agree as follows:
+
+1.
+Consulting Services.
+
+(a) The Company hereby engages the Consultant, and the Consultant accepts such engagement to provide consulting services and advice, which may include but are not limited to assisting with analysis and advice regarding the potential investment opportunities for special purpose acquisition companies, accounting and bookkeeping, and administrative support (collectively, the “Services”). Company acknowledges that the Services are advisory in nature and that all decisions relating to the Company’s business shall be made by the Company in its sole discretion. In no event shall Consultant’s aggregate liability under this Agreement, whether for direct or consequential damages, exceed the total fees actually paid to the Consultant hereunder.
+
+(b) Services Non-Exclusive.
+
+The Services to be provided by Consultant hereunder are not and shall not be deemed to be exclusive to Company, and Consultant shall be free to render similar services to others and to engage in all such activities as Consultant deems appropriate, provided that Consultant’s performance hereunder is not impaired by such other activities. In addition, Consultant agrees to provide the Company the right to each investment idea prior to providing to other clients of the Consultant during the Term, as defined below.
+
+2.
+Compensation.
+
+Beginning on the Start Date and continuing through the Term (as defined in Section 4 below), the Company shall pay the Consultant a fee of $12,500 per month. The first Monthly Fee shall be payable in December, regardless of the Start Date. The Consultant may submit invoices for amounts due under this Section from time to time, and the Company shall pay any such amounts within a commercially reasonable period following receipt of an invoice, or may elect to pay the Monthly Fee in advance or otherwise without invoice. No proration of the Monthly Fee shall apply in connection with the commencement or termination of this Agreement. The Consultant shall not receive any transaction-based compensation.
+
+3.
+Confidentiality and Non-Disclosure
+
+(a) Consultant agrees not to disclose any Confidential Information (as hereinafter defined) to any third party without the prior written consent of the Company for the Term of this Agreement and a period of two years after this Agreement terminates. “Confidential Information” for the purpose of this Agreement shall be defined as (in addition to any definition given to that term in a confidentiality undertaking between the Company, or any of its affiliates and Consultant and/or any of Consultant’s representatives) any information obtained by Consultant from, or disclosed to Consultant by, the Company or any of its affiliates, pursuant to this Agreement relating to the business and investment activities of the Company and/or its various affiliates and subsidiaries. The term “Confidential Information” shall also include the fact that the Confidential Information has been made available to Consultant or that Consultant has inspected any portion of the Confidential Information, the fact that discussions with respect to any Services are taking place or other facts with respect to these discussions, including the status thereof, the terms and conditions of this Agreement, and corporate information of the Company and/or its affiliates (including, but not limited to, contractual arrangements, plans, strategies, tactics, policies, products, market data and methods financial reports or other information (including, but not limited to, cost and performance data, balance sheets, portfolio information, income statements, cash flow statements, statements of shareholder equity, debt arrangements, equity structure, accounts receivable reports, accounts payable reports, and asset holdings)). Notwithstanding the foregoing, Confidential Information does not include information which Consultant can prove by documentary evidence (i) is or has become available to the public other than by unauthorized disclosure by Consultant, (ii) becomes available to Consultant on a non-confidential basis from a source that to Consultant’s knowledge, after due inquiry, is entitled to disclose the same or (iii) is required to be disclosed by law, court order or by any legal or self-regulatory body exercising competent jurisdiction.
+
+2
+
+(b) Upon written request or upon the termination of this Agreement, the Consultant shall return to the Company or destroy all Confidential Information in its possession or control, subject to any record-keeping requirements which may apply to the Consultant under applicable laws, rules or regulations. If the Consultant does not return all Confidential Information in its possession and control pursuant to the written request of the Company, the Consultant will certify that it has destroyed all Confidential Information subject to any record-keeping requirements which may apply to the Consultant under applicable laws, rules or regulations. Notwithstanding any such return, destruction or retention of Confidential Information, the Consultant shall continue to be bound by its obligations of confidentiality pursuant to this Section 3.
+
+4.
+Term.
+
+The term of this Agreement shall commence on December 19, 2025 (the “Start Date”) and shall continue until the earlier of (i) termination by either party upon written notice to the other party, or (ii) the completion of a business combination by Company, on which date this Agreement shall automatically terminate without further action by either party (the “Term”). Either party may terminate this Agreement, with or without cause, by providing at least one (1) business day’s prior written notice to the other party.
+
+5.
+Non-Circumvention.
+
+(a) The Consultant agrees that, during the Term of this Agreement, it shall not, directly or indirectly, enter into any agreement, negotiation, or transaction with any person or entity introduced to the Consultant by the Company (or any of its officers, directors, employees, agents, affiliates, or representatives) for the purpose of pursuing or facilitating merger, acquisition, business combination, or financing transaction in which the Company or its affiliates is an active participant or which is directly related to the Company’s activities as a special purpose acquisition company (a “Transaction”), without the prior written consent of the Company.
+
+(b) The Consultant further agrees that it shall not take any action to circumvent, avoid, or bypass the Company’s role or participation in any such Transaction, or to deprive the Company of its rightful economic benefit or strategic opportunity, whether directly or indirectly.
+
+(c) This restriction shall apply to any such person or entity introduced by the Company during the Term, regardless of whether the Transaction is consummated during or after the Term, and shall survive termination of this Agreement for a period of twenty-four (24) months thereafter.
+
+3
+
+(d) The Consultant acknowledges that this provision is a material inducement for the Company to enter into this Agreement, and that a breach of this Section shall constitute a material breach, entitling the Company to seek all available remedies at law or in equity, including injunctive relief and recovery of economic damages.
+
+(e) The Consultant acknowledges that monetary damages may be inadequate to compensate the Company for a breach of the confidentiality or non-circumvention provisions of this Agreement, and that the Company shall be entitled to seek injunctive relief, specific performance, or any other form of equitable relief in addition to any other remedies available at law or in equity, without the necessity of proving actual damages or posting bond.
+
+6.
+Trust Waiver;
+
+The Consultant understands that, after the closing of its initial public offering (the “IPO”), the Company has established a trust account (the “Trust Account”) for the benefit of the Company’s public shareholders (the “Public Shareholders”) containing the proceeds from its IPO and certain private placements occurring simultaneously with the IPO (including interest accrued from time to time thereon), and that the Company may disburse monies from the Trust Account only under the circumstances described in the prospectus prepared by the Company in connection with the IPO. For and in consideration of the Consultant entering into this Agreement, and for other good and valuable consideration, the receipt and sufficiency of which is hereby acknowledged, the Consultant hereby agrees on behalf of itself and its affiliates that, notwithstanding anything to the contrary in this Agreement, neither the Consultant nor any of its affiliates do now or shall at any time hereafter have any right, title, interest or claim of any kind in or to any monies in the Trust Account or distributions therefrom to Public Shareholders (“Public Distributions”), or make any claim against the Trust Account or Public Distributions, in any case, with respect to any claims based upon, arising out of, in connection with or relating to this Agreement or the Services or the other transactions contemplated hereby, or the Share Consideration, and regardless of whether such claim arises based on contract, tort, equity or any other theory of legal liability (collectively, the “Released Claims”).
+
+The Consultant on behalf of itself and its affiliates hereby irrevocably waives any Released Claims that the Consultant or any of its affiliates may have against the Trust Account or Public Distributions now or in the future and will not seek recourse against the Trust Account (including any distributions therefrom) for any Released Claims. The Consultant agrees and acknowledges that such irrevocable waiver is material to this Agreement and specifically relied upon by the Company and its affiliates to induce the Company to enter into this Agreement, and the Consultant further intends and understands such waiver to be valid, binding and enforceable against the Consultant and each of its affiliates under applicable law. For purposes of clarity, the Consultant is not waiving any redemption right or claim to funds held in the Trust Account relating to a redemption or liquidation right for shares or units purchased in the Company’s IPO or public aftermarket.
+
+4
+
+7.
+Representations of the Consultant.
+
+(a) The Consultant hereby represents and warrants that it understands and will not exceed the limited scope of the Services to be provided under this Agreement, except as may be provided in a subsequent written agreement between the parties.
+
+(b) The Consultant is duly authorized and empowered to enter into this Agreement and the execution, delivery and performance of this Agreement by the Consultant will not breach or conflict with any other agreement or order binding upon the Consultant.
+
+(c) Prior to the execution of this Agreement and in the performance of its duties under this Agreement, the Consultant has complied and will comply with all applicable laws, regulations and policy statements of regulatory and self-regulatory authorities regulating the activities of the Consultant, and the Consultant has not taken, and will not take, any action that would (i) place the Company, its affiliates, any funds or any investor in any of the funds of the Company or affiliates of the Company in violation of any applicable law or regulation, or (ii) place the Consultant in material violation of any applicable law or regulation regulating the activities of the Consultant under this Agreement.
+
+(d) The Consultant is not subject to any bar, suspension, or order imposed by the SEC or any other regulatory or self-regulatory authority that would prevent the Consultant from performing consulting services hereunder.
+
+(e) The Consultant acknowledges that, in the course of this engagement, they may be exposed to material non-public information. The Consultant shall not, under any circumstances, disclose such information to any person outside of the Company. Any unauthorized disclosure may result in immediate termination of this Agreement and could subject the Consultant to civil and criminal liability, including investigation or enforcement action by the U.S. Securities and Exchange Commission (SEC), which may carry penalties such as fines, sanctions, or imprisonment.
+
+8.
+Relationship of the Parties.
+
+This Agreement does not create a partnership or
+joint venture between the Company and the Consultant and neither the Company nor the Consultant shall have the power to obligate or
+bind the other party for any purposes not set forth in this Agreement, except as otherwise provided in a written agreement signed by
+the Company and the Consultant. The relationship established hereby between the Company and the Consultant is that of independent
+contractors. Consultant is and shall be deemed for all purposes to be an independent contractor of Company. Consultant acknowledges
+that this Agreement is not an employment contract. Consequently, the fees shall not be deemed to be wages, and shall not be subject
+to any deductions or withholdings. Nothing contained herein shall be construed to create a relationship of employer and employee,
+joint venture or other relationship between Company and Consultant. Consultant shall have the sole discretion to determine the
+manner and means by which Consultant (and its employees, if any) shall perform its services. Consultant shall be solely responsible
+for all wages, salaries, benefits, and statutory insurances, including workers’ compensation insurance, of any employees of
+Consultant.
+
+5
+
+9.
+Indemnification.
+
+Each party agrees to indemnify and hold the other party harmless from any loss, damage, liability or expense, including without limitation reasonable attorneys’ fees and other legal expenses, to which the other party may become subject arising out of or relating to any act or omission by the indemnifying party (or any person connected or associated with the indemnifying party) in furtherance of the Services pursuant to this Agreement which is or is alleged to be a violation of any applicable statutes, laws or regulations or arising from the negligence or willful misconduct of the indemnifying party.
+
+Notwithstanding anything to the contrary, Consultant’s indemnification obligations shall be limited to acts within the scope of the Services, shall exclude ordinary negligence, and shall not exceed the fees paid to Consultant under this Agreement. Consultant shall not be liable for acts or omissions of third parties.
+
+10.
+Notices.
+
+Any notice required or permitted to be given hereunder shall be in writing and shall be either (i) delivered personally by hand, (ii) sent by registered or certified mail, return receipt requested, (iii) sent by a recognized qualified overnight delivery service (e.g., FedEx), or (iv) sent by e-mail transmission provided that a confirmation indicating the time of receipt is generated. All such notices shall be sent to the addresses of each party as set forth in this Agreement or to such other address or addresses (including email addresses) as shall be designated in writing in the same manner. All notices shall be deemed to have been given when received.
+
+11.
+Waiver.
+
+Any waiver, alteration or modification of any of the provisions in this Agreement, or cancellation or replacement of this Agreement, shall not be valid unless in writing and signed by the parties.
+
+12.
+Entire Agreement.
+
+This Agreement contains the entire agreement among the parties hereto pertaining to the subject matter hereof and supersedes all prior and contemporaneous agreements pertaining to the subject matter hereof.
+
+13.
+Severability.
+
+The invalidity or enforceability of any term, provision or clause of this Agreement (or any portion thereof) shall in no way impair or affect the validity or enforceability of any other term, provision or clause of this Agreement, all of which shall remain in full force and effect.
+
+6
+
+14.
+Illegality.
+
+If at any time the Company, based upon the advice of counsel, shall determine that the payment of fees to the Consultant under the terms contemplated by this Agreement shall be illegal, or shall otherwise violate applicable law, the Company shall be entitled to terminate all further payments, and neither party shall have any further liability to the other hereunder.
+
+15.
+Survival.
+
+Notwithstanding anything to the contrary set forth herein, the indemnification provisions of Section 6 and 9 above shall survive the termination of this Agreement.
+
+16.
+Governing Law; Jurisdiction; JURY TRIAL WAIVER.
+
+This Agreement and the rights and obligations of the parties hereunder shall be construed in accordance with and governed by the laws of the State of New York applicable to contracts wholly performed within the borders of such state, without giving effect to the conflict of law principles thereof. The parties hereby irrevocably and unconditionally (i) submit to the jurisdiction of the state courts of New York and the United States District Court for the Southern District of New York for the purpose of any suit, action or other proceeding arising out of or based upon this Agreement, (ii) agree not to commence any suit, action or other proceeding arising out of or based upon this Agreement except in state courts of New York or the United States District Court for the Southern District of New York, and (iii) waive, and agree not to assert, by way of motion, as a defense, or otherwise, in any such suit, action or proceeding, any claim that it is not subject personally to the jurisdiction of the above-named courts, that its property is exempt or immune from attachment or execution, that the suit, action or proceeding is brought in an inconvenient forum, that the venue of the suit, action or proceeding is improper or that this Agreement or the subject matter hereof may not be enforced in or by such court. EACH PARTY HEREBY KNOWINGLY, VOLUNTARILY AND INTENTIONALLY IRREVOCABLY WAIVES THE RIGHT TO A TRIAL BY JURY IN RESPECT TO ANY LITIGATION BASED HEREON, OR ARISING OUT OF, UNDER, OR IN CONNECTION WITH THIS AGREEMENT.
+
+17.
+Headings.
+
+Section headings are not to be considered part of this Agreement and are included solely for convenience and are not intended to be full or accurate descriptions of the contents thereof.
+
+18.
+Counterparts.
+
+This Agreement may be executed in one or more counterparts, each of which shall be deemed an original, but all of which together shall constitute one and the same instrument.
+
+19.
+Assignment.
+
+The Company shall have the rights to assign or transfer its rights and obligations under this Agreement to any of its affiliates. The Consultant shall not assign or transfer its rights or obligations under this Agreement to any person or entity without the prior written consent of the Company.
+
+20.
+Parties Bound.
+
+This Agreement shall be binding upon, and shall inure to the benefit of, the parties hereto, their respective heirs, administrators, successors and permitted assigns.
+
+[Remainder of page intentionally left blank; signature page to follow.]
+
+7
+
+IN WITNESS WHEREOF, the parties hereto have caused this Agreement to be duly executed as of the day and year first above written.
+
+COMPANY:
+
+BITCOIN INFRASTRUCTURE ACQUISITION CORP LTD.
+
+By:
+/s/ James DeAngelis
+
+Name:
+James DeAngelis
+
+Title:
+Chief Financial Officer
+
+CONSULTANT:
+
+By:
+/s/ Ryan Gentry
+
+Name:
+Ryan Gentry
+
+Title:
+Consultant
+
+8

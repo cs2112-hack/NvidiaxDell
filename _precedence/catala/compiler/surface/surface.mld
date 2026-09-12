@@ -1,0 +1,57 @@
+{0 Catala surface representation }
+
+This representation is the first in the compilation chain
+(see {{: index.html#architecture} Architecture}). Its purpose is to
+host the output of the Catala parser, before any transformations have been made.
+
+The module describing the abstract syntax tree is:
+
+{!modules: Surface.Ast}
+
+This representation can also be weaved into literate programming outputs
+using the {{:literate.html} literate programming modules}.
+
+{1 Lexing }
+
+The lexing in the Catala compiler is done using
+{{: https://github.com/ocaml-community/sedlex} sedlex}, the modern OCaml lexer
+that offers full support for UTF-8. This support enables users of non-English
+languages to use their favorite diacritics and symbols in their code.
+
+While the parser of Catala is unique, the lexer has a general structure in
+[lexer.cppo.ml] that is parametrised with the cppo macros defined for English,
+French and Polish in the respective [lexer_*.cppo.ml].
+
+Relevant modules:
+
+{!modules: Surface.Lexer_common Surface.Lexer_en Surface.Lexer_fr Surface.Lexer_pl}
+
+Note that an additional, simplified "line-lexer" is also provided alongside the
+main one: it is faster and more resilient, and used by the build system to
+gather dependency and test information.
+
+{1 Parsing }
+
+The Catala compiler uses {{: http://cambium.inria.fr/~fpottier/menhir/} Menhir}
+to perform its parsing.
+
+{!module: Surface.Parser} is the main file where the parser tokens and the
+grammar is declared. It is automatically translated into its parsing automata
+equivalent by Menhir.
+
+In order to provide decent syntax error messages, the Catala compiler uses the
+novel error handling provided by Menhir and detailed in Section 11 of the
+{{: http://cambium.inria.fr/~fpottier/menhir/manual.pdf} Menhir manual}.
+
+A [parser.messages] source file has been manually annotated with custom
+error message for every potential erroneous state of the parser, and Menhir
+automatically generated the {!module: Surface.Parser_errors} module containing
+the function linking the erroneous parser states to the custom error message.
+
+To wrap it up, {!module: Surface.Parser_driver} glues all the parsing and
+lexing together to perform the translation from source code to abstract syntax
+tree, with meaningful error messages.
+
+Relevant modules:
+
+{!modules: Surface.Parser Surface.Parser_driver Surface.Parser_errors}

@@ -1,0 +1,49 @@
+## Test
+
+```catala
+declaration scope Foo2:
+  output bar content integer
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[WARNING]─
+│
+│  In scope "Foo2", the variable "bar" is declared but never defined;
+│  did you forget something?
+│
+├─➤ tests/scope/bad/nothing.catala_en:5.10-13:
+│   │
+│ 5 │   output bar content integer
+│   │          ‾‾‾
+└─ Test
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala Scalc -s Foo2 -O -t
+┌─[WARNING]─
+│
+│  In scope "Foo2", the variable "bar" is declared but never defined;
+│  did you forget something?
+│
+├─➤ tests/scope/bad/nothing.catala_en:5.10-13:
+│   │
+│ 5 │   output bar content integer
+│   │          ‾‾‾
+└─ Test
+let foo2 (foo2_in: Foo2_in) =
+  decl bar : integer;
+  begin_trace(ScopeVarDef(bar));
+  fatal NoValue;
+  end_trace(bar);
+  return Foo2 {"bar": bar}
+
+```

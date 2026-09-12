@@ -1,0 +1,30 @@
+## Test basic toplevel values defs
+
+```catala
+declaration glob1 content decimal equals 44.12
+
+#[test] declaration scope S:
+  output a content boolean
+
+scope S:
+   definition a equals glob1 >= 30.0
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope S
+┌─[RESULT]─ S ─
+│ a = true
+└─
+```

@@ -1,0 +1,158 @@
+# Liability cap — Acme Cloud Systems / Northwind Logistics (ACME-NW-MSA-2026)
+
+> Module Liability_cap_acme_northwind
+> Using Legal_types as T
+
+Sources: SYN-001 (Master Services Agreement, 2026-01-01), SYN-003 (Order Form No. 1,
+2026-07-01). SYN-004 (Amendment No. 1) also defines this cap and is **not** encoded here:
+see `liability_cap_acme_northwind_with_amendment.catala_en` for the conflict it creates.
+
+```catala-metadata
+declaration scope LiabilityCap:
+  input fees_paid_last_12mo content money
+  input annual_fees content money
+  input claim_type content T.ClaimType
+  input claim_date content date
+
+  internal excluded_claim condition
+  internal uncapped_claim condition
+  internal order_form_applies condition
+
+  output cap content money
+  output uncapped content boolean
+```
+
+## SYN-001 § 9.3 — definition of Excluded Claims
+
+  "Excluded Claims" means claims arising from (a) breach of Section 11 (Confidentiality)
+  and (b) a party's indemnity obligations for third-party intellectual property
+  infringement under Section 10.
+
+```catala
+scope LiabilityCap:
+  rule excluded_claim under condition
+    claim_type = T.ClaimType.Confidentiality
+    or claim_type = T.ClaimType.IpIndemnity
+  consequence fulfilled
+```
+
+## SYN-001 § 9.4 — matters outside every cap
+
+  The limitations in Sections 9.2 and 9.3 do not apply to (a) a party's gross negligence
+  or willful misconduct, (b) Customer's obligation to pay Fees, or (c) either party's
+  liability for death or personal injury caused by its negligence. Liability for those
+  matters is unlimited.
+
+```catala
+scope LiabilityCap:
+  rule uncapped_claim under condition
+    claim_type = T.ClaimType.GrossNegligence
+    or claim_type = T.ClaimType.UnpaidFees
+    or claim_type = T.ClaimType.BodilyInjury
+  consequence fulfilled
+```
+
+## SYN-003 — the Order Form governs claims from its effective date
+
+  Order Form effective date: July 1, 2026. […] Notwithstanding Section 9.2 of the MSA,
+  each party's aggregate liability arising out of or related to the Services ordered under
+  this Order Form shall not exceed three hundred percent (300%) of the Annual Fees stated
+  above.
+
+The Order Form controls by authority of SYN-001 § 14.3 (Order of Precedence), which is why
+the definitions below are declared as exceptions rather than as competing definitions.
+
+```catala
+scope LiabilityCap:
+  rule order_form_applies under condition
+    claim_date >= |2026-07-01|
+  consequence fulfilled
+```
+
+## SYN-001 § 9.2 — the base cap
+
+  Except as provided in Sections 9.3 and 9.4, each party's aggregate liability arising out
+  of or related to this Agreement shall not exceed the total Fees paid or payable by
+  Customer in the twelve (12) months preceding the first event giving rise to the claim.
+
+```catala
+scope LiabilityCap:
+  label msa_9_2
+  definition cap equals fees_paid_last_12mo
+```
+
+## SYN-001 § 9.2 and § 9.4 — liability is capped unless § 9.4 applies
+
+  Except as provided in Sections 9.3 and 9.4 […] The limitations in Sections 9.2 and 9.3
+  do not apply to (a) a party's gross negligence or willful misconduct, (b) Customer's
+  obligation to pay Fees, or (c) either party's liability for death or personal injury
+  caused by its negligence.
+
+```catala
+scope LiabilityCap:
+  definition uncapped equals false
+```
+
+## SYN-001 § 9.3 — the Excluded Claims cap, before the Order Form
+
+  For Excluded Claims, each party's aggregate liability shall not exceed two hundred
+  percent (200%) of the total Fees paid or payable by Customer in the twelve (12) months
+  preceding the first event giving rise to the claim.
+
+```catala
+scope LiabilityCap:
+  label msa_9_3 exception msa_9_2
+  definition cap
+    under condition excluded_claim and not order_form_applies
+    consequence equals fees_paid_last_12mo * 2.0
+```
+
+## SYN-003 § 5.1 — the Order Form's general cap
+
+  Notwithstanding Section 9.2 of the MSA, each party's aggregate liability arising out of
+  or related to the Services ordered under this Order Form shall not exceed three hundred
+  percent (300%) of the Annual Fees stated above.
+
+```catala
+scope LiabilityCap:
+  label of_5_1 exception msa_9_2
+  definition cap
+    under condition
+      order_form_applies and not excluded_claim and not uncapped_claim
+    consequence equals annual_fees * 3.0
+```
+
+## SYN-003 § 5.2 — the Order Form's supercap for Excluded Claims
+
+  Notwithstanding Section 9.3 of the MSA, each party's aggregate liability for Excluded
+  Claims shall not exceed five hundred percent (500%) of the Annual Fees stated above.
+
+```catala
+scope LiabilityCap:
+  label of_5_2 exception msa_9_2
+  definition cap
+    under condition order_form_applies and excluded_claim
+    consequence equals annual_fees * 5.0
+```
+
+## SYN-001 § 9.4 and SYN-003 § 5.3 — unlimited liability
+
+  Section 9.4 of the MSA (unlimited liability for gross negligence, willful misconduct,
+  payment obligations, and death or personal injury) is unchanged.
+
+`cap` still has to be defined for the interpreter, so it is set to the fees figure and
+`uncapped` is the output that governs: a caller that ignores `uncapped` and reads `cap`
+alone is reading the wrong number, which is why both are outputs.
+
+```catala
+scope LiabilityCap:
+  label carve_out exception msa_9_2
+  definition cap
+    under condition uncapped_claim
+    consequence equals fees_paid_last_12mo
+
+  exception
+  definition uncapped
+    under condition uncapped_claim
+    consequence equals true
+```

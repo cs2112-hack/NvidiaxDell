@@ -1,0 +1,37 @@
+## Article
+
+```catala
+#[test] declaration scope A:
+  context output x content decimal
+  context output y content decimal
+  context output z content decimal
+  context output a content decimal
+
+scope A:
+  definition x equals 84.64866565265689623
+  definition y equals - 4.36829778705320654980
+  definition z equals 654265429805103220650980650.5705405106540
+  definition a equals x / (y * (x + y) * (x * x * z * z))
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[RESULT]─ A ─
+│ x = 84.648,665…
+│ y = -4.368,297…
+│ z = 654,265,429,805,103,220,650,980,650.570,540…
+│ a = -0.000,000…
+└─
+```

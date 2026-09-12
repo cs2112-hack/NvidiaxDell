@@ -1,0 +1,153 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2020 Inria, contributor:
+   Denis Merigoux <denis.merigoux@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+(** Global identifiers factories using a generative functor *)
+
+(** The information carried in global identifiers *)
+module type Info = sig
+  type info
+
+  val to_string : info -> string
+  val format : Format.formatter -> info -> unit
+
+  val equal : info -> info -> bool
+  (** Equality disregards position *)
+
+  val compare : info -> info -> int
+  (** Comparison disregards position *)
+
+  val hash : info -> Hash.t
+  (** Hashing disregards position *)
+end
+
+(** The only kind of information carried in Catala identifiers is the original
+    string of the identifier annotated with the position where it is declared or
+    used. *)
+module MarkedString : sig
+  include Info with type info = string Mark.pos
+
+  type t = info
+
+  module Map : Map.S with type key = t
+end
+
+(** Identifiers have abstract types, but are comparable so they can be used as
+    keys in maps or sets. Their underlying information can be retrieved at any
+    time. *)
+module type Id = sig
+  type t
+  type info
+
+  val fresh : ?from:t -> info -> t
+  (** if [from] is set, the new [t] will set its original info from it *)
+
+  val get_info : t -> info
+  val map_info : (info -> info) -> t -> t
+  val compare : t -> t -> int
+  val equal : t -> t -> bool
+  val format : Format.formatter -> t -> unit
+  val to_string : t -> string
+
+  val id : t -> int
+  (** Returns the unique ID of the identifier *)
+
+  val hash : t -> Hash.t
+  (** While [id] returns a unique ID valable for a given Uid instance within a
+      given run of catala, this is a raw hash of the identifier string.
+      Therefore, it may collide within a given program, but remains meaninful
+      across separate compilations. *)
+
+  val original_info : t -> info
+  (** Retrieve the original id info, unaffected by renamings, etc. *)
+
+  val original_string : t -> string
+  (** Retrieve the original id string, unaffected by renamings, etc. *)
+
+  val format_original : Format.formatter -> t -> unit
+
+  module Set : Set.S with type elt = t
+  module Map : Map.S with type key = t
+end
+
+(** Used to define a consistent specific style when printing the different kinds
+    of uids *)
+module type Style = sig
+  val style : Ocolor_types.style
+end
+
+(** This is the generative functor that ensures that two modules resulting from
+    two different calls to [Make] will be viewed as different types [t] by the
+    OCaml typechecker. Prevents mixing up different sorts of identifiers. *)
+module Make (X : Info) (_ : Style) () : Id with type info = X.info
+
+(** Shortcut for creating a kind of uids over marked strings *)
+module Gen (_ : Style) () : Id with type info = MarkedString.info
+
+(** {2 Handling of Uids with additional path information} *)
+
+module Module : sig
+  include Id with type info = MarkedString.info
+
+  val normalise : t -> t
+  (** Projects the module name to alphanumeric, for use in file names and
+      backend's module names *)
+end
+
+module Path : sig
+  type t = Module.t list
+
+  val to_string : t -> string
+  val format : Format.formatter -> t -> unit
+  val equal : t -> t -> bool
+  val compare : t -> t -> int
+
+  val strip : t -> t -> t
+  (** [strip pfx p] removed [pfx] from the start of [p]. if [p] doesn't start
+      with [pfx], it is returned unchanged *)
+
+  val last_member : t -> Module.t option
+end
+
+module type Qualified = sig
+  include Id with type info = Path.t * MarkedString.info
+
+  val fresh : ?from:t -> Path.t -> MarkedString.info -> t
+  val path : t -> Path.t
+  val get_info : t -> MarkedString.info
+  val original_info : t -> MarkedString.info
+
+  val base : t -> string
+  (** Returns only the base ident name, while [to_string] includes the path
+      prefix *)
+
+  val original_base : t -> string
+
+  val hash : strip:Module.t option -> t -> Hash.t
+  (** [strip] strips any path up to that module from the start of the path
+      before hashing *)
+
+  val format_shortpath : Format.formatter -> t -> unit
+  (** Like [format], but prints only the last path member (if any) instead of
+      the full path *)
+
+  val canonical_str : Module.t option -> t -> string
+  (** [canonical_str current_module t] returns a canonical path to [t], that is,
+      the original basename of [t] qualified with the last module in its path,
+      or with the current module if implicit and that is defined. *)
+end
+
+(** Same as [Gen] but also registers path information *)
+module Gen_qualified (_ : Style) () : Qualified

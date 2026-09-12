@@ -1,0 +1,841 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2020 Inria,
+   contributors: Denis Merigoux <denis.merigoux@inria.fr>, Emile Rolley
+   <emile.rolley@tuta.io>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+(** Wrapping module around parser and lexer that offers the
+    {!:Parser_driver.parse_source_file} API. *)
+
+open Sedlexing
+open Catala_utils
+open Shared_ast
+
+(** After parsing, heading structure is completely flat because of the
+    [source_file_item] rule. We need to tree-i-fy the flat structure, by looking
+    at the precedence of the law headings. *)
+let rec law_struct_list_to_tree (f : Ast.law_structure list) :
+    Ast.law_structure list =
+  match f with
+  | [] -> []
+  | [item] -> [item]
+  | first_item :: rest -> (
+    let rest_tree = law_struct_list_to_tree rest in
+    match rest_tree with
+    | [] -> assert false (* there should be at least one rest element *)
+    | rest_head :: rest_tail -> (
+      match first_item with
+      | CodeBlock _ | LawText _ | LawInclude _ | ModuleDef _ | ModuleUse _ ->
+        (* if an article or an include is just before a new heading , then we
+           don't merge it with what comes next *)
+        first_item :: rest_head :: rest_tail
+      | LawHeading (heading, _) ->
+        (* here we have encountered a heading, which is going to "gobble"
+           everything in the [rest_tree] until it finds a heading of at least
+           the same precedence *)
+        let rec split_rest_tree (rest_tree : Ast.law_structure list) :
+            Ast.law_structure list * Ast.law_structure list =
+          match rest_tree with
+          | [] -> [], []
+          | LawHeading (new_heading, _) :: _
+            when new_heading.law_heading_precedence
+                 <= heading.law_heading_precedence ->
+            (* we stop gobbling *)
+            [], rest_tree
+          | first :: after ->
+            (* we continue gobbling *)
+            let after_gobbled, after_out = split_rest_tree after in
+            first :: after_gobbled, after_out
+        in
+        let gobbled, rest_out = split_rest_tree rest_tree in
+        LawHeading (heading, gobbled) :: rest_out))
+
+module ParserAux (LocalisedLexer : Lexer_common.LocalisedLexer) = struct
+  include Parser.Make (LocalisedLexer)
+  module I = MenhirInterpreter
+
+  (** Returns the state number from the Menhir environment *)
+  let state (env : 'semantic_value I.env) : int =
+    match I.top env with None -> 0 | Some (Element (s, _, _, _)) -> I.number s
+
+  let register_parsing_error
+      (lexbuf : lexbuf)
+      (env : 'semantic_value I.env)
+      (acceptable_tokens : (string * Tokens.token) list)
+      (similar_candidate_tokens : string list) : 'a =
+    (* The parser has suspended itself because of a syntax error. *)
+    let custom_menhir_message ppf =
+      (match Parser_errors.message (state env) with
+      | exception Not_found ->
+        Format.fprintf ppf "@{<yellow>unexpected token.@}"
+      | msg ->
+        Format.fprintf ppf "@{<yellow>@<1>%s@} @[<hov>%a.@]" "»"
+          Format.pp_print_text
+          (String.trim (String.uncapitalize_ascii msg)));
+      if acceptable_tokens <> [] then
+        Format.fprintf ppf "@\n@[<hov>Those are valid at this point:@ %a.@]"
+          (Format.pp_print_list
+             ~pp_sep:(fun ppf () -> Format.fprintf ppf ",@ ")
+             (fun ppf string -> Format.fprintf ppf "@{<yellow>\"%s\"@}" string))
+          (List.map (fun (s, _) -> s) acceptable_tokens)
+    in
+    let suggestion =
+      if similar_candidate_tokens = [] then None
+      else Some similar_candidate_tokens
+    in
+    let error_loc = Pos.from_lpos (lexing_positions lexbuf) in
+    let wrong_token = Utf8.lexeme lexbuf in
+    if String.trim wrong_token = "```" then
+      (* If the token is an ending code fence, override the message for an
+         appropriate one. *)
+      Message.delayed_error ~kind:Parsing () ?suggestion ~pos:error_loc
+        "@[<hov>Syntax error in preceding code block@]"
+    else
+      Message.delayed_error ~kind:Parsing () ?suggestion ~pos:error_loc
+        "@[<hov>Syntax error at %a:@ %t@]"
+        (fun ppf string -> Format.fprintf ppf "@{<yellow>\"%s\"@}" string)
+        wrong_token custom_menhir_message
+
+  let sorted_candidate_tokens lexbuf token_list env =
+    let acceptable_tokens =
+      List.filter_map
+        (fun ((_, t) as elt) ->
+          if I.acceptable (I.input_needed env) t (fst (lexing_positions lexbuf))
+          then Some elt
+          else None)
+        token_list
+    in
+    let lexeme = Utf8.lexeme lexbuf in
+    let similar_acceptable_tokens =
+      Suggestions.best_candidates (List.map fst acceptable_tokens) lexeme
+    in
+    let module S = Set.Make (String) in
+    let s_toks = S.of_list similar_acceptable_tokens in
+    let sorted_acceptable_tokens =
+      List.sort
+        (fun (s, _) _ -> if S.mem s s_toks then -1 else 1)
+        acceptable_tokens
+    in
+    similar_acceptable_tokens, sorted_acceptable_tokens
+
+  type 'a ring_buffer = {
+    curr_idx : int;
+    start : int ref;
+    stop : int ref;
+    max_size : int;
+    feed : unit -> 'a;
+    data : 'a array;
+  }
+
+  let next ({ curr_idx; start; stop; max_size; feed; data } as buff) =
+    let next_idx = succ curr_idx mod max_size in
+    if curr_idx = !stop then (
+      let new_elt = feed () in
+      data.(curr_idx) <- new_elt;
+      let size = ((!stop - !start + max_size) mod max_size) + 1 in
+      stop := succ !stop mod max_size;
+      let is_full = size = max_size in
+      if is_full then
+        (* buffer will get full: start is also moved *)
+        start := succ !start mod max_size;
+      { buff with curr_idx = next_idx }, new_elt)
+    else
+      let elt = data.(curr_idx) in
+      { buff with curr_idx = next_idx }, elt
+
+  let create ?(max_size = 20) feed v =
+    {
+      curr_idx = 0;
+      start = ref 0;
+      stop = ref 0;
+      feed;
+      data = Array.make max_size v;
+      max_size;
+    }
+
+  let progress ?(max_step = 10) lexer_buffer env checkpoint : int =
+    let rec loop nth_step lexer_buffer env checkpoint =
+      if nth_step >= max_step then nth_step
+      else
+        match checkpoint with
+        | I.InputNeeded env ->
+          let new_lexer_buffer, token = next lexer_buffer in
+          let checkpoint = I.offer checkpoint token in
+          loop (succ nth_step) new_lexer_buffer env checkpoint
+        | I.Shifting _ | I.AboutToReduce _ ->
+          let checkpoint = I.resume checkpoint in
+          loop nth_step lexer_buffer env checkpoint
+        | I.HandlingError (_ : _ I.env) | I.Accepted _ | I.Rejected -> nth_step
+    in
+    loop 0 lexer_buffer env checkpoint
+
+  let recover_parsing_error lexer_buffer env acceptable_tokens =
+    let candidates_checkpoints =
+      let without_token = I.input_needed env in
+      let make_with_token tok =
+        let l, r = I.positions env in
+        let checkpoint = I.input_needed env in
+        I.offer checkpoint (tok, l, r)
+      in
+      without_token :: List.map make_with_token acceptable_tokens
+    in
+    let threshold = min 10 lexer_buffer.max_size in
+    let rec iterate ((curr_max_progress, _) as acc) = function
+      | [] -> acc
+      | cp :: t ->
+        if curr_max_progress >= 10 then acc
+        else
+          let cp_progress = progress ~max_step:threshold lexer_buffer env cp in
+          if cp_progress > curr_max_progress then iterate (cp_progress, cp) t
+          else iterate acc t
+    in
+    let best_progress, best_cp =
+      let dummy_cp = I.input_needed env in
+      iterate (-1, dummy_cp) candidates_checkpoints
+    in
+    (* We do not consider paths where progress isn't significant *)
+    if best_progress < 3 then None else Some best_cp
+
+  let skip_until
+      p
+      (buff : (token * Lexing.position * Lexing.position) ring_buffer) =
+    let rec loop b =
+      let new_b, (tok, _, _) = next b in
+      if p tok then new_b
+      else if tok = Tokens.EOF then (* Give the buffer just before EOF *) b
+      else loop new_b
+    in
+    loop buff
+
+  (** Main parsing loop *)
+  let loop
+      (lexer_buffer :
+        (Tokens.token * Lexing.position * Lexing.position) ring_buffer)
+      (token_list : (string * Tokens.token) list)
+      (lexbuf : lexbuf)
+      (last_input_needed : 'semantic_value I.env option)
+      (checkpoint : 'semantic_value I.checkpoint) : Ast.source_file =
+    let rec loop
+        (lexer_buffer :
+          (Tokens.token * Lexing.position * Lexing.position) ring_buffer)
+        (token_list : (string * Tokens.token) list)
+        (lexbuf : lexbuf)
+        (last_input_needed : 'semantic_value I.env option)
+        (last_pre_code_block_checkpoint : 'semantic_value I.checkpoint option)
+        (checkpoint : 'semantic_value I.checkpoint) : Ast.source_file =
+      match checkpoint with
+      | I.InputNeeded env ->
+        let new_lexer_buffer, token = next lexer_buffer in
+        let tok, _, _ = token in
+        (* Whenever we enter a code block, record the checkpoint *before*
+           entering it so that if everything goes south, we skip until exiting
+           the code block (or EOF) and continue from a valid context. *)
+        let last_pre_code_block_checkpoint =
+          match tok with
+          | BEGIN_CODE | BEGIN_METADATA -> Some checkpoint
+          | END_CODE _ -> None
+          | _ -> last_pre_code_block_checkpoint
+        in
+        let checkpoint = I.offer checkpoint token in
+        loop new_lexer_buffer token_list lexbuf (Some env)
+          last_pre_code_block_checkpoint checkpoint
+      | I.Shifting _ | I.AboutToReduce _ ->
+        let checkpoint = I.resume checkpoint in
+        loop lexer_buffer token_list lexbuf last_input_needed
+          last_pre_code_block_checkpoint checkpoint
+      | I.HandlingError (env : 'semantic_value I.env) -> (
+        let similar_candidate_tokens, sorted_acceptable_tokens =
+          sorted_candidate_tokens lexbuf token_list env
+        in
+        register_parsing_error lexbuf env sorted_acceptable_tokens
+          similar_candidate_tokens;
+        let best_effort_checkpoint =
+          recover_parsing_error lexer_buffer env
+            (List.map snd sorted_acceptable_tokens)
+        in
+        match best_effort_checkpoint, last_pre_code_block_checkpoint with
+        | None, Some cp ->
+          let new_lexer_buffer =
+            skip_until (function END_CODE _ -> true | _ -> false) lexer_buffer
+          in
+          Message.debug
+            "Failed to recover parsing inside a code block: skipping code block";
+          (* The lexer's context should be set back to Law. *)
+          loop new_lexer_buffer token_list lexbuf last_input_needed None cp
+        | None, None ->
+          (* No reasonable solution, aborting *)
+          (* Let's reset the lexer buffer in order to not trigger the unclosed
+             block finalizer: we have at least one error to report *)
+          ignore (Lexer_common.flush_acc ());
+          Lexer_common.context := Law;
+          []
+        | Some best_effort_checkpoint, _ ->
+          loop lexer_buffer token_list lexbuf last_input_needed
+            last_pre_code_block_checkpoint best_effort_checkpoint)
+      | I.Accepted v -> v
+      | I.Rejected -> []
+    in
+    loop lexer_buffer token_list lexbuf last_input_needed None checkpoint
+
+  (** Stub that wraps the parsing main loop and handles the Menhir/Sedlex type
+      difference for [lexbuf]. *)
+  let sedlex_with_menhir
+      (lexer' : lexbuf -> Tokens.token)
+      (token_list : (string * Tokens.token) list)
+      (target_rule : Lexing.position -> 'semantic_value I.checkpoint)
+      (lexbuf : lexbuf) : Ast.source_file =
+    let lexer_buffer :
+        (Tokens.token * Lexing.position * Lexing.position) ring_buffer =
+      let feed = with_tokenizer lexer' lexbuf in
+      create feed Lexing.(Tokens.EOF, dummy_pos, dummy_pos)
+    in
+    try
+      let target_rule =
+        target_rule (fst @@ Sedlexing.lexing_positions lexbuf)
+      in
+      loop lexer_buffer token_list lexbuf None target_rule
+    with Lexer_common.Lexing_error (pos, token) ->
+      (* The encapsulating [Message.with_delayed_errors] will raise an
+         exception: we are safe returning a dummy value. *)
+      Message.delayed_error ~kind:Lexing [] ~pos
+        "Parsing error after token @{<yellow>%S@}: what comes after could not \
+         be recognised"
+        token
+
+  let commands_or_includes (lexbuf : lexbuf) : Ast.source_file =
+    Lexer_common.with_lexing_context
+      (fst (Sedlexing.lexing_positions lexbuf)).pos_fname
+    @@ fun () ->
+    sedlex_with_menhir LocalisedLexer.lexer LocalisedLexer.token_list
+      Incremental.source_file lexbuf
+end
+
+module Parser_En = ParserAux (Lexer_en)
+module Parser_Fr = ParserAux (Lexer_fr)
+module Parser_Pl = ParserAux (Lexer_pl)
+
+let localised_parser : Global.backend_lang -> lexbuf -> Ast.source_file =
+  function
+  | `En -> Parser_En.commands_or_includes
+  | `Fr -> Parser_Fr.commands_or_includes
+  | `Pl -> Parser_Pl.commands_or_includes
+
+(** Lightweight lexer for dependency *)
+
+let lines (file : File.t) (language : Global.backend_lang) =
+  let lex_line =
+    match language with
+    | `En -> Lexer_en.lex_line
+    | `Fr -> Lexer_fr.lex_line
+    | `Pl -> Lexer_pl.lex_line
+  in
+  let input = open_in file in
+  try
+    let lexbuf = Sedlexing.Utf8.from_channel input in
+    Sedlexing.set_filename lexbuf file;
+    let context = ref `Law in
+    let rec aux () =
+      match lex_line ~context lexbuf with
+      | Some (str, tok) ->
+        Seq.Cons ((str, tok, Sedlexing.lexing_bytes_positions lexbuf), aux)
+      | None ->
+        close_in input;
+        Seq.Nil
+    in
+    Seq.once aux
+  with exc ->
+    let bt = Printexc.get_raw_backtrace () in
+    close_in input;
+    Printexc.raise_with_backtrace exc bt
+
+(** {1 Parsing multiple files} *)
+
+let lexbuf_file lexbuf =
+  (fst (Sedlexing.lexing_positions lexbuf)).Lexing.pos_fname
+
+let with_sedlex_file file f =
+  let ic = open_in file in
+  let lexbuf = Sedlexing.Utf8.from_channel ic in
+  Sedlexing.set_filename lexbuf file;
+  Fun.protect ~finally:(fun () -> close_in ic) (fun () -> f lexbuf)
+
+let with_sedlex_source source_file f =
+  match source_file with
+  | Global.FileName file -> with_sedlex_file file f
+  | Global.Contents (str, file) ->
+    let lexbuf = Sedlexing.Utf8.from_string str in
+    Sedlexing.set_filename lexbuf file;
+    f lexbuf
+  | Global.Stdin file ->
+    let lexbuf = Sedlexing.Utf8.from_channel stdin in
+    Sedlexing.set_filename lexbuf file;
+    f lexbuf
+
+(** Parses a single source file *)
+(* Files currently being expanded through '> Include:'. Used to reject include
+   cycles, which would otherwise recurse until the process runs out of file
+   descriptors. *)
+let includes_in_progress : (string, unit) Hashtbl.t = Hashtbl.create 8
+
+let rec parse_source ?resolve_included_file (lexbuf : Sedlexing.lexbuf) :
+    Ast.program =
+  let source_file_name = lexbuf_file lexbuf in
+  Message.debug "Parsing %a" File.format source_file_name;
+  let language = Cli.file_lang source_file_name in
+  let commands = Parser_state.with_state (localised_parser language) lexbuf in
+  let program =
+    expand_includes ?resolve_included_file source_file_name commands
+  in
+  {
+    program with
+    program_source_files = source_file_name :: program.Ast.program_source_files;
+    program_lang = language;
+  }
+
+(** Expands the include directives in a parsing result, thus parsing new source
+    files *)
+and expand_includes
+    ?(resolve_included_file = fun path -> Catala_utils.Global.FileName path)
+    (source_file : string)
+    (commands : Ast.law_structure list) : Ast.program =
+  let language = Cli.file_lang source_file in
+  let rprg =
+    List.fold_left
+      (fun acc command ->
+        let join_module_names name_opt =
+          match acc.Ast.program_module, name_opt with
+          | opt, None | None, opt -> opt
+          | Some id1, Some id2 ->
+            Message.error ~kind:Parsing
+              ~extra_pos:
+                ["", Mark.get id1.module_name; "", Mark.get id2.module_name]
+              "Multiple definitions of the module name"
+        in
+        match command with
+        | Ast.ModuleDef (id, is_external) ->
+          {
+            acc with
+            Ast.program_module =
+              join_module_names
+                (Some { module_name = id; module_external = is_external });
+            Ast.program_items = command :: acc.Ast.program_items;
+          }
+        | Ast.ModuleUse (mod_use_name, alias) ->
+          let mod_use_alias = Option.value ~default:mod_use_name alias in
+          {
+            acc with
+            Ast.program_used_modules =
+              { mod_use_name; mod_use_alias } :: acc.Ast.program_used_modules;
+            Ast.program_items = command :: acc.Ast.program_items;
+          }
+        | Ast.LawInclude (Ast.CatalaFile inc_file) ->
+          let source_dir = Filename.dirname source_file in
+          let sub_source = File.(source_dir / Mark.remove inc_file) in
+          let pos = Mark.get inc_file in
+          if File.check_file sub_source = None then
+            Message.delayed_error ~kind:Parsing ~pos acc
+              "Included file '%s' is not a regular file or does not exist."
+              sub_source
+          else
+            let include_key = sub_source in
+            if Hashtbl.mem includes_in_progress include_key then
+              Message.delayed_error ~kind:Parsing ~pos acc
+                "Circular file inclusion: '%s' is already being included \
+                 further up the '@{<yellow>> Include@}' chain."
+                include_key
+            else
+            Fun.protect
+              ~finally:(fun () -> Hashtbl.remove includes_in_progress include_key)
+            @@ fun () ->
+            Hashtbl.add includes_in_progress include_key ();
+            let sub_source = resolve_included_file sub_source in
+            with_sedlex_source sub_source
+            @@ fun lexbuf ->
+            let includ_program = parse_source ~resolve_included_file lexbuf in
+            let () =
+              includ_program.Ast.program_module
+              |> Option.iter
+                 @@ fun id ->
+                 Message.error ~kind:Parsing
+                   ~extra_pos:
+                     [
+                       "File include", Mark.get inc_file;
+                       "Module declaration", Mark.get id.Ast.module_name;
+                     ]
+                   "A file that declares a module cannot be used through the \
+                    raw '@{<yellow>> Include@}'@ directive.@ You should use it \
+                    as a module with@ '@{<yellow>> Using @{<blue>%s@}@}'@ \
+                    instead."
+                   (Mark.remove id.Ast.module_name)
+            in
+            {
+              Ast.program_module = acc.program_module;
+              Ast.program_source_files =
+                List.rev_append includ_program.program_source_files
+                  acc.Ast.program_source_files;
+              Ast.program_items =
+                List.rev_append includ_program.program_items
+                  acc.Ast.program_items;
+              Ast.program_used_modules =
+                List.rev_append includ_program.program_used_modules
+                  acc.Ast.program_used_modules;
+              Ast.program_lang = language;
+            }
+        | Ast.LawHeading (heading, commands') ->
+          let {
+            Ast.program_module;
+            Ast.program_items = commands';
+            Ast.program_source_files = new_sources;
+            Ast.program_used_modules = new_used_modules;
+            Ast.program_lang = _;
+          } =
+            expand_includes source_file commands'
+          in
+          {
+            Ast.program_module = join_module_names program_module;
+            Ast.program_source_files =
+              List.rev_append new_sources acc.Ast.program_source_files;
+            Ast.program_items =
+              Ast.LawHeading (heading, commands') :: acc.Ast.program_items;
+            Ast.program_used_modules =
+              List.rev_append new_used_modules acc.Ast.program_used_modules;
+            Ast.program_lang = language;
+          }
+        | i -> { acc with Ast.program_items = i :: acc.Ast.program_items })
+      {
+        Ast.program_module = None;
+        Ast.program_source_files = [];
+        Ast.program_items = [];
+        Ast.program_used_modules = [];
+        Ast.program_lang = language;
+      }
+      commands
+  in
+  {
+    Ast.program_lang = language;
+    Ast.program_module = rprg.Ast.program_module;
+    Ast.program_source_files = List.rev rprg.Ast.program_source_files;
+    Ast.program_items = List.rev rprg.Ast.program_items;
+    Ast.program_used_modules = List.rev rprg.Ast.program_used_modules;
+  }
+
+(** {2 Handling interfaces} *)
+
+(** {1 API} *)
+
+let check_modname program source_file =
+  match program.Ast.program_module, source_file with
+  | ( Some { module_name = mname, pos; _ },
+      (Global.FileName file | Global.Contents (_, file) | Global.Stdin file) )
+    ->
+    let basename_no_ext = File.remove_extension (Filename.basename file) in
+    if File.equal (String.to_id mname) (String.to_id basename_no_ext) then ()
+    else
+      Message.error ~kind:Parsing ~pos
+        "Module declared as@ @{<blue>%s@},@ which@ does@ not@ match@ the@ \
+         file@ name@ %a.@ Rename the module to@ @{<blue>%s@}@ or@ the@ file@ \
+         to@ %a."
+        mname File.format file
+        (String.capitalize_ascii basename_no_ext)
+        File.format
+        File.((dirname file / mname) -.- extension file)
+  | _ -> ()
+
+let load_source_file ?default_module_name ~is_stdlib source_file content_builder
+    =
+  let program = with_sedlex_source source_file parse_source in
+  check_modname program source_file;
+  let modname =
+    match program.Ast.program_module, default_module_name with
+    | Some mname, _ -> mname
+    | None, Some n ->
+      {
+        module_name = n, Pos.from_file (Global.input_src_file source_file);
+        module_external = false;
+      }
+    | None, None ->
+      Message.error ~kind:Parsing
+        "%a doesn't define a module name. It should contain a '@{<cyan>> \
+         Module %s@}' directive."
+        File.format
+        (Global.input_src_file source_file)
+        (match source_file with
+        | FileName s ->
+          String.capitalize_ascii (Filename.basename (File.remove_extension s))
+        | _ -> "Module_name")
+  in
+  let used_modules, module_items = content_builder program in
+  {
+    Ast.module_modname = modname;
+    module_items;
+    module_is_stdlib = is_stdlib;
+    module_submodules = used_modules;
+  }
+
+let load_interface ?default_module_name ~is_stdlib source_file =
+  let get_interface program =
+    let rec filter (req, acc) = function
+      | Ast.LawInclude _ | Ast.LawText _ | Ast.ModuleDef _ -> req, acc
+      | Ast.LawHeading (_, str) -> List.fold_left filter (req, acc) str
+      | Ast.ModuleUse (mod_use_name, alias) ->
+        ( {
+            Ast.mod_use_name;
+            mod_use_alias = Option.value ~default:mod_use_name alias;
+          }
+          :: req,
+          acc )
+      | Ast.CodeBlock (code, _, is_metadata) ->
+        (* Non-metadata blocks are ignored ; except for types that can
+           automatically get exported if required by public or test items *)
+        ( req,
+          List.fold_left
+            (fun acc -> function
+              | Ast.ScopeUse _, _ -> acc
+              | ( ( Ast.ScopeDecl _ | StructDecl _ | EnumDecl _
+                  | AbstractTypeDecl _ ),
+                  _ ) as e ->
+                ( e,
+                  if is_metadata then Shared_ast.Public else Shared_ast.Private
+                )
+                :: acc
+              | Ast.Topdef def, m ->
+                if is_metadata then
+                  ((Ast.Topdef { def with topdef_expr = None }, m), Public)
+                  :: acc
+                else acc)
+            acc code )
+    in
+    let req, acc = List.fold_left filter ([], []) program.Ast.program_items in
+    List.rev req, Ast.Interface (List.rev acc)
+  in
+  load_source_file ?default_module_name ~is_stdlib source_file get_interface
+
+let load_interface_and_code ?default_module_name ~is_stdlib source_file =
+  let get_code_block program =
+    let rec filter req = function
+      | Ast.LawInclude _ | Ast.LawText _ | Ast.ModuleDef _ -> req
+      | Ast.LawHeading (_, str) -> List.fold_left filter req str
+      | Ast.ModuleUse (mod_use_name, alias) ->
+        {
+          Ast.mod_use_name;
+          mod_use_alias = Option.value ~default:mod_use_name alias;
+        }
+        :: req
+      | Ast.CodeBlock _ -> req
+    in
+    let mod_uses = List.fold_left filter [] program.Ast.program_items in
+    List.rev mod_uses, Ast.Code program.Ast.program_items
+  in
+  load_source_file ?default_module_name ~is_stdlib source_file get_code_block
+
+let resolution_tbl = Hashtbl.create 13
+
+let register_included_file_resolver ~filename:s ~new_content =
+  Hashtbl.replace resolution_tbl s new_content
+
+(** Associates a file extension with its corresponding
+    {!type: Global.backend_lang} string representation. *)
+let extensions =
+  [
+    ".catala_fr", "fr";
+    ".catala_fr.md", "fr";
+    ".catala_en", "en";
+    ".catala_en.md", "en";
+    ".catala_pl", "pl";
+    ".catala_pl.md", "pl";
+  ]
+
+type module_loading =
+  allow_notmodules:bool ->
+  is_stdlib:bool ->
+  Global.options ->
+  string ->
+  Ast.module_content
+
+let load_module ~allow_notmodules ~is_stdlib options f =
+  let default_module_name =
+    if allow_notmodules then
+      (* This preserves the filename capitalisation, which corresponds to the
+         convention for files related to not-module compilation artifacts and is
+         used by [depends] below *)
+      Some (Filename.basename (File.remove_extension f))
+    else None
+  in
+  if options.Global.whole_program then
+    load_interface_and_code ?default_module_name ~is_stdlib (Global.FileName f)
+  else load_interface ?default_module_name ~is_stdlib (Global.FileName f)
+
+let load_modules
+    options
+    includes
+    ~stdlib
+    ?(more_includes = [])
+    ?(allow_notmodules = false)
+    ?(load_module : module_loading = load_module)
+    program :
+    ModuleName.t Ident.Map.t
+    * (Ast.module_content * ModuleName.t Ident.Map.t) ModuleName.Map.t =
+  let stdlib_root_module lang =
+    let lang = if Global.has_localised_stdlib lang then lang else `En in
+    "Stdlib_" ^ Cli.language_code lang
+  in
+  if stdlib <> None || program.Ast.program_used_modules <> [] then
+    Message.debug "Loading module interfaces...";
+  (* Recurse into program modules, looking up files in [using] and loading
+     them *)
+  let stdlib_includes =
+    match stdlib with
+    | Some dir -> File.Tree.build (options.Global.path_rewrite dir)
+    | None -> File.Tree.empty
+  in
+  let stdlib_use file =
+    let pos = Pos.from_file file in
+    let lang = Cli.file_lang file in
+    {
+      Ast.mod_use_name = stdlib_root_module lang, pos;
+      Ast.mod_use_alias = "Stdlib", pos;
+    }
+  in
+  let includes =
+    List.map options.Global.path_rewrite includes @ more_includes
+    |> List.map File.Tree.build
+    |> List.fold_left File.Tree.union File.Tree.empty
+  in
+  let err_req_pos chain =
+    List.map (fun mpos -> "Module required from", mpos) chain
+  in
+  let find_module in_stdlib req_chain (mname, mpos) =
+    let required_from_file = Pos.get_file mpos in
+    let includes =
+      if in_stdlib then stdlib_includes
+      else
+        File.Tree.union includes
+          (File.Tree.build (File.dirname required_from_file))
+    in
+    match
+      List.filter_map
+        (fun (ext, _) -> File.Tree.lookup includes (mname ^ ext))
+        extensions
+    with
+    | [] ->
+      if in_stdlib then
+        Message.error
+          "@[<v>@[<hov>The standard library module @{<magenta>%s@}@ could@ \
+           not@ be@ found@ at@ %a.@]@,\
+           @,\
+           @[<hov>@{<bold>Hint:@} run command '@{<cyan>clerk start@}' first to \
+           setup the@ standard@ library@ in@ the@ current@ project.@ In@ \
+           general,@ prefer@ building@ with@ @{<cyan>clerk@}@ rather@ than@ \
+           running@ @{<cyan>catala@}@ directly.@]@]"
+          mname File.format
+          (options.Global.path_rewrite (Option.get stdlib))
+      else
+        Message.error
+          ~extra_pos:(err_req_pos (mpos :: req_chain))
+          "Required module not found: @{<blue>%s@}" mname
+    | [f] -> f
+    | ms ->
+      Message.error
+        ~extra_pos:(err_req_pos (mpos :: req_chain))
+        "@[<hv 2>@[<hov>Required module @{<blue>%s@}@ matches@ multiple@ \
+         files:@]@ %a@]@,\
+         @[<hov>@{<bold>Hint:@} %a@ '@{<cyan>clerk clean@}'@ and@ retry@]"
+        mname
+        (Format.pp_print_list ~pp_sep:Format.pp_print_space File.format)
+        ms Format.pp_print_text
+        "This might be a leftover from a renamed file, you may want to run"
+  in
+  let rec load_uses file ~is_stdlib req_chain acc uses :
+      (ModuleName.t option File.Map.t
+      * (Ast.module_content * ModuleName.t Ident.Map.t) ModuleName.Map.t)
+      * ModuleName.t Ident.Map.t =
+    let use_map = Ident.Map.empty in
+    let acc, use_map =
+      if is_stdlib || stdlib = None then acc, use_map
+      else
+        let std_use = stdlib_use file in
+        let acc, std_modname =
+          load_submodule ~is_stdlib:true req_chain acc std_use
+        in
+        let std_uses =
+          let _, modules = acc in
+          let _, std_uses = ModuleName.Map.find std_modname modules in
+          std_uses
+        in
+        ( acc,
+          Ident.Map.add
+            (Mark.remove std_use.Ast.mod_use_name)
+            std_modname std_uses )
+    in
+    List.fold_left
+      (fun (acc, use_map) use ->
+        let acc, modname = load_submodule ~is_stdlib req_chain acc use in
+        acc, Ident.Map.add (Mark.remove use.Ast.mod_use_alias) modname use_map)
+      (acc, use_map) uses
+  and load_submodule ~is_stdlib req_chain (files, modules) use =
+    let f = find_module is_stdlib req_chain use.Ast.mod_use_name in
+    match File.Map.find_opt f files with
+    | Some (Some modname) ->
+      (* Already loaded *)
+      (files, modules), modname
+    | Some None ->
+      (* Already being resolved *)
+      Message.error
+        ~extra_pos:(err_req_pos (Mark.get use.Ast.mod_use_name :: req_chain))
+        "Circular module dependency"
+    | None ->
+      let module_content = load_module ~is_stdlib ~allow_notmodules options f in
+      let modname =
+        ModuleName.fresh module_content.Ast.module_modname.module_name
+      in
+      let files = File.Map.add f None files in
+      let req_chain = Mark.get use.Ast.mod_use_name :: req_chain in
+      let (files, modules), use_map =
+        load_uses f ~is_stdlib req_chain (files, modules)
+          module_content.Ast.module_submodules
+      in
+      ( ( File.Map.add f (Some modname) files,
+          ModuleName.Map.add modname (module_content, use_map) modules ),
+        modname )
+  in
+  let file =
+    match program.Ast.program_module with
+    | Some m -> Pos.get_file (Mark.get m.module_name)
+    | None -> List.hd program.Ast.program_source_files
+  in
+  let (_files, module_map), root_uses =
+    load_uses file ~is_stdlib:false
+      [Pos.from_file file]
+      (File.Map.empty, ModuleName.Map.empty)
+      program.Ast.program_used_modules
+  in
+  root_uses, module_map
+
+let parse_top_level_file
+    ?resolve_included_file
+    (source_file : File.t Global.input_src) : Ast.program =
+  let resolve_included_file =
+    let tbl_lookup s = Hashtbl.find_opt resolution_tbl s in
+    match resolve_included_file with
+    | None -> fun s -> Option.value (tbl_lookup s) ~default:(Global.FileName s)
+    | Some f -> f
+  in
+  let program =
+    with_sedlex_source source_file (parse_source ~resolve_included_file)
+  in
+  check_modname program source_file;
+  {
+    program with
+    Ast.program_items = law_struct_list_to_tree program.Ast.program_items;
+  }

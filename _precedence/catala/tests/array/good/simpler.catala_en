@@ -1,0 +1,35 @@
+## Article
+
+```catala
+#[test] declaration scope A:
+   output x content list of integer
+   output w content boolean
+
+scope A:
+   definition x equals [0; 4+5; 8*8]
+   definition w equals for all m among x we have m > 0
+```
+
+
+
+```catala-test-cli
+$ catala Typecheck --check-invariants
+┌─[RESULT]─
+│ All invariant checks passed
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[RESULT]─ A ─
+│ x = [
+│       0;
+│       9;
+│       64;
+│     ]
+│ w = false
+└─
+```

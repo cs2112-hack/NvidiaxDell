@@ -1,0 +1,31 @@
+
+```catala
+declaration scope A:
+  input i content integer
+  output o content integer
+  input output io content integer
+
+#[test] declaration scope B:
+  output a scope A
+  output b content integer
+
+scope A:
+  definition o equals i
+
+scope B:
+  definition a.i equals 99
+  definition a.io equals 100
+  definition b equals a.o
+```
+
+
+```catala-test-cli
+$ catala test-scope B
+┌─[RESULT]─ B ─
+│ a = A {
+│       -- o: 99
+│       -- io: 100
+│     }
+│ b = 99
+└─
+```

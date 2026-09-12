@@ -1,0 +1,115 @@
+# Expense approval — Acme Cloud Systems
+
+> Module Expense_approval_acme
+> Using Legal_types as T
+
+Sources: SYN-006 § 2.1 (Corporate Expense Reimbursement Policy) as the base ladder,
+SYN-007 § 2.1–2.2 (Engineering Department Expense Policy), resolved by
+
+  SYN-005 § 7.1 — A department may adopt a policy that is more restrictive than the
+  Corporate Expense Reimbursement Policy. Where a department policy and the Corporate
+  Expense Reimbursement Policy differ, the more restrictive approval requirement controls.
+
+Unlike the liability cap, the resolution here is a comparison rather than a document rank,
+so § 7.1 is encoded as an explicit ordering over approval levels.
+
+```catala-metadata
+declaration scope ExpenseApproval:
+  input amount content money
+  input department content T.Department
+
+  internal corporate_level content T.ApprovalLevel
+  internal department_level content optional of T.ApprovalLevel
+
+  output approval_level content T.ApprovalLevel
+  output receipt_required content boolean
+
+declaration strictness content integer
+  depends on level content T.ApprovalLevel
+```
+
+The ordering the handbook's "more restrictive" means, spelled out once.
+
+```catala
+declaration strictness content integer
+  depends on level content T.ApprovalLevel
+  equals
+    match level with pattern
+    -- Manager: 1
+    -- Director: 2
+    -- VicePresident: 3
+    -- ChiefFinancialOfficer: 4
+```
+
+## SYN-006 § 2.1 — the corporate approval ladder
+
+  $1,000.00 or less → Manager; more than $1,000.00 up to and including $5,000.00 →
+  Director; more than $5,000.00 up to and including $25,000.00 → Vice President; more than
+  $25,000.00 → Chief Financial Officer.
+
+```catala
+scope ExpenseApproval:
+  label corporate_base
+  definition corporate_level equals T.ApprovalLevel.Manager
+
+  label corporate_director exception corporate_base
+  definition corporate_level
+    under condition amount > $1,000 and amount <= $5,000
+    consequence equals T.ApprovalLevel.Director
+
+  label corporate_vp exception corporate_base
+  definition corporate_level
+    under condition amount > $5,000 and amount <= $25,000
+    consequence equals T.ApprovalLevel.VicePresident
+
+  label corporate_cfo exception corporate_base
+  definition corporate_level
+    under condition amount > $25,000
+    consequence equals T.ApprovalLevel.ChiefFinancialOfficer
+```
+
+## SYN-007 § 2.1–2.2 — the Engineering ladder
+
+  All expenses over two thousand five hundred dollars ($2,500.00) require Director
+  approval. Expenses of two thousand five hundred dollars ($2,500.00) or less require
+  Manager approval.
+
+The department policy exists only for Engineering; elsewhere there is nothing to compare.
+
+```catala
+scope ExpenseApproval:
+  label no_department_policy
+  definition department_level equals Absent
+
+  label engineering_manager exception no_department_policy
+  definition department_level
+    under condition department = T.Department.Engineering and amount <= $2,500
+    consequence equals Present content T.ApprovalLevel.Manager
+
+  label engineering_director exception no_department_policy
+  definition department_level
+    under condition department = T.Department.Engineering and amount > $2,500
+    consequence equals Present content T.ApprovalLevel.Director
+```
+
+## SYN-005 § 7.1 — the more restrictive requirement controls
+
+```catala
+scope ExpenseApproval:
+  definition approval_level equals
+    match department_level with pattern
+    -- Present content dept:
+      (if strictness of dept > strictness of corporate_level then dept
+       else corporate_level)
+    -- Absent: corporate_level
+```
+
+## SYN-006 § 3.1 — receipts
+
+  An itemized receipt is required for any single expense over seventy-five dollars
+  ($75.00).
+
+```catala
+scope ExpenseApproval:
+  definition receipt_required equals amount > $75
+```

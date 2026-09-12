@@ -1,0 +1,22 @@
+## Test
+
+```catala
+declaration structure Foo:
+
+declaration scope Bar:
+  internal foo content Foo
+```
+
+```catala-test-cli
+$ catala Typecheck 
+┌─[ERROR]─
+│
+│  No fields defined for structure Foo. Please define at least one.
+│
+├─➤ tests/struct/bad/empty_struct.catala_en:4.23-26:
+│   │
+│ 4 │ declaration structure Foo:
+│   │                       ‾‾‾
+└─ Test
+#return code 123#
+```

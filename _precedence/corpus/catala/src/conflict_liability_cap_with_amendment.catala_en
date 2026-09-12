@@ -1,0 +1,55 @@
+# CONFLICT — liability cap with Amendment No. 1 (ACME-NW-MSA-2026)
+
+> Module Conflict_liability_cap_with_amendment
+> Using Legal_types as T
+
+This module is **expected not to execute** for claims on or after 2026-09-01. SYN-003 § 5.1
+(Order Form No. 1) caps ordinary liability at 300% of the $240,000 annual fees, and
+SYN-004 § 2.1 (Amendment No. 1) replaces MSA § 9.2 with a flat $500,000 for all claims.
+Ordinarily MSA § 14.3 would let the Order Form win, but the Amendment switches that off:
+
+  SYN-004 § 3.2 — This Amendment and any Order Form issued under the MSA are of equal rank.
+  Neither this Amendment nor any Order Form shall be deemed to take precedence over the
+  other, and Section 14.3 of the MSA shall not apply as between this Amendment and any
+  Order Form.
+
+So there is no exception to declare, and the two definitions collide. Compare
+`liability_cap_acme_northwind.catala_en`, which is the same cap resolved by § 14.3 because
+no amendment disclaims it.
+
+```catala-metadata
+declaration scope AmendedLiabilityCap:
+  input annual_fees content money
+  input claim_type content T.ClaimType
+  input claim_date content date
+
+  output cap content money
+```
+
+## SYN-003 § 5.1 — the Order Form's general cap
+
+  Notwithstanding Section 9.2 of the MSA, each party's aggregate liability arising out of
+  or related to the Services ordered under this Order Form shall not exceed three hundred
+  percent (300%) of the Annual Fees stated above.
+
+```catala
+scope AmendedLiabilityCap:
+  definition cap
+    under condition
+      claim_date >= |2026-07-01| and claim_type = T.ClaimType.Ordinary
+    consequence equals annual_fees * 3.0
+```
+
+## SYN-004 § 2.1 — the Amendment's flat cap
+
+  Section 9.2 of the MSA is deleted and replaced with the following: "Each party's
+  aggregate liability arising out of or related to this Agreement, and to any Order Form
+  issued under it, shall not exceed five hundred thousand dollars ($500,000) for all
+  claims of every kind."
+
+```catala
+scope AmendedLiabilityCap:
+  definition cap
+    under condition claim_date >= |2026-09-01|
+    consequence equals $500,000
+```

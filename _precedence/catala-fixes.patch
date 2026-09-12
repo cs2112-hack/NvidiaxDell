@@ -1,0 +1,437 @@
+diff --git a/build_system/clerk_backend/python.ml b/build_system/clerk_backend/python.ml
+index e9e5c859..8f52d1b0 100644
+--- a/build_system/clerk_backend/python.ml
++++ b/build_system/clerk_backend/python.ml
+@@ -136,7 +136,10 @@ module Spec : Sig.Spec = struct
+     let open File in
+     File.with_out_channel (dir / "__init__.py") (fun oc ->
+         Printf.fprintf oc "__all__ = [%s]\n"
+-          (String.concat ", " target.Clerk_config.tmodules));
++          (String.concat ", "
++             (List.map
++                (fun m -> Printf.sprintf "%S" m)
++                target.Clerk_config.tmodules)));
+     File.with_out_channel (dir / "py.typed") ignore
+ 
+   let install_runtime ~config =
+diff --git a/build_system/clerk_report.ml b/build_system/clerk_report.ml
+index 11379c4a..422a7d57 100644
+--- a/build_system/clerk_report.ml
++++ b/build_system/clerk_report.ml
+@@ -403,15 +403,17 @@ let display_file ~build_dir ppf (t : file) =
+     let {
+       Clerk_coverage.total_reachable_lines;
+       total_reached_lines;
+-      total_unreached_lines;
++      total_unreached_lines = _;
+     } =
+       Clerk_coverage.compute_coverage_per_line full_code_coverage
+     in
+     let percentage =
+-      int_of_float
+-        (float_of_int total_reached_lines
+-        /. float_of_int total_unreached_lines
+-        *. 100.)
++      if total_reachable_lines = 0 then 100
++      else
++        int_of_float
++          (float_of_int total_reached_lines
++          /. float_of_int total_reachable_lines
++          *. 100.)
+     in
+     Format.pp_print_break ppf 0 3;
+     Format.pp_open_vbox ppf 0;
+diff --git a/build_system/clerk_rules.ml b/build_system/clerk_rules.ml
+index ba973040..7e0df946 100644
+--- a/build_system/clerk_rules.ml
++++ b/build_system/clerk_rules.ml
+@@ -1157,11 +1157,16 @@ let inclusion_map items =
+           map it.Scan.included_files)
+       String.Map.empty items
+   in
+-  let rec find it map =
+-    match String.Map.find_opt it.Scan.file_name map with
+-    | None -> it
+-    | Some parent -> find parent map
++  (* [seen] guards against include cycles, which would otherwise loop here
++     forever. *)
++  let rec find ~seen it map =
++    if List.mem it.Scan.file_name seen then it
++    else
++      match String.Map.find_opt it.Scan.file_name map with
++      | None -> it
++      | Some parent -> find ~seen:(it.Scan.file_name :: seen) parent map
+   in
++  let find it map = find ~seen:[] it map in
+   String.Map.fold
+     (fun file it map -> String.Map.add file (find it map) map)
+     direct_map direct_map
+diff --git a/build_system/clerk_utils/scan.ml b/build_system/clerk_utils/scan.ml
+index 5f0f523d..e503b835 100644
+--- a/build_system/clerk_utils/scan.ml
++++ b/build_system/clerk_utils/scan.ml
+@@ -72,20 +72,26 @@ let rec has_test_scope ~lang file =
+   in
+   scan (Surface.Parser_driver.lines file lang)
+ 
+-let rec count_test_scopes ~lang file =
++let count_test_scopes ~lang file =
+   (* Note: if efficiency becomes a problem, this could rely on a cached index of
+      file items *)
+-  let lang = Option.value (get_lang file) ~default:lang in
+-  let rec scan lines =
+-    match Seq.uncons lines with
+-    | Some ((_, L.LINE_TEST_ATTRIBUTE, _), lines) -> 1 + scan lines
+-    | Some ((_, L.LINE_INCLUDE f, _), lines) ->
+-      let f = if Filename.is_relative f then File.(file /../ f) else f in
+-      scan lines + count_test_scopes ~lang f
+-    | Some (_, lines) -> scan lines
+-    | None -> 0
++  (* [seen] guards against include cycles, which would otherwise recurse until
++     the process runs out of file descriptors. *)
++  let rec count_test_scopes ~seen ~lang file =
++    let lang = Option.value (get_lang file) ~default:lang in
++    let rec scan lines =
++      match Seq.uncons lines with
++      | Some ((_, L.LINE_TEST_ATTRIBUTE, _), lines) -> 1 + scan lines
++      | Some ((_, L.LINE_INCLUDE f, _), lines) ->
++        let f = if Filename.is_relative f then File.(file /../ f) else f in
++        if List.mem f seen then scan lines
++        else scan lines + count_test_scopes ~seen:(f :: seen) ~lang f
++      | Some (_, lines) -> scan lines
++      | None -> 0
++    in
++    scan (Surface.Parser_driver.lines file lang)
+   in
+-  scan (Surface.Parser_driver.lines file lang)
++  count_test_scopes ~seen:[file] ~lang file
+ 
+ let catala_file (file : File.t) (lang : Catala_utils.Global.backend_lang) : item
+     =
+diff --git a/compiler/plugins/proof.ml b/compiler/plugins/proof.ml
+index ac7450bd..55088902 100644
+--- a/compiler/plugins/proof.ml
++++ b/compiler/plugins/proof.ml
+@@ -22,6 +22,7 @@ let proof
+     ex_scope_opt
+     check_invariants
+     disable_counterexamples
++    fail_on_unproven
+     options =
+   let prg, _ =
+     Driver.Passes.dcalc options ~includes ~stdlib ~optimize ~check_invariants
+@@ -32,7 +33,11 @@ let proof
+     Verification.Conditions.generate_verification_conditions prg
+       (Option.map (Driver.Commands.get_scope_uid prg.decl_ctx) ex_scope_opt)
+   in
+-  Verification.Solver.solve_vc prg.decl_ctx vcs
++  let all_proven = Verification.Solver.solve_vc prg.decl_ctx vcs in
++  if (not all_proven) && fail_on_unproven then
++    Catala_utils.Message.error
++      "Some verification conditions could not be discharged (see the warnings \
++       above)." 
+ 
+ let proof_cmd =
+   let open Cmdliner.Term in
+@@ -44,6 +49,15 @@ let proof_cmd =
+   $ Flags.ex_scope_opt
+   $ Flags.check_invariants
+   $ Flags.disable_counterexamples
++  $ Cmdliner.Arg.(
++      value
++      & flag
++      & info ["fail-on-unproven"]
++          ~doc:
++            "Return a non-zero exit code if any verification condition could \
++             not be discharged. Off by default, so that $(b,catala proof) \
++             reports its findings as warnings; turn it on to use $(b,proof) \
++             as a CI gate.")
+ 
+ let () =
+   Driver.Plugin.register "proof" proof_cmd
+diff --git a/compiler/scalc/to_python.ml b/compiler/scalc/to_python.ml
+index ba3a40bc..d44b51ad 100644
+--- a/compiler/scalc/to_python.ml
++++ b/compiler/scalc/to_python.ml
+@@ -832,8 +832,11 @@ let format_program
+   in
+   Format.pp_print_list Format.pp_print_string fmt header;
+   List.iter
+-    (fun (m, _) ->
+-      Format.fprintf fmt "from . import %a as %a@," ModuleName.format
++    (fun (m, intf_id) ->
++      (* Stdlib modules are installed as their own [libcatala] package, not
++         alongside the generated modules, so a relative import would fail. *)
++      let pkg = if intf_id.is_stdlib then "libcatala" else "." in
++      Format.fprintf fmt "from %s import %a as %a@," pkg ModuleName.format
+         (ModuleName.normalise m) VarName.format
+         (ModuleName.Map.find m p.ctx.modules))
+     (Program.modules_to_list ~trim_stdlib:true p.ctx.decl_ctx.ctx_modules);
+diff --git a/compiler/surface/lexer.cppo.ml b/compiler/surface/lexer.cppo.ml
+index bec75678..80520eb1 100644
+--- a/compiler/surface/lexer.cppo.ml
++++ b/compiler/surface/lexer.cppo.ml
+@@ -421,6 +421,32 @@ let check_fence_space =
+     Message.warning ~pos:(Pos.from_lpos (lexing_positions lexbuf))
+       "Extra leading or trailing space"
+ 
++(* Warn when a fenced block is labelled like a Catala block but is not one of
++   the two recognised labels: such a block is silently treated as plain law
++   text, which means the code inside it never reaches the compiler. *)
++let check_unrecognised_catala_fence =
++  let fence_re =
++    Re.(compile @@ seq [bos; rep space; str "```"; group (rep (alt [alnum; char '-'; char '_']))])
++  in
++  fun lexbuf ->
++    let txt = Utf8.lexeme lexbuf in
++    match Re.exec_opt fence_re txt with
++    | None -> ()
++    | Some g ->
++      let label = Re.Group.get g 1 in
++      let low = String.lowercase_ascii label in
++      if String.starts_with ~prefix:"catala" low
++         && label <> "catala"
++         && label <> "catala-metadata"
++         && label <> "catala-test-cli"
++      then
++        Message.warning ~pos:(Pos.from_lpos (lexing_positions lexbuf))
++          "Unrecognised code block label @{<yellow>```%s@}: this block is \
++           treated as plain text, so any code inside it is ignored.@\n\
++           Did you mean @{<yellow>```catala@} or \
++           @{<yellow>```catala-metadata@} ?"
++          label
++
+ let rec lex_string buf lexbuf : token =
+   match%sedlex lexbuf with
+   | Plus (Compl (Chars "\\\"")) ->
+@@ -911,6 +937,7 @@ let lex_law (lexbuf : lexbuf) : token =
+         BEGIN_METADATA
+     | Star hspace, "```", Star (idchar | '-') ->
+         check_fence_space lexbuf;
++        check_unrecognised_catala_fence lexbuf;
+         L.context := Raw;
+         L.context_start_pos := lexing_positions lexbuf;
+         LAW_TEXT (Utf8.lexeme lexbuf)
+diff --git a/compiler/surface/parser_driver.ml b/compiler/surface/parser_driver.ml
+index 0e54db13..a1f8efc2 100644
+--- a/compiler/surface/parser_driver.ml
++++ b/compiler/surface/parser_driver.ml
+@@ -383,6 +383,11 @@ let with_sedlex_source source_file f =
+     f lexbuf
+ 
+ (** Parses a single source file *)
++(* Files currently being expanded through '> Include:'. Used to reject include
++   cycles, which would otherwise recurse until the process runs out of file
++   descriptors. *)
++let includes_in_progress : (string, unit) Hashtbl.t = Hashtbl.create 8
++
+ let rec parse_source ?resolve_included_file (lexbuf : Sedlexing.lexbuf) :
+     Ast.program =
+   let source_file_name = lexbuf_file lexbuf in
+@@ -443,6 +448,17 @@ and expand_includes
+               "Included file '%s' is not a regular file or does not exist."
+               sub_source
+           else
++            let include_key = sub_source in
++            if Hashtbl.mem includes_in_progress include_key then
++              Message.delayed_error ~kind:Parsing ~pos acc
++                "Circular file inclusion: '%s' is already being included \
++                 further up the '@{<yellow>> Include@}' chain."
++                include_key
++            else
++            Fun.protect
++              ~finally:(fun () -> Hashtbl.remove includes_in_progress include_key)
++            @@ fun () ->
++            Hashtbl.add includes_in_progress include_key ();
+             let sub_source = resolve_included_file sub_source in
+             with_sedlex_source sub_source
+             @@ fun lexbuf ->
+diff --git a/compiler/verification/solver.ml b/compiler/verification/solver.ml
+index d0e2e957..600c7f1a 100644
+--- a/compiler/verification/solver.ml
++++ b/compiler/verification/solver.ml
+@@ -21,7 +21,7 @@ open Catala_utils
+     discharged by Z3, and attempts to solve them **)
+ let solve_vc
+     (decl_ctx : Shared_ast.decl_ctx)
+-    (vcs : Conditions.verification_condition list) : unit =
++    (vcs : Conditions.verification_condition list) : bool =
+   (* Right now we only use the Z3 backend but the functorial interface should
+      make it easy to mix and match different proof backends. *)
+   Z3backend.Io.init_backend ();
+@@ -48,4 +48,5 @@ let solve_vc
+         else false)
+       true z3_vcs
+   in
+-  if all_proven then Message.result "No errors found during the proof mode run."
++  if all_proven then Message.result "No errors found during the proof mode run.";
++  all_proven
+diff --git a/compiler/verification/solver.mli b/compiler/verification/solver.mli
+index 5ea951cb..a425d64e 100644
+--- a/compiler/verification/solver.mli
++++ b/compiler/verification/solver.mli
+@@ -16,5 +16,6 @@
+ 
+ (** Solves verification conditions using various proof backends *)
+ 
++(** Returns [true] if every verification condition was discharged. *)
+ val solve_vc :
+-  Shared_ast.decl_ctx -> Conditions.verification_condition list -> unit
++  Shared_ast.decl_ctx -> Conditions.verification_condition list -> bool
+diff --git a/stdlib/list_en.catala_en b/stdlib/list_en.catala_en
+index 4baa888e..c30ec2a3 100644
+--- a/stdlib/list_en.catala_en
++++ b/stdlib/list_en.catala_en
+@@ -6,9 +6,10 @@
+ ## Helper functions
+ 
+ ```catala-metadata
+-## Returns a list made of the consecutive integers from `begin` to `end`.
++## Returns a list made of the consecutive integers from `begin` (included) up
++## to `end` (excluded).
+ ## If `end <= begin`, the returned list is empty.
+-## **Example:** `sequence of 3, 6 = [ 3; 4; 5; 6 ]`
++## **Example:** `sequence of 3, 6 = [ 3; 4; 5 ]`
+ declaration sequence
+   content list of integer
+   depends on
+diff --git a/tests/backends/python_enum.catala_en b/tests/backends/python_enum.catala_en
+index de764583..c60d4e79 100644
+--- a/tests/backends/python_enum.catala_en
++++ b/tests/backends/python_enum.catala_en
+@@ -127,15 +127,15 @@ from catala_runtime import *
+ from typing import Any, List, Callable, Tuple
+ from enum import Enum
+ from sys import stderr
+-from . import Stdlib_en as stdlib_en
+-from . import Date_en as date_en
+-from . import List_en as list_en
+-from . import Duration_en as duration_en
+-from . import MonthYear_en as month_year_en
+-from . import Period_en as period_en
+-from . import Money_en as money_en
+-from . import Integer_en as integer_en
+-from . import Decimal_en as decimal_en
++from libcatala import Stdlib_en as stdlib_en
++from libcatala import Date_en as date_en
++from libcatala import List_en as list_en
++from libcatala import Duration_en as duration_en
++from libcatala import MonthYear_en as month_year_en
++from libcatala import Period_en as period_en
++from libcatala import Money_en as money_en
++from libcatala import Integer_en as integer_en
++from libcatala import Decimal_en as decimal_en
+ 
+ class E(CatalaEnum):
+     name = 'E'
+diff --git a/tests/backends/python_name_clash.catala_en b/tests/backends/python_name_clash.catala_en
+index d82d10ad..b68c4883 100644
+--- a/tests/backends/python_name_clash.catala_en
++++ b/tests/backends/python_name_clash.catala_en
+@@ -25,15 +25,15 @@ from catala_runtime import *
+ from typing import Any, List, Callable, Tuple
+ from enum import Enum
+ from sys import stderr
+-from . import Stdlib_en as stdlib_en
+-from . import Date_en as date_en
+-from . import List_en as list_en
+-from . import Duration_en as duration_en
+-from . import MonthYear_en as month_year_en
+-from . import Period_en as period_en
+-from . import Money_en as money_en
+-from . import Integer_en as integer_en
+-from . import Decimal_en as decimal_en
++from libcatala import Stdlib_en as stdlib_en
++from libcatala import Date_en as date_en
++from libcatala import List_en as list_en
++from libcatala import Duration_en as duration_en
++from libcatala import MonthYear_en as month_year_en
++from libcatala import Period_en as period_en
++from libcatala import Money_en as money_en
++from libcatala import Integer_en as integer_en
++from libcatala import Decimal_en as decimal_en
+ 
+ class SomeName(CatalaStruct):
+     __slots__ = ('o')
+diff --git a/tests/name_resolution/good/toplevel_defs.catala_en b/tests/name_resolution/good/toplevel_defs.catala_en
+index 894dfbd4..e98d6f2f 100644
+--- a/tests/name_resolution/good/toplevel_defs.catala_en
++++ b/tests/name_resolution/good/toplevel_defs.catala_en
+@@ -214,15 +214,15 @@ from catala_runtime import *
+ from typing import Any, List, Callable, Tuple
+ from enum import Enum
+ from sys import stderr
+-from . import Stdlib_en as stdlib_en
+-from . import Date_en as date_en
+-from . import List_en as list_en
+-from . import Duration_en as duration_en
+-from . import MonthYear_en as month_year_en
+-from . import Period_en as period_en
+-from . import Money_en as money_en
+-from . import Integer_en as integer_en
+-from . import Decimal_en as decimal_en
++from libcatala import Stdlib_en as stdlib_en
++from libcatala import Date_en as date_en
++from libcatala import List_en as list_en
++from libcatala import Duration_en as duration_en
++from libcatala import MonthYear_en as month_year_en
++from libcatala import Period_en as period_en
++from libcatala import Money_en as money_en
++from libcatala import Integer_en as integer_en
++from libcatala import Decimal_en as decimal_en
+ 
+ class A(CatalaStruct):
+     __slots__ = ('y', 'z')
+diff --git a/tests/parsing/good/unrecognised_code_fence.catala_en b/tests/parsing/good/unrecognised_code_fence.catala_en
+new file mode 100644
+index 00000000..60e75915
+--- /dev/null
++++ b/tests/parsing/good/unrecognised_code_fence.catala_en
+@@ -0,0 +1,47 @@
++# Unrecognised code block labels
++
++Only ```` ```catala ```` and ```` ```catala-metadata ```` are compiled. A block
++labelled with anything else is plain text, so code inside it is silently
++dropped; that is easy to do by accident since the file extension is
++`.catala_en`. Such a label now raises a warning.
++
++```catala_en
++declaration scope Dropped:
++  output a content integer
++```
++
++Labels that are not Catala-like stay silent:
++
++```python
++print("not catala")
++```
++
++```
++plain block
++```
++
++And the recognised ones are unaffected:
++
++```catala
++declaration scope Kept:
++  output a content integer
++scope Kept:
++  definition a equals 1
++```
++
++```catala-test-cli
++$ catala test-scope Kept
++┌─[WARNING]─
++│
++│  Unrecognised code block label ```catala_en: this block is treated as plain text, so any code inside it is ignored.
++│  Did you mean ```catala or ```catala-metadata ?
++│
++├─➤ tests/parsing/good/unrecognised_code_fence.catala_en:8:
++│   │
++│ 8 │ ```catala_en
++│   │ ‾‾‾‾‾‾‾‾‾‾‾‾
++└─
++┌─[RESULT]─ Kept ─
++│ a = 1
++└─
++```

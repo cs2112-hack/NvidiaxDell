@@ -1,0 +1,21 @@
+```catala
+declaration foo content integer
+  equals
+  let a equals (1, 2) in 0
+```
+
+```catala-test-cli
+$ catala typecheck
+┌─[WARNING]─
+│
+│  The local variable "a" is never used; maybe it's unnecessary?
+│
+├─➤ tests/tuples/good/letin.catala_en:4.7-8:
+│   │
+│ 4 │   let a equals (1, 2) in 0
+│   │       ‾
+└─
+┌─[RESULT]─
+│ Typechecking successful!
+└─
+```

@@ -1,0 +1,78 @@
+(library
+ (name driver)
+ (public_name catala.driver)
+ (libraries
+  dynlink
+  catala_utils
+  surface
+  desugared
+  literate
+  dcalc
+  lcalc
+  scalc
+  catala.runtime_ocaml)
+ (modules plugin driver))
+
+(executable
+ (name tests)
+ (modules tests)
+ (libraries
+  catala.driver
+  catala.clerk_backend
+  catala.scalc
+  catala.lcalc
+  catala.runtime_ocaml
+  alcotest))
+
+(rule
+ (target custom_linking.sexp)
+ (mode fallback)
+ (action
+  (with-stdout-to
+   %{target}
+   (echo "()"))))
+
+(executable
+ (name catala)
+ (modes exe)
+ (flags
+  (:standard
+   (:include custom_linking.sexp)
+   -linkall))
+ (package catala)
+ (modules catala)
+ (public_name catala)
+ (libraries catala.driver ocamlgraph))
+
+(documentation
+ (package catala)
+ (mld_files index))
+
+(alias
+ (name catala)
+ (deps %{bin:catala}))
+
+(rule
+ (alias runtest)
+ (package catala)
+ (action
+  (run ./tests.exe)))
+
+(include manpages.sexp)
+
+(rule
+ (mode promote)
+ (action
+  (with-stdout-to
+   manpages.sexp
+   (run
+    sh
+    -c
+    "for page in '' $(%{bin:catala} --color=never 2>&1 | sed -n 's/.    *//p; /plugins/q'); do\n        echo '(rule (alias man) (action (with-stdout-to catala'${page:+-$page}'.1 (run \%{bin:catala} '$page' --help=groff))))'\n      done"))))
+
+(install
+ (section man)
+ (package catala)
+ (files
+  (glob_files
+   (*.1 with_prefix man1))))

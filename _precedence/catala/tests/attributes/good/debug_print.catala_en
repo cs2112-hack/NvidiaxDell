@@ -1,0 +1,62 @@
+```catala
+#[test] declaration scope A:
+  output w content integer
+  output x content integer
+  output y content integer
+  output z content decimal
+
+scope A:
+  definition w equals #[debug.print] 4 - 2 - 2
+  definition x equals 4 - #[debug.print = "value of x"] (2 - 2)
+  definition y equals 4 - #[debug.print] 2 - -2
+  definition z equals 200 / 2 * 4.0 - 50.0 / - (5.0 - #[debug.print] 20 / 2)
+```
+
+
+
+```catala-test-cli
+$ catala interpret -s A --debug
+[DEBUG] = INIT =
+[DEBUG] = SURFACE =
+[DEBUG] Parsing "tests/attributes/good/debug_print.catala_en"
+[DEBUG] Loading module interfaces...
+[DEBUG] Parsing "libcatala/stdlib_en.catala_en"
+[DEBUG] Parsing "libcatala/date_en.catala_en"
+[DEBUG] Parsing "libcatala/date_internal.catala_en"
+[DEBUG] Parsing "libcatala/list_en.catala_en"
+[DEBUG] Parsing "libcatala/list_internal.catala_en"
+[DEBUG] Parsing "libcatala/duration_en.catala_en"
+[DEBUG] Parsing "libcatala/monthyear_en.catala_en"
+[DEBUG] Parsing "libcatala/period_en.catala_en"
+[DEBUG] Parsing "libcatala/period_internal.catala_en"
+[DEBUG] Parsing "libcatala/money_en.catala_en"
+[DEBUG] Parsing "libcatala/money_internal.catala_en"
+[DEBUG] Parsing "libcatala/integer_en.catala_en"
+[DEBUG] Parsing "libcatala/decimal_en.catala_en"
+[DEBUG] Parsing "libcatala/decimal_internal.catala_en"
+[DEBUG] = DESUGARED =
+[DEBUG] Name resolution...
+[DEBUG] Desugaring...
+[DEBUG] Disambiguating...
+[DEBUG] Linting...
+[DEBUG] = SCOPELANG =
+[DEBUG] = DCALC =
+[DEBUG] Typechecking...
+[DEBUG] Translating to default calculus...
+[DEBUG] Typechecking again...
+[DEBUG] Loading shared modules... Date_internal List_internal List_en Date_en
+  Duration_en MonthYear_en Period_internal Period_en Money_internal Money_en
+  Integer_en Decimal_internal Decimal_en Stdlib_en
+[DEBUG] Starting interpretation...
+[DEBUG] 0 (at tests/attributes/good/debug_print.catala_en:9.38-47)
+[DEBUG] value of x = 0 (at tests/attributes/good/debug_print.catala_en:10.57-64)
+[DEBUG] 2 (at tests/attributes/good/debug_print.catala_en:11.42-43)
+[DEBUG] 10. (at tests/attributes/good/debug_print.catala_en:12.70-76)
+[DEBUG] End of interpretation
+┌─[RESULT]─ A ─
+│ w = 0
+│ x = 4
+│ y = 4
+│ z = 390.
+└─
+```

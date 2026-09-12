@@ -1,0 +1,140 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2020 Inria, contributor:
+   Denis Merigoux <denis.merigoux@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+(** Printing functions for the default calculus AST *)
+
+open Catala_utils
+open Definitions
+
+(** {1 Common syntax highlighting helpers}*)
+
+val base_type : Format.formatter -> string -> unit
+val keyword : Format.formatter -> string -> unit
+
+val punctuation : Format.formatter -> string -> unit
+(** The argument is assumed to be 1-column wide (but can be a multi-char utf8
+    character) *)
+
+val op_style : Format.formatter -> string -> unit
+val lit_style : Format.formatter -> string -> unit
+val lit_uchar_style : Format.formatter -> string -> unit
+
+(** {1 Some basic stringifiers} *)
+
+val operator_to_string : 'a operator -> string
+(** Prints the operator symbols with kind suffixes, as expected by the OCaml
+    backend (e.g. "+^", "+$", etc.) *)
+
+(** {1 Formatters} *)
+
+val uid_list : Format.formatter -> Uid.MarkedString.info list -> unit
+val tlit : Format.formatter -> typ_lit -> unit
+val location : Format.formatter -> 'a glocation -> unit
+val external_ref : Format.formatter -> external_ref Mark.pos -> unit
+val typ : Format.formatter -> typ -> unit
+val tvar : Format.formatter -> naked_typ Bindlib.var -> unit
+val lit : Format.formatter -> lit -> unit
+val operator : ?debug:bool -> Format.formatter -> 'a operator -> unit
+val tag : Format.formatter -> tag -> unit
+val tag_to_runtime : tag -> string
+val runtime_error : Format.formatter -> Catala_runtime.error -> unit
+val var : Format.formatter -> 'e Var.t -> unit
+val var_debug : Format.formatter -> 'e Var.t -> unit
+val attr : Format.formatter -> Pos.attr -> unit
+val attrs : Format.formatter -> Pos.t -> unit
+
+val expr : ?debug:bool -> unit -> Format.formatter -> ('a, 'm) gexpr -> unit
+(** Expression printer.
+
+    @param debug
+      (default to the global setting) turns on printing of logging nodes,
+      variable indices and operator suffixes. See the interface below for more
+      detailed control. *)
+
+val s_expr :
+  ?pp_mark:(Format.formatter -> 'm mark -> unit) ->
+  Format.formatter ->
+  (_, 'm) gexpr ->
+  unit
+(** S-expression printer for all AST nodes. *)
+
+val negated_op : Format.formatter -> 'a operator -> unit
+(** Prints crossed out comparison operators, for nicer display of
+    [not (op (a, b))].
+    @raise Invalid_argument on non-comparison operators. *)
+
+(** {2 Generic expression printer interface} *)
+
+module type EXPR_PARAM = sig
+  val bypass : Format.formatter -> ('a, 't) gexpr -> bool
+  (** can be used to customise printing of any specific nodes or subtrees: will
+      cancel normal printing upon returning [true]. *)
+
+  val operator : Format.formatter -> 'a operator -> unit
+  val var : Format.formatter -> ('a, 't) gexpr Var.t -> unit
+  val lit : Format.formatter -> lit -> unit
+
+  val pre_map : ('a, 't) gexpr -> ('a, 't) gexpr
+  (** pre-processing on expressions: can be used to skip log calls, etc. *)
+end
+
+module ExprGen (_ : EXPR_PARAM) : sig
+  val expr : Format.formatter -> ('a, 't) gexpr -> unit
+end
+
+module ExprConciseParam : EXPR_PARAM
+module ExprDebugParam : EXPR_PARAM
+
+val decl_ctx : ?debug:bool -> Format.formatter -> decl_ctx -> unit
+
+val scope :
+  ?debug:bool -> Format.formatter -> string * ('a, 'm) gexpr scope_body -> unit
+
+val program : ?debug:bool -> Format.formatter -> ('a, 'm) gexpr program -> unit
+val trace : Format.formatter -> Catala_runtime.trace -> unit
+
+(** User-facing, localised printer *)
+module UserFacing : sig
+  val lit : Format.formatter -> lit -> unit
+
+  val value :
+    ?fallback:(Format.formatter -> ('a, 't) gexpr -> unit) ->
+    Format.formatter ->
+    ('a, 't) gexpr ->
+    unit
+  (** Prints a value in a localised format, intended to be read by an end-user.
+      The language is selected by [Catala_runtime.Print.set_lang]
+
+      @param fallback
+        is called upon non-value expressions (by default, [Invalid_argument] is
+        raised) *)
+
+  val expr : Format.formatter -> (_, _) gexpr -> unit
+  (** This combines the user-facing value printer and the generic expression
+      printer to handle all AST nodes *)
+
+  val embed_option :
+    (('a any, 'm) gexpr -> Catala_runtime.Value.t) ->
+    EnumConstructor.t ->
+    ('a, 'm) gexpr ->
+    Catala_runtime.Value.t
+end
+
+(**/*)
+
+val skip_wrappers : ('a, 'm) gexpr -> ('a, 'm) gexpr
+(** This is exported from [Expr], but first defined here for dependency reasons
+*)

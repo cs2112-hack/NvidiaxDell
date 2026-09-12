@@ -1,0 +1,144 @@
+# Paid sick leave accrual — Acme Cloud Systems (US)
+
+> Module Sick_leave_accrual_acme
+> Using Legal_types as T
+
+Sources: SYN-005 § 4.2 (US Employee Handbook) as the base, with REAL-001
+(Cal. Lab. Code § 246) and REAL-002 (C.R.S. § 8-13.3-403) as statutory floors. The
+handbook itself supplies the authority for encoding the statutes as exceptions:
+
+  SYN-005 § 4.6.1 — Where a state or local law requires a more generous rate of accrual, a
+  higher accrual or use cap, a shorter waiting period, or greater carryover than this
+  Section 4 provides, that law applies to employees working in that jurisdiction in place
+  of the corresponding provision of this handbook.
+
+`accrual_divisor` is the N in "one hour per every N hours worked".
+
+```catala-metadata
+declaration scope SickLeaveAccrual:
+  input hours_worked content decimal
+  input weeks_worked content integer
+  input work_state content T.WorkState
+  input days_employed content integer
+  input exempt content boolean
+
+  internal effective_hours content decimal
+  internal accrual_cap content optional of decimal
+
+  output accrual_divisor content decimal
+  output accrued_hours content decimal
+  output annual_use_cap content decimal
+  output usable content boolean
+```
+
+## SYN-005 § 4.2.1 — the handbook's accrual rate
+
+  Employees accrue one (1) hour of paid sick leave for every forty (40) hours worked,
+  beginning on the first day of employment.
+
+```catala
+scope SickLeaveAccrual:
+  label handbook_rate
+  definition accrual_divisor equals 40.0
+
+  label handbook_cap
+  definition accrual_cap equals Absent
+```
+
+## SYN-005 § 4.2.2–4.2.3 — waiting period and annual use cap
+
+  Accrued paid sick leave may be used beginning on the ninetieth (90th) calendar day of
+  employment. […] An employee may use no more than forty (40) hours of paid sick leave in
+  a calendar year.
+
+```catala
+scope SickLeaveAccrual:
+  label handbook_waiting
+  definition usable equals days_employed >= 90
+
+  label handbook_use_cap
+  definition annual_use_cap equals 40.0
+```
+
+## REAL-001, Cal. Lab. Code § 246(b)(1) — California accrual floor
+
+  An employee shall accrue paid sick days at the rate of not less than one hour per every
+  30 hours worked, beginning at the commencement of employment or the operative date of
+  this article, whichever is later, subject to the use and accrual limitations set forth
+  in this section.
+
+The handbook's 1:40 is below this floor, so for California employees the statute displaces
+it. § 246(j) permits an accrual cap of 80 hours and § 246(d) a use cap of 40 hours.
+
+```catala
+scope SickLeaveAccrual:
+  exception handbook_rate
+  definition accrual_divisor
+    under condition work_state = T.WorkState.CA
+    consequence equals 30.0
+
+  exception handbook_cap
+  definition accrual_cap
+    under condition work_state = T.WorkState.CA
+    consequence equals Present content 80.0
+```
+
+## REAL-001, Cal. Lab. Code § 246(b)(2) — exempt employees are deemed to work 40 hours
+
+  An employee who is exempt from overtime requirements as an administrative, executive, or
+  professional employee under a wage order of the Industrial Welfare Commission is deemed
+  to work 40 hours per workweek for the purposes of this section.
+
+```catala
+scope SickLeaveAccrual:
+  label actual_hours
+  definition effective_hours equals hours_worked
+
+  exception actual_hours
+  definition effective_hours
+    under condition exempt and work_state = T.WorkState.CA
+    consequence equals 40.0 * (decimal of weeks_worked)
+```
+
+## REAL-002, C.R.S. § 8-13.3-403 — Colorado accrual floor and 48-hour cap
+
+Colorado requires one hour per thirty hours worked, caps accrual and annual use at
+forty-eight hours, and makes leave available as it is accrued rather than after ninety
+days.
+
+```catala
+scope SickLeaveAccrual:
+  exception handbook_rate
+  definition accrual_divisor
+    under condition work_state = T.WorkState.CO
+    consequence equals 30.0
+
+  exception handbook_cap
+  definition accrual_cap
+    under condition work_state = T.WorkState.CO
+    consequence equals Present content 48.0
+
+  exception handbook_use_cap
+  definition annual_use_cap
+    under condition work_state = T.WorkState.CO
+    consequence equals 48.0
+
+  exception handbook_waiting
+  definition usable
+    under condition work_state = T.WorkState.CO
+    consequence equals true
+```
+
+## The accrued balance
+
+Hours worked divided by the governing divisor, held at the governing accrual ceiling.
+
+```catala
+scope SickLeaveAccrual:
+  definition accrued_hours equals
+    match accrual_cap with pattern
+    -- Present content ceiling:
+      (if effective_hours / accrual_divisor > ceiling then ceiling
+       else effective_hours / accrual_divisor)
+    -- Absent: effective_hours / accrual_divisor
+```

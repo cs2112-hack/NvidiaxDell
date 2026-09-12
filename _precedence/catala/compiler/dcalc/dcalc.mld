@@ -1,0 +1,47 @@
+{0 Default calculus}
+
+This representation is the fourth in the compilation chain
+(see {{: index.html#architecture} Architecture}). Its main difference
+with the previous {{: desugared.html} desugared representation} is that scopes
+have been lowered into regular functions. The default calculus can be later compiled
+to a {{: lcalc.html} lambda calculus}.
+
+The module describing the abstract syntax tree is {!module: Dcalc.Ast}.
+This intermediate representation corresponds to the default calculus
+presented in the {{: https://arxiv.org/abs/2103.03198} Catala formalization}.
+
+{1 Translation from the scope language}
+
+The translation from the scope language to the
+{{: dcalc.html} default calculus} involves three big features:
+
+- Handle the transformation of context variables (in particular, functions)
+- Build signatures for the scopes as functions
+- Transform the list of scopes into a program
+
+The last point is based on the inter-scope dependency carried out on the scope language by {!module:Scopelang.Dependency}.
+
+Related modules:
+
+{!modules: Dcalc.From_scopelang}
+
+{1 Invariants }
+
+While Dcalc is a superset of a fully-fledged simply typed lambda calculus,
+the Dcalc code actually generated from the previous intermediate representation
+obeys some strict structural invariants. Those are formalized and empirically
+tested in {!module:Dcalc.Invariants}.
+
+Related modules:
+
+{!modules: Dcalc.Invariants}
+
+{1 Autotest}
+
+This module runs the interpreter on annotated test scopes, and inserts
+additional assertions that the results match the obtained results into the
+program.
+
+Related modules:
+
+{!modules: Dcalc.Autotest}

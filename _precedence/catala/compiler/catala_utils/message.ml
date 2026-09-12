@@ -1,0 +1,774 @@
+(* This file is part of the Catala compiler, a specification language for tax
+   and social benefits computation rules. Copyright (C) 2023 Inria,
+   contributors: Denis Merigoux <denis.merigoux@inria.fr>, Louis Gesbert
+   <louis.gesbert@inria.fr>
+
+   Licensed under the Apache License, Version 2.0 (the "License"); you may not
+   use this file except in compliance with the License. You may obtain a copy of
+   the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+   WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+   License for the specific language governing permissions and limitations under
+   the License. *)
+
+(** Error formatting and helper functions *)
+
+(**{1 Terminal formatting}*)
+
+type Format.stag += Link of string | Clear_line
+
+let add_custom_tags ppf =
+  let start = "\x1b]8;;" in
+  (* OSC(OS command) 8 ;; *)
+  let stop = "\x1b\\" in
+  (* ST(String terminator) *)
+  let funs = Format.pp_get_formatter_stag_functions ppf () in
+  let mark_open_stag = function
+    | Clear_line -> "\x1b[J" (* ANSI clear screen from cursor *)
+    | Link target -> start ^ target ^ stop
+    | tag -> funs.mark_open_stag tag
+  in
+  let mark_close_stag = function
+    | Clear_line -> ""
+    | Link _ -> start ^ stop
+    | tag -> funs.mark_close_stag tag
+  in
+  Format.pp_set_formatter_stag_functions ppf
+    { funs with mark_open_stag; mark_close_stag };
+  ppf
+
+let pp_link ~target ppf fmt =
+  Format.pp_open_stag ppf (Link target);
+  Format.kfprintf (fun ppf -> Format.pp_close_stag ppf ()) ppf fmt
+
+let link ?target () ppf txt =
+  pp_link ~target:(Option.value ~default:txt target) ppf "%s" txt
+
+(* Adds handling of color tags in the formatter *)
+let color_formatter ppf =
+  Ocolor_format.prettify_formatter ppf;
+  ppf
+
+(* Sets handling of tags in the formatter to ignore them (don't print any color
+   codes) *)
+let unstyle_formatter ppf =
+  Format.pp_set_mark_tags ppf true;
+  Format.pp_set_formatter_stag_functions ppf
+    {
+      Format.mark_open_stag = (fun _ -> "");
+      mark_close_stag = (fun _ -> "");
+      print_open_stag = ignore;
+      print_close_stag = ignore;
+    };
+  ppf
+
+(* SIDE EFFECT AT MODULE LOAD: this turns on handling of tags in
+   [Format.sprintf] etc. functions (ignoring them) *)
+let () = ignore (unstyle_formatter Format.str_formatter)
+
+(* Note: we could do the same for std_formatter, err_formatter... but we'd
+   rather promote the use of the formatting functions of this module and the
+   below std_ppf / err_ppf *)
+
+let terminal_columns, set_terminal_width_function =
+  let get_cols = ref (fun () -> 80) in
+  (fun () -> !get_cols ()), fun f -> get_cols := f
+
+let pp_to_string ~ansi f =
+  if not ansi then Format.asprintf "%t" f else Ocolor_format.asprintf "%t" f
+
+let has_color_raw ~(tty : bool Lazy.t) =
+  match Global.options.color with
+  | Global.Never -> false
+  | Always -> true
+  | Auto -> (
+    match Sys.getenv_opt "NO_COLOR" with
+    | None | Some "" -> Lazy.force tty
+    | _ -> false)
+
+let has_color oc =
+  has_color_raw ~tty:(lazy Unix.(isatty (descr_of_out_channel oc)))
+
+(* Here we create new formatters to stderr/stdout that remain separate from the
+   ones used by [Format.printf] / [Format.eprintf] (which remain unchanged) *)
+
+let formatter_of_out_channel
+    ?(nocolor = false)
+    ?force_color
+    ?force_tty
+    ?force_columns
+    oc =
+  let tty = lazy Unix.(isatty (descr_of_out_channel oc)) in
+  let ppf =
+    lazy
+      (let ppf = Format.formatter_of_out_channel oc in
+       if
+         (not nocolor) && Option.value force_color ~default:(has_color_raw ~tty)
+       then color_formatter ppf
+       else if Option.value force_tty ~default:(Lazy.force tty) then
+         unstyle_formatter ppf
+       else (
+         Format.pp_set_mark_tags ppf false;
+         ppf))
+  in
+  let ppf =
+    lazy
+      (if
+         Option.value force_tty
+           ~default:(Lazy.force tty && Sys.getenv_opt "TERM" <> Some "dumb")
+       then add_custom_tags (Lazy.force ppf)
+       else Lazy.force ppf)
+  in
+  fun () ->
+    let ppf = Lazy.force ppf in
+    (match force_columns with
+    | Some n -> Format.pp_set_margin ppf n
+    | _ ->
+      if Option.value force_tty ~default:(Lazy.force tty) then
+        Format.pp_set_margin ppf (terminal_columns ()));
+    ppf
+
+let force_stdout_env = "CATALA_STDOUT_FORWARD"
+let force_stderr_env = "CATALA_STDERR_FORWARD"
+
+let env_forward_vars () =
+  let format var oc =
+    Printf.sprintf "%s=(%b|%b|%d)" var (has_color oc)
+      Unix.(isatty (descr_of_out_channel oc))
+      (terminal_columns ())
+  in
+  [| format force_stdout_env stdout; format force_stderr_env stderr |]
+
+let std_ppf =
+  let ppf =
+    lazy
+      (let force_color, force_tty, force_columns =
+         match Sys.getenv_opt force_stdout_env with
+         | None -> None, None, None
+         | Some spec -> (
+           try
+             Scanf.sscanf spec "(%b|%b|%d)" (fun c t col ->
+                 Some c, Some t, Some col)
+           with Scanf.Scan_failure _ -> None, None, None)
+       in
+       formatter_of_out_channel stdout ?force_color ?force_tty ?force_columns ())
+  in
+  fun () -> Lazy.force ppf
+
+let err_ppf =
+  let ppf =
+    lazy
+      (let force_color, force_tty, force_columns =
+         match Sys.getenv_opt force_stderr_env with
+         | None -> None, None, None
+         | Some spec -> (
+           try
+             Scanf.sscanf spec "(%b|%b|%d)" (fun c t col ->
+                 Some c, Some t, Some col)
+           with Scanf.Scan_failure _ -> None, None, None)
+       in
+       formatter_of_out_channel stderr ?force_color ?force_tty ?force_columns ())
+  in
+  fun () -> Lazy.force ppf
+
+let ignore_ppf =
+  let ppf = lazy (Format.make_formatter (fun _ _ _ -> ()) (fun () -> ())) in
+  fun () -> Lazy.force ppf
+
+let unformat (f : Format.formatter -> unit) : string =
+  let buf = Buffer.create 1024 in
+  let ppf = unstyle_formatter (Format.formatter_of_buffer buf) in
+  Format.pp_set_margin ppf max_int;
+  (* We won't print newlines anyways, but better not have them in the first
+     place (this wouldn't remove cuts in a vbox for example) *)
+  let out_funs = Format.pp_get_formatter_out_functions ppf () in
+  Format.pp_set_formatter_out_functions ppf
+    {
+      out_funs with
+      Format.out_newline = (fun () -> out_funs.out_string " " 0 1);
+      Format.out_indent = (fun _ -> ());
+      Format.out_spaces = (fun _ -> out_funs.out_string " " 0 1);
+    };
+  f ppf;
+  Format.pp_print_flush ppf ();
+  Buffer.contents buf
+
+let pad n s ppf = Pos.pad_fmt n s ppf
+
+(** {2 Message types and output helpers} *)
+
+type level = Error | Warning | Debug | Log | Result
+
+let get_ppf = function
+  | Result -> std_ppf ()
+  | Debug when not Global.options.debug -> ignore_ppf ()
+  | Warning when Global.options.disable_warnings -> ignore_ppf ()
+  | Error | Log | Debug | Warning -> err_ppf ()
+
+(**{3 Markers}*)
+
+let print_time_marker =
+  let time : float ref = ref (Sys.time ()) in
+  fun ppf () ->
+    let new_time = Sys.time () in
+    let old_time = !time in
+    time := new_time;
+    let delta = (new_time -. old_time) *. 1000. in
+    if delta > 130. then
+      Format.fprintf ppf
+        "[@{<bold;magenta>DEBUG@}] @{<hi_black>- %.0fms elapsed -@}@," delta
+
+let pp_marker ?extra_label target ppf =
+  let open Ocolor_types in
+  let color, str =
+    match target with
+    | Debug -> magenta, "DEBUG"
+    | Error -> red, "ERROR"
+    | Warning -> yellow, "WARNING"
+    | Result -> green, "RESULT"
+    | Log -> black, "LOG"
+  in
+  Format.pp_open_stag ppf (Ocolor_format.Ocolor_style_tag (Fg (C4 color)));
+  Format.pp_open_stag ppf (Ocolor_format.Ocolor_style_tag Bold);
+  Format.pp_print_string ppf str;
+  Format.pp_close_stag ppf ();
+  extra_label
+  |> Option.iter (fun lbl ->
+      Format.pp_print_char ppf ' ';
+      Format.pp_print_string ppf lbl);
+  Format.pp_close_stag ppf ()
+
+(**{2 Printers}*)
+
+(** {1 Message content} *)
+
+let bug_report_url = "https://github.com/CatalaLang/catala/issues"
+
+let file_url =
+  let cwd = Sys.getcwd () in
+  fun ?(line = 1) ?(column = 1) file ->
+    let path =
+      if Filename.is_relative file then Filename.concat cwd file else file
+    in
+    let path = Path.url_of_absolute path in
+    Printf.sprintf "file://%s%s%s" path
+      (if line > 1 || column > 1 then Printf.sprintf "#%d" line else "")
+      (if column > 1 then Printf.sprintf ":%d" column else "")
+
+let pp_pos_link pos ppf =
+  if pos = Pos.void then Format.fprintf ppf
+  else
+    pp_link
+      ~target:
+        (file_url (Pos.get_file pos) ~line:(Pos.get_start_line pos)
+           ~column:(Pos.get_start_column pos))
+      ppf
+
+let pp_pos ppf pos = pp_pos_link pos ppf "%s" (Pos.to_string_short pos)
+
+module Content = struct
+  type message = Format.formatter -> unit
+  type position = { pos_message : message option; pos : Pos.t }
+
+  type message_element =
+    | MainMessage of message
+    | Position of position
+    | Suggestion of string list
+    | Outcome of message
+
+  type t = message_element list
+
+  let of_message (message : message) : t = [MainMessage message]
+  let of_result (message : message) : t = [Outcome message]
+  let prepend_message (content : t) prefix : t = MainMessage prefix :: content
+
+  let to_internal_error (content : t) : t =
+    let internal_error_prefix ppf =
+      Format.fprintf ppf
+        "Oh no, you found a bug in the compiler!@ Please report to \
+         @{<blue>%a@}."
+        (link ()) bug_report_url
+    in
+    prepend_message content internal_error_prefix
+
+  let add_suggestion (content : t) (suggestion : string list) =
+    content @ [Suggestion suggestion]
+
+  let add_position (content : t) ?(message : message option) (position : Pos.t)
+      =
+    content @ [Position { pos = position; pos_message = message }]
+
+  let of_string (s : string) : t =
+    [MainMessage (fun ppf -> Format.pp_print_text ppf s)]
+
+  let basic_msg ?header ppf target content =
+    let pp_header ppf = Option.iter (Format.fprintf ppf " %s: ") header in
+    Format.pp_open_vbox ppf 0;
+    Format.pp_print_list
+      ~pp_sep:(fun ppf () -> Format.fprintf ppf "@,@,")
+      (fun ppf -> function
+        | Position pos ->
+          Option.iter
+            (fun msg -> Format.fprintf ppf "@[<hov>%t@]@," msg)
+            pos.pos_message;
+          Pos.format_loc_text ~pp_file:pp_pos () ppf pos.pos
+        | MainMessage msg ->
+          if target = Debug then print_time_marker ppf ();
+          Format.fprintf ppf "@[<hov 2>[%t] %t%t@]" (pp_marker target) pp_header
+            msg
+        | Outcome msg ->
+          Format.fprintf ppf "@[<hov>[%t]@ %t%t@]" (pp_marker target) pp_header
+            msg
+        | Suggestion suggestions_list -> Suggestions.format ppf suggestions_list)
+      ppf content;
+    Format.pp_close_box ppf ();
+    Format.pp_print_newline ppf ()
+
+  let fancy_msg ?header ppf target content =
+    let ppf_out_fcts = Format.pp_get_formatter_out_functions ppf () in
+    let restore_ppf () =
+      Format.pp_print_flush ppf ();
+      Format.pp_set_formatter_out_functions ppf ppf_out_fcts
+    in
+    let getcolorstr pp =
+      let buf = Buffer.create 17 in
+      let ppfb = Format.formatter_of_buffer buf in
+      Format.pp_set_formatter_stag_functions ppfb
+        (Format.pp_get_formatter_stag_functions ppf ());
+      Format.pp_set_mark_tags ppfb (Format.pp_get_mark_tags ppf ());
+      pp ppfb;
+      Format.pp_print_flush ppfb ();
+      Buffer.contents buf
+    in
+    (* The following adds a blue line on the left *)
+    Format.pp_set_formatter_out_functions ppf
+      {
+        ppf_out_fcts with
+        out_indent =
+          (fun n ->
+            let lead =
+              getcolorstr (fun ppf -> Format.fprintf ppf "@{<blue>@<1>%s@}" "│")
+            in
+            if n >= 1 then ppf_out_fcts.out_string lead 0 (String.length lead);
+            if n >= 2 then ppf_out_fcts.out_indent (n - 1));
+      };
+    Format.pp_open_vbox ppf 1;
+    Format.pp_open_stag ppf Clear_line;
+    (* Clear a possible status line from Clerk *)
+    Format.fprintf ppf "@{<blue>@<2>%s[%t]@<1>%s@}" "┌─" (pp_marker target) "─";
+    Option.iter (fun h -> Format.fprintf ppf " %s @{<blue>─@}" h) header;
+    Format.pp_close_stag ppf ();
+    (* Returns true when a finaliser is needed *)
+    let print_elt ppf ?(islast = false) = function
+      | MainMessage msg ->
+        Format.fprintf ppf "@,@[<v 2>@,@[<hov>%t@]@]" msg;
+        if islast then Format.pp_print_cut ppf ();
+        true
+      | Position pos ->
+        Format.pp_print_cut ppf ();
+        if Pos.get_file pos.pos = "" then (
+          Format.pp_print_break ppf 0 (-1);
+          restore_ppf ();
+          Format.fprintf ppf "@{<blue>@<3>%s@}%s" "└─"
+            (if Global.options.debug then " (no position information)" else "");
+          false)
+        else (
+          Option.iter
+            (fun msg -> Format.fprintf ppf "@[<v 1>@,@[<hov 2>%t@]@]" msg)
+            pos.pos_message;
+          Format.pp_print_break ppf 0 (-1);
+          let pr_head, pr_context, pr_legal =
+            Pos.format_loc_text_parts ~pp_file:pp_pos pos.pos
+          in
+          Format.pp_open_vbox ppf 2;
+          Format.fprintf ppf "@{<blue>@<1>%s@}%t" "├" pr_head;
+          pr_context ppf;
+          Format.pp_close_box ppf ();
+          match pr_legal with
+          | None -> true
+          | Some pr_legal ->
+            Format.pp_print_break ppf 0 (-1);
+            if islast then (
+              restore_ppf ();
+              Format.pp_open_vbox ppf 3;
+              Format.fprintf ppf "@{<blue>@<3>%s@}%t" "└─ " pr_legal)
+            else (
+              Format.pp_open_vbox ppf 3;
+              Format.fprintf ppf "@{<blue>@<3>%s@}%t" "├─ " pr_legal);
+            Format.pp_close_box ppf ();
+            not islast)
+      | Outcome msg ->
+        Format.fprintf ppf "@;<0 1>@[<v 1>@[<hov 2>%t@]@]" msg;
+        true
+      | Suggestion suggestions_list ->
+        Format.fprintf ppf "@,@[<v 1>@,@[<hov 2>%a@]@]" Suggestions.format
+          suggestions_list;
+        true
+    in
+    let rec print_lines ppf = function
+      | [elt] ->
+        let finalise = print_elt ppf ~islast:true elt in
+        Format.pp_close_box ppf ();
+        if finalise then Format.fprintf ppf "@,@{<blue>@<2>%s@}" "└─"
+      | elt :: r ->
+        let _ = print_elt ppf elt in
+        print_lines ppf r
+      | [] ->
+        Format.pp_close_box ppf ();
+        Format.pp_print_cut ppf ()
+    in
+    print_lines ppf content;
+    Format.pp_close_box ppf ();
+    restore_ppf ();
+    Format.pp_print_newline ppf ()
+
+  let gnu_msg ?header ppf target content =
+    (* The top message doesn't come with a position, which is not something the
+       GNU standard allows. So we look the position list and put the top message
+       everywhere there is not a more precise message. If we can't find a
+       position without a more precise message, we just take the first position
+       in the list to pair with the message. *)
+    let first_pos_elt =
+      List.find_map
+        (function
+          | Position { pos_message = None; pos } as e -> Some (pos, e)
+          | _ -> None)
+        content
+      |> function
+      | None ->
+        List.find_map
+          (function
+            | Position { pos_message = _; pos } as e -> Some (pos, e)
+            | _ -> None)
+          content
+      | some -> some
+    in
+    List.iter
+      (fun elt ->
+        let pos, message =
+          match elt with
+          | MainMessage m -> Option.map fst first_pos_elt, Some m
+          | Position { pos_message; pos } ->
+            if
+              List.exists
+                (function MainMessage _ -> true | _ -> false)
+                content
+              (* && Some elt = Option.map snd first_pos_elt fixme: this can fail
+                 due to functional comparison *)
+            then None, None (* Avoid redundant positions *)
+            else Some pos, pos_message
+          | Outcome m -> None, Some m
+          | Suggestion sl -> None, Some (fun ppf -> Suggestions.format ppf sl)
+        in
+        if pos = None && message = None then ()
+        else (
+          Option.iter
+            (fun pos ->
+              Format.fprintf ppf "@{<blue>%s@}: " (Pos.to_string_short pos))
+            pos;
+          Format.fprintf ppf "[%t]" (pp_marker target);
+          Option.iter (fun h -> Format.fprintf ppf " %s" h) header;
+          Option.iter
+            (fun message ->
+              if header <> None then Format.pp_print_char ppf ':';
+              Format.pp_print_char ppf ' ';
+              Format.pp_print_string ppf (unformat message))
+            message;
+          Format.pp_print_newline ppf ()))
+      content
+
+  let lsp_msg ppf content =
+    (* Hypothesis: [MainMessage] is always part of a content list. *)
+    let rec retrieve_message acc = function
+      | [] -> acc
+      | MainMessage m :: _ -> Some m
+      | Outcome m :: t ->
+        retrieve_message (match acc with None -> Some m | _ -> acc) t
+      | (Position _ | Suggestion _) :: t -> retrieve_message acc t
+    in
+    let msg = retrieve_message None content in
+    Option.iter (fun msg -> Format.fprintf ppf "%s" (unformat msg)) msg
+
+  let emit_raw ?ppf ?header (content : t) (target : level) : unit =
+    let ppf = match ppf with Some ppf -> ppf | None -> get_ppf target in
+    match Global.options.message_format with
+    | Global.Human -> (
+      match target with
+      | Debug | Log -> basic_msg ?header ppf target content
+      | Result | Warning | Error -> fancy_msg ?header ppf target content)
+    | GNU -> gnu_msg ?header ppf target content
+    | Lsp -> lsp_msg ppf content
+
+  let emit_n
+      ?ppf
+      (errs_and_bt : (t * Printexc.raw_backtrace) list)
+      (target : level) =
+    match errs_and_bt with
+    | [(content, bt)] ->
+      emit_raw ?ppf content target;
+      if Global.options.debug then Printexc.print_raw_backtrace stderr bt
+    | contents ->
+      let ppf = match ppf with Some ppf -> ppf | None -> get_ppf target in
+      let len = List.length contents in
+      List.iteri
+        (fun i (c, bt) ->
+          let header = Printf.sprintf "%d/%d" (succ i) len in
+          (try emit_raw ~ppf ~header c target
+           with err ->
+             Format.fprintf ppf "@[<hov 4>failed to print:@ %a@]@,@."
+               Format.pp_print_text (Printexc.to_string err));
+          if Global.options.debug then Printexc.print_raw_backtrace stderr bt)
+        contents
+
+  let emit ?ppf (content : t) (target : level) = emit_raw ?ppf content target
+end
+
+open Content
+
+(** {1 Error exception} *)
+
+exception CompilerError of Content.t
+exception CompilerErrors of (Content.t * Printexc.raw_backtrace) list
+
+type lsp_error_kind =
+  | Lexing
+  | Parsing
+  | Typing
+  | Generic
+  | Warning
+  | AssertFailure
+
+type lsp_error = {
+  kind : lsp_error_kind;
+  message : Format.formatter -> unit;
+  pos : Pos.t option;
+  suggestion : string list option;
+}
+
+let global_error_hook = ref None
+
+let register_lsp_error_notifier f =
+  global_error_hook :=
+    Some
+      (fun err ->
+        f err;
+        true)
+
+let register_lsp_error_absorber f = global_error_hook := Some f
+
+(** {1 Error printing} *)
+
+type ('a, 'b) emitter =
+  ?header:Content.message ->
+  ?internal:bool ->
+  ?main_pos:Pos.t ->
+  ?pos:Pos.t ->
+  ?pos_msg:Content.message ->
+  ?extra_pos:(string * Pos.t) list ->
+  ?fmt_pos:(Content.message * Pos.t) list ->
+  ?outcome:Content.message list ->
+  ?suggestion:string list ->
+  ('a, Format.formatter, unit, 'b) format4 ->
+  'a
+
+let make
+    ?header
+    ?(internal = false)
+    ?main_pos:_
+    ?pos
+    ?pos_msg
+    ?extra_pos
+    ?fmt_pos
+    ?(outcome = [])
+    ?(suggestion = [])
+    ~cont
+    ~level =
+  match level with
+  | Debug when not Global.options.debug ->
+    Format.ikfprintf (fun _ -> cont [] level) (ignore_ppf ())
+  | Warning when Global.options.disable_warnings ->
+    Format.ikfprintf (fun _ -> cont [] level) (ignore_ppf ())
+  | _ ->
+    Format.kdprintf
+    @@ fun message ->
+    let t =
+      match level with Result -> of_result message | _ -> of_message message
+    in
+    let t = match header with Some h -> prepend_message t h | None -> t in
+    let t = if internal then to_internal_error t else t in
+    let t =
+      match outcome with [] -> t | o -> t @ List.map (fun o -> Outcome o) o
+    in
+    let t =
+      match pos with Some p -> add_position t ?message:pos_msg p | None -> t
+    in
+    let t =
+      match extra_pos with
+      | Some pl ->
+        List.fold_left
+          (fun t (message, p) ->
+            let message =
+              if message = "" then None
+              else Some (fun ppf -> Format.pp_print_text ppf message)
+            in
+            add_position t ?message p)
+          t pl
+      | None -> t
+    in
+    let t =
+      match fmt_pos with
+      | Some pl ->
+        List.fold_left
+          (fun t (message, p) ->
+            let message = if message == ignore then None else Some message in
+            add_position t ?message p)
+          t pl
+      | None -> t
+    in
+    let t = match suggestion with [] -> t | s -> add_suggestion t s in
+    cont t level
+
+let debug = make ~level:Debug ~cont:emit
+let log = make ~level:Log ~cont:emit
+let result = make ~level:Result ~cont:emit
+
+let results ?ppf ?title r =
+  emit_raw ?ppf ?header:title (List.flatten (List.map of_result r)) Result
+
+let join_pos ~main_pos ~pos ~fmt_pos ~extra_pos =
+  (* Error positioning might be provided using multiple options. Thus, we look
+     for each of them and prioritize in this order [main_pos] > [fmt_pos] >
+     [extra_pos] > [pos] if multiple positions are present. *)
+  match main_pos, fmt_pos, extra_pos, pos with
+  | Some pos, _, _, _
+  | _, Some ((_, pos) :: _), _, _
+  | _, _, Some ((_, pos) :: _), _
+  | _, _, _, Some pos ->
+    Some pos
+  | _ -> None
+
+let warning
+    ?header
+    ?internal
+    ?main_pos
+    ?pos
+    ?pos_msg
+    ?extra_pos
+    ?fmt_pos
+    ?outcome
+    ?suggestion
+    fmt =
+  make ?header ?internal ?pos ?pos_msg ?extra_pos ?fmt_pos ?outcome ?suggestion
+    fmt ~level:Warning ~cont:(fun m x ->
+      Option.iter
+        (fun f ->
+          let message ppf = Content.emit ~ppf m Warning in
+          let pos = join_pos ~main_pos ~pos ~fmt_pos ~extra_pos in
+          ignore (f { kind = Warning; message; pos; suggestion }))
+        !global_error_hook;
+      emit m x)
+
+let error ?(kind = Generic) : ('a, 'exn) emitter =
+ fun ?header ?internal ?main_pos ?pos ?pos_msg ?extra_pos ?fmt_pos ?outcome
+     ?suggestion fmt ->
+  make ?header ?internal ?pos ?pos_msg ?extra_pos ?fmt_pos ?outcome ?suggestion
+    fmt ~level:Error ~cont:(fun m _ ->
+      Option.iter
+        (fun f ->
+          let message ppf = Content.emit ~ppf m Error in
+          let pos = join_pos ~main_pos ~pos ~fmt_pos ~extra_pos in
+          ignore (f { kind; message; pos; suggestion }))
+        !global_error_hook;
+      raise (CompilerError m))
+
+(* Multiple errors handling *)
+
+type delayed_errors = {
+  mutable rev_delayed_errors : (t * Printexc.raw_backtrace) list;
+}
+
+let global_errors = { rev_delayed_errors = [] }
+
+let register_content_as_delayed_error
+    ?(should_notify = true)
+    ?(kind = Generic)
+    ?main_pos
+    m =
+  let register_error =
+    match !global_error_hook with
+    | Some f ->
+      if not should_notify then true
+      else
+        let message ppf = Content.emit ~ppf m Error in
+        let pos =
+          match main_pos with
+          | Some p -> p
+          | None ->
+            List.find_map
+              (function Position pos -> Some pos.pos | _ -> None)
+              m
+        in
+        f { kind; message; pos; suggestion = None }
+    | None -> true
+  in
+  if register_error then (
+    let bt = Printexc.get_callstack 12 in
+    if Global.options.stop_on_error then
+      Printexc.raise_with_backtrace (CompilerError m) bt;
+    global_errors.rev_delayed_errors <-
+      (m, bt) :: global_errors.rev_delayed_errors)
+
+let delayed_error ?(kind = Generic) x : ('a, 'exn) emitter =
+ fun ?header ?internal ?main_pos ?pos ?pos_msg ?extra_pos ?fmt_pos ?outcome
+     ?suggestion fmt ->
+  make ?header ?internal ?main_pos ?pos ?pos_msg ?extra_pos ?fmt_pos ?outcome
+    ?suggestion fmt ~level:Error ~cont:(fun m _ ->
+      let main_pos = join_pos ~main_pos ~pos ~fmt_pos ~extra_pos in
+      register_content_as_delayed_error ~kind ~main_pos m;
+      x)
+
+let wrap_to_delayed_error ?(kind = Generic) x f =
+  try f ()
+  with CompilerError m ->
+    (* We assume that wrapped errors have already gone through the notification
+       hook, hence we disable the notification to prevent duplication. *)
+    register_content_as_delayed_error ~should_notify:false ~kind m;
+    x
+
+let report_delayed_errors_if_any () =
+  match global_errors.rev_delayed_errors with
+  | [] -> ()
+  | rev_delayed_errors ->
+    (* reinitialize the global state for reentrancy *)
+    global_errors.rev_delayed_errors <- [];
+    raise (CompilerErrors (List.rev rev_delayed_errors))
+
+let combine_with_pending_errors content bt =
+  List.rev ((content, bt) :: global_errors.rev_delayed_errors)
+
+let show_progress () =
+  (not Global.options.debug)
+  && Unix.isatty Unix.stdout
+  && Sys.getenv_opt "TERM" <> Some "dumb"
+
+let ansi_transient_line_suffix = format_of_string "\r\x1b[?25l%!\x1b[?25h\x1b[K"
+(* Return to beginning of line, flush, then clear line but without flushing it
+   yet; the ?25 codes are for hiding and showing back the cursor resp. before
+   and after the flush *)
+
+let print_status fmt =
+  if show_progress () then
+    Printf.fprintf stdout (fmt ^^ ansi_transient_line_suffix)
+  else Printf.ifprintf stdout fmt
+
+let print_percent pfx x y =
+  let color =
+    Printf.sprintf "\x1b[38;2;0;%d;%dm"
+      (179 + (50 * x / y))
+      (255 - (180 * x / y))
+  in
+  print_status "%s \x1b[1m%s%3d%%\x1b[m" pfx color (100 * x / y)

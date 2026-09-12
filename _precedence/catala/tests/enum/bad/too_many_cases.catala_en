@@ -1,0 +1,37 @@
+## Article
+
+```catala
+declaration enumeration E:
+  -- Case1 content integer
+  -- Case2 content boolean
+  -- Case3
+
+declaration enumeration F:
+  -- Case4
+
+declaration scope A:
+  context e content E
+  context out content boolean
+
+scope A:
+  definition out equals match e with pattern
+    -- Case1 content i : i = 0
+    -- Case2 content b : b
+    -- Case3 : false
+    -- Case4 : true
+```
+
+```catala-test-cli
+$ catala test-scope A
+┌─[ERROR]─
+│
+│  This case matches a constructor of enumeration E but previous cases were
+│  matching constructors of enumeration F.
+│
+├─➤ tests/enum/bad/too_many_cases.catala_en:21.8-13:
+│    │
+│ 21 │     -- Case4 : true
+│    │        ‾‾‾‾‾
+└─ Article
+#return code 123#
+```

@@ -1,0 +1,71 @@
+```catala
+#[test] declaration scope S:
+  output x content integer
+  output y content integer
+
+scope S:
+  definition x equals #[attr_exp] 33
+  #[attr_def]
+  definition y equals 44
+
+declaration enumeration E:
+  #[attr.field] -- Constr
+
+#[attr.enumdecl]
+declaration enumeration F:
+  -- Foo
+```
+
+```catala-test-cli
+$ catala scopelang
+┌─[WARNING]─
+│
+│  Unrecognised attribute "attr_exp"
+│
+├─➤ tests/attributes/good/parser_conflict.catala_en:7.23-34:
+│   │
+│ 7 │   definition x equals #[attr_exp] 33
+│   │                       ‾‾‾‾‾‾‾‾‾‾‾
+└─
+┌─[WARNING]─
+│
+│  Unrecognised attribute "attr_def"
+│
+├─➤ tests/attributes/good/parser_conflict.catala_en:8.3-14:
+│   │
+│ 8 │   #[attr_def]
+│   │   ‾‾‾‾‾‾‾‾‾‾‾
+└─
+┌─[WARNING]─
+│
+│  The enumeration "E" is never used; maybe it's unnecessary?
+│
+├─➤ tests/attributes/good/parser_conflict.catala_en:11.25-26:
+│    │
+│ 11 │ declaration enumeration E:
+│    │                         ‾
+└─
+┌─[WARNING]─
+│
+│  The enumeration "F" is never used; maybe it's unnecessary?
+│
+├─➤ tests/attributes/good/parser_conflict.catala_en:15.25-26:
+│    │
+│ 15 │ declaration enumeration F:
+│    │                         ‾
+└─
+type E =
+  | Constr
+
+type F =
+  | Foo
+
+#[test]
+type S = { x: integer; y: integer; }
+
+
+#[test]
+let scope S (x: integer|internal|output) (y: integer|internal|output) =
+  let x : integer = error_empty ⟨ ⟨true ⊢ ⟨33⟩⟩ | false ⊢ ∅ ⟩;
+  let y : integer = error_empty ⟨ ⟨true ⊢ ⟨44⟩⟩ | false ⊢ ∅ ⟩
+```

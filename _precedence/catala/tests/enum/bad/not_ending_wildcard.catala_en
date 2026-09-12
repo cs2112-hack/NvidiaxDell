@@ -1,0 +1,123 @@
+## Wildcard must be the last case
+
+```catala
+declaration enumeration E:
+  -- Case1
+  -- Case2
+```
+
+### Wildcard can't be the first case
+
+```catala
+declaration scope First_case:
+  context x content E
+  context y content integer
+
+scope First_case:
+  definition x equals Case1
+  definition y equals match x with pattern
+    -- anything : 31
+    -- Case2 : 42
+	-- Case1 : 42
+```
+
+### Wildcard can't be the a middle case
+
+```catala
+declaration scope Middle_case:
+  context x content E
+  context y content integer
+
+scope Middle_case:
+  definition x equals Case1
+  definition y equals match x with pattern
+    -- Case2 : 42
+    -- anything : 31
+	-- Case1 : 42
+```
+
+```catala-test-cli
+$ catala test-scope First_case
+┌─[ERROR]─ 1/2 ─
+│
+│  Wildcard must be the last match case.
+│
+│ Not ending wildcard:
+├─➤ tests/enum/bad/not_ending_wildcard.catala_en:19.5-21:
+│    │
+│ 19 │     -- anything : 31
+│    │     ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+├─ Wildcard must be the last case
+│  └─ Wildcard can't be the first case
+│
+│ Next reachable case:
+├─➤ tests/enum/bad/not_ending_wildcard.catala_en:20.5-18:
+│    │
+│ 20 │     -- Case2 : 42
+│    │     ‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─ Wildcard must be the last case
+   └─ Wildcard can't be the first case
+┌─[ERROR]─ 2/2 ─
+│
+│  Wildcard must be the last match case.
+│
+│ Not ending wildcard:
+├─➤ tests/enum/bad/not_ending_wildcard.catala_en:35.5-21:
+│    │
+│ 35 │     -- anything : 31
+│    │     ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+├─ Wildcard must be the last case
+│  └─ Wildcard can't be the a middle case
+│
+│ Next reachable case:
+├─➤ tests/enum/bad/not_ending_wildcard.catala_en:36.2-15:
+│    │
+│ 36 │         -- Case1 : 42
+│    │         ‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─ Wildcard must be the last case
+   └─ Wildcard can't be the a middle case
+#return code 123#
+```
+
+```catala-test-cli
+$ catala test-scope Middle_case
+┌─[ERROR]─ 1/2 ─
+│
+│  Wildcard must be the last match case.
+│
+│ Not ending wildcard:
+├─➤ tests/enum/bad/not_ending_wildcard.catala_en:19.5-21:
+│    │
+│ 19 │     -- anything : 31
+│    │     ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+├─ Wildcard must be the last case
+│  └─ Wildcard can't be the first case
+│
+│ Next reachable case:
+├─➤ tests/enum/bad/not_ending_wildcard.catala_en:20.5-18:
+│    │
+│ 20 │     -- Case2 : 42
+│    │     ‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─ Wildcard must be the last case
+   └─ Wildcard can't be the first case
+┌─[ERROR]─ 2/2 ─
+│
+│  Wildcard must be the last match case.
+│
+│ Not ending wildcard:
+├─➤ tests/enum/bad/not_ending_wildcard.catala_en:35.5-21:
+│    │
+│ 35 │     -- anything : 31
+│    │     ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾
+├─ Wildcard must be the last case
+│  └─ Wildcard can't be the a middle case
+│
+│ Next reachable case:
+├─➤ tests/enum/bad/not_ending_wildcard.catala_en:36.2-15:
+│    │
+│ 36 │         -- Case1 : 42
+│    │         ‾‾‾‾‾‾‾‾‾‾‾‾‾
+└─ Wildcard must be the last case
+   └─ Wildcard can't be the a middle case
+#return code 123#
+```

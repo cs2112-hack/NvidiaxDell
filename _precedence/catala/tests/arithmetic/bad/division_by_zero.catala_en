@@ -1,0 +1,80 @@
+## `Division_by_zero` exception management
+
+### with integers
+
+```catala
+declaration scope Int:
+  output i content decimal
+
+scope Int:
+  definition i equals 1 / 0
+```
+
+### with decimals
+
+```catala
+declaration scope Dec:
+  output i content decimal
+
+scope Dec:
+  definition i equals 1.0 / 0.0
+```
+
+### with money
+
+```catala
+declaration scope Money:
+  output i content decimal
+
+scope Money:
+  definition i equals $10.0 / $0.0
+```
+
+
+```catala-test-cli
+$ catala test-scope Dec
+┌─[ERROR]─
+│
+│  During evaluation: a value is being used as denominator in a division and
+│  it computed to zero.
+│
+├─➤ tests/arithmetic/bad/division_by_zero.catala_en:20.29-32:
+│    │
+│ 20 │   definition i equals 1.0 / 0.0
+│    │                             ‾‾‾
+└─ `Division_by_zero` exception management
+   └─ with decimals
+#return code 123#
+```
+
+```catala-test-cli
+$ catala test-scope Int
+┌─[ERROR]─
+│
+│  During evaluation: a value is being used as denominator in a division and
+│  it computed to zero.
+│
+├─➤ tests/arithmetic/bad/division_by_zero.catala_en:10.27-28:
+│    │
+│ 10 │   definition i equals 1 / 0
+│    │                           ‾
+└─ `Division_by_zero` exception management
+   └─ with integers
+#return code 123#
+```
+
+```catala-test-cli
+$ catala test-scope Money
+┌─[ERROR]─
+│
+│  During evaluation: a value is being used as denominator in a division and
+│  it computed to zero.
+│
+├─➤ tests/arithmetic/bad/division_by_zero.catala_en:30.31-35:
+│    │
+│ 30 │   definition i equals $10.0 / $0.0
+│    │                               ‾‾‾‾
+└─ `Division_by_zero` exception management
+   └─ with money
+#return code 123#
+```

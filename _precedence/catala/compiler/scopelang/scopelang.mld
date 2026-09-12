@@ -1,0 +1,30 @@
+{0 The scope language }
+
+This representation is the third in the compilation chain
+(see {{: index.html#architecture} Architecture}). Its main difference
+with the previous {{: desugared.html} desugared representation} is that inside
+a scope, the definitions are ordered according to their computational
+dependency order, and each definition is a {!Shared_ast.EDefault} tree
+instead of a flat list of rules.
+
+Overloaded operators are also resolved during the translation to this
+representation.
+
+The module describing the abstract syntax tree is:
+
+{!modules: Scopelang.Ast}
+
+Printing helpers can be found in {!module: Scopelang.Print}.
+
+This intermediate representation corresponds to the scope language
+presented in the {{: https://dl.acm.org/doi/10.1145/3473582}
+Catala formalization}.
+
+The {!module:Scopelang.From_desugared} pass performs a few important transformation:
+- the construction of the default trees (see {!Shared_ast.EDefault}) from the list of prioritized rules
+- the resolution of overloads (using {!Shared_ast.Typing})
+- wrapping of subscope arguments
+
+The rest of the pass is performed on the scopelang ast:
+- {!module:Scopelang.Dependency} analyses inter-scope dependencies as well as the well-foundedness of types
+- This is also where the main, full typing of the program takes place
