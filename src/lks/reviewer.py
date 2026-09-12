@@ -52,15 +52,33 @@ from .segment import load_corpus
 COMMENT_LINE_RE = re.compile(r"^\s*#(?!\[)")
 FENCE_OPEN_RE = re.compile(r"^```catala(?:-metadata|-test-cli|-test)?\s*$")
 FENCE_CLOSE_RE = re.compile(r"^```\s*$")
+DIRECTIVE_RE = re.compile(r"^>\s*(Module|Using|Include)\b")
 
 
 def strip_implementer_commentary(src: str) -> tuple[str, int]:
-    """Remove implementer comments from Catala code blocks.
+    """Reduce a literate Catala module to law plus code, dropping every line
+    of implementer voice.
 
-    Returns (stripped_source, n_lines_removed). Blockquoted clause text is
-    preserved -- that is the law, not commentary, and the reviewer must see
-    which clause the code claims to encode so that a mis-attribution is
-    itself reviewable.
+    Returns (stripped_source, n_lines_removed).
+
+    This is stricter than removing `#` comments, and it has to be. A literate
+    module's free text is a *mixture*: the `|`-gutter quotations are the law
+    and the reviewer must see them, but the explanatory paragraphs around them
+    are the implementer explaining their reading of the clause -- exactly what
+    a blind reviewer must not be handed. A paragraph like "C-8.1 is discharged
+    structurally rather than by a rule of its own" tells the reviewer how to
+    interpret the code, and a reviewer given that will tend to check the code
+    against it instead of against the clause.
+
+    So in free-text regions only these survive:
+      * `|` quotation lines (the law, and the module's claim about which
+        clause it encodes -- a mis-attribution must stay reviewable)
+      * `#` headings (structure, needed to read the file)
+      * `> Module` / `> Using` / `> Include` directives (semantics)
+      * blank lines
+    Everything else in free text is dropped. Inside code blocks, `#` comment
+    lines are dropped but semantic attributes (`#[test]`, `#[doc = ...]`) are
+    kept.
     """
     out: list[str] = []
     removed = 0
@@ -74,11 +92,30 @@ def strip_implementer_commentary(src: str) -> tuple[str, int]:
             in_code = False
             out.append(line)
             continue
-        if in_code and COMMENT_LINE_RE.match(line):
-            removed += 1
+        if in_code:
+            if COMMENT_LINE_RE.match(line):
+                removed += 1
+                continue
+            out.append(line)
             continue
-        out.append(line)
-    return "\n".join(out) + ("\n" if src.endswith("\n") else ""), removed
+        # free text
+        stripped = line.strip()
+        if (
+            not stripped
+            or line.startswith("|")
+            or stripped.startswith("#")
+            or DIRECTIVE_RE.match(line)
+        ):
+            out.append(line)
+            continue
+        removed += 1
+    # collapse the runs of blank lines left behind by removed paragraphs
+    collapsed: list[str] = []
+    for line in out:
+        if not line.strip() and collapsed and not collapsed[-1].strip():
+            continue
+        collapsed.append(line)
+    return "\n".join(collapsed) + ("\n" if src.endswith("\n") else ""), removed
 
 
 @dataclass

@@ -1,0 +1,513 @@
+# Tests — Annex C working time and overtime
+
+Assertion-based tests for `Overtime.HourPremium`. Every branch of the
+exception hierarchy on `multiplier`, `night_premium` and `accrues_toil` is
+covered, and the threshold cases are tested on both sides of the boundary —
+40/41 and 48/49 for the hours thresholds, Grade 4/5 for the grade threshold —
+because an off-by-one on an inclusive/exclusive boundary is the failure mode
+that a single mid-range test cannot see.
+
+Counterexamples found by the adversarial reviewer are kept separately, in
+`tests/counterexamples/`, and are re-run by `scripts/check.sh`.
+
+> Using Overtime
+
+## OrdinaryHour
+
+C-3.1 base case: an hour within the ordinary 40 attracts no premium.
+
+```catala
+#[test]
+declaration scope TestOrdinaryHour:
+  output r content Overtime.HourPremium
+
+scope TestOrdinaryHour:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 20
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 0.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 0.0
+  assertion r.accrues_toil = false
+```
+
+## C4_1_Boundary40
+
+C-4.1 applies to hours 'in excess of 40', so hour 40 itself is ordinary.
+
+```catala
+#[test]
+declaration scope TestC4_1_Boundary40:
+  output r content Overtime.HourPremium
+
+scope TestC4_1_Boundary40:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 40
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 0.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 0.0
+  assertion r.accrues_toil = false
+```
+
+## C4_1_Boundary41
+
+C-4.1 first overtime hour.
+
+```catala
+#[test]
+declaration scope TestC4_1_Boundary41:
+  output r content Overtime.HourPremium
+
+scope TestC4_1_Boundary41:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 41
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 1.25
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 1.25
+  assertion r.accrues_toil = false
+```
+
+## C4_2_Boundary48
+
+C-4.2 applies 'in excess of 48', so hour 48 remains at the C-4.1 rate.
+
+```catala
+#[test]
+declaration scope TestC4_2_Boundary48:
+  output r content Overtime.HourPremium
+
+scope TestC4_2_Boundary48:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 48
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 1.25
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 1.25
+  assertion r.accrues_toil = false
+```
+
+## C4_2_Boundary49
+
+C-4.2 first hour beyond 48.
+
+```catala
+#[test]
+declaration scope TestC4_2_Boundary49:
+  output r content Overtime.HourPremium
+
+scope TestC4_2_Boundary49:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 49
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 1.5
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 1.5
+  assertion r.accrues_toil = false
+```
+
+## C5_1_Grade5NoPayment
+
+C-5.1 removes the overtime payment for Grade 5 and substitutes TOIL.
+
+```catala
+#[test]
+declaration scope TestC5_1_Grade5NoPayment:
+  output r content Overtime.HourPremium
+
+scope TestC5_1_Grade5NoPayment:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 45
+      -- grade: 5
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 0.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 0.0
+  assertion r.accrues_toil = true
+```
+
+## C5_1_Grade5Beyond48
+
+C-5.1 defeats C-4.2 as well as C-4.1, being an exception to C-4 as a whole.
+
+```catala
+#[test]
+declaration scope TestC5_1_Grade5Beyond48:
+  output r content Overtime.HourPremium
+
+scope TestC5_1_Grade5Beyond48:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 50
+      -- grade: 5
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 0.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 0.0
+  assertion r.accrues_toil = true
+```
+
+## C5_1_Grade4NotExempt
+
+C-5.1 applies at 'Grade 5 or above', so Grade 4 keeps the C-4.1 rate.
+
+```catala
+#[test]
+declaration scope TestC5_1_Grade4NotExempt:
+  output r content Overtime.HourPremium
+
+scope TestC5_1_Grade4NotExempt:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 45
+      -- grade: 4
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 1.25
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 1.25
+  assertion r.accrues_toil = false
+```
+
+## C5_2_CriticalIncident
+
+C-5.2 reinstates the C-4 rate for Critical Incident Response.
+
+```catala
+#[test]
+declaration scope TestC5_2_CriticalIncident:
+  output r content Overtime.HourPremium
+
+scope TestC5_2_CriticalIncident:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 45
+      -- grade: 5
+      -- is_public_holiday: false
+      -- is_critical_incident: true
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 1.25
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 1.25
+  assertion r.accrues_toil = false
+```
+
+## C5_2_CriticalBeyond48
+
+C-5.2 reinstates 'in accordance with C-4', which is C-4.2 beyond 48 hours.
+
+```catala
+#[test]
+declaration scope TestC5_2_CriticalBeyond48:
+  output r content Overtime.HourPremium
+
+scope TestC5_2_CriticalBeyond48:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 50
+      -- grade: 5
+      -- is_public_holiday: false
+      -- is_critical_incident: true
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 1.5
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 1.5
+  assertion r.accrues_toil = false
+```
+
+## C7_1_HolidayWithin40
+
+C-7.1 carries no hours threshold: it applies within the ordinary 40.
+
+```catala
+#[test]
+declaration scope TestC7_1_HolidayWithin40:
+  output r content Overtime.HourPremium
+
+scope TestC7_1_HolidayWithin40:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 10
+      -- grade: 3
+      -- is_public_holiday: true
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 2.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 2.0
+  assertion r.accrues_toil = false
+```
+
+## C7_1_HolidaySubstitutes
+
+C-7.1 is 'in substitution for, and not in addition to' C-4.
+
+```catala
+#[test]
+declaration scope TestC7_1_HolidaySubstitutes:
+  output r content Overtime.HourPremium
+
+scope TestC7_1_HolidaySubstitutes:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 45
+      -- grade: 3
+      -- is_public_holiday: true
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 2.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 2.0
+  assertion r.accrues_toil = false
+```
+
+## C7_2_HolidayBeyond48
+
+C-7.2 greater-of: 2.0 against C-4.2 plus 0.25, i.e. 1.75.
+
+```catala
+#[test]
+declaration scope TestC7_2_HolidayBeyond48:
+  output r content Overtime.HourPremium
+
+scope TestC7_2_HolidayBeyond48:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 50
+      -- grade: 3
+      -- is_public_holiday: true
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 2.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 2.0
+  assertion r.accrues_toil = false
+```
+
+## C8_1_HighestApplies
+
+C-8.1: C-5.1 and C-7.1 both bear on the hour; the higher multiplier governs.
+
+```catala
+#[test]
+declaration scope TestC8_1_HighestApplies:
+  output r content Overtime.HourPremium
+
+scope TestC8_1_HighestApplies:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 50
+      -- grade: 5
+      -- is_public_holiday: true
+      -- is_critical_incident: false
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 2.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 2.0
+  assertion r.accrues_toil = false
+```
+
+## C8_1_HolidayAndIncident
+
+C-8.1: C-5.2 gives 1.25 and C-7.1 gives 2.0; the higher governs.
+
+```catala
+#[test]
+declaration scope TestC8_1_HolidayAndIncident:
+  output r content Overtime.HourPremium
+
+scope TestC8_1_HolidayAndIncident:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 45
+      -- grade: 5
+      -- is_public_holiday: true
+      -- is_critical_incident: true
+      -- is_night: false
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 2.0
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 2.0
+  assertion r.accrues_toil = false
+```
+
+## C6_1_NightCumulative
+
+C-6.1/C-8.2: the night premium is cumulative with the C-4.1 multiplier.
+
+```catala
+#[test]
+declaration scope TestC6_1_NightCumulative:
+  output r content Overtime.HourPremium
+
+scope TestC6_1_NightCumulative:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 45
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: true
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 1.25
+  assertion r.night_premium = 0.15
+  assertion r.total_rate = 1.4
+  assertion r.accrues_toil = false
+```
+
+## C6_1_NightOnHoliday
+
+C-8.2: cumulative with the substitutive holiday rate of C-7.
+
+```catala
+#[test]
+declaration scope TestC6_1_NightOnHoliday:
+  output r content Overtime.HourPremium
+
+scope TestC6_1_NightOnHoliday:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 45
+      -- grade: 3
+      -- is_public_holiday: true
+      -- is_critical_incident: false
+      -- is_night: true
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 2.0
+  assertion r.night_premium = 0.15
+  assertion r.total_rate = 2.15
+  assertion r.accrues_toil = false
+```
+
+## C6_1_NightOnToilHour
+
+C-6.1 confers the night premium on every Night Hour worked, including one that earns TOIL rather than pay.
+
+```catala
+#[test]
+declaration scope TestC6_1_NightOnToilHour:
+  output r content Overtime.HourPremium
+
+scope TestC6_1_NightOnToilHour:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 45
+      -- grade: 5
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: true
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 0.0
+  assertion r.night_premium = 0.15
+  assertion r.total_rate = 0.15
+  assertion r.accrues_toil = true
+```
+
+## C6_2_StandingAllowance
+
+C-6.2 disapplies the night premium where a standing shift allowance is paid.
+
+```catala
+#[test]
+declaration scope TestC6_2_StandingAllowance:
+  output r content Overtime.HourPremium
+
+scope TestC6_2_StandingAllowance:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 45
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: true
+      -- has_standing_shift_allowance: true
+    }
+  assertion r.multiplier = 1.25
+  assertion r.night_premium = 0.0
+  assertion r.total_rate = 1.25
+  assertion r.accrues_toil = false
+```
+
+## C6_1_NightOrdinaryHour
+
+C-6.1 is not conditioned on overtime: an ordinary night hour still earns it.
+
+```catala
+#[test]
+declaration scope TestC6_1_NightOrdinaryHour:
+  output r content Overtime.HourPremium
+
+scope TestC6_1_NightOrdinaryHour:
+  definition r equals
+    output of Overtime.HourPremium with {
+      -- ordinal: 20
+      -- grade: 3
+      -- is_public_holiday: false
+      -- is_critical_incident: false
+      -- is_night: true
+      -- has_standing_shift_allowance: false
+    }
+  assertion r.multiplier = 0.0
+  assertion r.night_premium = 0.15
+  assertion r.total_rate = 0.15
+  assertion r.accrues_toil = false
+```
