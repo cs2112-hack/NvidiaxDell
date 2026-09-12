@@ -1,0 +1,3 @@
+[project]
+include_dirs = ["catala/modules"]
+build_dir = "_build"

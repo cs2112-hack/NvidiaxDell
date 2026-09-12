@@ -1,33 +1,20 @@
 #!/usr/bin/env bash
-# Install the Catala compiler into a dedicated opam switch.
-# Tries the system OCaml first (fast); falls back to building a compiler if
-# Catala's constraints require a newer one.
+# Install the Catala compiler into the `lks` opam switch.
+# ninja is provided rootlessly from the project venv (see ~/.local/bin/ninja),
+# so opam's depext check is skipped with --assume-depexts.
 set -x
 export OPAMYES=1 OPAMCOLOR=never
+export PATH="$HOME/.local/bin:$PATH"
 
-opam init --bare -y --disable-sandboxing || exit 10
-eval "$(opam env --switch=default --set-switch 2>/dev/null)"
-opam update -y
-
-if ! opam switch list --short | grep -qx lks; then
-  opam switch create lks ocaml-system || opam switch create lks 4.14.2 || exit 11
-fi
-eval "$(opam env --switch=lks --set-switch)"
+eval "$(opam env --switch=lks --set-switch)" || exit 10
 ocamlc -version
+which ninja && ninja --version
 
-# Catala pulls a large dependency tree (zarith, dates_calc, ninja_utils, ...).
-if opam install -y catala; then
-  echo "CATALA_INSTALL=ok-system-switch"
-else
-  echo "system switch failed; building a 5.x compiler"
-  opam switch remove -y lks || true
-  opam switch create lks 5.1.1 || exit 12
-  eval "$(opam env --switch=lks --set-switch)"
-  opam install -y catala || exit 13
-  echo "CATALA_INSTALL=ok-5.1.1"
-fi
+opam install -y --assume-depexts catala.1.2.1 || \
+  opam install -y --assume-depexts catala || exit 13
 
 eval "$(opam env --switch=lks --set-switch)"
-which catala
+which catala clerk
 catala --version
-echo "DONE"
+clerk --version
+echo "DONE_OK"
