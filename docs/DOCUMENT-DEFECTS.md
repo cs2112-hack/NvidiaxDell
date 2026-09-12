@@ -44,3 +44,39 @@ competing reading would give `{"multiplier": 0.0, "night_premium": 0.15, "total_
 
 **What the encoding currently does.** Observed `{"multiplier": 2.0, "night_premium": 0.0, "total_rate": 2.0, "accrues_toil": false}`; the
 competing reading would give `{"multiplier": 2.0, "night_premium": 0.0, "total_rate": 2.0, "accrues_toil": false, "note": "the module's answer on its own convention; the ambiguity is what the 2.0 is measured against for an ordinary-time hour"}`.
+
+## AMB-05 — EMP-ANNEX-C C-5.1, C-7.1, C-8.1: does a public holiday displace time off in lieu?
+
+**This is the strongest evidence of a document defect in the corpus, because two
+independent blind reviewers read the same three clauses and reached opposite
+conclusions.**
+
+**Fact pattern.** A Grade 5 Employee works the 41st hour of a Payroll Week on a
+Gazetted Public Holiday. It is not Critical Incident Response.
+
+**Reading A (round 1 reviewer, and what the module implements).** The hour is
+paid at C-7.1's 2.0 *and* accrues an hour of time off in lieu under the second
+sentence of C-5.1. C-7.1 substitutes its rate for "any amount otherwise payable
+under **C-4**" and says nothing about C-5. C-8.1 provides that "only the single
+highest applicable **multiplier** applies" — it selects among multipliers and
+does not purport to disapply the losing provision in every respect, and a leave
+accrual is not a multiplier. C-5.2, by contrast, opens "Notwithstanding C-5.1",
+which displaces C-5.1 as a whole including its accrual limb — so the asymmetry
+between C-5.2 and C-7.1 is textually grounded rather than accidental.
+
+**Reading B (round 3 reviewer).** C-8.1 is the governing precedence rule and it
+selects C-7.1 as the provision that "applies to that hour", displacing C-5.1
+entirely; a provision that does not apply cannot confer an accrual. On this
+reading the module's two chains contradict each other, since the C-5.2 path
+does suppress the accrual.
+
+**Resolution adopted.** Reading A, on the ground that C-8.1's operative words
+are confined to the multiplier and C-7.1's substitution is expressly confined
+to C-4. It is recorded as a permanent test (`tests/counterexamples/CE-0001.yaml`).
+
+**What the Company should do.** Amend C-8.1 to say whether it displaces a
+provision entirely or only its multiplier, and amend C-7.1 to say whether it
+substitutes for C-5 as well as C-4. As drafted, an employee's leave balance
+turns on a question the Annex does not answer, and reasonable readers disagree.
+Worth one hour of leave per public-holiday overtime hour for every Grade 5+
+employee.

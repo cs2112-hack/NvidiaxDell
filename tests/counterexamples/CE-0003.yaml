@@ -31,157 +31,210 @@ inputs:
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 1
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 2
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 3
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 4
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 5
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 6
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 7
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 8
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 9
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 10
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 11
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 12
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 13
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 14
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 15
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 16
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 17
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 18
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 19
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 20
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 21
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 22
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 23
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 24
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 25
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 26
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 27
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 28
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 29
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 30
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 31
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 32
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 33
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 34
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 35
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 36
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 37
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 38
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 39
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 40
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 41
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 42
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 43
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 44
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 45
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 46
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 47
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 48
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 49
   - is_public_holiday: false
     is_critical_incident: false
     is_night: false
+    hour_of_week: 50
   base_hourly_rate: 30.0
   grade: 3
   has_standing_shift_allowance: false
 round: 2
 discovered: '2026-09-12'
 status: fixed
-notes: expected value corrected from the reviewer's 375.00 to 390.00; see source_reasoning
+notes: 'expected value corrected from the reviewer''s 375.00 to 390.00; see source_reasoning
+  | inputs migrated: HourWorked gained hour_of_week, the hour of the Payroll Week per C-2.2,
+  so that which hours fall beyond 40/48 is a recorded fact rather than an array index. Same
+  fact pattern, hours numbered consecutively.'

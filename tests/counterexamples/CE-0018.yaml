@@ -1,0 +1,59 @@
+id: CE-0018
+component: catala
+fact_pattern: 'The Agreement takes effect on 1 July 2024 and is not terminated early, so its
+  2-year term runs to 1 July 2026. The Confidential Information was a trade secret when disclosed
+  but has ceased to be a trade secret (it has lost its commercial value; it has not become
+  public, so N-2.3(a) does not exclude it, and it remains designated confidential). It is
+  not personal data. The question is asked on 1 June 2025, while the Agreement is still in
+  force: do the obligations of confidence subsist?'
+citations:
+- NDA-MUT N-3.1
+- NDA-MUT N-3.2
+- NDA-MUT N-5.1
+- NDA-MUT N-5.2
+- NDA-MUT N-5.3
+- NDA-MUT N-2.3
+source_reasoning: 'N-5.3 is expressly ''By way of exception to N-5.2'', and N-5.2 does one
+  job: it fixes how long the N-3 obligations ''survive expiry or termination of this Agreement''.
+  N-5.3 therefore replaces the length of the post-termination tail and nothing else. Inside
+  the term the N-3 obligations bind directly under N-3.1 and N-3.2, and N-5.1 fixes the term
+  at 2 years from the Effective Date, here to 2026-07-01; no clause in N-5 qualifies N-3 during
+  the term. The information also remains Confidential Information on these facts: N-2.3 lists
+  the only four ways information falls outside the definition, and ''ceased to be a trade
+  secret without becoming public'' is not among them - in particular N-2.3(a) requires the
+  information to have become generally available to the public, which it has not. So on 2025-06-01
+  the Recipient is bound by N-3 and obligations_subsist must be true. The module instead makes
+  information_remains_trade_secret the whole of obligations_subsist whenever information_is_trade_secret
+  holds, with no reference to the term or to N-5.2''s 3-year period, and so reports the obligations
+  extinguished while the Agreement is still on foot. (Whether, after expiry, the lapse of
+  trade-secret status can also cut the tail below N-5.2''s 3 years is a separate and genuinely
+  open question, recorded as an AMBIGUITY below; it does not affect this finding, because
+  here the assessment date is inside the term and no reading of N-5.3 reaches that far back.)'
+expected:
+  agreement_end_date: '2026-07-01'
+  obligations_subsist: true
+  note: 'survival_end_date is not challenged in this finding: N-5.3 confers no date and the
+    scope takes no input for the date trade-secret status ceased, so Absent is defensible.
+    The challenged output is obligations_subsist, which must be true while the Agreement is
+    in force.'
+observed:
+  agreement_end_date: '2026-07-01'
+  obligations_subsist: false
+target:
+  module: NdaSurvival
+  path: catala/modules/NdaSurvival.catala_en
+  scope: SurvivalEnd
+inputs:
+  effective_date: '2024-07-01'
+  is_personal_data: false
+  information_is_trade_secret: true
+  information_remains_trade_secret: false
+  assessment_date: '2025-06-01'
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: N-5.3 with status lapsed, assessed during the term (this finding); N-5.3 with status
+  live, assessment 2099-01-01 (obligations subsist indefinitely, survival_end_date Absent
+  - correct, no expiry date manufactured); N-5.3 with status lapsed, assessed after expiry
+  but within the 3-year N-5.2 window (recorded separately as an AMBIGUITY); information_is_trade_secret=false
+  with information_remains_trade_secret=true (flag ignored, N-5.2 applied)

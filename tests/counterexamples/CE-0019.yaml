@@ -1,0 +1,59 @@
+id: CE-0019
+component: catala
+fact_pattern: 'Written notice purporting to terminate the Agreement is served on 1 January
+  2024, six months before the Agreement''s Effective Date of 1 July 2024 (the parties had
+  been negotiating and one side sent a termination notice against the draft before signature/commencement).
+  The information is ordinary Confidential Information. Asked on 1 January 2025: when did
+  the Agreement end and when do the confidentiality obligations end?'
+citations:
+- NDA-MUT N-5.1
+- NDA-MUT N-5.2
+- NDA-MUT N-1.1
+source_reasoning: N-5.1 provides that 'This Agreement takes effect on the Effective Date and
+  continues for a period of 2 years, unless terminated earlier by either party on 30 days'
+  written notice.' Two things follow. First, the term begins on the Effective Date, so the
+  Agreement cannot have ended on 2024-01-31, five months before it began; an end date earlier
+  than the start date is excluded by the clause on its face. Second, the right to terminate
+  on 30 days' notice is a right conferred by this Agreement on 'either party' to it; it does
+  not exist before the Agreement takes effect, so a notice served on 2024-01-01 is served
+  under no contract and is ineffective to terminate. The word 'earlier' in N-5.1 means earlier
+  than the 2-year expiry, not earlier than commencement. With no effective notice, the term
+  runs its full 2 years to 2026-07-01, and N-5.2 then gives 3 years from that date of expiry,
+  to 2029-07-01. The module's guard is purely relative - it fires whenever notice + 30 days
+  falls before the 2-year anniversary - and has no floor at the Effective Date, so it accepts
+  a pre-commencement notice, reports a term that ended before it started, and then propagates
+  that impossible date into N-5.2, shortening the survival period by two years and five months
+  (2027-01-31 instead of 2029-07-01). Note the implementer used a well-formedness assertion
+  for exactly this class of input in ErasureRequest (verification_date >= request_date) but
+  none here.
+expected:
+  agreement_end_date: '2026-07-01'
+  obligations_subsist: true
+  survival_end_date: '2029-07-01'
+  note: On the rival reading (the notice bites at commencement) the answer would be agreement_end_date
+    2024-07-31 / survival_end_date 2027-07-31. Observed 2024-01-31 is excluded on every reading,
+    because it precedes the Effective Date.
+observed:
+  agreement_end_date: '2024-01-31'
+  survival_end_date: '2027-01-31'
+  obligations_subsist: true
+target:
+  module: NdaSurvival
+  path: catala/modules/NdaSurvival.catala_en
+  scope: SurvivalEnd
+inputs:
+  effective_date: '2024-07-01'
+  termination_notice_date: '2024-01-01'
+  is_personal_data: false
+  information_is_trade_secret: false
+  information_remains_trade_secret: false
+  assessment_date: '2025-01-01'
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: notice whose 30 days expire exactly on the 2nd anniversary (2026-06-01 -> 2026-07-01,
+  correct); notice whose 30 days expire one day before the 2nd anniversary (2026-05-31 ->
+  2026-06-30, correct; survival moves earlier to 2029-06-30, so N-5.1/N-5.2 do compose); notice
+  served after the 2nd anniversary (falls back to natural expiry, correct); notice served
+  exactly on the Effective Date (2024-07-31, correct); notice served before the Effective
+  Date (this finding)

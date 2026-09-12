@@ -1,0 +1,187 @@
+# Employee Referral Bonus Scheme
+
+> Module ReferralBonus
+
+## Prologue — declarations
+
+```catala-metadata
+declaration scope ReferralBonus:
+  input grade content integer
+  input is_hard_to_fill content boolean
+  input agency_introduced content boolean
+  input agency_introduction_date content date
+  input referral_date content date
+  input first_day_of_employment content date
+  input has_ceased content boolean
+  input cessation_date content date
+  input cessation_by_redundancy content boolean
+  input bonus_already_paid_this_year content money
+  internal agency_introduction_is_stale content boolean
+  internal ceased_within_qualifying_period content boolean
+  output qualifying_period_end content date
+  output entitlement content money
+  output payable content boolean
+  output bonus_before_cap content money
+  output bonus_payable content money
+```
+
+## B-2 Definitions
+
+| REF-BONUS B-2.2 (referral-bonus-scheme.md:23)
+|
+| "Qualifying Period" means the period of 180 days beginning on the Referred
+| Hire's first day of employment.
+
+The period begins ON the first day, so the first day is day 1 and the period
+runs to the 179th day after it.
+
+```catala
+scope ReferralBonus:
+  definition qualifying_period_end equals
+    first_day_of_employment + 179 day
+```
+
+## B-3 Bonus entitlement
+
+| REF-BONUS B-3.1 (referral-bonus-scheme.md:31)
+|
+| An Employee who makes a referral resulting in a Referred Hire is entitled to
+| a bonus of £1,000.
+
+```catala
+scope ReferralBonus:
+  label b3_1 definition entitlement equals $1,000.00
+```
+
+| REF-BONUS B-3.2 (referral-bonus-scheme.md:34)
+|
+| By way of exception to B-3.1, where the Referred Hire is engaged at Grade 5
+| or above, the bonus is £2,500.
+
+```catala
+scope ReferralBonus:
+  label b3_2 exception b3_1 definition entitlement
+    under condition grade >= 5
+    consequence equals $2,500.00
+```
+
+| REF-BONUS B-3.3 (referral-bonus-scheme.md:37)
+|
+| By way of exception to B-3.1 and B-3.2, where the role is a Hard-to-Fill
+| Role, the bonus is £4,000.
+
+B-3.3 is an exception to both earlier limbs, so it sits below B-3.2 in the
+chain and thereby defeats B-3.1 as well.
+
+```catala
+scope ReferralBonus:
+  label b3_3 exception b3_2 definition entitlement
+    under condition is_hard_to_fill
+    consequence equals $4,000.00
+```
+
+| REF-BONUS B-3.4 (referral-bonus-scheme.md:41)
+|
+| Notwithstanding B-3.3, no bonus is payable where the candidate was
+| introduced to the Company by a recruitment agency before the referral was
+| submitted.
+
+"Notwithstanding B-3.3" places this below the highest limb of B-3, so it
+defeats the whole of B-3.
+
+```catala
+scope ReferralBonus:
+  label b3_4 exception b3_3 definition entitlement
+    under condition
+      agency_introduced and agency_introduction_date < referral_date
+    consequence equals $0.00
+```
+
+| REF-BONUS B-3.5 (referral-bonus-scheme.md:45)
+|
+| By way of exception to B-3.4, where the agency introduction occurred more
+| than 12 months before the referral was submitted, the bonus is payable and
+| is calculated under B-3.1 to B-3.3.
+
+The condition of B-3.4 is repeated here, because a Catala exception does not
+inherit its parent's condition. The consequence re-derives the B-3.1 to B-3.3
+result rather than naming a figure, since B-3.5 restores that calculation
+rather than fixing an amount of its own.
+
+```catala
+scope ReferralBonus:
+  definition agency_introduction_is_stale equals
+    agency_introduction_date + 12 month < referral_date
+
+  label b3_5 exception b3_4 definition entitlement
+    under condition
+      agency_introduced
+      and agency_introduction_date < referral_date
+      and agency_introduction_is_stale
+    consequence equals
+      if is_hard_to_fill then $4,000.00
+      else if grade >= 5 then $2,500.00
+      else $1,000.00
+```
+
+## B-4 Payment and forfeiture
+
+| REF-BONUS B-4.2 (referral-bonus-scheme.md:52)
+|
+| No bonus is payable where the Referred Hire ceases employment before the
+| expiry of the Qualifying Period.
+
+| REF-BONUS B-4.3 (referral-bonus-scheme.md:55)
+|
+| By way of exception to B-4.2, where the Referred Hire ceases employment by
+| reason of redundancy, the bonus remains payable.
+
+```catala
+scope ReferralBonus:
+  definition ceased_within_qualifying_period equals
+    has_ceased and cessation_date <= qualifying_period_end
+
+  label b4_base definition payable equals true
+
+  label b4_2 exception b4_base definition payable
+    under condition ceased_within_qualifying_period
+    consequence equals false
+
+  label b4_3 exception b4_2 definition payable
+    under condition
+      ceased_within_qualifying_period and cessation_by_redundancy
+    consequence equals true
+```
+
+| NO-CLAUSE: combining the B-3 entitlement with the B-4 payability test adds no
+| law of its own; both are stated above. It exists so that the B-5 cap has a
+| single quantity to apply to, as B-5.2 requires.
+
+```catala
+scope ReferralBonus:
+  definition bonus_before_cap equals
+    if payable then entitlement else $0.00
+```
+
+## B-5 Aggregate limit
+
+| REF-BONUS B-5.1 (referral-bonus-scheme.md:60)
+|
+| The total bonus payable to an Employee under this Scheme in any financial
+| year must not exceed £10,000.
+
+| REF-BONUS B-5.2 (referral-bonus-scheme.md:63)
+|
+| The limit in B-5.1 is applied after any adjustment under B-3 and B-4.
+
+The cap is on the TOTAL for the year, so the amount available for this
+referral is the limit less what has already been paid, and never below nil.
+
+```catala
+scope ReferralBonus:
+  definition bonus_payable equals
+    let headroom equals $10,000.00 - bonus_already_paid_this_year in
+    if headroom <= $0.00 then $0.00
+    else if bonus_before_cap > headroom then headroom
+    else bonus_before_cap
+```

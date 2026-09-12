@@ -1,20 +1,39 @@
-id: CE-0004
+id: CE-0021
 component: catala
-fact_pattern: The same 50-hour week, worked by a Grade 5 Employee, none of it Critical Incident
-  Response.
+fact_pattern: 'An Employee of Grade 1 with a Base Hourly Rate of GBP 20.10 works 40 hours
+  in a Payroll Week, every one of them a Night Hour (C-2.3), and receives no standing shift
+  allowance. No hour is worked on a Gazetted Public Holiday and none is Critical Incident
+  Response. No hour exceeds 40, so nothing is payable under C-4. The only sum payable is the
+  C-6.1 night premium: 0.15 x GBP 20.10 = GBP 3.015 for each of the 40 Night Hours, i.e. GBP
+  120.60 for the week.'
 citations:
-- EMP-ANNEX-C C-5.1
+- EMP-ANNEX-C C-6.1
+- EMP-ANNEX-C C-6.2
+- EMP-ANNEX-C C-2.1
 - EMP-ANNEX-C C-3.1
-- EMP-ANNEX-C C-2.2
-source_reasoning: C-5.1 removes the overtime payment and accrues time off in lieu at one hour
-  for each hour worked in excess of 40 in a Payroll Week. Ten hours were worked in excess
-  of 40, so 10.0 hours accrue. The same root cause as the payment defect destroyed a second,
-  independent entitlement.
+- EMP-ANNEX-C C-4.1
+- EMP-ANNEX-C C-8.2
+source_reasoning: 'C-6.1 fixes the premium as ''0.15 times the Base Hourly Rate ... in respect
+  of each Night Hour worked''. C-6.2 does not disapply it (no standing shift allowance). C-3.1/C-4.1
+  contribute nothing because no hour exceeds 40, and C-8.2 confirms the night premium stands
+  alone and cumulatively. The quantity C-6.1 makes payable is therefore the sum over 40 hours
+  of 0.15 x GBP 20.10. 0.15 x 20.10 = 3.015 exactly, and 40 x 3.015 = GBP 120.60 exactly -
+  a sum expressible to the penny, so no rounding of the total is required or permitted. The
+  module instead converts each hour''s entitlement to money separately, rounding 3.015 up
+  to GBP 3.02 forty times, and sums the rounded amounts to GBP 120.80. Nothing in C-6.1 authorises
+  rounding the per-hour premium; the clause states a rate, and the payable sum is the aggregate
+  of the rated hours. Rounding does not commute with summation (PROTOCOL strategy 4): the
+  module''s order of operations overpays by GBP 0.20 on this week, a 0.17% error that scales
+  with the number of hours. The same defect is reproducible under C-4.1 alone: 48 plain hours
+  at the same rate give 8 x 1.25 x 20.10 = GBP 201.00 exactly, and the module returns GBP
+  201.04.'
 expected:
-  overtime_payment: 0.0
-  toil_hours: 10.0
+  hours_worked: 40.0
+  overtime_payment: 120.6
+  toil_hours: 0.0
 observed:
-  overtime_payment: 0.0
+  hours_worked: 40.0
+  overtime_payment: 120.8
   toil_hours: 0.0
 target:
   module: overtime
@@ -24,210 +43,174 @@ inputs:
   hours:
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 1
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 2
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 3
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 4
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 5
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 6
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 7
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 8
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 9
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 10
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 11
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 12
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 13
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 14
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 15
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 16
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 17
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 18
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 19
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 20
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 21
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 22
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 23
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 24
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 25
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 26
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 27
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 28
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 29
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 30
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 31
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 32
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 33
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 34
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 35
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 36
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 37
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 38
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 39
   - is_public_holiday: false
     is_critical_incident: false
-    is_night: false
+    is_night: true
     hour_of_week: 40
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 41
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 42
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 43
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 44
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 45
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 46
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 47
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 48
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 49
-  - is_public_holiday: false
-    is_critical_incident: false
-    is_night: false
-    hour_of_week: 50
-  base_hourly_rate: 30.0
-  grade: 5
+  base_hourly_rate: 20.1
+  grade: 1
   has_standing_shift_allowance: false
-round: 2
+round: 3
 discovered: '2026-09-12'
-status: fixed
-notes: 'inputs migrated: HourWorked gained hour_of_week, the hour of the Payroll Week per
-  C-2.2, so that which hours fall beyond 40/48 is a recorded fact rather than an array index.
-  Same fact pattern, hours numbered consecutively.'
+status: open
+notes: 'rounding: per-hour money conversion vs aggregate (C-6.1); rounding: same defect via
+  C-4.1 at 48 hours, 201.00 vs 201.04 observed; rounding: rates that are exact in cents (20.00)
+  produce no error, confirming the cause; exception boundary C-6.2: standing shift allowance
+  correctly suppresses the premium; C-8.2 cumulation with C-4/C-7 multipliers verified additive
+  | inputs migrated: HourWorked gained hour_of_week, the hour of the Payroll Week per C-2.2,
+  so that which hours fall beyond 40/48 is a recorded fact rather than an array index. Same
+  fact pattern, hours numbered consecutively.'

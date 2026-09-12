@@ -1,0 +1,1031 @@
+[
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "WeeklyOvertime"
+    },
+    "fact_pattern": "An Employee of Grade 1 with a Base Hourly Rate of GBP 20.10 works 40 hours in a Payroll Week, every one of them a Night Hour (C-2.3), and receives no standing shift allowance. No hour is worked on a Gazetted Public Holiday and none is Critical Incident Response. No hour exceeds 40, so nothing is payable under C-4. The only sum payable is the C-6.1 night premium: 0.15 x GBP 20.10 = GBP 3.015 for each of the 40 Night Hours, i.e. GBP 120.60 for the week.",
+    "inputs": {
+      "hours": [
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": true
+        }
+      ],
+      "base_hourly_rate": 20.1,
+      "grade": 1,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "hours_worked": 40.0,
+      "overtime_payment": 120.6,
+      "toil_hours": 0.0
+    },
+    "observed": {
+      "hours_worked": 40.0,
+      "overtime_payment": 120.8,
+      "toil_hours": 0.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-6.1",
+      "EMP-ANNEX-C C-6.2",
+      "EMP-ANNEX-C C-2.1",
+      "EMP-ANNEX-C C-3.1",
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-8.2"
+    ],
+    "source_reasoning": "C-6.1 fixes the premium as '0.15 times the Base Hourly Rate ... in respect of each Night Hour worked'. C-6.2 does not disapply it (no standing shift allowance). C-3.1/C-4.1 contribute nothing because no hour exceeds 40, and C-8.2 confirms the night premium stands alone and cumulatively. The quantity C-6.1 makes payable is therefore the sum over 40 hours of 0.15 x GBP 20.10. 0.15 x 20.10 = 3.015 exactly, and 40 x 3.015 = GBP 120.60 exactly - a sum expressible to the penny, so no rounding of the total is required or permitted. The module instead converts each hour's entitlement to money separately, rounding 3.015 up to GBP 3.02 forty times, and sums the rounded amounts to GBP 120.80. Nothing in C-6.1 authorises rounding the per-hour premium; the clause states a rate, and the payable sum is the aggregate of the rated hours. Rounding does not commute with summation (PROTOCOL strategy 4): the module's order of operations overpays by GBP 0.20 on this week, a 0.17% error that scales with the number of hours. The same defect is reproducible under C-4.1 alone: 48 plain hours at the same rate give 8 x 1.25 x 20.10 = GBP 201.00 exactly, and the module returns GBP 201.04.",
+    "attacks_tried": [
+      "rounding: per-hour money conversion vs aggregate (C-6.1)",
+      "rounding: same defect via C-4.1 at 48 hours, 201.00 vs 201.04 observed",
+      "rounding: rates that are exact in cents (20.00) produce no error, confirming the cause",
+      "exception boundary C-6.2: standing shift allowance correctly suppresses the premium",
+      "C-8.2 cumulation with C-4/C-7 multipliers verified additive"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "WeeklyOvertime"
+    },
+    "fact_pattern": "An Employee of Grade 1 with a Base Hourly Rate of GBP 20.10 works 48 hours in a Payroll Week. No hour is a Night Hour, none is worked on a Gazetted Public Holiday and none is Critical Incident Response. Eight hours are worked in excess of 40 and none in excess of 48, so C-4.1 alone applies to the overtime: 8 hours at 1.25 x GBP 20.10.",
+    "inputs": {
+      "hours": [
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        }
+      ],
+      "base_hourly_rate": 20.1,
+      "grade": 1,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "hours_worked": 48.0,
+      "overtime_payment": 201.0,
+      "toil_hours": 0.0
+    },
+    "observed": {
+      "hours_worked": 48.0,
+      "overtime_payment": 201.04,
+      "toil_hours": 0.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-4.2",
+      "EMP-ANNEX-C C-3.1",
+      "EMP-ANNEX-C C-2.1"
+    ],
+    "source_reasoning": "Derived end to end. C-3.1 puts the ordinary week at 40 hours, so 8 of the 48 hours are 'in excess of 40 hours in a Payroll Week' within C-4.1 and each is 'calculated at 1.25 times the Base Hourly Rate'. C-4.2 is checked and does NOT engage: 48 is not in excess of 48, so no hour attracts 1.5. C-5 is irrelevant (Grade 1 < 5) and C-7 is irrelevant (no Gazetted Public Holiday), so C-8.1 has nothing to rank. The sum C-4.1 makes payable is 8 x 1.25 x GBP 20.10 = 10 x GBP 20.10 = GBP 201.00 exactly, expressible to the penny. The module rounds each hour's 1.25 x 20.10 = GBP 25.125 to GBP 25.13 before summing, yielding 8 x 25.13 = GBP 201.04. C-4.1 states a rate per hour and says nothing about converting each hour separately to the nearest penny; the entitlement is the aggregate of the rated hours, and the aggregate is exact. Same root cause as the C-6.1 finding, but it bites on a different clause and a different fact pattern, so it is recorded separately.",
+    "attacks_tried": [
+      "exception boundary at exactly 48 hours (C-4.2 must not fire)",
+      "rounding: per-hour money conversion vs aggregate under C-4.1",
+      "re-derivation including C-4.2 before recording, per the round-2 lesson",
+      "44-hour variant: expected 100.50, observed 100.52 - same defect",
+      "rate exact in cents (20.00): 200.00 observed, no error"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "HourPremium"
+    },
+    "fact_pattern": "An Employee of Grade 5 works the 41st hour of a Payroll Week on a Gazetted Public Holiday. The hour is not Critical Incident Response and not a Night Hour, and the Employee has no standing shift allowance. Because the hour falls on a Gazetted Public Holiday, C-7.1 gives it a multiplier of 2.0 and the Employee is paid for it; C-8.1 selects that single highest multiplier and displaces C-5.1 for that hour, so C-5.1's time-off-in-lieu limb cannot also be triggered by the same hour.",
+    "inputs": {
+      "ordinal": 41,
+      "is_public_holiday": true,
+      "is_critical_incident": false,
+      "is_night": false,
+      "grade": 5,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "accrues_toil": false,
+      "additional_payable": 2.0,
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "salaried_element": 0.0,
+      "total_rate": 2.0
+    },
+    "observed": {
+      "accrues_toil": true,
+      "additional_payable": 2.0,
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "salaried_element": 0.0,
+      "total_rate": 2.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-5.1",
+      "EMP-ANNEX-C C-5.2",
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-8.1"
+    ],
+    "source_reasoning": "Three provisions would apply to this hour: C-4.1 (1.25), C-5.1 (no overtime payment, time off in lieu instead) and C-7.1 (2.0). C-8.1 is the governing precedence rule: 'Where two or more provisions of C-4, C-5 or C-7 would apply to the same hour, only the single highest applicable multiplier applies to that hour.' The single highest is C-7.1's 2.0, so by C-8.1 only C-7.1 applies to that hour - C-5.1 does not. C-5.1 is a single, indivisible provision whose two limbs are joined: an Employee of Grade 5 or above 'is not entitled to an overtime payment. SUCH an Employee accrues time off in lieu ...'. The time-off-in-lieu limb is the compensation substituted for the payment C-5.1 withholds; its subject is the Employee whose payment C-5.1 has withheld for that hour. Here C-5.1 withholds nothing, because C-8.1 has displaced it in favour of C-7.1 and the Employee is in fact paid 2.0 x Base Hourly Rate for the hour. Accruing an hour of time off in lieu as well gives the same hour both the payment and the substitute for the payment - double compensation that no clause confers. The module's own treatment of C-5.2 proves the point: where a Grade 5 Employee is paid for an excess hour under C-5.2 the module correctly suppresses the accrual (probe of the identical hour with is_critical_incident true returns accrues_toil false), yet where the payment arrives under C-7.1 - a HIGHER multiplier, 2.0 against C-5.2's 1.25 - it grants both. The module's own multiplier chain already holds that C-7.1 defeats C-5.1; its time-off-in-lieu chain reaches the opposite conclusion about the same hour. In aggregate: WeeklyOvertime on a 48-hour week for a Grade 5 Employee whose hours 41-48 are all worked on a Gazetted Public Holiday returns overtime_payment GBP 320.00 (at Base Hourly Rate GBP 20.00) AND toil_hours 8.0 - eight hours paid at double rate and eight days-off hours banked for the same eight hours. Contrary reading noted and rejected: one might say C-8.1 speaks only of 'multipliers' and so leaves C-5.1's accrual limb untouched. That reading makes C-8.1's operative words ('only the single highest applicable multiplier applies to that hour') select a rate while leaving the losing provision otherwise in force, which is not what 'applies to that hour' says, and it produces compensation for an hour under two provisions at once - the very outcome C-8.1 exists to prevent.",
+    "attacks_tried": [
+      "exception stacking: C-5.1 + C-7.1 on the same hour, checking C-8.1's precedence",
+      "comparison against C-5.2 route (is_critical_incident true) which correctly suppresses the accrual",
+      "full HourPremium matrix over ordinals 1/40/41/42/48/49/50 x public holiday x critical incident x grade 4/5",
+      "aggregate reproduction in WeeklyOvertime: 48h grade 5 with hours 41-48 on a Gazetted Public Holiday -> 320.00 paid plus 8.0 toil hours",
+      "boundary check at ordinal 40 (no accrual, correctly) and grade 4 vs grade 5"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "WeeklyOvertime"
+    },
+    "fact_pattern": "An Employee of Grade 1 with a Base Hourly Rate of GBP 20.00 works 41 hours in one Payroll Week. Exactly one of those 41 hours is worked on a Gazetted Public Holiday; none is a Night Hour or Critical Incident Response. Two records of the SAME week are submitted, identical in every respect except the sequence in which the 41 hours appear: in one the Gazetted Public Holiday hour is listed first, in the other it is listed last. The HourWorked structure carries no time or date field, so the sequence is pure data-entry order and carries no factual content.",
+    "inputs": {
+      "hours": [
+        {
+          "is_public_holiday": true,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        }
+      ],
+      "base_hourly_rate": 20.0,
+      "grade": 1,
+      "has_standing_shift_allowance": false
+    },
+    "expected": "Annex C fixes only the COUNT of hours in excess of 40 (here one) and not their identity, so it does not determine a single figure. Two readings are open. Reading A - the Gazetted Public Holiday hour is one of the ordinary 40, and the excess hour is a plain hour: C-7.1 gives the holiday hour 2.0 x Base Hourly Rate (GBP 20.00 of it already met by base salary for an ordinary hour, so GBP 20.00 additional) and C-4.1 gives the excess hour 1.25 x GBP 20.00 = GBP 25.00; total GBP 45.00. Reading B - the Gazetted Public Holiday hour IS the hour in excess of 40: C-7.1's 2.0 applies in substitution for C-4.1 (C-8.1 selecting the single highest multiplier), and base salary meets nothing beyond 40; total GBP 40.00. Whichever reading is adopted, the answer must be the SAME for both submitted records, because the records state identical facts. The module returns GBP 45.00 for one ordering and GBP 40.00 for the other.",
+    "observed": {
+      "ordering_public_holiday_hour_first": {
+        "hours_worked": 41.0,
+        "overtime_payment": 45.0,
+        "toil_hours": 0.0
+      },
+      "ordering_public_holiday_hour_last": {
+        "hours_worked": 41.0,
+        "overtime_payment": 40.0,
+        "toil_hours": 0.0
+      }
+    },
+    "citations": [
+      "EMP-ANNEX-C C-3.1",
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-4.2",
+      "EMP-ANNEX-C C-5.1",
+      "EMP-ANNEX-C C-5.2",
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-8.1",
+      "EMP-ANNEX-C C-2.2"
+    ],
+    "source_reasoning": "C-4.1 and C-4.2 are quantitative statements about the Payroll Week: given 41 hours worked, exactly one hour is 'in excess of 40 hours in a Payroll Week'. C-7.1, C-5.1 and C-5.2 by contrast attach to attributes of particular hours (worked on a Gazetted Public Holiday, worked on Critical Incident Response). Whenever a week contains both an excess and an attribute-bearing hour, the money turns on WHICH hours are treated as the excess ones - and Annex C nowhere says. C-2.2 defines the Payroll Week as running from 00:00 Monday to 23:59:59 Sunday, which supports a chronological reading (the excess hours are those worked last in the week), but even that reading is unavailable to this module: HourWorked has no timestamp, so the module cannot tell chronological order from data-entry order, and it silently treats list position as legal position. The ambiguity is in the source document; the defect it exposes in the artefact is that the answer is decided by a field that records no fact. The spread is not confined to pennies. A 48-hour week with 8 Gazetted Public Holiday hours returns GBP 360.00 with the holiday hours listed first and GBP 320.00 with them listed last. Worse, for a Grade 5 Employee working 50 hours of which 10 are Critical Incident Response, listing the incident hours first returns overtime_payment GBP 0.00 with 10.0 toil_hours, while listing the same 10 hours last returns GBP 260.00 with 0.0 toil_hours - the entire C-5.2 entitlement turns on the order of the rows. Annex C should state which hours are the excess hours (e.g. chronological order within the Payroll Week, or the assignment most favourable to the Employee), and the record should carry the time of each hour so that the rule can be applied to facts rather than to sequence.",
+    "attacks_tried": [
+      "ordering permutation of an identical 41-hour week (holiday hour first / middle / last)",
+      "ordering permutation of a 48-hour week with 8 Gazetted Public Holiday hours: 360.00 vs 320.00",
+      "ordering permutation for Grade 5 with 10 Critical Incident Response hours in a 50-hour week: 0.00 + 10 toil vs 260.00 + 0 toil",
+      "searched C-2.2 and C-1 for any rule fixing the order or identity of hours - none found",
+      "checked whether HourWorked carries any time or date field that could ground a chronological reading - it does not"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "HourPremium"
+    },
+    "fact_pattern": "An Employee of Grade 1 works the 49th hour of a Payroll Week on a Gazetted Public Holiday. That hour is both an hour worked on a Gazetted Public Holiday and an hour worked in excess of 48 hours in the Payroll Week, which is precisely the situation C-7.2 is drafted for.",
+    "inputs": {
+      "ordinal": 49,
+      "is_public_holiday": true,
+      "is_critical_incident": false,
+      "is_night": false,
+      "grade": 1,
+      "has_standing_shift_allowance": false
+    },
+    "expected": "Not determinable from the text. Reading A (the module's): '(b) the rate determined under C-4.2 plus 0.25' = 1.5 + 0.25 = 1.75; the greater of 2.0 and 1.75 is 2.0; C-7.2 therefore produces exactly the same rate as C-7.1 in every case and can never alter an outcome - it is a dead letter, which contradicts its own framing as an exception 'by way of exception to C-7.1'. Reading B: the '+ 0.25' uplift attaches to the greater-of result, so the applicable rate for an hour that is both a Gazetted Public Holiday hour and an hour beyond 48 is max(2.0, 1.5) + 0.25 = 2.25; on this reading C-7.2 does the work its 'by way of exception' framing announces. The two readings differ in money: at a Base Hourly Rate of GBP 20.00 an hour at the 49th position on a Gazetted Public Holiday is worth GBP 40.00 on Reading A and GBP 45.00 on Reading B.",
+    "observed": {
+      "accrues_toil": false,
+      "additional_payable": 2.0,
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "salaried_element": 0.0,
+      "total_rate": 2.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-7.2",
+      "EMP-ANNEX-C C-4.2",
+      "EMP-ANNEX-C C-8.1"
+    ],
+    "source_reasoning": "C-4.2 fixes the only rate C-7.2(b) can refer to at 1.5. On the module's reading C-7.2(b) is therefore 1.75, always less than C-7.2(a)'s 2.0, so the greater-of is always 2.0 and C-7.2 is identical in effect to C-7.1. A provision introduced 'by way of exception to C-7.1' that can never produce a different result from C-7.1 is surplusage, and the ordinary presumption against surplusage tells against Reading A. Reading B - the uplift applying to the greater-of outcome - is the only construction on which C-7.2 has any operation, and it is grammatically available because the clause's two limbs are the two rates being compared and the '+ 0.25' can be read as the exception's uplift on the winner. I cannot cite a clause that COMPELS either reading, so this is recorded as an AMBIGUITY about the document rather than a break: the module faithfully implements Reading A (the probe returns the same 2.0 multiplier at the 49th hour as at the 41st), and the document needs to say which was meant. Confirmed by probe that the module's C-7.2 branch is numerically indistinguishable from its C-7.1 branch at every ordinal above 48 and for every grade - i.e. the encoded exception is unreachable in effect (PROTOCOL strategy 9).",
+    "attacks_tried": [
+      "vacuous-branch hunt on C-7.2: compared multiplier at ordinals 48 and 49 with is_public_holiday true across grades 4 and 5 - always 2.0",
+      "greater-of probe (PROTOCOL strategy 5): searched for any input where limb (b) exceeds limb (a) - none exists because C-4.2 is fixed at 1.5",
+      "checked whether C-6.1's 0.15 could be the intended source of the 0.25 uplift - it is not, C-6 is cumulative under C-8.2 and separately encoded"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "WorkingTimeDefs",
+      "path": "catala/modules/WorkingTimeDefs.catala_en",
+      "scope": "BaseHourlyRate"
+    },
+    "fact_pattern": "An Employee's annual base salary is GBP 45,000. C-2.1 defines the Base Hourly Rate as that salary divided by 2,080, which is GBP 21.6346153846... - a quotient that does not terminate at two decimal places. The Base Hourly Rate is not itself a sum of money paid to anyone; it is the multiplicand from which every amount under C-4, C-5.2, C-6 and C-7 is calculated, so the fractional penny matters as soon as it is multiplied by a premium and by a number of hours.",
+    "inputs": {
+      "annual_base_salary": 45000
+    },
+    "expected": {
+      "base_hourly_rate": 21.634615384615383
+    },
+    "observed": {
+      "base_hourly_rate": 21.63
+    },
+    "citations": [
+      "EMP-ANNEX-C C-2.1",
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-4.2",
+      "EMP-ANNEX-C C-1.1"
+    ],
+    "source_reasoning": "C-2.1 states a division and nothing else: 'the Employee's annual base salary divided by 2,080'. It prescribes no rounding, and no other clause of Annex C authorises rounding the defined term before use; C-1.1 makes the Annex govern 'the calculation of ... overtime premia', i.e. the calculation, not an approximation of it. 45,000 / 2,080 = 21.634615384615..., so the value C-2.1 compels is that quotient. The module types the Base Hourly Rate as money and returns GBP 21.63, discarding 0.0384615... per hour - and, critically, it discards it BEFORE the premium multiplication, which is the order that changes the money. The detriment is demonstrable: for a Grade 1 Employee working 50 plain hours in a Payroll Week, C-4.1 gives 8 hours (the 41st to the 48th) at 1.25 and C-4.2 gives 2 hours (the 49th and 50th) at 1.5, a total of 8 x 1.25 + 2 x 1.5 = 13 times the Base Hourly Rate. 13 x 45,000 / 2,080 = 585,000 / 2,080 = GBP 281.25 EXACTLY - a figure expressible to the penny, so C-2.1 and C-4 together compel GBP 281.25 with no rounding question at all. Feeding the module's own C-2.1 output into WeeklyOvertime returns GBP 281.22, three pence short; feeding it the unrounded quotient returns the same GBP 281.22, because the money type truncates the rate on the way in. The rate must be carried as an exact decimal and rounded only when a payable sum is finally struck, and the sum here needs no rounding. Note the error has no fixed direction: at a salary of GBP 50,000 the module rounds the rate UP (24.0384615... to 24.04) and overpays, while at GBP 45,000 it rounds DOWN and underpays, so this cannot be defended as a rounding convention favourable to the Employee.",
+    "attacks_tried": [
+      "fractional-penny probe across salaries 45000 / 50000 / 33000 / 30000 / 60000 - all rounded to the nearest penny, in both directions",
+      "exact half-penny probe: salary 24,970.40 gives an exact 12.005 and the module returns 12.01",
+      "round-before-multiply vs round-after-multiply: constructed the 50-hour week whose exact answer (281.25) is expressible in pence and showed the module returns 281.22",
+      "salaries that divide exactly (41,600 -> 20.00; 52,000 -> 25.00; 2,080 -> 1.00) produce no error, isolating the cause",
+      "degenerate salary of GBP 1 yields a Base Hourly Rate of 0.00 and hence no overtime at all"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "LeaveAccrual",
+      "path": "catala/modules/LeaveAccrual.catala_en",
+      "scope": "MonthlyAccrual"
+    },
+    "fact_pattern": "An Employee terminates employment on 31 January 2024 having commenced on 21 January 2024: 11 days of service in a 31-day month. C-9.2 pro-rates: 2.0 x 11 / 31 = 0.70967... days, which is rounded to the nearest half day, giving 0.5. The proviso 'with an exact quarter rounded upwards' is there to break the tie when the pro-rated figure lands exactly midway between two half-days. The question this fact pattern frames is whether that proviso can ever operate on the denominator C-9.2 itself prescribes.",
+    "inputs": {
+      "day_in_month": "2024-01-15",
+      "service_start": "2024-01-21",
+      "service_end": "2024-01-31"
+    },
+    "expected": "0.5 days for this month, which is what the module returns - the finding is not about this month's figure but about the proviso. Reading A (the module's, and the literal one): the pro-rated figure is 2.0 x s / d where s is days of service in the month and d is the number of days in that month, d in {28,29,30,31}. An 'exact quarter' arises only where 2s/d leaves a remainder of exactly 0.25 or 0.75, i.e. where 8s = d(2m+1) for some integer m. Exhaustive check over every d in {28,29,30,31} and every s from 0 to d shows NO solution: for d = 31 or 29 (odd) the equation forces 31|s or 29|s, i.e. s = d, a completed month governed by C-9.1 instead; for d = 30 it forces 15|s and then 2m+1 = 4, not odd; for d = 28 it forces 7|s and then 2m+1 even. The proviso is therefore incapable of operating on any set of facts C-9.2 can present, and it is surplusage. Reading B: the proviso is intelligible only if the drafter had a different denominator in mind - most likely a fixed 4-week or 28-day divisor, or a working-days-in-month denominator, under which quarter-day remainders do occur - or intended rounding to the nearest QUARTER day with the half-way case going up. The two readings diverge in money for any part month: on Reading B with a 28-day denominator, 7 days of service in a 31-day January would accrue 0.5 days, while Reading A gives 0.5 as well, but 11 days would give 2 x 11/28 = 0.7857 -> 1.0 on Reading B against 0.5 on Reading A.",
+    "observed": {
+      "days_accrued": 0.5,
+      "days_in_month": 31.0,
+      "days_of_service_in_month": 11.0,
+      "month_is_completed": false,
+      "pro_rated_days": 0.5
+    },
+    "citations": [
+      "EMP-ANNEX-C C-9.1",
+      "EMP-ANNEX-C C-9.2"
+    ],
+    "source_reasoning": "C-9.2 fixes both the numerator ('the number of days of service in that month') and the denominator ('the number of days in that month') and then adds a tie-break proviso ('with an exact quarter rounded upwards'). C-9.1 removes completed months from C-9.2's reach, so s ranges only over 0 to d-1. On those inputs the proviso can never fire, as the exhaustive arithmetic above shows. That is a defect in the DOCUMENT, not in the artefact: the module encodes the proviso faithfully and, when its HalfDayRounding scope is driven directly with raw_days of 0.25, 0.75, 1.25 or 1.75, correctly reports is_exact_quarter true and rounds upwards to 0.5, 1.0, 1.5 and 2.0 respectively. It is simply that nothing in MonthlyAccrual can ever reach that branch (PROTOCOL strategy 9 - a branch that can never fire, here because the clause it encodes can never fire). I cannot cite a clause compelling Reading B, so this is an AMBIGUITY: either the proviso is deliberate surplusage or C-9.2's denominator is not the one the drafter was rounding against, and the document should say which. Note also that the module resolves the related textual question - whether 0.75 counts as 'an exact quarter' - in favour of treating it as one and rounding up, which is the only reading under which the nearest-half rounding is total; but since the case is unreachable through C-9.2 the choice is untested by any real fact pattern.",
+    "attacks_tried": [
+      "exhaustive arithmetic search for an exact-quarter pro-rated figure over all (s,d) with d in {28,29,30,31} - no solution exists",
+      "direct probe of HalfDayRounding at raw_days 0.25 / 0.75 / 1.25 / 1.75 (exact quarters, all rounded up correctly) and at 0.2 / 0.3 / 0.7 / 0.8 / 0.5 / 1.0 either side",
+      "decided from the text whether 0.75 is 'an exact quarter' - the module treats it as one; either way the tie goes up, so no numeric divergence",
+      "verified half_steps_below is a true floor (0.5 -> 0.0, 1.5 -> 1.0, 2.5 -> 2.0), so the exception is genuinely reachable when the scope is driven directly"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "LeaveAccrual",
+      "path": "catala/modules/LeaveAccrual.catala_en",
+      "scope": "MonthlyAccrual"
+    },
+    "fact_pattern": "Exhaustive probing of C-9's arithmetic - completed-month detection, part-month pro-rating in 28-, 29-, 30- and 31-day months, the half-day rounding rule, the carry-forward cap, the long-term-sickness exception and the forfeiture figure - produced no fact pattern on which the module's answer differs from what C-9.1 to C-9.5 require. The one finding against this module is the AMBIGUITY recorded separately about C-9.2's exact-quarter proviso, which is a defect in the document rather than in the artefact.",
+    "inputs": {
+      "day_in_month": "2023-02-15",
+      "service_start": "2023-02-18",
+      "service_end": "2023-02-28"
+    },
+    "expected": "1.0 day (11 days of service in a 28-day February: 2 x 11 / 28 = 0.7857..., whose nearest half day is 1.0), against 0.5 days for the same 11 days of service in a 31-day January (2 x 11 / 31 = 0.7097..., nearest half day 0.5) - i.e. the month-length denominator must change the answer, and it does.",
+    "observed": {
+      "days_accrued": 1.0,
+      "days_in_month": 28.0,
+      "days_of_service_in_month": 11.0,
+      "month_is_completed": false,
+      "pro_rated_days": 1.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-9.1",
+      "EMP-ANNEX-C C-9.2",
+      "EMP-ANNEX-C C-9.3",
+      "EMP-ANNEX-C C-9.4",
+      "EMP-ANNEX-C C-9.5"
+    ],
+    "source_reasoning": "Every attack below was derived from the clause text first and then run. In each case the module's answer matched the clause-compelled answer, so there is no counterexample to record. This is evidence of coverage, not approval.",
+    "attacks_tried": [
+      "C-9.2 denominator: exhaustive sweep of every start day in February 2023 (28), February 2024 (29), April 2024 (30), January 2024 (31), December 2024 (31), June 2023 (30) and July 2024 (31) with service_end absent - 0 mismatches against an independently written exact-rational reference implementation",
+      "C-9.2 denominator: exhaustive sweep of every termination day in the same seven months with service commencing 2020-01-01 - 0 mismatches",
+      "C-9.2: exhaustive sweep of every (start, end) pair inside each of those seven months - 0 mismatches",
+      "C-9.2 leap year: 11 days of service gives 1.0 in a 28-day February and 0.5 in a 31-day January, so identical service lengths do diverge where the clause requires; a whole 29-day February 2024 is treated as completed and gives 2.0",
+      "C-9.1 completed-month boundary: service 2024-02-01 to 2024-02-29 is completed (2.0); one day short at the end (2024-02-01 to 2024-02-28) and one day short at the start (2024-02-02 to 2024-02-29) both fall to C-9.2 and give 28/29 pro-rated, rounding to 2.0 as the nearest half day - correct, not a short cut through C-9.1",
+      "C-9.1 vacuity check: month_is_completed can never be true while days of service is less than days in month, so C-9.1 and C-9.2 partition the cases with no gap and no overlap",
+      "C-9.2 rounding: exact midpoints and either side probed directly on HalfDayRounding (0.2/0.25/0.3/0.5/0.7/0.75/0.8/1.0/1.25/1.75/2.0) - nearest-half in every case, with the quarter tie going up",
+      "C-9.2 degenerate: a single day of service on 29 February 2024 gives 0.0 (2/29 = 0.069, nearest half day 0.0) - correct",
+      "C-9.2 out-of-range months: a month wholly before service_start, a month wholly after service_end, and service_end earlier than service_start all give 0 days of service and 0.0 accrual rather than a negative or an error",
+      "C-9.3 cap boundary: balances of 4.5, 5, 5.5, 12, 12.5 and 100 days - carry-forward is capped at exactly 5 in every case above 5 and left intact at or below it",
+      "C-9.4 exception: a 12-day balance carries forward in full (12.0) with the long-term-sickness condition and 5.0 without it; a 4.5-day balance carries forward in full either way",
+      "C-9.5 forfeiture tracks the computed permitted amount, not a hard 5: 12 days forfeits 7, 12.5 forfeits 7.5, 100 forfeits 95, and with the C-9.4 condition every one of them forfeits 0 - so the figure is derived from permitted_carry_forward_days and not hard-coded",
+      "C-9.5 non-payability is a constant false and does not vary with the facts, as the clause requires",
+      "C-9.4 judgement laundering (PROTOCOL strategy 11): the causation question - whether the Employee 'was prevented from taking accrued leave by reason of long-term sickness absence' - is taken as a boolean input; the module holds no sickness record and cannot infer it, so it does not decide the question for itself",
+      "Minor incoherence noted but not recorded as a break because no operative figure changes: with the C-9.4 condition and a balance below 5 days the module reports permitted_carry_forward_days as the balance itself (4.5) rather than C-9.3's floor of 5.0, so an exception drafted in the Employee's favour lowers the stated permitted maximum; carry_forward_days and forfeited_days are correct on either view"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "WorkingTimeDefs",
+      "path": "catala/modules/WorkingTimeDefs.catala_en",
+      "scope": "PayrollWeekOf"
+    },
+    "fact_pattern": "Every defined term of C-2 other than the Base Hourly Rate was probed against its clause text - the Payroll Week boundaries from arbitrary weekdays, the Night Hours window at both ends, the Grade freeze at the first day of the Payroll Week, the Critical Incident Response period at declaration and closure, and the place-of-work condition on a Gazetted Public Holiday. None yielded a counterexample. The single break against this module is the C-2.1 fractional-penny finding recorded separately.",
+    "inputs": {
+      "calendar_day": "2024-02-29"
+    },
+    "expected": {
+      "days_since_monday": 3,
+      "payroll_week": {
+        "first_day": "2024-02-26",
+        "last_day": "2024-03-03"
+      }
+    },
+    "observed": {
+      "days_since_monday": 3.0,
+      "payroll_week": {
+        "first_day": "2024-02-26",
+        "last_day": "2024-03-03"
+      }
+    },
+    "citations": [
+      "EMP-ANNEX-C C-2.2",
+      "EMP-ANNEX-C C-2.3",
+      "EMP-ANNEX-C C-2.4",
+      "EMP-ANNEX-C C-2.5",
+      "EMP-ANNEX-C C-2.6"
+    ],
+    "source_reasoning": "29 February 2024 is a Thursday, so under C-2.2 the Payroll Week containing it commences on Monday 26 February and ends on Sunday 3 March, crossing both a month boundary and a leap day. The module returns exactly that. Each further attack below was derived from the clause first and then run, and each matched.",
+    "attacks_tried": [
+      "C-2.2 from a non-Monday: Thursday 2024-01-04, Saturday 2024-01-06 and Sunday 2024-01-07 all resolve to the week 2024-01-01 to 2024-01-07; Monday 2024-01-01 resolves to itself",
+      "C-2.2 across a year boundary: Tuesday 2024-12-31 resolves to 2024-12-30 to 2025-01-05",
+      "C-2.2 across a leap day: Thursday 2024-02-29 resolves to 2024-02-26 to 2024-03-03",
+      "C-2.3 window boundaries: hour beginning 21 is not a Night Hour, 22 and 23 are, 0 to 5 are, 6 and 7 are not - exactly the 22:00-to-06:00 window, with no off-by-one at either end",
+      "C-2.4 freeze date: a grade recorded from the first day of the Payroll Week governs that week (grade 5 returned); a grade recorded from the Wednesday of the week does NOT (the earlier grade 4 is returned), so a mid-week change cannot alter the week's answer",
+      "C-2.4 with no record in force at the first day of the week returns Absent rather than a default grade, so nothing is invented",
+      "C-2.4 with the list in reverse chronological order still returns the latest record in force, so the answer does not depend on row order",
+      "C-2.4 with two records bearing the same recorded_from date returns one of them without raising a Conflict; Annex C presupposes a single system of record and does not say how to resolve duplicate entries, so no clause is contradicted",
+      "C-2.5 endpoints: work on the declaration day and work on the formal closure day are both within the incident period; the day before declaration and the day after closure are both outside it",
+      "C-2.5 declared but not closed: work two years after declaration is still within the period, which follows from 'from declaration ... until its formal closure' where no closure has occurred",
+      "C-2.5 severity: severity 2 and severity 0 are both rejected, matching 'classified as Severity 1'",
+      "C-2.5 judgement laundering (PROTOCOL strategy 11): whether the work was 'performed in response to' the incident is a boolean input, and setting it false defeats the classification even for a Severity 1 incident inside the period - the module does not infer causation from the incident record",
+      "C-2.6 place of work: a day gazetted for place 2 is not a Gazetted Public Holiday for an Employee whose principal place of work is place 1, even on the same date; a day gazetted for place 1 on an adjacent date is likewise not one; an empty gazette yields false"
+    ]
+  }
+]

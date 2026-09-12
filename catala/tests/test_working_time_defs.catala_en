@@ -27,26 +27,34 @@ scope TestC2_1_BaseHourlyRate:
     output of WTD.BaseHourlyRate with {
       -- annual_base_salary: $52,000.00
     }
-  assertion r.base_hourly_rate = $25.00
+  assertion r.base_hourly_rate = 25.0
+  assertion r.base_hourly_rate_to_the_penny = $25.00
 ```
 
-## C2_1_BaseHourlyRateCentRounding
+## C2_1_BaseHourlyRateIsExact
 
-C-2.1: 50,000 / 2,080 = 24.0384615..., and `money` is fixed at the cent, so
-the rate is the nearest cent. The clause states no rounding; this pins the
-behaviour the type imposes so that a change to it is visible.
+C-2.1: 50,000 / 2,080 = 24.0384615... , which does not terminate. The clause
+states a division and no rounding, so the rate is held as an exact decimal and
+the assertion is stated as the exact rational rather than as a rounded literal
+-- asserting 24.04 would pin the very rounding the clause does not authorise.
+The penny figure is asserted separately, and exists for display only.
+
+An earlier version held the rate as `money`, which rounded it before any
+premium was applied and mis-paid a 50-hour week in both directions depending
+on the salary. See tests/counterexamples/CE-0023.yaml.
 
 ```catala
 #[test]
-declaration scope TestC2_1_BaseHourlyRateCentRounding:
+declaration scope TestC2_1_BaseHourlyRateIsExact:
   output r content WTD.BaseHourlyRate
 
-scope TestC2_1_BaseHourlyRateCentRounding:
+scope TestC2_1_BaseHourlyRateIsExact:
   definition r equals
     output of WTD.BaseHourlyRate with {
       -- annual_base_salary: $50,000.00
     }
-  assertion r.base_hourly_rate = $24.04
+  assertion r.base_hourly_rate * 2080.0 = 50000.0
+  assertion r.base_hourly_rate_to_the_penny = $24.04
 ```
 
 ## C2_1_BaseHourlyRateZero
@@ -63,7 +71,8 @@ scope TestC2_1_BaseHourlyRateZero:
     output of WTD.BaseHourlyRate with {
       -- annual_base_salary: $0.00
     }
-  assertion r.base_hourly_rate = $0.00
+  assertion r.base_hourly_rate = 0.0
+  assertion r.base_hourly_rate_to_the_penny = $0.00
 ```
 
 ## C2_2_WeekFromItsMonday

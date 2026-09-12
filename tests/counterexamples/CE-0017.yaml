@@ -1,0 +1,65 @@
+id: CE-0017
+component: catala
+fact_pattern: 'The Agreement takes effect on 1 July 2024 and is not terminated early, so its
+  2-year term runs to 1 July 2026. The Confidential Information in question is personal data.
+  On 1 January 2025 - six months into the term, while the Agreement is still in force - the
+  Recipient ceases to hold that personal data (it deletes its copy). The question is asked
+  on 1 June 2025, still 13 months before the Agreement expires: do the obligations of confidence
+  subsist, and when do they end?'
+citations:
+- NDA-MUT N-3.1
+- NDA-MUT N-3.2
+- NDA-MUT N-5.1
+- NDA-MUT N-5.2
+- NDA-MUT N-5.4
+- NDA-MUT N-6.1
+- NDA-MUT N-6.2
+source_reasoning: 'N-5.4 is drafted as an exception to N-5.2 alone (''By way of exception
+  to N-5.2''). N-5.2 governs one thing only: the period for which the N-3 obligations ''survive
+  expiry or termination of this Agreement''. It therefore operates exclusively on the post-termination
+  tail. During the term itself the N-3 obligations apply of their own force - N-3.1 (''The
+  Recipient will keep the Confidential Information confidential'') and N-3.2 are unqualified
+  by anything in N-5 - and N-5.1 fixes that term as running from the Effective Date for 2
+  years, here to 2026-07-01. N-5.4 cannot cut off an obligation that N-5.2 has not yet begun
+  to measure, so ceasing to hold the data on 2025-01-01 cannot discharge N-3 on 2025-06-01.
+  N-6 confirms the direction of travel: N-6.1 requires the Recipient to return or destroy
+  Confidential Information on request during the life of the Agreement, and N-6.2 provides
+  that any copy lawfully retained ''remains subject to this Agreement'' - so the Agreement
+  expressly contemplates the Recipient parting with the information while remaining bound,
+  and nowhere treats non-possession as a discharge. The module applies N-5.4 as the definition
+  of obligations_subsist at every assessment date, including dates inside the term, and so
+  reports the obligations as extinguished 13 months before the Agreement even expires. The
+  same encoding produces the structurally impossible output survival_end_date (2025-01-01)
+  < agreement_end_date (2026-07-01): N-5.2 says the obligations ''survive'' expiry or termination,
+  so the confidentiality end date can never precede the end of the Agreement.'
+expected:
+  agreement_end_date: '2026-07-01'
+  obligations_subsist: true
+  survival_end_date: '2026-07-01'
+  note: obligations_subsist=true is compelled on any reading. survival_end_date must be at
+    least the agreement end date, 2026-07-01; on the rival reading of N-5.4 (an exception
+    that only ever extends N-5.2's tail) it is 2029-07-01. No reading yields a date before
+    the end of the term.
+observed:
+  agreement_end_date: '2026-07-01'
+  survival_end_date: '2025-01-01'
+  obligations_subsist: false
+target:
+  module: NdaSurvival
+  path: catala/modules/NdaSurvival.catala_en
+  scope: SurvivalEnd
+inputs:
+  effective_date: '2024-07-01'
+  is_personal_data: true
+  date_ceased_to_hold: '2025-01-01'
+  information_is_trade_secret: false
+  information_remains_trade_secret: false
+  assessment_date: '2025-06-01'
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: N-5.4 assessed during the term of the Agreement (this finding); N-5.4 assessed after
+  expiry with date_ceased_to_hold after the 3-year tail (survival_end_date 2031-01-01, correct);
+  N-5.4 with date_ceased_to_hold Absent (obligations subsist, correct); checked the unconditional
+  n5_2 branch during the term (obligations_subsist true, correct - only the exception branches
+  break); cross-checked invariant survival_end_date >= agreement_end_date across all branches

@@ -1,0 +1,451 @@
+[
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "NdaSurvival",
+      "path": "catala/modules/NdaSurvival.catala_en",
+      "scope": "SurvivalEnd"
+    },
+    "fact_pattern": "The Agreement takes effect on 1 July 2024 and is not terminated early, so its 2-year term runs to 1 July 2026. The Confidential Information in question is personal data. On 1 January 2025 - six months into the term, while the Agreement is still in force - the Recipient ceases to hold that personal data (it deletes its copy). The question is asked on 1 June 2025, still 13 months before the Agreement expires: do the obligations of confidence subsist, and when do they end?",
+    "inputs": {
+      "effective_date": "2024-07-01",
+      "is_personal_data": true,
+      "date_ceased_to_hold": "2025-01-01",
+      "information_is_trade_secret": false,
+      "information_remains_trade_secret": false,
+      "assessment_date": "2025-06-01"
+    },
+    "expected": {
+      "agreement_end_date": "2026-07-01",
+      "obligations_subsist": true,
+      "survival_end_date": "2026-07-01",
+      "note": "obligations_subsist=true is compelled on any reading. survival_end_date must be at least the agreement end date, 2026-07-01; on the rival reading of N-5.4 (an exception that only ever extends N-5.2's tail) it is 2029-07-01. No reading yields a date before the end of the term."
+    },
+    "observed": {
+      "agreement_end_date": "2026-07-01",
+      "obligations_subsist": false,
+      "survival_end_date": "2025-01-01"
+    },
+    "citations": [
+      "NDA-MUT N-3.1",
+      "NDA-MUT N-3.2",
+      "NDA-MUT N-5.1",
+      "NDA-MUT N-5.2",
+      "NDA-MUT N-5.4",
+      "NDA-MUT N-6.1",
+      "NDA-MUT N-6.2"
+    ],
+    "source_reasoning": "N-5.4 is drafted as an exception to N-5.2 alone ('By way of exception to N-5.2'). N-5.2 governs one thing only: the period for which the N-3 obligations 'survive expiry or termination of this Agreement'. It therefore operates exclusively on the post-termination tail. During the term itself the N-3 obligations apply of their own force - N-3.1 ('The Recipient will keep the Confidential Information confidential') and N-3.2 are unqualified by anything in N-5 - and N-5.1 fixes that term as running from the Effective Date for 2 years, here to 2026-07-01. N-5.4 cannot cut off an obligation that N-5.2 has not yet begun to measure, so ceasing to hold the data on 2025-01-01 cannot discharge N-3 on 2025-06-01. N-6 confirms the direction of travel: N-6.1 requires the Recipient to return or destroy Confidential Information on request during the life of the Agreement, and N-6.2 provides that any copy lawfully retained 'remains subject to this Agreement' - so the Agreement expressly contemplates the Recipient parting with the information while remaining bound, and nowhere treats non-possession as a discharge. The module applies N-5.4 as the definition of obligations_subsist at every assessment date, including dates inside the term, and so reports the obligations as extinguished 13 months before the Agreement even expires. The same encoding produces the structurally impossible output survival_end_date (2025-01-01) < agreement_end_date (2026-07-01): N-5.2 says the obligations 'survive' expiry or termination, so the confidentiality end date can never precede the end of the Agreement.",
+    "attacks_tried": [
+      "N-5.4 assessed during the term of the Agreement (this finding)",
+      "N-5.4 assessed after expiry with date_ceased_to_hold after the 3-year tail (survival_end_date 2031-01-01, correct)",
+      "N-5.4 with date_ceased_to_hold Absent (obligations subsist, correct)",
+      "checked the unconditional n5_2 branch during the term (obligations_subsist true, correct - only the exception branches break)",
+      "cross-checked invariant survival_end_date >= agreement_end_date across all branches"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "NdaSurvival",
+      "path": "catala/modules/NdaSurvival.catala_en",
+      "scope": "SurvivalEnd"
+    },
+    "fact_pattern": "The Agreement takes effect on 1 July 2024 and is not terminated early, so its 2-year term runs to 1 July 2026. The Confidential Information was a trade secret when disclosed but has ceased to be a trade secret (it has lost its commercial value; it has not become public, so N-2.3(a) does not exclude it, and it remains designated confidential). It is not personal data. The question is asked on 1 June 2025, while the Agreement is still in force: do the obligations of confidence subsist?",
+    "inputs": {
+      "effective_date": "2024-07-01",
+      "is_personal_data": false,
+      "information_is_trade_secret": true,
+      "information_remains_trade_secret": false,
+      "assessment_date": "2025-06-01"
+    },
+    "expected": {
+      "agreement_end_date": "2026-07-01",
+      "obligations_subsist": true,
+      "note": "survival_end_date is not challenged in this finding: N-5.3 confers no date and the scope takes no input for the date trade-secret status ceased, so Absent is defensible. The challenged output is obligations_subsist, which must be true while the Agreement is in force."
+    },
+    "observed": {
+      "agreement_end_date": "2026-07-01",
+      "obligations_subsist": false,
+      "survival_end_date": "Absent"
+    },
+    "citations": [
+      "NDA-MUT N-3.1",
+      "NDA-MUT N-3.2",
+      "NDA-MUT N-5.1",
+      "NDA-MUT N-5.2",
+      "NDA-MUT N-5.3",
+      "NDA-MUT N-2.3"
+    ],
+    "source_reasoning": "N-5.3 is expressly 'By way of exception to N-5.2', and N-5.2 does one job: it fixes how long the N-3 obligations 'survive expiry or termination of this Agreement'. N-5.3 therefore replaces the length of the post-termination tail and nothing else. Inside the term the N-3 obligations bind directly under N-3.1 and N-3.2, and N-5.1 fixes the term at 2 years from the Effective Date, here to 2026-07-01; no clause in N-5 qualifies N-3 during the term. The information also remains Confidential Information on these facts: N-2.3 lists the only four ways information falls outside the definition, and 'ceased to be a trade secret without becoming public' is not among them - in particular N-2.3(a) requires the information to have become generally available to the public, which it has not. So on 2025-06-01 the Recipient is bound by N-3 and obligations_subsist must be true. The module instead makes information_remains_trade_secret the whole of obligations_subsist whenever information_is_trade_secret holds, with no reference to the term or to N-5.2's 3-year period, and so reports the obligations extinguished while the Agreement is still on foot. (Whether, after expiry, the lapse of trade-secret status can also cut the tail below N-5.2's 3 years is a separate and genuinely open question, recorded as an AMBIGUITY below; it does not affect this finding, because here the assessment date is inside the term and no reading of N-5.3 reaches that far back.)",
+    "attacks_tried": [
+      "N-5.3 with status lapsed, assessed during the term (this finding)",
+      "N-5.3 with status live, assessment 2099-01-01 (obligations subsist indefinitely, survival_end_date Absent - correct, no expiry date manufactured)",
+      "N-5.3 with status lapsed, assessed after expiry but within the 3-year N-5.2 window (recorded separately as an AMBIGUITY)",
+      "information_is_trade_secret=false with information_remains_trade_secret=true (flag ignored, N-5.2 applied)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "NdaSurvival",
+      "path": "catala/modules/NdaSurvival.catala_en",
+      "scope": "SurvivalEnd"
+    },
+    "fact_pattern": "The Agreement takes effect on 1 July 2024, is not terminated early, and expires on 1 July 2026. The same body of Confidential Information is simultaneously a trade secret and personal data, so N-5.3 and N-5.4 both bite. The trade-secret status has since lapsed (information_remains_trade_secret = false), but the Recipient goes on holding the personal data until 1 January 2031. Asked on 1 January 2030: when do the obligations of confidence end?",
+    "inputs": {
+      "effective_date": "2024-07-01",
+      "is_personal_data": true,
+      "date_ceased_to_hold": "2031-01-01",
+      "information_is_trade_secret": true,
+      "information_remains_trade_secret": false,
+      "assessment_date": "2030-01-01"
+    },
+    "expected": {
+      "agreement_end_date": "2026-07-01",
+      "obligations_subsist": true,
+      "survival_end_date": "2031-01-01"
+    },
+    "observed": {
+      "agreement_end_date": "2026-07-01",
+      "obligations_subsist": true,
+      "survival_end_date": "Absent"
+    },
+    "citations": [
+      "NDA-MUT N-5.2",
+      "NDA-MUT N-5.3",
+      "NDA-MUT N-5.4"
+    ],
+    "source_reasoning": "N-5.4 fixes a determinate end for the obligations in respect of personal data: they 'continue for so long as the Recipient holds that personal data', and on these facts the Recipient stops holding it on 2031-01-01. N-5.3 cannot push the end beyond that, because the information is no longer a trade secret and N-5.3 runs only 'for so long as that information remains a trade secret'. N-5.2's 3-year tail expires earlier still, on 2029-07-01. So every clause bearing on these facts, and every available reading of the relationship between N-5.3 and N-5.4 (whether they substitute for N-5.2 or only extend it), produces the same answer: the obligations end on 2031-01-01, and survival_end_date must be that date. Absent is the encoding of 'no end date / continues indefinitely', which no clause supports once trade-secret status has lapsed - and it directly contradicts the module's own obligations_subsist output, which correctly goes false after 2031-01-01. The defect is confined to the combined branch: re-running the identical facts with information_is_trade_secret=false (a purely historical status flag that N-5.3 no longer engages, since the information is not a trade secret either way) returns survival_end_date 2031-01-01, the correct answer. A flag whose own condition has lapsed must not change the result.",
+    "attacks_tried": [
+      "N-5.3 and N-5.4 stacked on the same information - looked for a Conflict, found a third hard-coded branch instead",
+      "control probe with information_is_trade_secret=false on identical dates (returns 2031-01-01)",
+      "same stacked branch with trade-secret status still live (Absent - defensible, genuinely indefinite)",
+      "same stacked branch with date_ceased_to_hold inside the 3-year tail",
+      "checked obligations_subsist against survival_end_date for internal consistency in every branch"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "NdaSurvival",
+      "path": "catala/modules/NdaSurvival.catala_en",
+      "scope": "SurvivalEnd"
+    },
+    "fact_pattern": "Written notice purporting to terminate the Agreement is served on 1 January 2024, six months before the Agreement's Effective Date of 1 July 2024 (the parties had been negotiating and one side sent a termination notice against the draft before signature/commencement). The information is ordinary Confidential Information. Asked on 1 January 2025: when did the Agreement end and when do the confidentiality obligations end?",
+    "inputs": {
+      "effective_date": "2024-07-01",
+      "termination_notice_date": "2024-01-01",
+      "is_personal_data": false,
+      "information_is_trade_secret": false,
+      "information_remains_trade_secret": false,
+      "assessment_date": "2025-01-01"
+    },
+    "expected": {
+      "agreement_end_date": "2026-07-01",
+      "obligations_subsist": true,
+      "survival_end_date": "2029-07-01",
+      "note": "On the rival reading (the notice bites at commencement) the answer would be agreement_end_date 2024-07-31 / survival_end_date 2027-07-31. Observed 2024-01-31 is excluded on every reading, because it precedes the Effective Date."
+    },
+    "observed": {
+      "agreement_end_date": "2024-01-31",
+      "obligations_subsist": true,
+      "survival_end_date": "2027-01-31"
+    },
+    "citations": [
+      "NDA-MUT N-5.1",
+      "NDA-MUT N-5.2",
+      "NDA-MUT N-1.1"
+    ],
+    "source_reasoning": "N-5.1 provides that 'This Agreement takes effect on the Effective Date and continues for a period of 2 years, unless terminated earlier by either party on 30 days' written notice.' Two things follow. First, the term begins on the Effective Date, so the Agreement cannot have ended on 2024-01-31, five months before it began; an end date earlier than the start date is excluded by the clause on its face. Second, the right to terminate on 30 days' notice is a right conferred by this Agreement on 'either party' to it; it does not exist before the Agreement takes effect, so a notice served on 2024-01-01 is served under no contract and is ineffective to terminate. The word 'earlier' in N-5.1 means earlier than the 2-year expiry, not earlier than commencement. With no effective notice, the term runs its full 2 years to 2026-07-01, and N-5.2 then gives 3 years from that date of expiry, to 2029-07-01. The module's guard is purely relative - it fires whenever notice + 30 days falls before the 2-year anniversary - and has no floor at the Effective Date, so it accepts a pre-commencement notice, reports a term that ended before it started, and then propagates that impossible date into N-5.2, shortening the survival period by two years and five months (2027-01-31 instead of 2029-07-01). Note the implementer used a well-formedness assertion for exactly this class of input in ErasureRequest (verification_date >= request_date) but none here.",
+    "attacks_tried": [
+      "notice whose 30 days expire exactly on the 2nd anniversary (2026-06-01 -> 2026-07-01, correct)",
+      "notice whose 30 days expire one day before the 2nd anniversary (2026-05-31 -> 2026-06-30, correct; survival moves earlier to 2029-06-30, so N-5.1/N-5.2 do compose)",
+      "notice served after the 2nd anniversary (falls back to natural expiry, correct)",
+      "notice served exactly on the Effective Date (2024-07-31, correct)",
+      "notice served before the Effective Date (this finding)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "retention",
+      "path": "catala/modules/retention.catala_en",
+      "scope": "RetentionEnd"
+    },
+    "fact_pattern": "An Employee Record. Employment ended on 1 January 2018, so the R-3.1(a) period of 6 years expires on 1 January 2024. No pensions or payroll statute requires longer. On 1 January 2023 the General Counsel issues a Legal Hold over the record in connection with anticipated litigation; the hold is not released until 1 January 2030. The record therefore stays in production systems throughout, and under R-4.3 its production deletion falls due by 31 January 2030 (the retention period having already expired). Question: by when must the record be purged from backups?",
+    "inputs": {
+      "data_class": "EmployeeRecord",
+      "retention_trigger_date": "2018-01-01",
+      "consent_renewal_dates": [],
+      "statutory_retention_applies": false,
+      "statutory_retention_period": {
+        "years": 0
+      }
+    },
+    "expected": {
+      "retention_end_date": "2024-01-01",
+      "backup_purge_deadline": "2030-05-01"
+    },
+    "observed": {
+      "retention_end_date": "2024-01-01",
+      "backup_purge_deadline": "2024-03-31"
+    },
+    "citations": [
+      "DATA-RET R-6.1",
+      "DATA-RET R-4.1",
+      "DATA-RET R-4.3",
+      "DATA-RET R-2.4",
+      "DATA-RET R-3.1"
+    ],
+    "source_reasoning": "R-6.1 does not measure the backup purge from the expiry of the retention period. It measures it from a different event: 'Records deleted from production systems are deleted from backups at the expiry of the backup rotation cycle, which must not exceed 90 days.' The trigger is the date of deletion from production, and R-2.4 confirms that deletion is only complete once backups are purged, so the two dates are distinct steps of one process. On these facts R-4.1 ('Notwithstanding R-3, a record subject to a Legal Hold must not be deleted while the Legal Hold remains in force, irrespective of the expiry of the applicable retention period') forbids the production deletion that R-3.1(a) would otherwise have required on 2024-01-01, and R-4.3 then fixes production deletion at 30 days from release, i.e. by 2030-01-31, the retention period having already expired at release. The 90-day cap in R-6.1 therefore runs from 2030-01-31 and expires on 2030-05-01. The module instead hard-codes backup_purge_deadline = retention_end_date + 90 day, treating R-3's expiry as R-6.1's trigger. It therefore returns 2024-03-31 - a deadline that had already passed nearly six years before the record could lawfully leave production, and that cannot be complied with on any facts where R-4 defers deletion. Nothing in the reviewed set produces the correct figure: the retention scope has no Legal Hold or production-deletion input, and the HoldEffect scope, which is where R-4.3 lives, declares no backup output at all, so R-6.1 is encoded only in the one place that cannot see R-4. The substitution also errs in the opposite direction in the ordinary case R-1.2 contemplates: where a business unit 'delete[s] earlier because the purpose has been achieved', R-6.1 starts the cycle at that earlier deletion, and retention_end_date + 90 day is then later than the Standard permits. The correct encoding takes the date of deletion from production systems as an input rather than assuming it.",
+    "attacks_tried": [
+      "Legal Hold deferring production deletion past retention expiry (this finding; confirmed against HoldEffect, which returns deletion_due_date 2030-01-31 on the matching hold facts)",
+      "early deletion under R-1.2, which moves the R-6.1 trigger the other way",
+      "tried to make backup_purge_deadline - retention_end_date exceed the 90-day cap directly: it is always exactly 90 days, so the cap itself is never breached in isolation",
+      "R-2.4 read with R-3.1 to test whether the 90-day backup tail must fall inside the retention period rather than after it (R-6.1 expressly tolerates the tail, so no break there)"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "NdaSurvival",
+      "path": "catala/modules/NdaSurvival.catala_en",
+      "scope": "SurvivalEnd"
+    },
+    "fact_pattern": "The Agreement took effect on 1 July 2024 and expired on 1 July 2026, so N-5.2's 3-year tail would run to 1 July 2029. The information was a trade secret at disclosure but has ceased to be one (without becoming public, so it is still Confidential Information under N-2.3). Asked on 1 January 2027 - after expiry but well inside the 3-year tail: do the obligations subsist?",
+    "inputs": {
+      "effective_date": "2024-07-01",
+      "is_personal_data": false,
+      "information_is_trade_secret": true,
+      "information_remains_trade_secret": false,
+      "assessment_date": "2027-01-01"
+    },
+    "expected": "Underdetermined by the Agreement. Reading (i), substitutive: N-5.3 is 'by way of exception to N-5.2' and so replaces the 3-year period outright; the obligations run only 'for so long as that information remains a trade secret' and are therefore spent - obligations_subsist false, no revival of the 3 years. Reading (ii), extension-only: N-5.3's subject matter is 'Confidential Information which constitutes a trade secret' (present tense) and its period 'for so long as that information remains a trade secret'; once neither holds, the exception is out of scope and the general rule in N-5.2 governs the information as ordinary Confidential Information - obligations_subsist true until 2029-07-01, i.e. the obligations run to the later of the 3-year date and the loss of trade-secret status.",
+    "observed": {
+      "agreement_end_date": "2026-07-01",
+      "obligations_subsist": false,
+      "survival_end_date": "Absent"
+    },
+    "citations": [
+      "NDA-MUT N-5.2",
+      "NDA-MUT N-5.3",
+      "NDA-MUT N-2.3"
+    ],
+    "source_reasoning": "The module commits to reading (i) without flagging the choice. Reading (ii) has real force: N-5.3 is plainly drafted to lengthen protection for the category of information that most needs it, and on reading (i) a trade secret ends up with less protection than run-of-the-mill Confidential Information - a whole category of information for which an 'exception' operates only to the Recipient's benefit. Two things stop this being a BREAK rather than an ambiguity. First, N-5.3's words 'continue for so long as' can be read either as fixing the period exactly (reading (i)) or as a floor (reading (ii)); the Agreement contains no precedence or 'whichever is longer' language to choose between them, and no clause states that N-5.2 operates as a minimum. Second, the commonest real-world reason a trade secret stops being one - it becomes public - takes the information outside Confidential Information altogether under N-2.3(a), so on those facts reading (i) reaches the right answer and the divergence bites only in the narrower case, as here, where secrecy is retained but commercial value or reasonable steps are lost. The practical consequence is worth flagging either way: on these inputs the module discharges the Recipient two and a half years early if reading (ii) is right, and it offers no input by which a user could select the other reading. Note the module also has no input for the date on which trade-secret status ceased, so even on reading (i) it cannot say when the obligations ended - hence survival_end_date Absent.",
+    "attacks_tried": [
+      "trade-secret status lapsed, assessed inside the 3-year N-5.2 tail (this ambiguity)",
+      "same lapse assessed during the term of the Agreement (recorded separately as a BREAK - that one is not reading-dependent)",
+      "trade-secret status live at 2099-01-01 (Absent, indefinite - correct on both readings)",
+      "looked for any clause fixing precedence or a 'longer of' rule between N-5.2 and N-5.3 - there is none"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "NdaSurvival",
+      "path": "catala/modules/NdaSurvival.catala_en",
+      "scope": "SurvivalEnd"
+    },
+    "fact_pattern": "The same body of Confidential Information is simultaneously a trade secret and personal data. The Agreement took effect on 1 July 2024 and expired on 1 July 2026. The Recipient ceased to hold the personal data on 1 August 2026, but the information remains a trade secret. Asked in 2099: do the obligations subsist? Both N-5.3 and N-5.4 are expressed as exceptions to N-5.2 and the Agreement states no precedence between them; on these facts they point in opposite directions - N-5.3 says the obligations continue (still a trade secret), N-5.4 says they have ended (no longer held).",
+    "inputs": {
+      "effective_date": "2024-07-01",
+      "is_personal_data": true,
+      "date_ceased_to_hold": "2026-08-01",
+      "information_is_trade_secret": true,
+      "information_remains_trade_secret": true,
+      "assessment_date": "2099-01-01"
+    },
+    "expected": "Underdetermined. Reading (i), union / whichever lasts longer: the obligations continue while either condition holds, so obligations_subsist true indefinitely. Reading (ii), intersection / whichever expires first: each exception fixes an outer limit for its own subject matter and the information is within both, so the obligations end on the earlier date, 2026-08-01, and obligations_subsist is false. Reading (iii), the 'more specific' exception governs: no basis in the text for ranking them. Nothing in the Agreement selects between these - N-5.3 and N-5.4 are both introduced as 'By way of exception to N-5.2' and neither is subordinated to the other, and there is no general precedence clause (N-9 contains none).",
+    "observed": {
+      "agreement_end_date": "2026-07-01",
+      "obligations_subsist": true,
+      "survival_end_date": "Absent"
+    },
+    "citations": [
+      "NDA-MUT N-5.2",
+      "NDA-MUT N-5.3",
+      "NDA-MUT N-5.4"
+    ],
+    "source_reasoning": "The module resolves the clash silently and in one direction: a dedicated combined branch defines obligations_subsist as information_remains_trade_secret OR still-holding, i.e. the union, reading (i). That is a defensible and probably commercially sensible resolution - an obligation of confidence should not be discharged by the lapse of one of two independent grounds - but it is the module's choice, not the Agreement's, and a reader of the clause text cannot derive it. This is the kind of case where a Conflict would have been the honest output; what the module does instead is invent a rule of priority the parties never wrote. Recorded as an AMBIGUITY about the document rather than a BREAK because no clause compels either reading. Contrast the separate BREAK recorded above: where the trade-secret condition has already lapsed, every reading agrees on the answer, and the same combined branch still gets it wrong by returning survival_end_date Absent.",
+    "attacks_tried": [
+      "trade secret + personal data simultaneously, conditions pointing in opposite directions (this ambiguity)",
+      "the same stack with both conditions lapsed (recorded as a BREAK)",
+      "searched N-5 and N-9 for any precedence or 'whichever is longer' language between the two exceptions"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "retention",
+      "path": "catala/modules/retention.catala_en",
+      "scope": "RetentionEnd"
+    },
+    "fact_pattern": "An Employee Record where employment ended on 31 August 2020 and pensions legislation requires retention for 6 years and 6 months - a period that would end on 31 February 2027, a date that does not exist. R-3.3 applies. The same calendar question arises across the two documents in opposite directions: the retention module resolves such a period downwards (to 28 February 2027) while NdaSurvival resolves N-5.1's and N-5.2's periods upwards (an Effective Date of 29 February 2024 yields an agreement end of 1 March 2026, not 28 February 2026).",
+    "inputs": {
+      "data_class": "EmployeeRecord",
+      "retention_trigger_date": "2020-08-31",
+      "consent_renewal_dates": [],
+      "statutory_retention_applies": true,
+      "statutory_retention_period": {
+        "years": 6,
+        "months": 6
+      }
+    },
+    "expected": "Underdetermined for R-3.3 specifically. Reading (i), round down to 2027-02-28: this is the English corresponding-date rule for periods of months and years (a period from the 31st expiring in a shorter month ends on that month's last day), so the statutory period 'so required' is itself satisfied on 2027-02-28 and nothing is truncated. Reading (ii), round up to 2027-03-01: R-3.3's period is not a period 'specifie[d]' by this Standard at all, still less a maximum - it is a floor imposed by legislation - so R-1.2's expectation that business units 'delete earlier' cannot justify shaving a day off it, and deleting on 2027-02-28 retains the record for one day less than the legislation requires.",
+    "observed": {
+      "retention_end_date": "2027-02-28",
+      "backup_purge_deadline": "2027-05-29"
+    },
+    "citations": [
+      "DATA-RET R-3.3",
+      "DATA-RET R-1.2",
+      "DATA-RET R-3.1"
+    ],
+    "source_reasoning": "The module declares a single 'date round down' directive for the whole scope and justifies it from R-1.2: the Standard's periods are maxima, so resolving an ambiguous month-end downwards never authorises a day of retention the Standard does not allow. That reasoning is sound for every limb of R-3.1 - and I could not break it there; 6 years from 2020-02-29 gives 2026-02-28, 13 months from 2025-01-31 gives 2026-02-28, and in each case the earlier date is the safe one under R-1.2. But R-3.3 is the one clause in the scope where the period is a minimum rather than a maximum, and R-1.2's rationale is expressly confined to 'Where this Standard specifies a maximum period'. A blanket scope-level rounding directive cannot be right for a clause whose period runs the other way, and the module has no way to round R-3.3 differently from R-3.1. I record this as an AMBIGUITY rather than a BREAK because reading (i) is supported by the general law on computing periods of months and R-3.3 defers to the legislation's own computation, so the module's answer is defensible - but the direction is a substantive legal choice that the scope-level directive conceals, and it is made the opposite way in NdaSurvival for the same calendar question, so one record cannot be reasoned about consistently across the two documents.",
+    "attacks_tried": [
+      "R-3.3 with a statutory period landing on 31 February (this ambiguity)",
+      "R-3.1(a) 6 years from 2020-02-29 (2026-02-28)",
+      "R-3.1(b) 7 years from 2019-08-31 (2026-08-31, exact)",
+      "R-3.1(e) 13 months from 2025-01-28/30/31 - all three collapse to 2026-02-28, and 13 months from 2023-01-31 gives 2024-02-29 in a leap year",
+      "R-3.1(f) 12 months from 2024-02-29 (2025-02-28)",
+      "R-3.1(d) 24 months from 2024-02-29 (2026-02-28)",
+      "statutory period exactly equal to 6 years (no change, correct - R-3.3 bites only on longer periods)",
+      "statutory period shorter than 6 years, 3 years (6 years retained, correct)",
+      "statutory period negative (6 years retained, correct)",
+      "compared the rounding direction against NdaSurvival's round-up on a 29 February Effective Date"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "LegalHold",
+      "path": "catala/modules/LegalHold.catala_en",
+      "scope": "HoldEffect"
+    },
+    "fact_pattern": "A record whose retention period expires on 1 January 2026. A Legal Hold issued on 1 January 2024 is released on exactly 1 January 2026 - the very day the retention period expires. Asked on that same day: is the hold in force, and when is deletion due? R-4.3 has two branches turning on whether the retention period 'has already expired' at release, and the two branches are 30 days apart.",
+    "inputs": {
+      "hold_issued_date": "2024-01-01",
+      "hold_released_date": "2026-01-01",
+      "retention_end_date": "2026-01-01",
+      "assessment_date": "2026-01-01",
+      "retention_under_hold_permitted_by_data_protection_law": true
+    },
+    "expected": "Underdetermined. Reading (i), retention_end_date is the day by which deletion falls due, so the period expires on that day and has not 'already' expired at the moment of release: deletion is due on the ordinary expiry, 2026-01-01, and the record must go the same day the hold lifts, with none of R-4.3's 30 days of grace. Reading (ii), retention_end_date is the last day of the retention period, so the period is spent once that day is reached and R-4.3's first branch is engaged: deletion due by 2026-01-31. The Standard never says which day retention_end_date is, and R-4.3's 'already expired' therefore has no determinate answer on the boundary; a release one day later (2026-01-02) swings the deadline by a full 30 days, to 2026-02-01.",
+    "observed": {
+      "hold_in_force": false,
+      "deletion_due_date": "2026-01-01",
+      "erasure_blocked_by_hold": false
+    },
+    "citations": [
+      "DATA-RET R-4.3",
+      "DATA-RET R-4.1",
+      "DATA-RET R-3.1",
+      "DATA-RET R-1.2"
+    ],
+    "source_reasoning": "The module takes reading (i) (it tests retention_end_date < released, so equality falls to the ordinary-expiry branch) and is internally consistent in doing so. But it is not consistent with the sibling module on the neighbouring convention, and that is the point worth recording. HoldEffect treats an endpoint date as exclusive for hold_in_force (assessment_date < released, so the hold is not in force on the release day, which is what produces the zero-days-of-grace result above), while NdaSurvival treats a period's end date as inclusive for the equivalent 'is the obligation live today?' query (assessment_date <= survival_end_date, so obligations subsist on 2029-07-01 and lapse on 2029-07-02). The two documents are different, but the question - does the named end date fall inside or outside the period? - is the same one, and a reader consuming both engines gets opposite conventions with nothing to warn them. I record this as an AMBIGUITY and not a BREAK because neither the Standard nor R-4.3 fixes the boundary: R-1.2's 'delete earlier' expectation mildly favours the module's answer, since it never retains the record beyond the ordinary expiry, and R-4.1 protects the record only 'while the Legal Hold remains in force', which on the release day it is not.",
+    "attacks_tried": [
+      "release exactly on the expiry date (this ambiguity)",
+      "release one day after expiry (2026-02-01 - the 30-day branch, correct)",
+      "release one day before expiry (2026-01-01, ordinary expiry, correct)",
+      "assessment exactly on the issue date (hold in force - inclusive start)",
+      "assessment on the release date (hold not in force - exclusive end)",
+      "assessment the day before issue (no hold, ordinary expiry)",
+      "hold in force with retention long expired (deletion_due_date Absent - R-4.1 correctly defeats R-3)",
+      "release date present but issue date absent (ordinary expiry - defensible, R-2.3 means there is no Legal Hold without a documented instruction)",
+      "hold released 2030 with retention expired 2024 (2030-01-31, correct)",
+      "hold in force with data protection law NOT permitting retention (erasure_blocked_by_hold false while deletion_due_date stays Absent - correct: R-4.2's qualifier bites only on erasure, R-4.1's 'Notwithstanding R-3' override is unqualified)"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "ErasureRequest",
+      "path": "catala/modules/ErasureRequest.catala_en",
+      "scope": "ErasureDeadline"
+    },
+    "fact_pattern": "A data subject makes a valid erasure request on 1 January 2026, verified on 10 January 2026. At the date of verification a Legal Hold applies to the record, so R-5.2 bars deletion. The hold is then released on 1 February 2026 and no other ground for retention exists. Question: is deletion now due, and by when? The scope has no assessment date and no date on which any of the R-5.2 grounds ceases, so the three bars are timeless booleans: once one is true the module refuses erasure permanently.",
+    "inputs": {
+      "request_date": "2026-01-01",
+      "verification_date": "2026-01-10",
+      "erasure_request_valid": true,
+      "retention_required_by_legal_obligation": false,
+      "retention_required_for_legal_claims": false,
+      "legal_hold_blocks_erasure": true
+    },
+    "expected": "Underdetermined once the bar lapses. Reading (i): R-5.2 disapplies R-5.1 only 'where' the Company 'is required to retain' the data - present tense - so when the Legal Hold is released the exception ceases to operate and R-5.1's duty revives; the 30 days having already run from verification, deletion is then immediately due (by analogy with R-4.3's 30 days from release, by 2026-03-03). Reading (ii): R-5.1 is a one-shot duty measured from verification, and once R-5.2 has displaced it the request is answered and refused; the data subject must make a fresh request. The Standard says nothing about the lapse of an R-5.2 ground, and R-4.3 - which does address what happens on release of a hold - speaks only to the ordinary retention period, not to erasure.",
+    "observed": {
+      "deletion_due_date": "Absent",
+      "deletion_refused": true
+    },
+    "citations": [
+      "DATA-RET R-5.1",
+      "DATA-RET R-5.2",
+      "DATA-RET R-4.2",
+      "DATA-RET R-4.3"
+    ],
+    "source_reasoning": "On the facts as at verification the module is right, and right for the right reasons: R-5.2 is encoded as a true exception to R-5.1 rather than sitting alongside it, so a bar defeats the 30-day deadline outright (deletion_due_date goes Absent, not merely unchanged), and all three limbs - legal obligation, legal claims, Legal Hold - are taken as inputs, so no judgement is laundered: erasure_request_valid is an input and is never inferred from the other facts, and the hold limb arrives pre-qualified from HoldEffect, which is where R-4.2's 'to the extent permitted by applicable data protection law' is applied. The ambiguity is temporal: the scope models the R-5.2 grounds as permanent properties of the request, so a refusal is final. If reading (i) is right, the module's answer is wrong for every record whose hold is later released or whose legal-claims ground falls away, and it has no input by which the correct answer could be expressed. Worth flagging as a gap in the Standard as much as in the encoding: R-4.3 tells you what to do with the retention clock when a hold is released but is silent on the erasure clock, and R-5 has no counterpart to R-4.3 at all.",
+    "attacks_tried": [
+      "R-5.2 bar applying at verification and then lapsing (this ambiguity)",
+      "each of the three R-5.2 limbs separately (each defeats R-5.1, deletion_due_date Absent and deletion_refused true)",
+      "valid request, no bar (verified + 30 = 2026-02-09, correct)",
+      "verification on the same day as the request (2026-01-31)",
+      "30 days spanning a leap February (2028-02-01 -> 2028-03-02, correct)",
+      "valid request with verification_date Absent (no deadline, not refused - R-5.1 measures from verification, correct)",
+      "invalid request with all three bars true (deletion_refused false - the company is not refusing, it has no valid request; the Standard is silent)",
+      "verification_date before request_date (the scope's well-formedness assertion fires, as it should)",
+      "checked that erasure_request_valid and the two 'required to retain' judgements are inputs and are nowhere inferred"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "retention",
+      "path": "catala/modules/retention.catala_en",
+      "scope": "RetentionEnd"
+    },
+    "fact_pattern": "A Candidate Record. The candidate consented to the talent pool on 1 January 2023 when applying; the recruitment process concluded on 1 January 2026 and consent was never renewed. R-3.2 applies as an exception to R-3.1(f). Twenty-four months from consent is 1 January 2025 - a year before the Retention Trigger for the base rule has even occurred, and R-3.1(f) would have given 1 January 2027.",
+    "inputs": {
+      "data_class": "CandidateRecord",
+      "retention_trigger_date": "2026-01-01",
+      "talent_pool_consent_date": "2023-01-01",
+      "consent_renewal_dates": [],
+      "statutory_retention_applies": false,
+      "statutory_retention_period": {
+        "years": 0
+      }
+    },
+    "expected": "Underdetermined. Reading (i), literal substitution: R-3.2 says 'the Candidate Record is retained for 24 months from the date of consent', so the period is 2025-01-01 and it has already elapsed - the record should be deleted at once, which is what the module says. Reading (ii), the exception only ever extends: R-3.2's purpose is to authorise holding a candidate on a talent pool for longer than the 12 months R-3.1(f) allows, so it cannot cut the base period short and the answer is 2027-01-01 (or the later of the two).",
+    "observed": {
+      "retention_end_date": "2025-01-01",
+      "backup_purge_deadline": "2025-04-01"
+    },
+    "citations": [
+      "DATA-RET R-3.2",
+      "DATA-RET R-3.1",
+      "DATA-RET R-1.2"
+    ],
+    "source_reasoning": "The module takes reading (i) and produces a retention_end_date a full year before the record's own Retention Trigger, which reads oddly but is what the words say. I do not record this as a BREAK because R-1.2 expressly blesses earlier deletion - 'business units are expected to delete earlier where the purpose for which the record was collected has been achieved' - so an answer that is earlier than the base rule allows breaches nothing in the Standard, and R-3.2 is drafted as a substitution ('By way of exception to R-3.1(f)') rather than as an extension. What is worth flagging is that the module gives the same treatment to a case the drafter cannot have meant: a period measured from an event that precedes the trigger, expiring before the trigger. Also noted: R-3.2's condition is the presence of a consent date alone, so a record with renewal dates but no original consent date falls back to R-3.1(f) and the renewals are silently ignored (probed: trigger 2025-06-01, renewal 2026-03-01, result 2026-06-01 rather than 2028-03-01).",
+    "attacks_tried": [
+      "R-3.2 yielding a shorter period than R-3.1(f), and one expiring before the trigger (this ambiguity)",
+      "renewal dated later than consent (2028-03-01 from the latest of two renewals, correct - the period restarts on the most recent renewal)",
+      "renewal dated EARLIER than the original consent (2027-01-15, correctly ignored via Date.max)",
+      "consent with an empty renewal list (2027-01-15, correct)",
+      "renewal dates supplied with no consent date (R-3.2 does not engage)",
+      "R-3.1(d) with an engagement date BEFORE the date of collection (2027-03-10, correctly taking the later of the two - the naive encoding would have given 2026-01-05)",
+      "R-3.1(d) with engagement after collection (2028-01-05) and with engagement absent (2027-03-10)",
+      "R-3.3 on a non-Employee data class with statutory_retention_applies true (correctly ignored - R-3.3 is an exception to R-3.1(a) only)"
+    ]
+  }
+]

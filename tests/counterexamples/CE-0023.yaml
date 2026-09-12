@@ -1,0 +1,52 @@
+id: CE-0023
+component: catala
+fact_pattern: An Employee's annual base salary is GBP 45,000. C-2.1 defines the Base Hourly
+  Rate as that salary divided by 2,080, which is GBP 21.6346153846... - a quotient that does
+  not terminate at two decimal places. The Base Hourly Rate is not itself a sum of money paid
+  to anyone; it is the multiplicand from which every amount under C-4, C-5.2, C-6 and C-7
+  is calculated, so the fractional penny matters as soon as it is multiplied by a premium
+  and by a number of hours.
+citations:
+- EMP-ANNEX-C C-2.1
+- EMP-ANNEX-C C-4.1
+- EMP-ANNEX-C C-4.2
+- EMP-ANNEX-C C-1.1
+source_reasoning: 'C-2.1 states a division and nothing else: ''the Employee''s annual base
+  salary divided by 2,080''. It prescribes no rounding, and no other clause of Annex C authorises
+  rounding the defined term before use; C-1.1 makes the Annex govern ''the calculation of
+  ... overtime premia'', i.e. the calculation, not an approximation of it. 45,000 / 2,080
+  = 21.634615384615..., so the value C-2.1 compels is that quotient. The module types the
+  Base Hourly Rate as money and returns GBP 21.63, discarding 0.0384615... per hour - and,
+  critically, it discards it BEFORE the premium multiplication, which is the order that changes
+  the money. The detriment is demonstrable: for a Grade 1 Employee working 50 plain hours
+  in a Payroll Week, C-4.1 gives 8 hours (the 41st to the 48th) at 1.25 and C-4.2 gives 2
+  hours (the 49th and 50th) at 1.5, a total of 8 x 1.25 + 2 x 1.5 = 13 times the Base Hourly
+  Rate. 13 x 45,000 / 2,080 = 585,000 / 2,080 = GBP 281.25 EXACTLY - a figure expressible
+  to the penny, so C-2.1 and C-4 together compel GBP 281.25 with no rounding question at all.
+  Feeding the module''s own C-2.1 output into WeeklyOvertime returns GBP 281.22, three pence
+  short; feeding it the unrounded quotient returns the same GBP 281.22, because the money
+  type truncates the rate on the way in. The rate must be carried as an exact decimal and
+  rounded only when a payable sum is finally struck, and the sum here needs no rounding. Note
+  the error has no fixed direction: at a salary of GBP 50,000 the module rounds the rate UP
+  (24.0384615... to 24.04) and overpays, while at GBP 45,000 it rounds DOWN and underpays,
+  so this cannot be defended as a rounding convention favourable to the Employee.'
+expected:
+  base_hourly_rate: 21.634615384615383
+observed:
+  base_hourly_rate: 21.63
+target:
+  module: WorkingTimeDefs
+  path: catala/modules/WorkingTimeDefs.catala_en
+  scope: BaseHourlyRate
+inputs:
+  annual_base_salary: 45000
+round: 3
+discovered: '2026-09-12'
+status: open
+notes: 'fractional-penny probe across salaries 45000 / 50000 / 33000 / 30000 / 60000 - all
+  rounded to the nearest penny, in both directions; exact half-penny probe: salary 24,970.40
+  gives an exact 12.005 and the module returns 12.01; round-before-multiply vs round-after-multiply:
+  constructed the 50-hour week whose exact answer (281.25) is expressible in pence and showed
+  the module returns 281.22; salaries that divide exactly (41,600 -> 20.00; 52,000 -> 25.00;
+  2,080 -> 1.00) produce no error, isolating the cause; degenerate salary of GBP 1 yields
+  a Base Hourly Rate of 0.00 and hence no overtime at all'

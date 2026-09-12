@@ -50,7 +50,8 @@ declaration structure GazettedHoliday:
 
 declaration scope BaseHourlyRate:
   input annual_base_salary content money
-  output base_hourly_rate content money
+  output base_hourly_rate content decimal
+  output base_hourly_rate_to_the_penny content money
 
 declaration scope PayrollWeekOf:
   input calendar_day content date
@@ -83,6 +84,16 @@ declaration scope GazettedPublicHolidays:
 
 ## C-2.1 Base Hourly Rate
 
+C-2.1 states a division and nothing else. It prescribes no rounding, and no
+other clause of Annex C authorises rounding the defined term before it is used.
+Holding the rate as `money` rounded it to the penny before any premium was
+applied, which is wrong in both directions -- a salary of 45,000 rounded down
+and underpaid a 50-hour week by 0.03, while 50,000 rounded up and overpaid --
+so it was not even a defensible convention. The rate is therefore an exact
+`decimal`, and `base_hourly_rate_to_the_penny` is provided separately for
+display only, never as an input to a premium calculation. Found by the
+adversarial reviewer; see tests/counterexamples/CE-0023.yaml.
+
 | EMP-ANNEX-C C-2.1 (001-employment-terms-annex-c.md:28)
 |
 | "Base Hourly Rate" means the Employee's annual base salary divided by
@@ -101,7 +112,11 @@ to the premium and rounds only the payment.
 
 ```catala
 scope BaseHourlyRate:
-  definition base_hourly_rate equals annual_base_salary / 2080.0
+  definition base_hourly_rate equals
+    (annual_base_salary / $1.00) / 2080.0
+
+  definition base_hourly_rate_to_the_penny equals
+    money of base_hourly_rate
 ```
 
 ## C-2.2 Payroll Week

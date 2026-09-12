@@ -12,13 +12,14 @@ hour, not a week. `WeeklyOvertime` aggregates.
 
 ```catala-metadata
 declaration structure HourWorked:
+  data hour_of_week content integer
   data is_public_holiday content boolean
   data is_critical_incident content boolean
   data is_night content boolean
 
 declaration structure WeekTally:
   data hours_counted content integer
-  data payment content money
+  data rate_total content decimal
   data toil content decimal
 
 declaration scope HourPremium:
@@ -40,6 +41,7 @@ declaration scope WeeklyOvertime:
   input base_hourly_rate content money
   input grade content integer
   input has_standing_shift_allowance content boolean
+  internal ordered_hours content list of HourWorked
   internal tally content WeekTally
   output hours_worked content integer
   output overtime_payment content money
@@ -312,6 +314,28 @@ The ordinal is therefore derived from the hour's position in the week's own
 record, by folding over it, and `HourWorked` no longer carries an ordinal field
 for a caller to get wrong.
 
+Which hours fall beyond 40 and beyond 48 must not depend on the order a caller
+happened to serialise the list in. Before `hour_of_week` existed it did: the
+same 41-hour week with one public-holiday hour paid 45.00 or 40.00 purely on row
+sequence, and a Grade 5 week of 50 hours with 10 on Critical Incident Response
+could pay nothing and bank 10 hours of leave, or pay 260.00 and bank none. Annex
+C fixes the *count* of hours in excess of 40 and never their identity, so the
+identity has to come from a recorded fact rather than from an array index.
+`HourWorked` therefore carries `hour_of_week`, the hour of the Payroll Week as
+C-2.2 defines it -- which a timesheet records -- and the scope sorts on that
+before counting. This is not the ordinal defect returning: an ordinal claimed to
+be an hour's rank among the hours worked, which a caller cannot know, whereas
+`hour_of_week` is a time that the record simply contains.
+
+The fold accumulates the total RATE as an exact decimal and converts to money
+once, at the end. Multiplying each hour by the Base Hourly Rate and summing the
+results rounds to the penny forty times over: at a Base Hourly Rate of 20.10, a
+week of forty night hours attracts 0.15 x 20.10 = 3.015 per hour, which C-6.1
+makes exactly 120.60 for the week, but rounding each hour to 3.02 and summing
+gives 120.80. C-4.1 and C-6.1 state a rate per hour, not a rounded payment per
+hour, and the aggregate they compel is exact. Found by the adversarial reviewer;
+see tests/counterexamples/CE-0021.yaml and CE-0022.yaml.
+
 | NO-CLAUSE: Annex C states no weekly aggregation rule. Summing the per-hour
 | entitlements that C-4 to C-8 confer adds no law of its own; the legal content
 | is entirely in HourPremium above. What this block does add is the derivation
@@ -319,11 +343,17 @@ for a caller to get wrong.
 
 ```catala
 scope WeeklyOvertime:
+  assertion (for all h among hours we have
+    h.hour_of_week >= 1 and h.hour_of_week <= 168)
+
+  definition ordered_hours equals
+    sort all h among hours in increasing order of h.hour_of_week
+
   definition tally equals
-    combine all h among hours in acc
+    combine all h among ordered_hours in acc
     initially WeekTally {
       -- hours_counted: 0
-      -- payment: $0.00
+      -- rate_total: 0.0
       -- toil: 0.0
     }
     with (
@@ -340,12 +370,12 @@ scope WeeklyOvertime:
       in
       WeekTally {
         -- hours_counted: n
-        -- payment: acc.payment + hp.total_rate * base_hourly_rate
+        -- rate_total: acc.rate_total + hp.total_rate
         -- toil: acc.toil + (if hp.accrues_toil then 1.0 else 0.0)
       }
     )
 
   definition hours_worked equals tally.hours_counted
-  definition overtime_payment equals tally.payment
+  definition overtime_payment equals tally.rate_total * base_hourly_rate
   definition toil_hours equals tally.toil
 ```

@@ -1,0 +1,64 @@
+id: CE-0020
+component: catala
+fact_pattern: 'An Employee Record. Employment ended on 1 January 2018, so the R-3.1(a) period
+  of 6 years expires on 1 January 2024. No pensions or payroll statute requires longer. On
+  1 January 2023 the General Counsel issues a Legal Hold over the record in connection with
+  anticipated litigation; the hold is not released until 1 January 2030. The record therefore
+  stays in production systems throughout, and under R-4.3 its production deletion falls due
+  by 31 January 2030 (the retention period having already expired). Question: by when must
+  the record be purged from backups?'
+citations:
+- DATA-RET R-6.1
+- DATA-RET R-4.1
+- DATA-RET R-4.3
+- DATA-RET R-2.4
+- DATA-RET R-3.1
+source_reasoning: 'R-6.1 does not measure the backup purge from the expiry of the retention
+  period. It measures it from a different event: ''Records deleted from production systems
+  are deleted from backups at the expiry of the backup rotation cycle, which must not exceed
+  90 days.'' The trigger is the date of deletion from production, and R-2.4 confirms that
+  deletion is only complete once backups are purged, so the two dates are distinct steps of
+  one process. On these facts R-4.1 (''Notwithstanding R-3, a record subject to a Legal Hold
+  must not be deleted while the Legal Hold remains in force, irrespective of the expiry of
+  the applicable retention period'') forbids the production deletion that R-3.1(a) would otherwise
+  have required on 2024-01-01, and R-4.3 then fixes production deletion at 30 days from release,
+  i.e. by 2030-01-31, the retention period having already expired at release. The 90-day cap
+  in R-6.1 therefore runs from 2030-01-31 and expires on 2030-05-01. The module instead hard-codes
+  backup_purge_deadline = retention_end_date + 90 day, treating R-3''s expiry as R-6.1''s
+  trigger. It therefore returns 2024-03-31 - a deadline that had already passed nearly six
+  years before the record could lawfully leave production, and that cannot be complied with
+  on any facts where R-4 defers deletion. Nothing in the reviewed set produces the correct
+  figure: the retention scope has no Legal Hold or production-deletion input, and the HoldEffect
+  scope, which is where R-4.3 lives, declares no backup output at all, so R-6.1 is encoded
+  only in the one place that cannot see R-4. The substitution also errs in the opposite direction
+  in the ordinary case R-1.2 contemplates: where a business unit ''delete[s] earlier because
+  the purpose has been achieved'', R-6.1 starts the cycle at that earlier deletion, and retention_end_date
+  + 90 day is then later than the Standard permits. The correct encoding takes the date of
+  deletion from production systems as an input rather than assuming it.'
+expected:
+  retention_end_date: '2024-01-01'
+  backup_purge_deadline: '2030-05-01'
+observed:
+  retention_end_date: '2024-01-01'
+  backup_purge_deadline: '2024-03-31'
+target:
+  module: retention
+  path: catala/modules/retention.catala_en
+  scope: RetentionEnd
+inputs:
+  data_class: EmployeeRecord
+  retention_trigger_date: '2018-01-01'
+  consent_renewal_dates: []
+  statutory_retention_applies: false
+  statutory_retention_period:
+    years: 0
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'Legal Hold deferring production deletion past retention expiry (this finding; confirmed
+  against HoldEffect, which returns deletion_due_date 2030-01-31 on the matching hold facts);
+  early deletion under R-1.2, which moves the R-6.1 trigger the other way; tried to make backup_purge_deadline
+  - retention_end_date exceed the 90-day cap directly: it is always exactly 90 days, so the
+  cap itself is never breached in isolation; R-2.4 read with R-3.1 to test whether the 90-day
+  backup tail must fall inside the retention period rather than after it (R-6.1 expressly
+  tolerates the tail, so no break there)'
