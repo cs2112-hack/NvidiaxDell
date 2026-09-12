@@ -1,0 +1,345 @@
+# Tests — FY26 Sales Commission Plan: quota relief
+
+Assertion-based tests for `Quota_relief`. The 30-day gate in S-6.1 is tested
+at 29 and at 30 days, each of the three qualifying absence categories is
+tested, and the non-qualifying category and the "continuous period" limb are
+tested for absence of relief.
+
+The last test is the S-6.2 test, and it is the important one. It composes
+`QuotaRelief.RelievedQuota` with `Commission.Attainment` and
+`Commission.Accelerator` and asserts that the accelerator computed on the
+relieved Quota differs from the one computed on the assigned Quota — which is
+the only way to show that the ordering S-6.2 mandates has been honoured rather
+than merely described.
+
+> Using QuotaRelief
+> Using Commission
+
+## Absence fixtures
+
+```catala
+declaration absence content QuotaRelief.AbsencePeriod
+  depends on
+    cat content QuotaRelief.AbsenceCategory,
+    d1 content date,
+    d2 content date
+  equals
+    QuotaRelief.AbsencePeriod {
+      -- category: cat
+      -- start_date: d1
+      -- end_date: d2
+    }
+```
+
+## S-6.1 Day counting — endpoints are inclusive
+
+1 January to 30 January inclusive is 30 days.
+
+```catala
+#[test]
+declaration scope TestS6_1_DayCountInclusive:
+  output r content QuotaRelief.QualifyingAbsence
+
+scope TestS6_1_DayCountInclusive:
+  definition r equals
+    output of QuotaRelief.QualifyingAbsence with {
+      -- absence: absence of LongTermSicknessAbsence, |2026-01-01|, |2026-01-30|
+    }
+  assertion r.days_of_absence = 30
+  assertion r.is_qualifying = true
+  assertion r.relief_days = 30
+```
+
+An absence recorded as starting and ending on the same day is one day.
+
+```catala
+#[test]
+declaration scope TestS6_1_SingleDayAbsence:
+  output r content QuotaRelief.QualifyingAbsence
+
+scope TestS6_1_SingleDayAbsence:
+  definition r equals
+    output of QuotaRelief.QualifyingAbsence with {
+      -- absence: absence of LongTermSicknessAbsence, |2026-01-01|, |2026-01-01|
+    }
+  assertion r.days_of_absence = 1
+  assertion r.is_qualifying = false
+  assertion r.relief_days = 0
+```
+
+## S-6.1 The 30-day gate, on both sides
+
+```catala
+#[test]
+declaration scope TestS6_1_TwentyNineDaysNoRelief:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_TwentyNineDaysNoRelief:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-01-29|
+         ]
+    }
+  assertion r.relief_days = 0
+  assertion r.relief = $0
+  assertion r.relieved_quota = $1,000,000
+  assertion r.quota_for_attainment = $1,000,000
+```
+
+Thirty days qualifies, and the relief is 30/365ths of the annual Quota:
+$1,000,000 x 30/365 = $82,191.78.
+
+```catala
+#[test]
+declaration scope TestS6_1_ThirtyDaysRelieved:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_ThirtyDaysRelieved:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-01-30|
+         ]
+    }
+  assertion r.relief_days = 30
+  assertion r.relief = $82,191.78
+  assertion r.relieved_quota = $917,808.22
+  assertion r.quota_for_attainment = $917,808.22
+```
+
+## S-6.1 Relief is for every day of the absence, not only the days after the thirtieth
+
+A 40-day absence gives 40 days of relief, not 10.
+
+```catala
+#[test]
+declaration scope TestS6_1_ReliefForEveryDay:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_ReliefForEveryDay:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-02-09|
+         ]
+    }
+  assertion r.relief_days = 40
+  assertion r.relief = $109,589.04
+  assertion r.relief != $27,397.26
+```
+
+## S-6.1 The three qualifying categories
+
+```catala
+#[test]
+declaration scope TestS6_1_StatutoryParentalLeave:
+  output r content QuotaRelief.QualifyingAbsence
+
+scope TestS6_1_StatutoryParentalLeave:
+  definition r equals
+    output of QuotaRelief.QualifyingAbsence with {
+      -- absence: absence of StatutoryParentalLeave, |2026-01-01|, |2026-03-31|
+    }
+  assertion r.is_qualifying_category = true
+  assertion r.days_of_absence = 90
+  assertion r.relief_days = 90
+```
+
+```catala
+#[test]
+declaration scope TestS6_1_AdoptionLeave:
+  output r content QuotaRelief.QualifyingAbsence
+
+scope TestS6_1_AdoptionLeave:
+  definition r equals
+    output of QuotaRelief.QualifyingAbsence with {
+      -- absence: absence of AdoptionLeave, |2026-01-01|, |2026-03-31|
+    }
+  assertion r.is_qualifying_category = true
+  assertion r.relief_days = 90
+```
+
+```catala
+#[test]
+declaration scope TestS6_1_LongTermSickness:
+  output r content QuotaRelief.QualifyingAbsence
+
+scope TestS6_1_LongTermSickness:
+  definition r equals
+    output of QuotaRelief.QualifyingAbsence with {
+      -- absence: absence of LongTermSicknessAbsence, |2026-01-01|, |2026-03-31|
+    }
+  assertion r.is_qualifying_category = true
+  assertion r.relief_days = 90
+```
+
+An absence outside the three categories gives no relief however long it is.
+
+```catala
+#[test]
+declaration scope TestS6_1_OtherAbsenceNoRelief:
+  output r content QuotaRelief.QualifyingAbsence
+
+scope TestS6_1_OtherAbsenceNoRelief:
+  definition r equals
+    output of QuotaRelief.QualifyingAbsence with {
+      -- absence: absence of OtherAbsence, |2026-01-01|, |2026-03-31|
+    }
+  assertion r.is_qualifying_category = false
+  assertion r.days_of_absence = 90
+  assertion r.is_qualifying = false
+  assertion r.relief_days = 0
+```
+
+## S-6.1 "A continuous period" — separate short absences do not combine
+
+Two unconnected 20-day absences total 40 days but neither is a continuous
+period of 30 days or more, so neither attracts relief.
+
+```catala
+#[test]
+declaration scope TestS6_1_SeparateAbsencesDoNotCombine:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_SeparateAbsencesDoNotCombine:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-01-20|;
+           absence of LongTermSicknessAbsence, |2026-05-01|, |2026-05-20|
+         ]
+    }
+  assertion r.relief_days = 0
+  assertion r.relieved_quota = $1,000,000
+```
+
+Two absences that each qualify do accumulate.
+
+```catala
+#[test]
+declaration scope TestS6_1_TwoQualifyingAbsencesAccumulate:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_TwoQualifyingAbsencesAccumulate:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-01-30|;
+           absence of AdoptionLeave, |2026-05-01|, |2026-06-12|
+         ]
+    }
+  assertion r.relief_days = 73
+  assertion r.relief = $200,000
+  assertion r.relieved_quota = $800,000
+```
+
+A qualifying absence alongside a non-qualifying one relieves only the
+qualifying days.
+
+```catala
+#[test]
+declaration scope TestS6_1_MixedQualifyingAndNot:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_MixedQualifyingAndNot:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-03-14|;
+           absence of OtherAbsence, |2026-05-01|, |2026-08-31|
+         ]
+    }
+  assertion r.relief_days = 73
+  assertion r.relieved_quota = $800,000
+```
+
+## S-6.2 Relief is applied before Attainment is calculated
+
+A 73-day long-term sickness absence relieves a $1,000,000 Quota by exactly
+$200,000, leaving $800,000. Net Booked Revenue of $800,000 is therefore 100%
+Attainment against the relieved Quota, which is band (c) of S-4.1 and an
+accelerator of 1.5.
+
+Calculated in the wrong order — Attainment against the assigned $1,000,000
+Quota — it would be 80%, which is band (b) and an accelerator of 1.0. The
+commission differs by a third. This test asserts the Plan's order and asserts
+that the other order gives something else.
+
+```catala
+#[test]
+declaration scope TestS6_2_ReliefBeforeAttainment:
+  output relieved content QuotaRelief.RelievedQuota
+  output on_relieved_quota content Commission.Attainment
+  output on_assigned_quota content Commission.Attainment
+  output accelerator_on_relieved content Commission.Accelerator
+  output accelerator_on_assigned content Commission.Accelerator
+
+scope TestS6_2_ReliefBeforeAttainment:
+  definition relieved equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-03-14|
+         ]
+    }
+
+  definition on_relieved_quota equals
+    output of Commission.Attainment with {
+      -- net_booked_revenue: $800,000
+      -- quota: relieved.quota_for_attainment
+    }
+
+  definition on_assigned_quota equals
+    output of Commission.Attainment with {
+      -- net_booked_revenue: $800,000
+      -- quota: $1,000,000
+    }
+
+  definition accelerator_on_relieved equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: on_relieved_quota.attainment_pct
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+    }
+
+  definition accelerator_on_assigned equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: on_assigned_quota.attainment_pct
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+    }
+
+  assertion relieved.relief_days = 73
+  assertion relieved.quota_for_attainment = $800,000
+  assertion on_relieved_quota.attainment_pct = 100%
+  assertion on_assigned_quota.attainment_pct = 80%
+  assertion accelerator_on_relieved.accelerator = 1.5
+  assertion accelerator_on_assigned.accelerator = 1.0
+  assertion accelerator_on_relieved.accelerator
+    != accelerator_on_assigned.accelerator
+```
+
+## S-6.1 with no absence at all
+
+```catala
+#[test]
+declaration scope TestS6_1_NoAbsence:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_NoAbsence:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $1,000,000
+      -- absence_periods: []
+    }
+  assertion r.relief_days = 0
+  assertion r.relief = $0
+  assertion r.quota_for_attainment = $1,000,000
+```

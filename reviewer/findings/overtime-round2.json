@@ -1,0 +1,1409 @@
+[
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "WeeklyOvertime"
+    },
+    "fact_pattern": "An Employee of Grade 3 works 50 hours in a single Payroll Week: five days of ten hours each. The timesheet numbers each hour within its own day, so the fifty hours worked carry ordinals 1..10 repeated five times. Fifty hours were worked in the Payroll Week; ten of them were worked in excess of 40. Base Hourly Rate is 30.00.",
+    "inputs": {
+      "hours": [
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        }
+      ],
+      "base_hourly_rate": 30.0,
+      "grade": 3,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "overtime_payment": 375.0,
+      "toil_hours": 0.0
+    },
+    "observed": {
+      "overtime_payment": 0.0,
+      "toil_hours": 0.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-3.1",
+      "EMP-ANNEX-C C-2.2"
+    ],
+    "source_reasoning": "C-4.1 makes the operative fact 'each hour worked in excess of 40 hours in a Payroll Week'. That is a quantity measured over the whole week (C-2.2 defines the week; C-3.1 fixes the ordinary week at 40 hours), not a property of an individual hour. The 'hours' list is the module's only record of the week, so its cardinality is the number of hours worked: fifty entries means fifty hours worked, of which ten are in excess of 40. C-4.1 therefore entitles the Employee to ten overtime payments at 1.25 x 30.00 = 37.50, i.e. 375.00. The module never computes hours-worked-in-the-week at all. It reads the per-hour 'ordinal' label and asks only 'ordinal > 40'. Because no label exceeds 40 it returns 0.00 and the entitlement C-4.1 confers is lost. No clause of Annex C makes the entitlement turn on how a timesheet numbers its rows; C-4.1 turns on how many hours were worked. Nothing defeats C-4.1 here: C-4.2 is not reached (no hour beyond 48), C-5 does not apply at Grade 3, C-7 does not apply, and C-1.2 would in any event forbid a reading less favourable to the Employee.",
+    "attacks_tried": [
+      "aggregate: empty hours list (0 hours) -> 0.0/0.0, defensible",
+      "aggregate: single hour labelled ordinal 41 (1 hour worked) -> 37.50, premium paid for hours nobody worked",
+      "aggregate: sparse list [41,49] (2 hours worked) -> 82.50, both C-4.1 and C-4.2 fired on a 2-hour week",
+      "aggregate: 41-entry list whose 41st entry is labelled ordinal 49 -> C-4.2's 1.5 fired in a 41-hour week",
+      "aggregate: 50-entry list with per-day ordinals 1..10 x5 -> 0.00, C-4.1 never fired on a 50-hour week",
+      "aggregate: duplicate ordinals 41,41,41 inside an otherwise complete 43-hour timesheet -> same total as 41,42,43, harmless in isolation",
+      "aggregate: ordinals out of order -> map is order-insensitive, no effect",
+      "ordinal 0 and -5 -> multiplier 0.0, no Catala error (fail-soft, defensible)",
+      "ordinal 169, 200, 1000000 (beyond the 168 hours in a Payroll Week under C-2.2) -> 1.5 silently, no validation",
+      "boundary sweep grade 4 vs 5 at ordinal 45 -> 1.25 vs 0.0+TOIL, matches C-5.1",
+      "grade 0 and grade -1 -> treated as below 5, matches C-5.1's 'Grade 5 or above'",
+      "C-6.2 applied per-employee in WeeklyOvertime (single input, no per-hour field) - matches the text's 'an Employee who receives'",
+      "C-6.2 with is_night true + allowance -> night_premium 0.0, multiplier untouched, matches C-6.2 read narrowly onto C-6.1",
+      "C-6.1 cumulation with a 2.0 holiday multiplier -> 2.15, matches C-8.2",
+      "C-2.4 grade-as-of-first-day: WeeklyOvertime carries one week-level grade, so a mid-week grade change cannot be represented at all - which is what C-2.4 requires, so not a defect",
+      "C-8.1 stacking: grade 99 + critical incident + public holiday + night at ordinal 49 -> 2.0 + 0.15, single highest multiplier honoured",
+      "negative base_hourly_rate -> -37.50, garbage propagates but no clause governs it",
+      "C-7.2 unreachability: greater-of always resolves to limb (a); branch is value-identical to c7_1 (reported as AMBIGUITY)",
+      "grade 5 + public holiday hour > 40: paid 2.0 and accrues 1h TOIL simultaneously (reported as AMBIGUITY)",
+      "multiplier-vs-ordinary-salary: C-7.1's 2.0 used both as a whole rate (hour 41) and as an addition to salary (hour 20)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "WeeklyOvertime"
+    },
+    "fact_pattern": "An Employee of Grade 5 works the same 50-hour Payroll Week (five days of ten hours, hours numbered within each day). Being Grade 5, the Employee takes no overtime payment but accrues time off in lieu for each hour worked in excess of 40. Ten hours were worked in excess of 40.",
+    "inputs": {
+      "hours": [
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        }
+      ],
+      "base_hourly_rate": 30.0,
+      "grade": 5,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "overtime_payment": 0.0,
+      "toil_hours": 10.0
+    },
+    "observed": {
+      "overtime_payment": 0.0,
+      "toil_hours": 0.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-5.1",
+      "EMP-ANNEX-C C-3.1",
+      "EMP-ANNEX-C C-2.2"
+    ],
+    "source_reasoning": "C-5.1 accrues TOIL 'at the rate of one hour for each hour worked in excess of 40 hours in a Payroll Week'. The measure is identical in kind to C-4.1's: a count of hours worked across the week defined by C-2.2, against the 40-hour ordinary week of C-3.1. Fifty hours were worked, so ten hours were worked in excess of 40 and ten hours of TOIL accrue. The module instead accrues one hour of TOIL per list entry whose 'ordinal' label happens to exceed 40, so a week in which the Employee genuinely worked ten hours beyond the ordinary week accrues nothing. C-5.2 does not bite (no Critical Incident Response), so nothing defeats C-5.1. This is the same root defect as the overtime-payment finding, but it destroys a separate entitlement and must be fixed on the TOIL limb as well as the payment limb.",
+    "attacks_tried": [
+      "aggregate: empty hours list (0 hours) -> 0.0/0.0, defensible",
+      "aggregate: single hour labelled ordinal 41 (1 hour worked) -> 37.50, premium paid for hours nobody worked",
+      "aggregate: sparse list [41,49] (2 hours worked) -> 82.50, both C-4.1 and C-4.2 fired on a 2-hour week",
+      "aggregate: 41-entry list whose 41st entry is labelled ordinal 49 -> C-4.2's 1.5 fired in a 41-hour week",
+      "aggregate: 50-entry list with per-day ordinals 1..10 x5 -> 0.00, C-4.1 never fired on a 50-hour week",
+      "aggregate: duplicate ordinals 41,41,41 inside an otherwise complete 43-hour timesheet -> same total as 41,42,43, harmless in isolation",
+      "aggregate: ordinals out of order -> map is order-insensitive, no effect",
+      "ordinal 0 and -5 -> multiplier 0.0, no Catala error (fail-soft, defensible)",
+      "ordinal 169, 200, 1000000 (beyond the 168 hours in a Payroll Week under C-2.2) -> 1.5 silently, no validation",
+      "boundary sweep grade 4 vs 5 at ordinal 45 -> 1.25 vs 0.0+TOIL, matches C-5.1",
+      "grade 0 and grade -1 -> treated as below 5, matches C-5.1's 'Grade 5 or above'",
+      "C-6.2 applied per-employee in WeeklyOvertime (single input, no per-hour field) - matches the text's 'an Employee who receives'",
+      "C-6.2 with is_night true + allowance -> night_premium 0.0, multiplier untouched, matches C-6.2 read narrowly onto C-6.1",
+      "C-6.1 cumulation with a 2.0 holiday multiplier -> 2.15, matches C-8.2",
+      "C-2.4 grade-as-of-first-day: WeeklyOvertime carries one week-level grade, so a mid-week grade change cannot be represented at all - which is what C-2.4 requires, so not a defect",
+      "C-8.1 stacking: grade 99 + critical incident + public holiday + night at ordinal 49 -> 2.0 + 0.15, single highest multiplier honoured",
+      "negative base_hourly_rate -> -37.50, garbage propagates but no clause governs it",
+      "C-7.2 unreachability: greater-of always resolves to limb (a); branch is value-identical to c7_1 (reported as AMBIGUITY)",
+      "grade 5 + public holiday hour > 40: paid 2.0 and accrues 1h TOIL simultaneously (reported as AMBIGUITY)",
+      "multiplier-vs-ordinary-salary: C-7.1's 2.0 used both as a whole rate (hour 41) and as an addition to salary (hour 20)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "WeeklyOvertime"
+    },
+    "fact_pattern": "An Employee of Grade 3 works 41 hours in a Payroll Week. The timesheet records 41 hours: ordinals 1 to 40, plus one further hour which the payroll import has stamped with ordinal 49. The Employee worked 41 hours in total; no hour was worked in excess of 48 because only 41 hours exist in the week's record. Base Hourly Rate is 30.00.",
+    "inputs": {
+      "hours": [
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 11,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 12,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 13,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 14,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 15,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 16,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 17,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 18,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 19,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 20,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 21,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 22,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 23,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 24,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 25,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 26,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 27,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 28,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 29,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 30,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 31,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 32,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 33,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 34,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 35,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 36,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 37,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 38,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 39,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 40,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 49,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        }
+      ],
+      "base_hourly_rate": 30.0,
+      "grade": 3,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "overtime_payment": 37.5,
+      "toil_hours": 0.0
+    },
+    "observed": {
+      "overtime_payment": 45.0,
+      "toil_hours": 0.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-4.2",
+      "EMP-ANNEX-C C-4.1",
+      "EMP-ANNEX-C C-3.1"
+    ],
+    "source_reasoning": "C-4.2 applies only to 'each hour worked in excess of 48 hours in a Payroll Week'. The list contains 41 entries, so 41 hours were worked; a 41-hour week contains no hour in excess of 48, and C-4.2's condition is unsatisfiable on these facts. The single hour in excess of 40 falls to be calculated under C-4.1 at 1.25 x 30.00 = 37.50. The module applies C-4.2's 1.5 to that hour, paying 45.00. This fact pattern defeats the defence that the list may be a partial record of the week: forty of the forty-one entries are the complete ordinary week, so there is no reading of this input on which more than 41 hours were worked, and therefore no reading on which C-4.2's 1.5 multiplier is available. The module has applied an exception whose stated precondition ('in excess of 48 hours in a Payroll Week') is false, because it substituted a per-row label for the weekly quantity that C-4.2 makes operative.",
+    "attacks_tried": [
+      "aggregate: empty hours list (0 hours) -> 0.0/0.0, defensible",
+      "aggregate: single hour labelled ordinal 41 (1 hour worked) -> 37.50, premium paid for hours nobody worked",
+      "aggregate: sparse list [41,49] (2 hours worked) -> 82.50, both C-4.1 and C-4.2 fired on a 2-hour week",
+      "aggregate: 41-entry list whose 41st entry is labelled ordinal 49 -> C-4.2's 1.5 fired in a 41-hour week",
+      "aggregate: 50-entry list with per-day ordinals 1..10 x5 -> 0.00, C-4.1 never fired on a 50-hour week",
+      "aggregate: duplicate ordinals 41,41,41 inside an otherwise complete 43-hour timesheet -> same total as 41,42,43, harmless in isolation",
+      "aggregate: ordinals out of order -> map is order-insensitive, no effect",
+      "ordinal 0 and -5 -> multiplier 0.0, no Catala error (fail-soft, defensible)",
+      "ordinal 169, 200, 1000000 (beyond the 168 hours in a Payroll Week under C-2.2) -> 1.5 silently, no validation",
+      "boundary sweep grade 4 vs 5 at ordinal 45 -> 1.25 vs 0.0+TOIL, matches C-5.1",
+      "grade 0 and grade -1 -> treated as below 5, matches C-5.1's 'Grade 5 or above'",
+      "C-6.2 applied per-employee in WeeklyOvertime (single input, no per-hour field) - matches the text's 'an Employee who receives'",
+      "C-6.2 with is_night true + allowance -> night_premium 0.0, multiplier untouched, matches C-6.2 read narrowly onto C-6.1",
+      "C-6.1 cumulation with a 2.0 holiday multiplier -> 2.15, matches C-8.2",
+      "C-2.4 grade-as-of-first-day: WeeklyOvertime carries one week-level grade, so a mid-week grade change cannot be represented at all - which is what C-2.4 requires, so not a defect",
+      "C-8.1 stacking: grade 99 + critical incident + public holiday + night at ordinal 49 -> 2.0 + 0.15, single highest multiplier honoured",
+      "negative base_hourly_rate -> -37.50, garbage propagates but no clause governs it",
+      "C-7.2 unreachability: greater-of always resolves to limb (a); branch is value-identical to c7_1 (reported as AMBIGUITY)",
+      "grade 5 + public holiday hour > 40: paid 2.0 and accrues 1h TOIL simultaneously (reported as AMBIGUITY)",
+      "multiplier-vs-ordinary-salary: C-7.1's 2.0 used both as a whole rate (hour 41) and as an addition to salary (hour 20)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "WeeklyOvertime"
+    },
+    "fact_pattern": "An Employee of Grade 3 works exactly the ordinary working week of 40 hours. One of those hours (the 20th) is worked on a Gazetted Public Holiday. No hour is worked in excess of 40, none at night, none on Critical Incident Response. Base Hourly Rate is 30.00, i.e. annual base salary of 62,400 divided by 2,080.",
+    "inputs": {
+      "hours": [
+        {
+          "ordinal": 1,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 2,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 3,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 4,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 5,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 6,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 7,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 8,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 9,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 10,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 11,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 12,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 13,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 14,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 15,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 16,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 17,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 18,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 19,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 20,
+          "is_public_holiday": true,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 21,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 22,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 23,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 24,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 25,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 26,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 27,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 28,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 29,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 30,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 31,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 32,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 33,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 34,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 35,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 36,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 37,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 38,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 39,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        },
+        {
+          "ordinal": 40,
+          "is_public_holiday": false,
+          "is_critical_incident": false,
+          "is_night": false
+        }
+      ],
+      "base_hourly_rate": 30.0,
+      "grade": 3,
+      "has_standing_shift_allowance": false
+    },
+    "expected": {
+      "overtime_payment": 30.0,
+      "toil_hours": 0.0
+    },
+    "observed": {
+      "overtime_payment": 60.0,
+      "toil_hours": 0.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-2.1",
+      "EMP-ANNEX-C C-3.1",
+      "EMP-ANNEX-C C-4.1"
+    ],
+    "source_reasoning": "C-7.1 fixes the rate at which the holiday hour 'is calculated' at 2.0 times the Base Hourly Rate: the hour must end up worth exactly 2.0 x 30.00 = 60.00 and no more. C-2.1 defines the Base Hourly Rate as annual base salary divided by 2,080 and C-3.1 fixes the ordinary working week at 40 hours; 40 x 52 = 2,080, so base salary already compensates each hour inside the ordinary 40 at exactly 1.0 x Base Hourly Rate. The 20th hour is inside the ordinary 40, so 30.00 of the 60.00 is already paid by salary and the further sum payable under C-7.1 is 30.00. The module's own baseline concedes this premise: it returns 0.0 for an ordinary hour (probed: ordinal 20, no flags -> total_rate 0.0), which is only a correct figure if the number returned is the sum payable on top of salary, since an hour actually worked is certainly not worth nothing. The module then abandons that convention for C-7.1 and returns the full 2.0 in the same slot, so the holiday hour is worth 1.0 (salary) + 2.0 (module) = 3.0 x Base Hourly Rate, contradicting C-7.1's '2.0 times'. The inconsistency is internal to a single clause: probed at ordinal 41 the module also returns 2.0 for a holiday hour, and there the 2.0 is the whole value of the hour because the 41st hour lies outside the ordinary 40 and draws nothing from salary (C-4.1 treats such hours as separately payable). The identical figure 2.0 is thus used as a total in one case and as an addition to salary in the other. Either the ordinary hour's 0.0 is wrong or the holiday hour's 2.0 is; C-7.1 states a number for the holiday hour and Annex C states none for the ordinary hour, so it is the holiday figure that is compelled and the module that is wrong.",
+    "attacks_tried": [
+      "aggregate: empty hours list (0 hours) -> 0.0/0.0, defensible",
+      "aggregate: single hour labelled ordinal 41 (1 hour worked) -> 37.50, premium paid for hours nobody worked",
+      "aggregate: sparse list [41,49] (2 hours worked) -> 82.50, both C-4.1 and C-4.2 fired on a 2-hour week",
+      "aggregate: 41-entry list whose 41st entry is labelled ordinal 49 -> C-4.2's 1.5 fired in a 41-hour week",
+      "aggregate: 50-entry list with per-day ordinals 1..10 x5 -> 0.00, C-4.1 never fired on a 50-hour week",
+      "aggregate: duplicate ordinals 41,41,41 inside an otherwise complete 43-hour timesheet -> same total as 41,42,43, harmless in isolation",
+      "aggregate: ordinals out of order -> map is order-insensitive, no effect",
+      "ordinal 0 and -5 -> multiplier 0.0, no Catala error (fail-soft, defensible)",
+      "ordinal 169, 200, 1000000 (beyond the 168 hours in a Payroll Week under C-2.2) -> 1.5 silently, no validation",
+      "boundary sweep grade 4 vs 5 at ordinal 45 -> 1.25 vs 0.0+TOIL, matches C-5.1",
+      "grade 0 and grade -1 -> treated as below 5, matches C-5.1's 'Grade 5 or above'",
+      "C-6.2 applied per-employee in WeeklyOvertime (single input, no per-hour field) - matches the text's 'an Employee who receives'",
+      "C-6.2 with is_night true + allowance -> night_premium 0.0, multiplier untouched, matches C-6.2 read narrowly onto C-6.1",
+      "C-6.1 cumulation with a 2.0 holiday multiplier -> 2.15, matches C-8.2",
+      "C-2.4 grade-as-of-first-day: WeeklyOvertime carries one week-level grade, so a mid-week grade change cannot be represented at all - which is what C-2.4 requires, so not a defect",
+      "C-8.1 stacking: grade 99 + critical incident + public holiday + night at ordinal 49 -> 2.0 + 0.15, single highest multiplier honoured",
+      "negative base_hourly_rate -> -37.50, garbage propagates but no clause governs it",
+      "C-7.2 unreachability: greater-of always resolves to limb (a); branch is value-identical to c7_1 (reported as AMBIGUITY)",
+      "grade 5 + public holiday hour > 40: paid 2.0 and accrues 1h TOIL simultaneously (reported as AMBIGUITY)",
+      "multiplier-vs-ordinary-salary: C-7.1's 2.0 used both as a whole rate (hour 41) and as an addition to salary (hour 20)"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "HourPremium"
+    },
+    "fact_pattern": "An Employee of Grade 3 works an hour on a Gazetted Public Holiday which is also an hour worked in excess of 48 hours in the Payroll Week (ordinal 49). C-7.2 presents itself as an exception to C-7.1 and directs the greater of (a) 2.0 times the Base Hourly Rate and (b) the rate determined under C-4.2 plus 0.25.",
+    "inputs": {
+      "ordinal": 49,
+      "grade": 3,
+      "is_public_holiday": true,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+    },
+    "expected": "Indeterminate from the text. C-7.2 is drafted as an exception, i.e. as a provision intended to displace C-7.1's result, but on its literal arithmetic limb (b) is 1.5 + 0.25 = 1.75, which is less than limb (a)'s 2.0 for every possible input. The greater-of therefore always resolves to 2.0 and C-7.2 can never alter the outcome of C-7.1. The document does not disclose which of the available readings the drafter intended: (i) 1.5 + 0.25 = 1.75, making the exception inoperative as drafted; (ii) an uplift of 0.25 applied to the C-7.1 rate rather than the C-4.2 rate, giving 2.25; or (iii) the C-4.2 rate applied cumulatively with a 0.25 holiday uplift on top of C-7.1. Only (i) leaves C-7.2 with no work to do, and a drafter does not normally enact an exception that cannot change any result.",
+    "observed": {
+      "accrues_toil": false,
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "total_rate": 2.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-7.2",
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-4.2",
+      "EMP-ANNEX-C C-8.1"
+    ],
+    "source_reasoning": "The module encodes limb (b) as the constant expression 'if 2.0 > (1.5 + 0.25) then 2.0 else (1.5 + 0.25)', which is 2.0 unconditionally, so its c7_2 branch is value-identical to its c7_1 branch and no input can distinguish them (probed: ordinal 49 with is_public_holiday true returns 2.0, exactly as ordinal 20 and ordinal 41 with the same flag do). That is faithful to the literal words of C-7.2, so there is no citable compulsion for a different number and this is not a BREAK. The finding is against the document: C-7.2 is an inoperative exception, and an inoperative exception is a drafting defect that People Operations should resolve, because the moment C-4.2's 1.5 is ever amended upward past 1.75 the clause silently comes to life. Reported as an unreachable-branch observation under PROTOCOL strategy 9: the branch fires but cannot change a result, and the scenario its drafter evidently intended - a 48-plus holiday hour attracting more than the flat 2.0 - routes to the flat 2.0 instead.",
+    "attacks_tried": [
+      "aggregate: empty hours list (0 hours) -> 0.0/0.0, defensible",
+      "aggregate: single hour labelled ordinal 41 (1 hour worked) -> 37.50, premium paid for hours nobody worked",
+      "aggregate: sparse list [41,49] (2 hours worked) -> 82.50, both C-4.1 and C-4.2 fired on a 2-hour week",
+      "aggregate: 41-entry list whose 41st entry is labelled ordinal 49 -> C-4.2's 1.5 fired in a 41-hour week",
+      "aggregate: 50-entry list with per-day ordinals 1..10 x5 -> 0.00, C-4.1 never fired on a 50-hour week",
+      "aggregate: duplicate ordinals 41,41,41 inside an otherwise complete 43-hour timesheet -> same total as 41,42,43, harmless in isolation",
+      "aggregate: ordinals out of order -> map is order-insensitive, no effect",
+      "ordinal 0 and -5 -> multiplier 0.0, no Catala error (fail-soft, defensible)",
+      "ordinal 169, 200, 1000000 (beyond the 168 hours in a Payroll Week under C-2.2) -> 1.5 silently, no validation",
+      "boundary sweep grade 4 vs 5 at ordinal 45 -> 1.25 vs 0.0+TOIL, matches C-5.1",
+      "grade 0 and grade -1 -> treated as below 5, matches C-5.1's 'Grade 5 or above'",
+      "C-6.2 applied per-employee in WeeklyOvertime (single input, no per-hour field) - matches the text's 'an Employee who receives'",
+      "C-6.2 with is_night true + allowance -> night_premium 0.0, multiplier untouched, matches C-6.2 read narrowly onto C-6.1",
+      "C-6.1 cumulation with a 2.0 holiday multiplier -> 2.15, matches C-8.2",
+      "C-2.4 grade-as-of-first-day: WeeklyOvertime carries one week-level grade, so a mid-week grade change cannot be represented at all - which is what C-2.4 requires, so not a defect",
+      "C-8.1 stacking: grade 99 + critical incident + public holiday + night at ordinal 49 -> 2.0 + 0.15, single highest multiplier honoured",
+      "negative base_hourly_rate -> -37.50, garbage propagates but no clause governs it",
+      "C-7.2 unreachability: greater-of always resolves to limb (a); branch is value-identical to c7_1 (reported as AMBIGUITY)",
+      "grade 5 + public holiday hour > 40: paid 2.0 and accrues 1h TOIL simultaneously (reported as AMBIGUITY)",
+      "multiplier-vs-ordinary-salary: C-7.1's 2.0 used both as a whole rate (hour 41) and as an addition to salary (hour 20)"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "overtime",
+      "path": "catala/modules/overtime.catala_en",
+      "scope": "HourPremium"
+    },
+    "fact_pattern": "An Employee of Grade 5 works an hour in excess of 40 hours in the Payroll Week on a Gazetted Public Holiday. The hour is not Critical Incident Response. The module pays the hour at 2.0 times the Base Hourly Rate under C-7.1 and simultaneously accrues one hour of time off in lieu under C-5.1, so the Employee is compensated twice for the same hour.",
+    "inputs": {
+      "ordinal": 41,
+      "grade": 5,
+      "is_public_holiday": true,
+      "is_critical_incident": false,
+      "is_night": false,
+      "has_standing_shift_allowance": false
+    },
+    "expected": "Indeterminate from the text. Two readings are each defensible and the document does not choose between them. Reading 1 (no TOIL): C-5.1's TOIL is expressly compensation for an Employee who 'is not entitled to an overtime payment'; where C-8.1 selects C-7.1's 2.0 as the single highest applicable multiplier, C-5.1 does not apply to that hour and its TOIL limb falls with it, so accrues_toil should be false. Reading 2 (TOIL): C-8.1 by its terms governs only which multiplier applies and says nothing about TOIL, and C-5.1's accrual sentence is unqualified for any hour worked in excess of 40 by a Grade 5 Employee, so the accrual survives alongside the C-7.1 payment.",
+    "observed": {
+      "accrues_toil": true,
+      "multiplier": 2.0,
+      "night_premium": 0.0,
+      "total_rate": 2.0
+    },
+    "citations": [
+      "EMP-ANNEX-C C-5.1",
+      "EMP-ANNEX-C C-5.2",
+      "EMP-ANNEX-C C-7.1",
+      "EMP-ANNEX-C C-8.1"
+    ],
+    "source_reasoning": "The module resolves the question inconsistently across the two provisions that restore a payment to a Grade 5 Employee. Where C-5.2 restores a C-4 payment for Critical Incident Response, the module extinguishes the TOIL accrual (probed: ordinal 41, grade 5, critical incident -> multiplier 1.25, accrues_toil false). Where C-7.1 pays the same Employee at the higher rate of 2.0, the module keeps the TOIL accrual (probed: ordinal 41, grade 5, public holiday -> multiplier 2.0, accrues_toil true). The asymmetry has a textual footing - C-5.2 opens 'Notwithstanding C-5.1' and so displaces the whole of C-5.1 including its accrual sentence, whereas C-7.1 mentions only C-4 and says nothing about C-5 - so no clause compels the opposite answer and this is not a BREAK. But the result is that the Grade 5 Employee who works a public holiday beyond 40 hours is paid twice over for one hour while the Grade 5 Employee who answers a Severity 1 incident is paid once, and Annex C nowhere states that outcome. C-8.1 is the obvious place the drafter would have resolved it and it speaks only of multipliers. The document should say whether C-5.1 TOIL accrues on an hour for which a C-7 payment is made.",
+    "attacks_tried": [
+      "aggregate: empty hours list (0 hours) -> 0.0/0.0, defensible",
+      "aggregate: single hour labelled ordinal 41 (1 hour worked) -> 37.50, premium paid for hours nobody worked",
+      "aggregate: sparse list [41,49] (2 hours worked) -> 82.50, both C-4.1 and C-4.2 fired on a 2-hour week",
+      "aggregate: 41-entry list whose 41st entry is labelled ordinal 49 -> C-4.2's 1.5 fired in a 41-hour week",
+      "aggregate: 50-entry list with per-day ordinals 1..10 x5 -> 0.00, C-4.1 never fired on a 50-hour week",
+      "aggregate: duplicate ordinals 41,41,41 inside an otherwise complete 43-hour timesheet -> same total as 41,42,43, harmless in isolation",
+      "aggregate: ordinals out of order -> map is order-insensitive, no effect",
+      "ordinal 0 and -5 -> multiplier 0.0, no Catala error (fail-soft, defensible)",
+      "ordinal 169, 200, 1000000 (beyond the 168 hours in a Payroll Week under C-2.2) -> 1.5 silently, no validation",
+      "boundary sweep grade 4 vs 5 at ordinal 45 -> 1.25 vs 0.0+TOIL, matches C-5.1",
+      "grade 0 and grade -1 -> treated as below 5, matches C-5.1's 'Grade 5 or above'",
+      "C-6.2 applied per-employee in WeeklyOvertime (single input, no per-hour field) - matches the text's 'an Employee who receives'",
+      "C-6.2 with is_night true + allowance -> night_premium 0.0, multiplier untouched, matches C-6.2 read narrowly onto C-6.1",
+      "C-6.1 cumulation with a 2.0 holiday multiplier -> 2.15, matches C-8.2",
+      "C-2.4 grade-as-of-first-day: WeeklyOvertime carries one week-level grade, so a mid-week grade change cannot be represented at all - which is what C-2.4 requires, so not a defect",
+      "C-8.1 stacking: grade 99 + critical incident + public holiday + night at ordinal 49 -> 2.0 + 0.15, single highest multiplier honoured",
+      "negative base_hourly_rate -> -37.50, garbage propagates but no clause governs it",
+      "C-7.2 unreachability: greater-of always resolves to limb (a); branch is value-identical to c7_1 (reported as AMBIGUITY)",
+      "grade 5 + public holiday hour > 40: paid 2.0 and accrues 1h TOIL simultaneously (reported as AMBIGUITY)",
+      "multiplier-vs-ordinary-salary: C-7.1's 2.0 used both as a whole rate (hour 41) and as an addition to salary (hour 20)"
+    ]
+  }
+]

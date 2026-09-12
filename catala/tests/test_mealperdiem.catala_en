@@ -1,0 +1,1002 @@
+# Tests — EXP-POL E-3 meal per diem, and the E-7.2 uplift
+
+Assertion-based tests for `MealPerDiem.MealPerDiemForDay`. Every branch of the
+exception chain `e3_1 <- e3_2 <- e3_3` on `per_diem_cap` is exercised, together
+with the `e7_2` exception on `per_diem_under_e3_1`, the E-3.4 reduction
+(including its floor at nil) and the E-3.5 nil case.
+
+Both sides of every threshold are pinned: each of the three City Tiers, the
+E-3.2 fork between a statement of work that specifies an amount and one that
+does not, E-3.3's "higher amount" test just above and just below the amount
+E-3.1/E-3.2 would otherwise give, and each of E-2.4's three conjuncts failing
+in turn so that an invalid Pre-Approval cannot silently displace the cap.
+
+`TestE7_2_ClientBillable_ReadingA` is the test that pins the interpretive
+choice recorded in the NOTE on E-7.2 in the module: it asserts £142.50, the
+reading on which E-7.2 amends the E-3.1 figure before E-3.2 multiplies it.
+Reading (B) would make that same fact pattern £132.50.
+
+Counterexamples found by the adversarial reviewer are kept separately, in
+`tests/counterexamples/`, and are re-run by `scripts/check.sh`.
+
+> Using ExpenseDefs
+
+> Using MealPerDiem
+
+## Fixtures
+
+Input values reused across the tests below. They encode no clause; they exist
+so that each test states only the facts it is about.
+
+```catala
+declaration not_client_billable content ExpenseDefs.ClientBillable equals
+  ExpenseDefs.ClientBillable {
+    -- is_client_billable: false
+    -- sow_per_diem: Absent
+  }
+
+declaration client_billable_no_sow_amount content ExpenseDefs.ClientBillable
+  equals
+  ExpenseDefs.ClientBillable {
+    -- is_client_billable: true
+    -- sow_per_diem: Absent
+  }
+
+declaration client_billable_with_sow content ExpenseDefs.ClientBillable
+  depends on amount content money
+  equals
+  ExpenseDefs.ClientBillable {
+    -- is_client_billable: true
+    -- sow_per_diem: Present content amount
+  }
+
+declaration no_pre_approval content ExpenseDefs.PreApproval equals
+  ExpenseDefs.PreApproval {
+    -- obtained: false
+    -- in_writing: false
+    -- obtained_at: |2025-06-09|
+    -- approver_authority_limit: $0.00
+    -- specified_amount: Absent
+  }
+
+declaration pre_approval_for content ExpenseDefs.PreApproval
+  depends on amount content money
+  equals
+  ExpenseDefs.PreApproval {
+    -- obtained: true
+    -- in_writing: true
+    -- obtained_at: |2025-06-09|
+    -- approver_authority_limit: $1,000.00
+    -- specified_amount: Present content amount
+  }
+```
+
+## E3_1_Tier1
+
+E-3.1(a): £75 on a Tier 1 Travel Day. The Employee spent £100, so the cap
+governs.
+
+```catala
+#[test]
+declaration scope TestE3_1_Tier1:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_1_Tier1:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $100.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+  assertion r.adjusted_per_diem = $75.00
+  assertion r.reimbursable_amount = $75.00
+```
+
+## E3_1_Tier2
+
+E-3.1(b): £55.
+
+```catala
+#[test]
+declaration scope TestE3_1_Tier2:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_1_Tier2:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier2
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $100.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $55.00
+  assertion r.reimbursable_amount = $55.00
+```
+
+## E3_1_Tier3
+
+E-3.1(c): £40.
+
+```catala
+#[test]
+declaration scope TestE3_1_Tier3:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_1_Tier3:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier3
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $100.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $40.00
+  assertion r.reimbursable_amount = $40.00
+```
+
+## E3_1_SpendBelowTheCap
+
+E-3.1 reimburses "meal expenses ... up to" the cap, so a smaller spend is
+reimbursed in full and the cap is not an allowance.
+
+```catala
+#[test]
+declaration scope TestE3_1_SpendBelowTheCap:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_1_SpendBelowTheCap:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $30.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+  assertion r.reimbursable_amount = $30.00
+```
+
+## E3_1_SpendExactlyAtTheCap
+
+Boundary: a spend equal to the cap is reimbursed in full.
+
+```catala
+#[test]
+declaration scope TestE3_1_SpendExactlyAtTheCap:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_1_SpendExactlyAtTheCap:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $75.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.reimbursable_amount = $75.00
+```
+
+## E3_1_SpendAPennyAboveTheCap
+
+Boundary, other side.
+
+```catala
+#[test]
+declaration scope TestE3_1_SpendAPennyAboveTheCap:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_1_SpendAPennyAboveTheCap:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $75.01
+      -- on_critical_incident_response: false
+    }
+  assertion r.reimbursable_amount = $75.00
+```
+
+## E3_5_NoMealExpenseIncurred
+
+E-3.5: nil per diem where no meal expense was incurred. The cap is still
+computed — the clause removes the payment, not the cap.
+
+```catala
+#[test]
+declaration scope TestE3_5_NoMealExpenseIncurred:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_5_NoMealExpenseIncurred:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $0.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+  assertion r.adjusted_per_diem = $75.00
+  assertion r.reimbursable_amount = $0.00
+```
+
+## E3_5_APennyOfMealExpense
+
+Boundary, other side of E-3.5: any meal expense at all engages the entitlement.
+
+```catala
+#[test]
+declaration scope TestE3_5_APennyOfMealExpense:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_5_APennyOfMealExpense:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $0.01
+      -- on_critical_incident_response: false
+    }
+  assertion r.reimbursable_amount = $0.01
+```
+
+## E3_2_ClientBillableNoSowAmount
+
+E-3.2 second limb: 1.5 times the E-3.1 amount where the statement of work
+specifies none. 1.5 x £75 = £112.50.
+
+```catala
+#[test]
+declaration scope TestE3_2_ClientBillableNoSowAmount:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_2_ClientBillableNoSowAmount:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: client_billable_no_sow_amount
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $112.50
+  assertion r.reimbursable_amount = $112.50
+```
+
+## E3_2_ClientBillableTier3NoSowAmount
+
+The 1.5x multiplier applies to the tier actually in point: 1.5 x £40 = £60.
+
+```catala
+#[test]
+declaration scope TestE3_2_ClientBillableTier3NoSowAmount:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_2_ClientBillableTier3NoSowAmount:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier3
+      -- client_billable: client_billable_no_sow_amount
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $60.00
+```
+
+## E3_2_SowAmountGovernsEvenWhenLower
+
+E-3.2 first limb: where the statement of work specifies an amount, "the
+applicable per diem is the amount specified" — the clause neither floors it at
+the E-3.1 figure nor compares it to the 1.5x fallback.
+
+```catala
+#[test]
+declaration scope TestE3_2_SowAmountGovernsEvenWhenLower:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_2_SowAmountGovernsEvenWhenLower:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: client_billable_with_sow of $40.00
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $40.00
+```
+
+## E3_3_PreApprovedHigherAmountNotClientBillable
+
+E-3.3 is an exception to E-3.1 as well as to E-3.2, so it must fire on travel
+that is not Client-Billable at all. If the encoding had wrongly repeated E-3.2's
+condition in the exception, this test would return £75.
+
+```catala
+#[test]
+declaration scope TestE3_3_PreApprovedHigherAmountNotClientBillable:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_PreApprovedHigherAmountNotClientBillable:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: pre_approval_for of $150.00
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $150.00
+  assertion r.reimbursable_amount = $150.00
+```
+
+## E3_3_PreApprovedHigherAmountDisplacesE3_2
+
+E-3.3 defeats E-3.2 as well: £150 beats the £112.50 that E-3.2 would give.
+
+```catala
+#[test]
+declaration scope TestE3_3_PreApprovedHigherAmountDisplacesE3_2:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_PreApprovedHigherAmountDisplacesE3_2:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: client_billable_no_sow_amount
+      -- pre_approval: pre_approval_for of $150.00
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $150.00
+```
+
+## E3_3_PreApprovedAmountNotHigherThanE3_1
+
+E-3.3 applies to a "specified **higher** amount". £60 is not higher than the
+£75 E-3.1 gives, so the E-3.1 cap stands and a Pre-Approval cannot cut the per
+diem down.
+
+```catala
+#[test]
+declaration scope TestE3_3_PreApprovedAmountNotHigherThanE3_1:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_PreApprovedAmountNotHigherThanE3_1:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: pre_approval_for of $60.00
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+```
+
+## E3_3_PreApprovedAmountExactlyTheE3_1Amount
+
+Boundary: £75 is not *higher* than £75, so E-3.3 does not fire.
+
+```catala
+#[test]
+declaration scope TestE3_3_PreApprovedAmountExactlyTheE3_1Amount:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_PreApprovedAmountExactlyTheE3_1Amount:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: pre_approval_for of $75.00
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+```
+
+## E3_3_PreApprovedAmountAPennyHigher
+
+Boundary, other side: £75.01 is higher, so E-3.3 fires.
+
+```catala
+#[test]
+declaration scope TestE3_3_PreApprovedAmountAPennyHigher:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_PreApprovedAmountAPennyHigher:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: pre_approval_for of $75.01
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.01
+```
+
+## E3_3_HigherIsMeasuredAgainstTheE3_2Amount
+
+On Client-Billable Travel the amount E-3.3 must beat is E-3.2's £112.50, not
+E-3.1's £75. A £100 approval is higher than £75 but lower than £112.50, so
+E-3.2 still governs.
+
+```catala
+#[test]
+declaration scope TestE3_3_HigherIsMeasuredAgainstTheE3_2Amount:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_HigherIsMeasuredAgainstTheE3_2Amount:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: client_billable_no_sow_amount
+      -- pre_approval: pre_approval_for of $100.00
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $112.50
+```
+
+## E3_3_ApprovalNotInWriting
+
+E-3.3's trigger is E-2.4 Pre-Approval, so an oral approval for £150 does not
+displace the cap.
+
+```catala
+#[test]
+declaration scope TestE3_3_ApprovalNotInWriting:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_ApprovalNotInWriting:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: false
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $1,000.00
+           -- specified_amount: Present content $150.00
+         }
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+```
+
+## E3_3_ApproverAuthorityBelowTheApprovedAmount
+
+An approver authorised to £100 cannot give E-2.4 Pre-Approval for £150.
+
+```catala
+#[test]
+declaration scope TestE3_3_ApproverAuthorityBelowTheApprovedAmount:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_ApproverAuthorityBelowTheApprovedAmount:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $100.00
+           -- specified_amount: Present content $150.00
+         }
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+```
+
+## E3_3_ApprovalObtainedOnTheDayOfTheExpense
+
+E-2.4 requires the approval to have been obtained before the expense was
+incurred.
+
+```catala
+#[test]
+declaration scope TestE3_3_ApprovalObtainedOnTheDayOfTheExpense:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_ApprovalObtainedOnTheDayOfTheExpense:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-10|
+           -- approver_authority_limit: $1,000.00
+           -- specified_amount: Present content $150.00
+         }
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+```
+
+## E3_3_ApprovalWithNoSpecifiedAmount
+
+E-3.3 needs an approval "for a specified higher amount"; a bare approval with
+no figure leaves the cap where it was.
+
+```catala
+#[test]
+declaration scope TestE3_3_ApprovalWithNoSpecifiedAmount:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_3_ApprovalWithNoSpecifiedAmount:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $1,000.00
+           -- specified_amount: Absent
+         }
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+```
+
+## E3_4_OneFreeMeal
+
+E-3.4: £15 off the day's per diem for one free meal. £75 - £15 = £60.
+
+```catala
+#[test]
+declaration scope TestE3_4_OneFreeMeal:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_4_OneFreeMeal:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 1
+      -- meal_expense_incurred: $100.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $75.00
+  assertion r.adjusted_per_diem = $60.00
+  assertion r.reimbursable_amount = $60.00
+```
+
+## E3_4_ThreeFreeMeals
+
+"In respect of each such meal": the deduction is per meal. £75 - £45 = £30.
+
+```catala
+#[test]
+declaration scope TestE3_4_ThreeFreeMeals:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_4_ThreeFreeMeals:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 3
+      -- meal_expense_incurred: $100.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.adjusted_per_diem = $30.00
+  assertion r.reimbursable_amount = $30.00
+```
+
+## E3_4_DeductionExactlyExhaustsTheCap
+
+Boundary: £40 in a Tier 3 city less £30 for two free meals is £10, and a third
+free meal would take it past nil.
+
+```catala
+#[test]
+declaration scope TestE3_4_DeductionExactlyExhaustsTheCap:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_4_DeductionExactlyExhaustsTheCap:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier3
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 2
+      -- meal_expense_incurred: $100.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.adjusted_per_diem = $10.00
+  assertion r.reimbursable_amount = $10.00
+```
+
+## E3_4_DeductionFlooredAtNil
+
+Boundary, other side: £40 less £45 for three free meals is floored at nil, not
+negative.
+
+```catala
+#[test]
+declaration scope TestE3_4_DeductionFlooredAtNil:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_4_DeductionFlooredAtNil:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier3
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 3
+      -- meal_expense_incurred: $100.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.adjusted_per_diem = $0.00
+  assertion r.reimbursable_amount = $0.00
+```
+
+## E3_4_AppliesToTheE3_2Figure
+
+Order of operations: the £15 comes off the per diem the hierarchy selected, so
+on Client-Billable Travel it is £112.50 - £15 = £97.50. Deducting before the
+1.5x multiplier would give £90.00.
+
+```catala
+#[test]
+declaration scope TestE3_4_AppliesToTheE3_2Figure:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_4_AppliesToTheE3_2Figure:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: client_billable_no_sow_amount
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 1
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $112.50
+  assertion r.adjusted_per_diem = $97.50
+```
+
+## E3_4_AppliesToTheE3_3Figure
+
+Order of operations: where E-3.3 has substituted a Pre-Approved amount, E-3.4
+still reduces "the per diem for that Travel Day" — £150 - £15 = £135.
+
+```catala
+#[test]
+declaration scope TestE3_4_AppliesToTheE3_3Figure:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_4_AppliesToTheE3_3Figure:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: pre_approval_for of $150.00
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 1
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $150.00
+  assertion r.adjusted_per_diem = $135.00
+```
+
+## E3_4_ReducedCapStillCappedByActualSpend
+
+E-3.4 reduces the cap; E-3.1's "up to" still applies to the reduced figure.
+
+```catala
+#[test]
+declaration scope TestE3_4_ReducedCapStillCappedByActualSpend:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE3_4_ReducedCapStillCappedByActualSpend:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 1
+      -- meal_expense_incurred: $20.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.adjusted_per_diem = $60.00
+  assertion r.reimbursable_amount = $20.00
+```
+
+## E7_2_Tier1Uplift
+
+E-7.2: the E-3.1 per diem is increased by £20 on a Critical Incident Response
+Travel Day. £75 + £20 = £95.
+
+```catala
+#[test]
+declaration scope TestE7_2_Tier1Uplift:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE7_2_Tier1Uplift:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: true
+    }
+  assertion r.per_diem_cap = $95.00
+  assertion r.reimbursable_amount = $95.00
+```
+
+## E7_2_Tier3Uplift
+
+The £20 is a flat amount, not a percentage: £40 + £20 = £60.
+
+```catala
+#[test]
+declaration scope TestE7_2_Tier3Uplift:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE7_2_Tier3Uplift:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier3
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: true
+    }
+  assertion r.per_diem_cap = $60.00
+```
+
+## E7_2_NoPreApprovalRequired
+
+"Pre-Approval is not required for that increase": the fixture supplies no
+approval of any kind, and the uplift is still given.
+
+```catala
+#[test]
+declaration scope TestE7_2_NoPreApprovalRequired:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE7_2_NoPreApprovalRequired:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier2
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: true
+    }
+  assertion r.per_diem_cap = $75.00
+```
+
+## E7_2_NotOnCriticalIncidentResponse
+
+Boundary, other side: no Critical Incident Response, no uplift.
+
+```catala
+#[test]
+declaration scope TestE7_2_NotOnCriticalIncidentResponse:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE7_2_NotOnCriticalIncidentResponse:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier2
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $200.00
+      -- on_critical_incident_response: false
+    }
+  assertion r.per_diem_cap = $55.00
+```
+
+## E7_2_ClientBillable_ReadingA
+
+**This test pins the interpretive choice recorded in the NOTE on E-7.2.**
+
+Tier 1, Critical Incident Response, Client-Billable Travel with no amount
+specified in the statement of work. Reading (A), adopted: E-7.2 amends the
+amount "under E-3.1" to £95 and E-3.2 multiplies that, giving £142.50. Reading
+(B), rejected: the uplift attaches to the applicable per diem, giving
+1.5 x £75 + £20 = £132.50.
+
+```catala
+#[test]
+declaration scope TestE7_2_ClientBillable_ReadingA:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE7_2_ClientBillable_ReadingA:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: client_billable_no_sow_amount
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $300.00
+      -- on_critical_incident_response: true
+    }
+  assertion r.per_diem_cap = $142.50
+```
+
+## E7_2_ClientBillableWithSowAmount
+
+Where the statement of work specifies an amount, E-3.2's first limb takes it
+outright and there is no "amount under E-3.1" left for the uplift to travel
+through. This is the one place where readings (A) and (B) visibly diverge in the
+Employee's favour under (B), and it is recorded rather than hidden.
+
+```catala
+#[test]
+declaration scope TestE7_2_ClientBillableWithSowAmount:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE7_2_ClientBillableWithSowAmount:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: client_billable_with_sow of $200.00
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $300.00
+      -- on_critical_incident_response: true
+    }
+  assertion r.per_diem_cap = $200.00
+```
+
+## E7_2_UpliftRaisesTheBarForE3_3
+
+Under reading (A) the uplift also raises the figure E-3.3's "higher amount" must
+beat: a £90 approval beats the unuplifted £75 but not the uplifted £95, so the
+uplifted cap stands.
+
+```catala
+#[test]
+declaration scope TestE7_2_UpliftRaisesTheBarForE3_3:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE7_2_UpliftRaisesTheBarForE3_3:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: pre_approval_for of $90.00
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $300.00
+      -- on_critical_incident_response: true
+    }
+  assertion r.per_diem_cap = $95.00
+```
+
+## E7_2_PreApprovalStillBeatsTheUpliftedFigure
+
+Boundary, other side: £150 beats £95, so E-3.3 substitutes it and the uplift is
+subsumed.
+
+```catala
+#[test]
+declaration scope TestE7_2_PreApprovalStillBeatsTheUpliftedFigure:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE7_2_PreApprovalStillBeatsTheUpliftedFigure:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: pre_approval_for of $150.00
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 0
+      -- meal_expense_incurred: $300.00
+      -- on_critical_incident_response: true
+    }
+  assertion r.per_diem_cap = $150.00
+```
+
+## E7_2_UpliftWithFreeMealsAndE3_5
+
+The stages compose: uplifted cap £95, less £15 for one free meal, capped by a
+£50 spend.
+
+```catala
+#[test]
+declaration scope TestE7_2_UpliftWithFreeMealsAndE3_5:
+  output r content MealPerDiem.MealPerDiemForDay
+
+scope TestE7_2_UpliftWithFreeMealsAndE3_5:
+  definition r equals
+    output of MealPerDiem.MealPerDiemForDay with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- client_billable: not_client_billable
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+      -- meals_provided_free: 1
+      -- meal_expense_incurred: $50.00
+      -- on_critical_incident_response: true
+    }
+  assertion r.per_diem_cap = $95.00
+  assertion r.adjusted_per_diem = $80.00
+  assertion r.reimbursable_amount = $50.00
+```

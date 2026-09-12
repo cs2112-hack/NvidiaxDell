@@ -249,7 +249,7 @@ def _node_from_json(d: dict[str, Any], normalise_labels: bool) -> ExceptionNode:
     )
     # Sibling order is not semantically meaningful; sort so it cannot cause a
     # spurious diff.
-    node.exceptions.sort(key=lambda n: (n.label, tuple(n.conditions)))
+    node.exceptions.sort(key=lambda n: (tuple(n.conditions), n.label))
     return node
 
 
@@ -271,8 +271,34 @@ def exception_tree(
     out = proc.stdout[proc.stdout.find("{") :]
     data = json.loads(out)
     trees = [_node_from_json(t, normalise_labels) for t in data.get("trees", [])]
-    trees.sort(key=lambda n: (n.label, tuple(n.conditions)))
+    trees.sort(key=lambda n: (tuple(n.conditions), n.label))
     return trees
+
+
+def structural_signature(trees: list[ExceptionNode]) -> str:
+    """Shape and conditions of an exception hierarchy, ignoring label names.
+
+    This is what decides whether two encodings agree about the law. Labels are
+    identifiers the author chose: `c4_1` and `over_40_rule` denote the same
+    node, and a comparison that counts them as different reports a difference
+    where there is none. The same argument that excludes scope names from
+    convergence (DECISIONS.md D-1) excludes labels, and for the same reason --
+    a loop driven by naming never terminates.
+
+    What is NOT ignored: depth, parent/child relationships, and the exact
+    condition attached to every node. Those are the law.
+    """
+
+    def emit(n: ExceptionNode, depth: int) -> list[str]:
+        rows = [f"{'  ' * depth}[{'; '.join(n.conditions)}]"]
+        for c in n.exceptions:
+            rows += emit(c, depth + 1)
+        return rows
+
+    rows: list[str] = []
+    for t in trees:
+        rows += emit(t, 0)
+    return "\n".join(rows)
 
 
 def tree_signature(trees: list[ExceptionNode]) -> str:

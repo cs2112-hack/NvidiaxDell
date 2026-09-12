@@ -1,0 +1,548 @@
+# Tests — MSA Schedule 4 Service Credits
+
+Assertion-based tests for `Service_credits`. The L-4.1 band table is a
+staircase whose boundaries are money, so every one of them is tested exactly
+on the boundary as well as one hundredth of a percentage point below it:
+99.90, 99.50, 99.00, 98.00 and 95.00. Each boundary is inclusive downwards
+("not less than 99.50%") and exclusive upwards ("less than 99.90%"), and
+getting either the wrong way round changes what the Customer is paid.
+
+99.90 is the case worth stating twice: L-4.1 engages only where the
+Availability Percentage is *less than* 99.90%, so at exactly 99.90% there is
+no credit at all — not band (a)'s 5%.
+
+L-4.3 is tested as the two-part override it is: below 95.00% both the cap and
+the credit become 50%, and neither alone would produce 50% of the Monthly
+Service Charge. L-4.4 is tested on both sides of "more than 30 days", with the
+`invoice_undisputed` judgement input both ways, and against an L-4.3 credit as
+well as an L-4.1 one.
+
+The last two tests run the L-2.3 rounding through to the money, because that
+is where the rounding rule is actually felt.
+
+> Using Availability
+> Using ServiceCredits
+
+## L2_7_MonthlyServiceCharge
+
+L-2.7: the three excluded categories come off the charges for the Service.
+
+```catala
+#[test]
+declaration scope TestL2_7_MonthlyServiceCharge:
+  output r content ServiceCredits.MonthlyServiceCharge
+
+scope TestL2_7_MonthlyServiceCharge:
+  definition r equals
+    output of ServiceCredits.MonthlyServiceCharge with {
+      -- charges_for_the_service: $12,000.00
+      -- one_off_charges: $1,000.00
+      -- professional_services_charges: $500.00
+      -- pass_through_charges: $200.00
+    }
+  assertion r.monthly_service_charge = $10,300.00
+```
+
+## L2_7_NothingToExclude
+
+L-2.7: with none of the three excluded categories present the base is the
+whole of the charges for the Service.
+
+```catala
+#[test]
+declaration scope TestL2_7_NothingToExclude:
+  output r content ServiceCredits.MonthlyServiceCharge
+
+scope TestL2_7_NothingToExclude:
+  definition r equals
+    output of ServiceCredits.MonthlyServiceCharge with {
+      -- charges_for_the_service: $10,000.00
+      -- one_off_charges: $0.00
+      -- professional_services_charges: $0.00
+      -- pass_through_charges: $0.00
+    }
+  assertion r.monthly_service_charge = $10,000.00
+```
+
+## L4_1_ServiceLevelMet
+
+L-4.1 base case: the Service Level was met, so no credit is payable.
+
+```catala
+#[test]
+declaration scope TestL4_1_ServiceLevelMet:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_ServiceLevelMet:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 99.99
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 0%
+  assertion r.credit_cap_percentage = 30%
+  assertion r.credit_payable_percentage = 0%
+  assertion r.credit_amount = $0.00
+```
+
+## L4_1_ExactlyNinetyNinePointNine
+
+L-4.1 engages only "where the Availability Percentage ... is less than
+99.90%". At exactly 99.90% the Service Level is met under L-3.1 and there is
+no credit — band (a) does not reach up to 99.90%.
+
+```catala
+#[test]
+declaration scope TestL4_1_ExactlyNinetyNinePointNine:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_ExactlyNinetyNinePointNine:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 99.90
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 0%
+  assertion r.credit_payable_percentage = 0%
+  assertion r.credit_amount = $0.00
+```
+
+## L4_1_BandA_JustBelow
+
+L-4.1(a): the first hundredth of a percentage point below the Service Level
+carries 5%.
+
+```catala
+#[test]
+declaration scope TestL4_1_BandA_JustBelow:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_BandA_JustBelow:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 99.89
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 5%
+  assertion r.credit_cap_percentage = 30%
+  assertion r.credit_payable_percentage = 5%
+  assertion r.credit_amount = $500.00
+```
+
+## L4_1_BandA_ExactlyNinetyNinePointFive
+
+L-4.1(a): "but not less than 99.50%" is inclusive, so exactly 99.50% is band
+(a) at 5% and not band (b) at 10%.
+
+```catala
+#[test]
+declaration scope TestL4_1_BandA_ExactlyNinetyNinePointFive:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_BandA_ExactlyNinetyNinePointFive:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 99.50
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 5%
+  assertion r.credit_amount = $500.00
+```
+
+## L4_1_BandB_JustBelowNinetyNinePointFive
+
+L-4.1(b): one hundredth lower and the credit doubles to 10%.
+
+```catala
+#[test]
+declaration scope TestL4_1_BandB_JustBelowNinetyNinePointFive:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_BandB_JustBelowNinetyNinePointFive:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 99.49
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 10%
+  assertion r.credit_amount = $1,000.00
+```
+
+## L4_1_BandB_ExactlyNinetyNine
+
+L-4.1(b): "but not less than 99.00%" is inclusive, so exactly 99.00% is band
+(b) at 10% and not band (c) at 20%.
+
+```catala
+#[test]
+declaration scope TestL4_1_BandB_ExactlyNinetyNine:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_BandB_ExactlyNinetyNine:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 99.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 10%
+  assertion r.credit_amount = $1,000.00
+```
+
+## L4_1_BandC_JustBelowNinetyNine
+
+L-4.1(c): 20%.
+
+```catala
+#[test]
+declaration scope TestL4_1_BandC_JustBelowNinetyNine:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_BandC_JustBelowNinetyNine:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 98.99
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 20%
+  assertion r.credit_amount = $2,000.00
+```
+
+## L4_1_BandC_ExactlyNinetyEight
+
+L-4.1(c): "but not less than 98.00%" is inclusive, so exactly 98.00% is band
+(c) at 20% and not band (d) at 30%.
+
+```catala
+#[test]
+declaration scope TestL4_1_BandC_ExactlyNinetyEight:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_BandC_ExactlyNinetyEight:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 98.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 20%
+  assertion r.credit_amount = $2,000.00
+```
+
+## L4_1_BandD_JustBelowNinetyEight
+
+L-4.1(d): 30%, which is also exactly the L-4.2 cap, so the cap does not bite.
+
+```catala
+#[test]
+declaration scope TestL4_1_BandD_JustBelowNinetyEight:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_BandD_JustBelowNinetyEight:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 97.99
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 30%
+  assertion r.credit_cap_percentage = 30%
+  assertion r.credit_payable_percentage = 30%
+  assertion r.credit_amount = $3,000.00
+```
+
+## L4_3_ExactlyNinetyFive
+
+L-4.3 applies where the Availability Percentage is "less than 95.00%", which
+is strict. At exactly 95.00% L-4.1(d) still governs: 30% credit, 30% cap.
+
+```catala
+#[test]
+declaration scope TestL4_3_ExactlyNinetyFive:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_3_ExactlyNinetyFive:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 95.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 30%
+  assertion r.credit_cap_percentage = 30%
+  assertion r.credit_payable_percentage = 30%
+  assertion r.credit_amount = $3,000.00
+```
+
+## L4_3_JustBelowNinetyFive
+
+L-4.3: one hundredth lower and both the credit and the cap become 50%. Both
+halves of L-4.3 are needed for this figure — with the cap left at 30% the
+payable percentage would be 30%, and with the credit left at band (d)'s 30%
+the raised cap would make no difference.
+
+```catala
+#[test]
+declaration scope TestL4_3_JustBelowNinetyFive:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_3_JustBelowNinetyFive:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 94.99
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 50%
+  assertion r.credit_cap_percentage = 50%
+  assertion r.credit_payable_percentage = 50%
+  assertion r.credit_amount = $5,000.00
+```
+
+## L4_3_FarBelowNinetyFive
+
+L-4.3: 50% is the whole of the remedy however bad the month, since L-4.3 also
+sets the maximum aggregate.
+
+```catala
+#[test]
+declaration scope TestL4_3_FarBelowNinetyFive:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_3_FarBelowNinetyFive:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 50.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 50%
+  assertion r.credit_cap_percentage = 50%
+  assertion r.credit_payable_percentage = 50%
+  assertion r.credit_amount = $5,000.00
+```
+
+## L4_4_ThirtyOneDaysInArrears
+
+L-4.4: "more than 30 days" in arrears of an undisputed invoice forfeits the
+credit entirely.
+
+```catala
+#[test]
+declaration scope TestL4_4_ThirtyOneDaysInArrears:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_4_ThirtyOneDaysInArrears:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 98.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 31
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 0%
+  assertion r.credit_payable_percentage = 0%
+  assertion r.credit_amount = $0.00
+```
+
+## L4_4_ThirtyDaysInArrears
+
+L-4.4: exactly 30 days is not "more than 30 days", so the band (c) credit
+survives.
+
+```catala
+#[test]
+declaration scope TestL4_4_ThirtyDaysInArrears:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_4_ThirtyDaysInArrears:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 98.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 30
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 20%
+  assertion r.credit_amount = $2,000.00
+```
+
+## L4_4_DisputedInvoice
+
+L-4.4 bites only on an "undisputed" invoice. That characterisation is the
+judgement input: with it false, long arrears forfeit nothing.
+
+```catala
+#[test]
+declaration scope TestL4_4_DisputedInvoice:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_4_DisputedInvoice:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 98.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 365
+      -- invoice_undisputed: false
+    }
+  assertion r.credit_percentage = 20%
+  assertion r.credit_amount = $2,000.00
+```
+
+## L4_4_DefeatsL4_3
+
+L-4.4 forfeits the credit "in respect of a Measurement Period", so it defeats
+L-4.3's 50% and not only the L-4.1 bands. The cap is unaffected — L-4.4 says
+nothing about the maximum aggregate — but there is nothing left to cap.
+
+```catala
+#[test]
+declaration scope TestL4_4_DefeatsL4_3:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_4_DefeatsL4_3:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 94.00
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 31
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 0%
+  assertion r.credit_cap_percentage = 50%
+  assertion r.credit_payable_percentage = 0%
+  assertion r.credit_amount = $0.00
+```
+
+## L4_4_ArrearsInAGoodMonth
+
+L-4.4 repeats L-4.1's condition, so in a month where the Service Level was met
+it changes nothing: the answer is already no credit, under L-4.1's base case
+rather than under L-4.4.
+
+```catala
+#[test]
+declaration scope TestL4_4_ArrearsInAGoodMonth:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_4_ArrearsInAGoodMonth:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 99.95
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 90
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 0%
+  assertion r.credit_amount = $0.00
+```
+
+## L4_1_CreditOnTheL2_7Base
+
+The percentage applies to the Monthly Service Charge as L-2.7 defines it, not
+to the gross charges: 20% of $10,300.00, not of $12,000.00.
+
+```catala
+#[test]
+declaration scope TestL4_1_CreditOnTheL2_7Base:
+  output r content ServiceCredits.ServiceCredit
+
+scope TestL4_1_CreditOnTheL2_7Base:
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: 98.50
+      -- monthly_service_charge:
+          (output of ServiceCredits.MonthlyServiceCharge with {
+             -- charges_for_the_service: $12,000.00
+             -- one_off_charges: $1,000.00
+             -- professional_services_charges: $500.00
+             -- pass_through_charges: $200.00
+           }).monthly_service_charge
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion r.credit_percentage = 20%
+  assertion r.credit_amount = $2,060.00
+```
+
+## Integration_RoundingDeniesTheCredit
+
+L-2.3 and L-4.1 together. A 30-day Measurement Period with 45 Unavailable
+Minutes is an unrounded 99.8958%, and the Availability Percentage — the
+rounded figure, which is what L-4.1 compares — is 99.90%. No credit.
+
+```catala
+#[test]
+declaration scope TestIntegration_RoundingDeniesTheCredit:
+  internal availability content decimal
+  output r content ServiceCredits.ServiceCredit
+
+scope TestIntegration_RoundingDeniesTheCredit:
+  definition availability equals
+    (output of Availability.AvailabilityPercentage with {
+       -- total_minutes: 43200
+       -- minutes_not_available: 45
+       -- excluded_minutes: 0
+       -- scheduled_maintenance_excess_minutes: 0
+     }).availability_percentage
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: availability
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion availability = 99.90
+  assertion r.credit_percentage = 0%
+  assertion r.credit_amount = $0.00
+```
+
+## Integration_OneMoreMinuteEarnsFivePercent
+
+One further Unavailable Minute gives an unrounded 99.8935%, an Availability
+Percentage of 99.89%, and a credit of 5% — $500.00 turning on a single
+minute and on the rounding rule in L-2.3.
+
+```catala
+#[test]
+declaration scope TestIntegration_OneMoreMinuteEarnsFivePercent:
+  internal availability content decimal
+  output r content ServiceCredits.ServiceCredit
+
+scope TestIntegration_OneMoreMinuteEarnsFivePercent:
+  definition availability equals
+    (output of Availability.AvailabilityPercentage with {
+       -- total_minutes: 43200
+       -- minutes_not_available: 46
+       -- excluded_minutes: 0
+       -- scheduled_maintenance_excess_minutes: 0
+     }).availability_percentage
+  definition r equals
+    output of ServiceCredits.ServiceCredit with {
+      -- availability_percentage: availability
+      -- monthly_service_charge: $10,000.00
+      -- arrears_days: 0
+      -- invoice_undisputed: true
+    }
+  assertion availability = 99.89
+  assertion r.credit_percentage = 5%
+  assertion r.credit_amount = $500.00
+```

@@ -1,0 +1,582 @@
+# Tests — MSA Schedule 4 chronic failure
+
+Assertion-based tests for `Chronic_failure`. L-6.1's two triggers are
+independent, so they are tested independently as well as together:
+
+  * three consecutive failing periods, and the two-in-a-row case that is one
+    short of it, and the case where a single good month breaks the run;
+  * four failing periods inside a rolling twelve-month window, with a pattern
+    that satisfies this trigger while never producing three in a row, and the
+    same four failures spread just too wide to fit any twelve-month window;
+  * the rolling window itself at exactly twelve months and at thirteen.
+
+"Less than 99.90%" is tested at exactly 99.90% (not a failure, and it breaks a
+run) and at 99.89%. L-6.2's 30-day exercise window is tested at day 30 and day
+31, both where notice has been given and where it has not, and the case where
+no right ever arose is tested with a far-future assessment date: a right that
+does not exist cannot lapse.
+
+> Using ChronicFailure
+
+## Helper
+
+A Measurement Period is a calendar month, identified by its first and last
+day. This constructor keeps the histories below readable; it encodes nothing.
+
+```catala
+declaration mp
+  content ChronicFailure.PeriodAvailability
+  depends on
+    starts content date,
+    ends content date,
+    pct content decimal
+  equals
+    ChronicFailure.PeriodAvailability {
+      -- period_start: starts
+      -- period_end: ends
+      -- availability_percentage: pct
+    }
+```
+
+## L6_1_ThreeConsecutive
+
+L-6.1 first trigger: three consecutive Measurement Periods below 99.90%. The
+right arises, the completing period is the third of the three, and the second
+trigger is not satisfied because there are only three failures in all.
+
+```catala
+#[test]
+declaration scope TestL6_1_ThreeConsecutive:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_ThreeConsecutive:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.00;
+           mp of |2025-02-01|, |2025-02-28|, 99.00;
+           mp of |2025-03-01|, |2025-03-31|, 99.00
+         ]
+      -- assessment_date: |2025-04-15|
+      -- notice_given: false
+      -- notice_date: |2025-04-15|
+    }
+  assertion (number of r.failing_periods) = 3
+  assertion r.consecutive_trigger = true
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = true
+  assertion r.trigger_period_end = Present content |2025-03-31|
+  assertion r.exercise_deadline = Present content |2025-04-30|
+  assertion r.notice_period_days = 30
+  assertion r.early_termination_charges_payable = false
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = true
+```
+
+## L6_1_TwoConsecutiveOnly
+
+L-6.1: two consecutive failures are not three. Neither trigger is satisfied,
+so no right arises and there is no deadline to compute.
+
+```catala
+#[test]
+declaration scope TestL6_1_TwoConsecutiveOnly:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_TwoConsecutiveOnly:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.00;
+           mp of |2025-02-01|, |2025-02-28|, 99.00;
+           mp of |2025-03-01|, |2025-03-31|, 99.95
+         ]
+      -- assessment_date: |2025-04-15|
+      -- notice_given: false
+      -- notice_date: |2025-04-15|
+    }
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = false
+  assertion r.trigger_period_end = Absent
+  assertion r.exercise_deadline = Absent
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = false
+```
+
+## L6_1_GapResetsTheRun
+
+L-6.1: "each of three consecutive Measurement Periods". One good month between
+failures breaks the run, and three failures are not four, so neither trigger
+fires.
+
+```catala
+#[test]
+declaration scope TestL6_1_GapResetsTheRun:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_GapResetsTheRun:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.00;
+           mp of |2025-02-01|, |2025-02-28|, 99.95;
+           mp of |2025-03-01|, |2025-03-31|, 99.00;
+           mp of |2025-04-01|, |2025-04-30|, 99.00
+         ]
+      -- assessment_date: |2025-05-15|
+      -- notice_given: false
+      -- notice_date: |2025-05-15|
+    }
+  assertion (number of r.failing_periods) = 3
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = false
+```
+
+## L6_1_ExactlyNinetyNinePointNineIsNotAFailure
+
+L-6.1 requires the Availability Percentage to be "less than 99.90%", which is
+strict and matches L-3.1. Three months at exactly 99.90% are three months in
+which the Service Level was met.
+
+```catala
+#[test]
+declaration scope TestL6_1_ExactlyNinetyNinePointNineIsNotAFailure:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_ExactlyNinetyNinePointNineIsNotAFailure:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.90;
+           mp of |2025-02-01|, |2025-02-28|, 99.90;
+           mp of |2025-03-01|, |2025-03-31|, 99.90
+         ]
+      -- assessment_date: |2025-04-15|
+      -- notice_given: false
+      -- notice_date: |2025-04-15|
+    }
+  assertion (number of r.failing_periods) = 0
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = false
+  assertion r.trigger_period_end = Absent
+```
+
+## L6_1_JustBelowIsAFailure
+
+L-6.1: one hundredth of a percentage point lower and the same three months
+trigger the right.
+
+```catala
+#[test]
+declaration scope TestL6_1_JustBelowIsAFailure:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_JustBelowIsAFailure:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.89;
+           mp of |2025-02-01|, |2025-02-28|, 99.89;
+           mp of |2025-03-01|, |2025-03-31|, 99.89
+         ]
+      -- assessment_date: |2025-04-15|
+      -- notice_given: false
+      -- notice_date: |2025-04-15|
+    }
+  assertion (number of r.failing_periods) = 3
+  assertion r.consecutive_trigger = true
+  assertion r.right_arisen = true
+  assertion r.trigger_period_end = Present content |2025-03-31|
+```
+
+## L6_1_ExactlyNinetyNinePointNineBreaksARun
+
+L-6.1: a month at exactly 99.90% sits in the middle of four bad months and
+defeats the consecutive trigger, because the run must be of three periods each
+below 99.90%. The second trigger needs four failures and there are only three.
+
+```catala
+#[test]
+declaration scope TestL6_1_ExactlyNinetyNinePointNineBreaksARun:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_ExactlyNinetyNinePointNineBreaksARun:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 98.00;
+           mp of |2025-02-01|, |2025-02-28|, 99.90;
+           mp of |2025-03-01|, |2025-03-31|, 98.00;
+           mp of |2025-04-01|, |2025-04-30|, 98.00
+         ]
+      -- assessment_date: |2025-05-15|
+      -- notice_given: false
+      -- notice_date: |2025-05-15|
+    }
+  assertion (number of r.failing_periods) = 3
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = false
+```
+
+## L6_1_FourInTwelveMonthsWithoutThreeConsecutive
+
+L-6.1 second trigger, standing alone. Four failing Measurement Periods inside
+twelve months, alternating with good ones, so the first trigger is never
+satisfied. The completing period is July, the fourth failure.
+
+```catala
+#[test]
+declaration scope TestL6_1_FourInTwelveMonthsWithoutThreeConsecutive:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_FourInTwelveMonthsWithoutThreeConsecutive:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-02-01|, |2025-02-28|, 99.95;
+           mp of |2025-03-01|, |2025-03-31|, 99.10;
+           mp of |2025-04-01|, |2025-04-30|, 99.99;
+           mp of |2025-05-01|, |2025-05-31|, 98.00;
+           mp of |2025-06-01|, |2025-06-30|, 99.99;
+           mp of |2025-07-01|, |2025-07-31|, 97.00
+         ]
+      -- assessment_date: |2025-08-15|
+      -- notice_given: false
+      -- notice_date: |2025-08-15|
+    }
+  assertion (number of r.failing_periods) = 4
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = true
+  assertion r.right_arisen = true
+  assertion (number of r.completing_periods) = 1
+  assertion r.trigger_period_end = Present content |2025-07-31|
+  assertion r.exercise_deadline = Present content |2025-08-30|
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = true
+```
+
+## L6_1_ThreeInTwelveMonthsIsNotEnough
+
+L-6.1 second trigger needs four. Three scattered failures satisfy neither
+trigger.
+
+```catala
+#[test]
+declaration scope TestL6_1_ThreeInTwelveMonthsIsNotEnough:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_ThreeInTwelveMonthsIsNotEnough:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-02-01|, |2025-02-28|, 99.95;
+           mp of |2025-03-01|, |2025-03-31|, 99.10;
+           mp of |2025-04-01|, |2025-04-30|, 99.99;
+           mp of |2025-05-01|, |2025-05-31|, 98.00
+         ]
+      -- assessment_date: |2025-06-15|
+      -- notice_given: false
+      -- notice_date: |2025-06-15|
+    }
+  assertion (number of r.failing_periods) = 3
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = false
+```
+
+## L6_1_RollingWindowExactlyTwelveMonths
+
+L-6.1: January and December of the same year are inside one rolling
+twelve-month period, so four failures spanning exactly twelve months trigger
+the right.
+
+```catala
+#[test]
+declaration scope TestL6_1_RollingWindowExactlyTwelveMonths:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_RollingWindowExactlyTwelveMonths:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.00;
+           mp of |2025-05-01|, |2025-05-31|, 99.00;
+           mp of |2025-09-01|, |2025-09-30|, 99.00;
+           mp of |2025-12-01|, |2025-12-31|, 99.00
+         ]
+      -- assessment_date: |2026-01-15|
+      -- notice_given: false
+      -- notice_date: |2026-01-15|
+    }
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = true
+  assertion r.right_arisen = true
+  assertion r.trigger_period_end = Present content |2025-12-31|
+  assertion r.exercise_deadline = Present content |2026-01-30|
+```
+
+## L6_1_RollingWindowJustTooWide
+
+L-6.1: move the earliest failure back one month and the four no longer fit any
+twelve-month period. No right arises.
+
+```catala
+#[test]
+declaration scope TestL6_1_RollingWindowJustTooWide:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_RollingWindowJustTooWide:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2024-12-01|, |2024-12-31|, 99.00;
+           mp of |2025-05-01|, |2025-05-31|, 99.00;
+           mp of |2025-09-01|, |2025-09-30|, 99.00;
+           mp of |2025-12-01|, |2025-12-31|, 99.00
+         ]
+      -- assessment_date: |2026-01-15|
+      -- notice_given: false
+      -- notice_date: |2026-01-15|
+    }
+  assertion (number of r.failing_periods) = 4
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = false
+  assertion r.trigger_period_end = Absent
+```
+
+## L6_1_FourSpreadBeyondTwelveMonths
+
+L-6.1: four failures spread over two years, no two adjacent and never four
+within twelve months.
+
+```catala
+#[test]
+declaration scope TestL6_1_FourSpreadBeyondTwelveMonths:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_FourSpreadBeyondTwelveMonths:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2024-01-01|, |2024-01-31|, 99.00;
+           mp of |2024-08-01|, |2024-08-31|, 99.00;
+           mp of |2025-03-01|, |2025-03-31|, 99.00;
+           mp of |2025-10-01|, |2025-10-31|, 99.00
+         ]
+      -- assessment_date: |2025-11-15|
+      -- notice_given: false
+      -- notice_date: |2025-11-15|
+    }
+  assertion (number of r.failing_periods) = 4
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = false
+```
+
+## L6_1_BothTriggersAndTwoOccurrences
+
+L-6.1: a history can complete the pattern more than once, and both triggers
+can be satisfied. Six failures in two runs of three: March completes the first
+consecutive run, September the second, and July, August and September each
+complete a rolling four. L-6.2 assesses the earliest occurrence, March.
+
+```catala
+#[test]
+declaration scope TestL6_1_BothTriggersAndTwoOccurrences:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_BothTriggersAndTwoOccurrences:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.00;
+           mp of |2025-02-01|, |2025-02-28|, 99.00;
+           mp of |2025-03-01|, |2025-03-31|, 99.00;
+           mp of |2025-04-01|, |2025-04-30|, 99.99;
+           mp of |2025-05-01|, |2025-05-31|, 99.99;
+           mp of |2025-06-01|, |2025-06-30|, 99.99;
+           mp of |2025-07-01|, |2025-07-31|, 99.00;
+           mp of |2025-08-01|, |2025-08-31|, 99.00;
+           mp of |2025-09-01|, |2025-09-30|, 99.00
+         ]
+      -- assessment_date: |2025-04-20|
+      -- notice_given: false
+      -- notice_date: |2025-04-20|
+    }
+  assertion (number of r.failing_periods) = 6
+  assertion r.consecutive_trigger = true
+  assertion r.rolling_trigger = true
+  assertion r.right_arisen = true
+  assertion (number of r.completing_periods) = 4
+  assertion r.trigger_period_end = Present content |2025-03-31|
+  assertion r.exercise_deadline = Present content |2025-04-30|
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = true
+```
+
+## L6_2_NoticeOnDayThirty
+
+L-6.2: "within 30 days after the end of the Measurement Period which gives
+rise to it" is inclusive of the thirtieth day. Notice on 30 April, from a
+March trigger, is in time.
+
+```catala
+#[test]
+declaration scope TestL6_2_NoticeOnDayThirty:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_2_NoticeOnDayThirty:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.00;
+           mp of |2025-02-01|, |2025-02-28|, 99.00;
+           mp of |2025-03-01|, |2025-03-31|, 99.00
+         ]
+      -- assessment_date: |2025-05-15|
+      -- notice_given: true
+      -- notice_date: |2025-04-30|
+    }
+  assertion r.exercise_deadline = Present content |2025-04-30|
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = true
+```
+
+## L6_2_NoticeOnDayThirtyOne
+
+L-6.2: one day later and the right lapses in respect of that occurrence.
+
+```catala
+#[test]
+declaration scope TestL6_2_NoticeOnDayThirtyOne:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_2_NoticeOnDayThirtyOne:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.00;
+           mp of |2025-02-01|, |2025-02-28|, 99.00;
+           mp of |2025-03-01|, |2025-03-31|, 99.00
+         ]
+      -- assessment_date: |2025-05-15|
+      -- notice_given: true
+      -- notice_date: |2025-05-01|
+    }
+  assertion r.exercise_deadline = Present content |2025-04-30|
+  assertion r.right_lapsed = true
+  assertion r.right_exercisable = false
+```
+
+## L6_2_StillOpenOnDayThirty
+
+L-6.2: with no notice yet given, the right is still exercisable up to and
+including the thirtieth day.
+
+```catala
+#[test]
+declaration scope TestL6_2_StillOpenOnDayThirty:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_2_StillOpenOnDayThirty:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.00;
+           mp of |2025-02-01|, |2025-02-28|, 99.00;
+           mp of |2025-03-01|, |2025-03-31|, 99.00
+         ]
+      -- assessment_date: |2025-04-30|
+      -- notice_given: false
+      -- notice_date: |2025-04-30|
+    }
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = true
+```
+
+## L6_2_LapsedUnexercised
+
+L-6.2: the window closes on the thirty-first day and the right lapses even
+though nothing has been done with it.
+
+```catala
+#[test]
+declaration scope TestL6_2_LapsedUnexercised:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_2_LapsedUnexercised:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.00;
+           mp of |2025-02-01|, |2025-02-28|, 99.00;
+           mp of |2025-03-01|, |2025-03-31|, 99.00
+         ]
+      -- assessment_date: |2025-05-01|
+      -- notice_given: false
+      -- notice_date: |2025-05-01|
+    }
+  assertion r.right_lapsed = true
+  assertion r.right_exercisable = false
+```
+
+## L6_2_NoRightCannotLapse
+
+L-6.2 lapses "the right in L-6.1". Where no right ever arose there is nothing
+to lapse, however long ago the history ended — the lapse rule repeats
+`right_arisen` from its parent rather than inheriting it.
+
+```catala
+#[test]
+declaration scope TestL6_2_NoRightCannotLapse:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_2_NoRightCannotLapse:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.99;
+           mp of |2025-02-01|, |2025-02-28|, 99.99;
+           mp of |2025-03-01|, |2025-03-31|, 99.99
+         ]
+      -- assessment_date: |2030-01-01|
+      -- notice_given: false
+      -- notice_date: |2030-01-01|
+    }
+  assertion r.right_arisen = false
+  assertion r.trigger_period_end = Absent
+  assertion r.exercise_deadline = Absent
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = false
+```
+
+## L6_1_EmptyHistory
+
+L-6.1 over no history at all: no failing periods, no trigger, no right.
+
+```catala
+#[test]
+declaration scope TestL6_1_EmptyHistory:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestL6_1_EmptyHistory:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: []
+      -- assessment_date: |2025-04-15|
+      -- notice_given: false
+      -- notice_date: |2025-04-15|
+    }
+  assertion (number of r.failing_periods) = 0
+  assertion r.right_arisen = false
+  assertion r.trigger_period_end = Absent
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = false
+```

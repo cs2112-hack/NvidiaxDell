@@ -141,7 +141,7 @@ declaration signed_in_plan_year content boolean
 The computable content of S-2.1 is the as-of date of the assignment: the start
 of the Plan Year, or the commencement date where that is later. The amount
 itself is a written assignment and so is an input. `quota` is what
-`Quota_relief.RelievedQuota` reduces and what `Attainment` ultimately divides by.
+`QuotaRelief.RelievedQuota` reduces and what `Attainment` ultimately divides by.
 
 ```catala
 scope AssignedQuota:
@@ -401,6 +401,13 @@ with a 30% New Logo share on the uncapped 2.0. The value capped is
 `accelerator_before_joiner_cap`, so the cap bites on the S-4.3 figure where
 S-4.3 applied and on the bare S-4.1 band where it did not, and is inert where
 the otherwise applicable accelerator is already 1.5 or below.
+
+"For the Plan Year in which they commenced" identifies the Plan Year this
+module encodes, so the test is the literal one S-4.4 states. It is not
+narrowed to commencement *within* the window: an employee who commenced after
+30 September 2026 commenced in a later Plan Year, but could have signed no
+contract during this one, so Net Booked Revenue, Attainment and the whole S-3
+product are nil for them whichever accelerator is selected.
 
 ```catala
 scope Accelerator:

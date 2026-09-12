@@ -1,0 +1,950 @@
+# Tests — FY26 Sales Commission Plan: commission earned
+
+Assertion-based tests for `Commission`. Every branch of every exception
+hierarchy is covered, and every numeric threshold is tested on both sides of
+the boundary, because the Plan's own comparison operators are not uniform:
+S-4.1 uses "or more" (inclusive) at the foot of each band and "less than"
+(exclusive) at the head, S-4.3 and S-5.3 use "more than" and "exceeds"
+(strict), S-2.4 uses "within 180 days" (inclusive) and S-8.1 uses "on or
+before" (inclusive). A single mid-range test sees none of that.
+
+Three traps get dedicated tests that assert a *difference* rather than only a
+value, because the wrong encoding of each produces a perfectly plausible
+number: S-4.2 (the accelerator is a cliff over the whole of Net Booked
+Revenue, not a marginal rate), S-5.2 (the cap comes after the accelerator, not
+before) and S-4.4 (the joiner cap defeats S-4.1 as well as S-4.3).
+
+> Using Commission
+
+## Contract fixtures
+
+Constructors for the `Commission.Contract` records the tests need. They carry
+no law; they exist so that a test reads as the fact pattern it is.
+
+```catala
+declaration signed_only content Commission.Contract
+  depends on
+    id content integer,
+    acv content money,
+    signed content date,
+    prior content list of date
+  equals
+    Commission.Contract {
+      -- contract_id: id
+      -- annual_contract_value: acv
+      -- signature_date: signed
+      -- terminated_by_customer_on: Absent
+      -- not_renewed_at_first_renewal_on: Absent
+      -- customer_contract_dates: prior
+    }
+
+declaration terminated_on content Commission.Contract
+  depends on
+    id content integer,
+    acv content money,
+    signed content date,
+    prior content list of date,
+    event content date
+  equals
+    (signed_only of id, acv, signed, prior)
+    but replace { -- terminated_by_customer_on: Present content event }
+
+declaration not_renewed_on content Commission.Contract
+  depends on
+    id content integer,
+    acv content money,
+    signed content date,
+    prior content list of date,
+    event content date
+  equals
+    (signed_only of id, acv, signed, prior)
+    but replace { -- not_renewed_at_first_renewal_on: Present content event }
+```
+
+## S-1.1 The Plan Year window
+
+A contract signed on the first day of the Plan Year is in; one signed the day
+before is out. The window is inclusive at both ends.
+
+```catala
+#[test]
+declaration scope TestS1_1_PlanYearBoundaries:
+  output r content Commission.NetBookedRevenue
+
+scope TestS1_1_PlanYearBoundaries:
+  definition r equals
+    output of Commission.NetBookedRevenue with {
+      -- contracts: [
+           signed_only of 1, $100,000, |2025-09-30|, [|2025-01-01|];
+           signed_only of 2, $200,000, |2025-10-01|, [|2025-01-01|];
+           signed_only of 3, $400,000, |2026-09-30|, [|2025-01-01|];
+           signed_only of 4, $800,000, |2026-10-01|, [|2025-01-01|]
+         ]
+    }
+  assertion r.gross_booked_revenue = $600,000
+  assertion r.net_booked_revenue = $600,000
+```
+
+## S-2.1 Quota assignment date
+
+```catala
+#[test]
+declaration scope TestS2_1_QuotaAtPlanYearStart:
+  output r content Commission.AssignedQuota
+
+scope TestS2_1_QuotaAtPlanYearStart:
+  definition r equals
+    output of Commission.AssignedQuota with {
+      -- assigned_quota: $1,000,000
+      -- commencement_date: |2020-04-01|
+    }
+  assertion r.quota_assignment_date = |2025-10-01|
+  assertion r.quota = $1,000,000
+```
+
+```catala
+#[test]
+declaration scope TestS2_1_QuotaOnJoiningIfLater:
+  output r content Commission.AssignedQuota
+
+scope TestS2_1_QuotaOnJoiningIfLater:
+  definition r equals
+    output of Commission.AssignedQuota with {
+      -- assigned_quota: $400,000
+      -- commencement_date: |2026-01-15|
+    }
+  assertion r.quota_assignment_date = |2026-01-15|
+  assertion r.quota = $400,000
+```
+
+## S-2.4 Churned Contract — the 180-day boundary
+
+2025-10-01 plus 180 days is 2026-03-30. An event on that day is within the
+window; an event the next day is not.
+
+```catala
+#[test]
+declaration scope TestS2_4_TerminatedOnDay180:
+  output r content Commission.ChurnedContract
+
+scope TestS2_4_TerminatedOnDay180:
+  definition r equals
+    output of Commission.ChurnedContract with {
+      -- contract: terminated_on of 1, $100,000, |2025-10-01|, [], |2026-03-30|
+    }
+  assertion r.is_churned = true
+```
+
+```catala
+#[test]
+declaration scope TestS2_4_TerminatedOnDay181:
+  output r content Commission.ChurnedContract
+
+scope TestS2_4_TerminatedOnDay181:
+  definition r equals
+    output of Commission.ChurnedContract with {
+      -- contract: terminated_on of 1, $100,000, |2025-10-01|, [], |2026-03-31|
+    }
+  assertion r.is_churned = false
+```
+
+```catala
+#[test]
+declaration scope TestS2_4_NotRenewedOnDay180:
+  output r content Commission.ChurnedContract
+
+scope TestS2_4_NotRenewedOnDay180:
+  definition r equals
+    output of Commission.ChurnedContract with {
+      -- contract: not_renewed_on of 1, $100,000, |2025-10-01|, [], |2026-03-30|
+    }
+  assertion r.is_churned = true
+```
+
+```catala
+#[test]
+declaration scope TestS2_4_NotRenewedOnDay181:
+  output r content Commission.ChurnedContract
+
+scope TestS2_4_NotRenewedOnDay181:
+  definition r equals
+    output of Commission.ChurnedContract with {
+      -- contract: not_renewed_on of 1, $100,000, |2025-10-01|, [], |2026-03-31|
+    }
+  assertion r.is_churned = false
+```
+
+```catala
+#[test]
+declaration scope TestS2_4_NoChurnEvent:
+  output r content Commission.ChurnedContract
+
+scope TestS2_4_NoChurnEvent:
+  definition r equals
+    output of Commission.ChurnedContract with {
+      -- contract: signed_only of 1, $100,000, |2025-10-01|, []
+    }
+  assertion r.is_churned = false
+```
+
+An event dated before signature is not a churn event: the 180-day window opens
+at signature and runs forward.
+
+```catala
+#[test]
+declaration scope TestS2_4_EventBeforeSignature:
+  output r content Commission.ChurnedContract
+
+scope TestS2_4_EventBeforeSignature:
+  definition r equals
+    output of Commission.ChurnedContract with {
+      -- contract: terminated_on of 1, $100,000, |2025-10-01|, [], |2025-09-01|
+    }
+  assertion r.is_churned = false
+```
+
+## S-2.6 New Logo — the 24-month window
+
+```catala
+#[test]
+declaration scope TestS2_6_NoPriorContract:
+  output r content Commission.NewLogo
+
+scope TestS2_6_NoPriorContract:
+  definition r equals
+    output of Commission.NewLogo with {
+      -- signature_date: |2026-01-01|
+      -- customer_contract_dates: []
+    }
+  assertion r.window_start = |2024-01-01|
+  assertion r.is_new_logo = true
+```
+
+A prior contract on the first day of the window disqualifies: the window is
+inclusive at its far end.
+
+```catala
+#[test]
+declaration scope TestS2_6_PriorAtWindowStart:
+  output r content Commission.NewLogo
+
+scope TestS2_6_PriorAtWindowStart:
+  definition r equals
+    output of Commission.NewLogo with {
+      -- signature_date: |2026-01-01|
+      -- customer_contract_dates: [|2024-01-01|]
+    }
+  assertion r.window_start = |2024-01-01|
+  assertion r.is_new_logo = false
+```
+
+```catala
+#[test]
+declaration scope TestS2_6_PriorOneDayBeforeWindow:
+  output r content Commission.NewLogo
+
+scope TestS2_6_PriorOneDayBeforeWindow:
+  definition r equals
+    output of Commission.NewLogo with {
+      -- signature_date: |2026-01-01|
+      -- customer_contract_dates: [|2023-12-31|]
+    }
+  assertion r.is_new_logo = true
+```
+
+```catala
+#[test]
+declaration scope TestS2_6_PriorInsideWindow:
+  output r content Commission.NewLogo
+
+scope TestS2_6_PriorInsideWindow:
+  definition r equals
+    output of Commission.NewLogo with {
+      -- signature_date: |2026-01-01|
+      -- customer_contract_dates: [|2025-06-01|]
+    }
+  assertion r.is_new_logo = false
+```
+
+The contract under test cannot disqualify itself: the window is the 24 months
+*preceding* the signature date, so the signature date itself is excluded.
+
+```catala
+#[test]
+declaration scope TestS2_6_PriorOnSignatureDate:
+  output r content Commission.NewLogo
+
+scope TestS2_6_PriorOnSignatureDate:
+  definition r equals
+    output of Commission.NewLogo with {
+      -- signature_date: |2026-01-01|
+      -- customer_contract_dates: [|2026-01-01|]
+    }
+  assertion r.is_new_logo = true
+```
+
+## S-2.3 Net Booked Revenue is net of churn
+
+```catala
+#[test]
+declaration scope TestS2_3_NetOfChurnedContracts:
+  output r content Commission.NetBookedRevenue
+
+scope TestS2_3_NetOfChurnedContracts:
+  definition r equals
+    output of Commission.NetBookedRevenue with {
+      -- contracts: [
+           signed_only of 1, $1,500,000, |2026-01-01|, [|2025-06-01|];
+           terminated_on of 2, $500,000, |2026-01-01|, [|2025-06-01|], |2026-02-01|
+         ]
+    }
+  assertion r.gross_booked_revenue = $2,000,000
+  assertion r.churned_contract_value = $500,000
+  assertion r.net_booked_revenue = $1,500,000
+```
+
+## S-4.3 first limb — the New Logo share of Net Booked Revenue
+
+A churned contract counts in neither the numerator nor the denominator: it is
+not part of Net Booked Revenue at all.
+
+```catala
+#[test]
+declaration scope TestS4_3_NewLogoShareExcludesChurn:
+  output r content Commission.NetBookedRevenue
+
+scope TestS4_3_NewLogoShareExcludesChurn:
+  definition r equals
+    output of Commission.NetBookedRevenue with {
+      -- contracts: [
+           signed_only of 1, $600,000, |2026-01-01|, [];
+           signed_only of 2, $400,000, |2026-01-01|, [|2025-06-01|];
+           terminated_on of 3, $300,000, |2026-01-01|, [], |2026-02-01|
+         ]
+    }
+  assertion r.net_booked_revenue = $1,000,000
+  assertion r.new_logo_revenue = $600,000
+  assertion r.new_logo_share = 60%
+```
+
+A nil Net Booked Revenue yields a nil share rather than a division by zero.
+
+```catala
+#[test]
+declaration scope TestS4_3_NewLogoShareOnNilRevenue:
+  output r content Commission.NetBookedRevenue
+
+scope TestS4_3_NewLogoShareOnNilRevenue:
+  definition r equals
+    output of Commission.NetBookedRevenue with { -- contracts: [] }
+  assertion r.net_booked_revenue = $0
+  assertion r.new_logo_share = 0.0
+```
+
+## S-2.2 Attainment
+
+```catala
+#[test]
+declaration scope TestS2_2_Attainment:
+  output r content Commission.Attainment
+
+scope TestS2_2_Attainment:
+  definition r equals
+    output of Commission.Attainment with {
+      -- net_booked_revenue: $1,500,000
+      -- quota: $1,000,000
+    }
+  assertion r.attainment_pct = 150%
+```
+
+## S-4.1 The accelerator bands, on both sides of every threshold
+
+`commencement_date` of 2025-10-01 is the first day of the Plan Year, so these
+employees did not commence *after* the start of the Plan Year and S-4.4 does
+not engage.
+
+```catala
+#[test]
+declaration scope TestS4_1_Below50:
+  output r content Commission.Accelerator
+
+scope TestS4_1_Below50:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 49.99%
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.s4_1_band = 0.0
+  assertion r.accelerator = 0.0
+  assertion r.commenced_after_plan_year_start = false
+```
+
+```catala
+#[test]
+declaration scope TestS4_1_Exactly50:
+  output r content Commission.Accelerator
+
+scope TestS4_1_Exactly50:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 50%
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.s4_1_band = 1.0
+  assertion r.accelerator = 1.0
+```
+
+```catala
+#[test]
+declaration scope TestS4_1_JustUnder100:
+  output r content Commission.Accelerator
+
+scope TestS4_1_JustUnder100:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 99.99%
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.accelerator = 1.0
+```
+
+100% is "100% or more", so it belongs to band (c) and not to band (b). This is
+the boundary a marginal-rate reading gets wrong.
+
+```catala
+#[test]
+declaration scope TestS4_1_Exactly100:
+  output r content Commission.Accelerator
+
+scope TestS4_1_Exactly100:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 100%
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.accelerator = 1.5
+```
+
+```catala
+#[test]
+declaration scope TestS4_1_JustUnder150:
+  output r content Commission.Accelerator
+
+scope TestS4_1_JustUnder150:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 149.99%
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.accelerator = 1.5
+```
+
+```catala
+#[test]
+declaration scope TestS4_1_Exactly150:
+  output r content Commission.Accelerator
+
+scope TestS4_1_Exactly150:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 150%
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.accelerator = 2.0
+```
+
+```catala
+#[test]
+declaration scope TestS4_1_WellAbove150:
+  output r content Commission.Accelerator
+
+scope TestS4_1_WellAbove150:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 300%
+      -- new_logo_share: 0%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.accelerator = 2.0
+```
+
+## S-4.3 The New Logo uplift — "more than 60%" is strict
+
+```catala
+#[test]
+declaration scope TestS4_3_ShareExactly60:
+  output r content Commission.Accelerator
+
+scope TestS4_3_ShareExactly60:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 150%
+      -- new_logo_share: 60%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.s4_1_band = 2.0
+  assertion r.accelerator_before_joiner_cap = 2.0
+  assertion r.accelerator = 2.0
+```
+
+```catala
+#[test]
+declaration scope TestS4_3_ShareJustOver60:
+  output r content Commission.Accelerator
+
+scope TestS4_3_ShareJustOver60:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 150%
+      -- new_logo_share: 60.01%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.accelerator_before_joiner_cap = 2.25
+  assertion r.accelerator = 2.25
+```
+
+The uplift is 0.25 on whatever band S-4.1 produced, so it lifts band (b) as
+well as band (d).
+
+```catala
+#[test]
+declaration scope TestS4_3_UpliftOnBandB:
+  output r content Commission.Accelerator
+
+scope TestS4_3_UpliftOnBandB:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 60%
+      -- new_logo_share: 70%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.s4_1_band = 1.0
+  assertion r.accelerator = 1.25
+```
+
+S-4.3 is unconditional as to band, so on the literal text it lifts band (a) —
+a sub-50% attainer — from 0.0 to 0.25. The Plan does not say the uplift is
+available only where commission is otherwise earned, and this test pins the
+literal reading so that a change of mind about it shows up as a test failure
+rather than as a silent drift.
+
+```catala
+#[test]
+declaration scope TestS4_3_UpliftOnBandA:
+  output r content Commission.Accelerator
+
+scope TestS4_3_UpliftOnBandA:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 40%
+      -- new_logo_share: 70%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.s4_1_band = 0.0
+  assertion r.accelerator = 0.25
+```
+
+## S-4.4 The mid-year joiner cap
+
+"Commenced after the start of the Plan Year" is strict: an employee whose
+first day is 1 October 2025 is not a mid-year joiner.
+
+```catala
+#[test]
+declaration scope TestS4_4_CommencedOnPlanYearStart:
+  output r content Commission.Accelerator
+
+scope TestS4_4_CommencedOnPlanYearStart:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 150%
+      -- new_logo_share: 70%
+      -- commencement_date: |2025-10-01|
+    }
+  assertion r.commenced_after_plan_year_start = false
+  assertion r.accelerator = 2.25
+```
+
+```catala
+#[test]
+declaration scope TestS4_4_CommencedDayAfterPlanYearStart:
+  output r content Commission.Accelerator
+
+scope TestS4_4_CommencedDayAfterPlanYearStart:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 150%
+      -- new_logo_share: 70%
+      -- commencement_date: |2025-10-02|
+    }
+  assertion r.commenced_after_plan_year_start = true
+  assertion r.accelerator_before_joiner_cap = 2.25
+  assertion r.accelerator = 1.5
+```
+
+S-4.4 is an exception to S-4.1 as well as to S-4.3. A joiner with no New Logo
+uplift at all must still be capped: were the joiner cap to inherit S-4.3's
+"more than 60%" condition, this employee would keep the uncapped 2.0.
+
+```catala
+#[test]
+declaration scope TestS4_4_JoinerCapDefeatsS4_1Alone:
+  output r content Commission.Accelerator
+
+scope TestS4_4_JoinerCapDefeatsS4_1Alone:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 150%
+      -- new_logo_share: 30%
+      -- commencement_date: |2026-01-01|
+    }
+  assertion r.s4_1_band = 2.0
+  assertion r.accelerator_before_joiner_cap = 2.0
+  assertion r.accelerator = 1.5
+```
+
+The cap is a ceiling, not a fixed value: where the otherwise applicable
+accelerator is below 1.5 the joiner keeps it.
+
+```catala
+#[test]
+declaration scope TestS4_4_JoinerCapInertBelowCeiling:
+  output r content Commission.Accelerator
+
+scope TestS4_4_JoinerCapInertBelowCeiling:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 60%
+      -- new_logo_share: 30%
+      -- commencement_date: |2026-01-01|
+    }
+  assertion r.accelerator = 1.0
+```
+
+```catala
+#[test]
+declaration scope TestS4_4_JoinerCapInertWithUplift:
+  output r content Commission.Accelerator
+
+scope TestS4_4_JoinerCapInertWithUplift:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 60%
+      -- new_logo_share: 70%
+      -- commencement_date: |2026-01-01|
+    }
+  assertion r.accelerator_before_joiner_cap = 1.25
+  assertion r.accelerator = 1.25
+```
+
+A joiner exactly at the ceiling is unaffected: band (c) is 1.5 already.
+
+```catala
+#[test]
+declaration scope TestS4_4_JoinerAtCeiling:
+  output r content Commission.Accelerator
+
+scope TestS4_4_JoinerAtCeiling:
+  definition r equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: 100%
+      -- new_logo_share: 0%
+      -- commencement_date: |2026-01-01|
+    }
+  assertion r.accelerator = 1.5
+```
+
+## S-4.2 The accelerator applies to the whole of Net Booked Revenue
+
+Attainment of 120% puts the employee in band (c), accelerator 1.5. On the
+Plan's reading the whole of Net Booked Revenue is accelerated:
+$1,200,000 x 8.0% x 1.5 = $144,000. On the marginal reading rejected by S-4.2
+the accelerator would apply only to the $200,000 above the 100% threshold:
+$1,000,000 x 8.0% x 1.0 + $200,000 x 8.0% x 1.5 = $104,000. The test asserts
+the first figure and asserts that it is not the second.
+
+```catala
+#[test]
+declaration scope TestS4_2_WholeRevenueNotMarginal:
+  output r content Commission.CommissionPayable
+
+scope TestS4_2_WholeRevenueNotMarginal:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $1,200,000
+      -- new_logo_share: 0%
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $200,000
+    }
+  assertion r.attainment_calc.attainment_pct = 120%
+  assertion r.accelerator_calc.accelerator = 1.5
+  assertion r.accelerator_base = $1,200,000
+  assertion r.commission_before_cap = $144,000
+  assertion r.commission_payable = $144,000
+  assertion r.commission_payable
+    != ($1,000,000 * 8.0% * 1.0) + ($200,000 * 8.0% * 1.5)
+```
+
+## S-3.1 A nil Net Booked Revenue yields nil commission
+
+The joiner cap is inert at the foot of the band table too, and nil revenue
+yields nil commission whatever the accelerator. This is why S-4.4's literal
+test needs no upper bound on the commencement date: an employee who commenced
+after the Plan Year ended has no Plan Year revenue to accelerate.
+
+```catala
+#[test]
+declaration scope TestS3_1_NilRevenueNilCommission:
+  output r content Commission.CommissionPayable
+
+scope TestS3_1_NilRevenueNilCommission:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $0
+      -- new_logo_share: 0%
+      -- quota: $1,000,000
+      -- commencement_date: |2026-11-01|
+      -- annual_base_salary: $100,000
+    }
+  assertion r.attainment_calc.attainment_pct = 0%
+  assertion r.accelerator_calc.commenced_after_plan_year_start = true
+  assertion r.accelerator_calc.accelerator = 0.0
+  assertion r.accelerator_base = $0
+  assertion r.commission_before_cap = $0
+  assertion r.commission_payable = $0
+```
+
+## S-5.1 The 250% cap
+
+Where the cap does not bite, the capped figure is the uncapped one.
+
+```catala
+#[test]
+declaration scope TestS5_1_CapNotBinding:
+  output r content Commission.CommissionPayable
+
+scope TestS5_1_CapNotBinding:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $1,000,000
+      -- new_logo_share: 0%
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $200,000
+    }
+  assertion r.cap = $500,000
+  assertion r.commission_before_cap = $120,000
+  assertion r.commission_payable = $120,000
+```
+
+```catala
+#[test]
+declaration scope TestS5_1_CapBinding:
+  output r content Commission.CommissionPayable
+
+scope TestS5_1_CapBinding:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $3,000,000
+      -- new_logo_share: 0%
+      -- quota: $2,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+    }
+  assertion r.cap = $250,000
+  assertion r.commission_before_cap = $480,000
+  assertion r.commission_payable = $250,000
+```
+
+## S-5.2 The cap is applied after the accelerator
+
+The same fact pattern, asserting the *order*. Applying the cap first —
+capping $3,000,000 x 8.0% = $240,000 at $250,000, which leaves it untouched,
+and then accelerating by 2.0 — yields $480,000. The Plan's order yields
+$250,000. Both are arithmetically tidy; only one is the Plan's.
+
+```catala
+#[test]
+declaration scope TestS5_2_CapAfterAcceleratorNotBefore:
+  output r content Commission.CommissionPayable
+
+scope TestS5_2_CapAfterAcceleratorNotBefore:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $3,000,000
+      -- new_logo_share: 0%
+      -- quota: $2,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+    }
+  assertion r.accelerator_calc.accelerator = 2.0
+  assertion r.commission_payable = $250,000
+  assertion (Money.min of ($3,000,000 * 8.0%), $250,000) * 2.0 = $480,000
+  assertion r.commission_payable
+    != (Money.min of ($3,000,000 * 8.0%), $250,000) * 2.0
+```
+
+## S-5.3 The 400% cap — "exceeds 200%" is strict
+
+Attainment of exactly 200% keeps the 250% cap.
+
+```catala
+#[test]
+declaration scope TestS5_3_AttainmentExactly200:
+  output r content Commission.CommissionPayable
+
+scope TestS5_3_AttainmentExactly200:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $2,000,000
+      -- new_logo_share: 0%
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+    }
+  assertion r.attainment_calc.attainment_pct = 200%
+  assertion r.cap = $250,000
+  assertion r.commission_before_cap = $320,000
+  assertion r.commission_payable = $250,000
+```
+
+Attainment above 200% raises the cap to 400%, and the employee keeps the
+figure the 250% cap would have taken away.
+
+```catala
+#[test]
+declaration scope TestS5_3_AttainmentAbove200:
+  output r content Commission.CommissionPayable
+
+scope TestS5_3_AttainmentAbove200:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $2,100,000
+      -- new_logo_share: 0%
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+    }
+  assertion r.attainment_calc.attainment_pct = 210%
+  assertion r.cap = $400,000
+  assertion r.commission_before_cap = $336,000
+  assertion r.commission_payable = $336,000
+  assertion r.commission_payable != $250,000
+```
+
+The raised cap can still bite.
+
+```catala
+#[test]
+declaration scope TestS5_3_RaisedCapStillBinds:
+  output r content Commission.CommissionPayable
+
+scope TestS5_3_RaisedCapStillBinds:
+  definition r equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $10,000,000
+      -- new_logo_share: 0%
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+    }
+  assertion r.cap = $400,000
+  assertion r.commission_before_cap = $1,600,000
+  assertion r.commission_payable = $400,000
+```
+
+## S-8.1 Leavers — the cut-off is "on or before" the last day
+
+The contract signed on the last day of employment qualifies; the one signed
+afterwards does not. Attainment of $1,000,000 against a $1,000,000 quota is
+100%, band (c), so commission is $1,000,000 x 8.0% x 1.5 = $120,000, of which
+$20,000 has been paid.
+
+```catala
+#[test]
+declaration scope TestS8_1_LeaverCutOffInclusive:
+  output r content Commission.LeaverCommission
+
+scope TestS8_1_LeaverCutOffInclusive:
+  definition r equals
+    output of Commission.LeaverCommission with {
+      -- contracts: [
+           signed_only of 1, $1,000,000, |2026-01-01|, [|2025-06-01|];
+           signed_only of 2, $500,000, |2026-06-01|, [|2025-06-01|]
+         ]
+      -- last_day_of_employment: |2026-01-01|
+      -- termination_reason: OtherReason
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+      -- commission_already_paid: $20,000
+    }
+  assertion number of r.qualifying_contracts = 1
+  assertion r.revenue.net_booked_revenue = $1,000,000
+  assertion r.entitlement.commission_before_cap = $120,000
+  assertion r.entitlement.commission_payable = $120,000
+  assertion r.commission_payable = $100,000
+```
+
+Moving the last day one day earlier excludes the contract entirely.
+
+```catala
+#[test]
+declaration scope TestS8_1_LeaverCutOffExcludesLater:
+  output r content Commission.LeaverCommission
+
+scope TestS8_1_LeaverCutOffExcludesLater:
+  definition r equals
+    output of Commission.LeaverCommission with {
+      -- contracts: [
+           signed_only of 1, $1,000,000, |2026-01-01|, [|2025-06-01|];
+           signed_only of 2, $500,000, |2026-06-01|, [|2025-06-01|]
+         ]
+      -- last_day_of_employment: |2025-12-31|
+      -- termination_reason: OtherReason
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+      -- commission_already_paid: $0
+    }
+  assertion number of r.qualifying_contracts = 0
+  assertion r.revenue.net_booked_revenue = $0
+  assertion r.entitlement.commission_payable = $0
+  assertion r.commission_payable = $0
+```
+
+## S-8.2 Gross misconduct forfeits the unpaid balance
+
+Same fact pattern as `TestS8_1_LeaverCutOffInclusive`: the entitlement is
+unchanged at $120,000 and $20,000 has been paid, but the $100,000 balance is
+forfeited.
+
+```catala
+#[test]
+declaration scope TestS8_2_GrossMisconductForfeitsBalance:
+  output r content Commission.LeaverCommission
+
+scope TestS8_2_GrossMisconductForfeitsBalance:
+  definition r equals
+    output of Commission.LeaverCommission with {
+      -- contracts: [
+           signed_only of 1, $1,000,000, |2026-01-01|, [|2025-06-01|];
+           signed_only of 2, $500,000, |2026-06-01|, [|2025-06-01|]
+         ]
+      -- last_day_of_employment: |2026-01-01|
+      -- termination_reason: GrossMisconduct
+      -- quota: $1,000,000
+      -- commencement_date: |2025-10-01|
+      -- annual_base_salary: $100,000
+      -- commission_already_paid: $20,000
+    }
+  assertion r.entitlement.commission_payable = $120,000
+  assertion r.commission_payable = $0
+```

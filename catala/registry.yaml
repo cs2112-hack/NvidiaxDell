@@ -3,6 +3,604 @@ _comment: DERIVED FILE -- regenerate with scripts/build_registry.py. Maps each C
   uses this to decide which scope can answer a question; a PROSE chunk's `qualifies` field points back
   at the module names here.
 scopes:
+  Accommodation.NightlyAccommodation:
+    module: Accommodation
+    scope: NightlyAccommodation
+    path: catala/modules/accommodation.catala_en
+    inputs:
+    - city_tier
+    - room_cost
+    - local_taxes
+    - mandatory_resort_or_city_charge
+    - parking_cost
+    - no_compliant_accommodation_available_evidenced
+    outputs:
+    - applicable_cap
+    - cost_against_cap
+    - accommodation_reimbursable
+    - parking_reimbursable
+    - reimbursable_amount
+    internals:
+    - base_cap
+    encodes:
+    - EXP-POL E-4.1
+    - EXP-POL E-4.2
+    - EXP-POL E-4.3
+    judgement_inputs:
+    - no_compliant_accommodation_available_evidenced
+    law_headings: []
+  Availability.AvailabilityPercentage:
+    module: Availability
+    scope: AvailabilityPercentage
+    path: catala/modules/availability.catala_en
+    inputs:
+    - total_minutes
+    - minutes_not_available
+    - excluded_minutes
+    - scheduled_maintenance_excess_minutes
+    outputs:
+    - unavailable_minutes
+    - availability_percentage_unrounded
+    - availability_percentage
+    - meets_service_level
+    internals: []
+    encodes:
+    - MSA-SCH4 L-2.4
+    - MSA-SCH4 L-4.5
+    - MSA-SCH4 L-2.3
+    - MSA-SCH4 L-3.1
+    judgement_inputs: []
+    law_headings: []
+  Availability.ExcludedMinutes:
+    module: Availability
+    scope: ExcludedMinutes
+    path: catala/modules/availability.catala_en
+    inputs:
+    - minutes
+    - is_scheduled_maintenance
+    - is_emergency_maintenance
+    - emergency_notice_minutes
+    - force_majeure_event_certified
+    - outage_attributable_to_customer
+    - is_suspension_under_clause_9
+    outputs:
+    - limb_a_scheduled_maintenance
+    - limb_b_emergency_maintenance
+    - limb_c_force_majeure
+    - limb_d_customer_act
+    - limb_e_suspension
+    - is_excluded
+    - excluded_minutes
+    internals: []
+    encodes:
+    - MSA-SCH4 L-2.5
+    judgement_inputs:
+    - force_majeure_event_certified
+    - outage_attributable_to_customer
+    law_headings: []
+  Availability.MeasurementPeriod:
+    module: Availability
+    scope: MeasurementPeriod
+    path: catala/modules/availability.catala_en
+    inputs:
+    - period_start
+    outputs:
+    - period_end
+    - total_minutes
+    internals: []
+    encodes:
+    - MSA-SCH4 L-2.1
+    judgement_inputs: []
+    law_headings: []
+  Availability.RequestAvailable:
+    module: Availability
+    scope: RequestAvailable
+    path: catala/modules/availability.catala_en
+    inputs:
+    - is_well_formed
+    - responded_at_documented_endpoint
+    - responded_within_latency_threshold
+    outputs:
+    - is_available
+    internals: []
+    encodes:
+    - MSA-SCH4 L-2.2
+    judgement_inputs: []
+    law_headings: []
+  Availability.ScheduledMaintenance:
+    module: Availability
+    scope: ScheduledMaintenance
+    path: catala/modules/availability.catala_en
+    inputs:
+    - outages
+    - business_day_calendar
+    outputs:
+    - aggregate_minutes
+    - cap_minutes
+    - excess_minutes
+    - excluded_minutes
+    internals: []
+    encodes:
+    - MSA-SCH4 L-2.6
+    - MSA-SCH4 L-4.5
+    judgement_inputs: []
+    law_headings: []
+  Availability.ScheduledMaintenanceWindow:
+    module: Availability
+    scope: ScheduledMaintenanceWindow
+    path: catala/modules/availability.catala_en
+    inputs:
+    - is_maintenance
+    - notified_at
+    - window_start
+    - business_day_calendar
+    outputs:
+    - business_days_notice
+    - is_scheduled_maintenance
+    internals: []
+    encodes:
+    - MSA-SCH4 L-2.6
+    judgement_inputs: []
+    law_headings: []
+  Availability.ServiceAvailability:
+    module: Availability
+    scope: ServiceAvailability
+    path: catala/modules/availability.catala_en
+    inputs:
+    - period_start
+    - outages
+    - business_day_calendar
+    outputs:
+    - total_minutes
+    - minutes_not_available
+    - excluded_minutes
+    - scheduled_maintenance_aggregate_minutes
+    - scheduled_maintenance_excess_minutes
+    - unavailable_minutes
+    - availability_percentage
+    - meets_service_level
+    internals: []
+    encodes: []
+    judgement_inputs: []
+    law_headings: []
+  ChronicFailure.ChronicFailureRight:
+    module: ChronicFailure
+    scope: ChronicFailureRight
+    path: catala/modules/ChronicFailure.catala_en
+    inputs:
+    - availability_history
+    - assessment_date
+    - notice_given
+    - notice_date
+    outputs:
+    - failing_periods
+    - consecutive_trigger
+    - rolling_trigger
+    - right_arisen
+    - completing_periods
+    - trigger_period_end
+    - notice_period_days
+    - early_termination_charges_payable
+    - exercise_deadline
+    - right_lapsed
+    - right_exercisable
+    internals: []
+    encodes:
+    - MSA-SCH4 L-6.1
+    - MSA-SCH4 L-6.2
+    judgement_inputs: []
+    law_headings: []
+  ClaimWindow.ClaimAdmissible:
+    module: ClaimWindow
+    scope: ClaimAdmissible
+    path: catala/modules/claimwindow.catala_en
+    inputs:
+    - expense_incurred_date
+    - submission_date
+    - delay_certified_for_good_reason
+    outputs:
+    - days_elapsed
+    - admissible
+    internals: []
+    encodes:
+    - EXP-POL E-6.1
+    - EXP-POL E-6.2
+    - EXP-POL E-6.3
+    judgement_inputs:
+    - delay_certified_for_good_reason
+    law_headings: []
+  Clawback.RecoverableCommission:
+    module: Clawback
+    scope: RecoverableCommission
+    path: catala/modules/clawback.catala_en
+    inputs:
+    - commission_paid
+    - payment_date
+    - assessment_date
+    - is_churned_contract
+    - terminated_for_company_material_breach
+    outputs:
+    - long_stop_date
+    - recovery_time_barred
+    - recoverable_amount
+    internals: []
+    encodes:
+    - COMM-PLAN S-7.1
+    - COMM-PLAN S-7.2
+    - COMM-PLAN S-7.3
+    judgement_inputs:
+    - terminated_for_company_material_breach
+    law_headings: []
+  Commission.Accelerator:
+    module: Commission
+    scope: Accelerator
+    path: catala/modules/commission.catala_en
+    inputs:
+    - attainment_pct
+    - new_logo_share
+    - commencement_date
+    outputs:
+    - commenced_after_plan_year_start
+    - s4_1_band
+    - accelerator_before_joiner_cap
+    - accelerator
+    internals: []
+    encodes:
+    - COMM-PLAN S-4.1
+    - COMM-PLAN S-4.3
+    - COMM-PLAN S-4.4
+    judgement_inputs: []
+    law_headings: []
+  Commission.AssignedQuota:
+    module: Commission
+    scope: AssignedQuota
+    path: catala/modules/commission.catala_en
+    inputs:
+    - assigned_quota
+    - commencement_date
+    outputs:
+    - quota_assignment_date
+    - quota
+    internals: []
+    encodes:
+    - COMM-PLAN S-2.1
+    judgement_inputs: []
+    law_headings: []
+  Commission.Attainment:
+    module: Commission
+    scope: Attainment
+    path: catala/modules/commission.catala_en
+    inputs:
+    - net_booked_revenue
+    - quota
+    outputs:
+    - attainment_pct
+    internals: []
+    encodes:
+    - COMM-PLAN S-2.2
+    judgement_inputs: []
+    law_headings: []
+  Commission.ChurnedContract:
+    module: Commission
+    scope: ChurnedContract
+    path: catala/modules/commission.catala_en
+    inputs:
+    - contract
+    outputs:
+    - is_churned
+    internals: []
+    encodes:
+    - COMM-PLAN S-2.4
+    judgement_inputs: []
+    law_headings: []
+  Commission.CommissionPayable:
+    module: Commission
+    scope: CommissionPayable
+    path: catala/modules/commission.catala_en
+    inputs:
+    - net_booked_revenue
+    - new_logo_share
+    - quota
+    - commencement_date
+    - annual_base_salary
+    outputs:
+    - accelerator_base
+    - commission_before_cap
+    - cap
+    - commission_payable
+    internals: []
+    encodes:
+    - COMM-PLAN S-3.1
+    - COMM-PLAN S-4.2
+    - COMM-PLAN S-5.1
+    - COMM-PLAN S-5.3
+    - COMM-PLAN S-5.2
+    judgement_inputs: []
+    law_headings: []
+  Commission.LeaverCommission:
+    module: Commission
+    scope: LeaverCommission
+    path: catala/modules/commission.catala_en
+    inputs:
+    - contracts
+    - last_day_of_employment
+    - termination_reason
+    - quota
+    - commencement_date
+    - annual_base_salary
+    - commission_already_paid
+    outputs:
+    - qualifying_contracts
+    - commission_payable
+    internals: []
+    encodes:
+    - COMM-PLAN S-8.1
+    - COMM-PLAN S-8.2
+    judgement_inputs: []
+    law_headings: []
+  Commission.NetBookedRevenue:
+    module: Commission
+    scope: NetBookedRevenue
+    path: catala/modules/commission.catala_en
+    inputs:
+    - contracts
+    outputs:
+    - gross_booked_revenue
+    - churned_contract_value
+    - net_booked_revenue
+    - new_logo_revenue
+    - new_logo_share
+    internals:
+    - plan_year_contracts
+    - churned_contracts
+    encodes:
+    - COMM-PLAN S-2.3
+    - COMM-PLAN S-4.3
+    judgement_inputs: []
+    law_headings: []
+  Commission.NewLogo:
+    module: Commission
+    scope: NewLogo
+    path: catala/modules/commission.catala_en
+    inputs:
+    - signature_date
+    - customer_contract_dates
+    outputs:
+    - window_start
+    - is_new_logo
+    internals: []
+    encodes:
+    - COMM-PLAN S-2.6
+    judgement_inputs: []
+    law_headings: []
+  ErasureRequest.ErasureDeadline:
+    module: ErasureRequest
+    scope: ErasureDeadline
+    path: catala/modules/ErasureRequest.catala_en
+    inputs:
+    - request_date
+    - verification_date
+    - erasure_request_valid
+    - retention_required_by_legal_obligation
+    - retention_required_for_legal_claims
+    - legal_hold_blocks_erasure
+    outputs:
+    - deletion_due_date
+    - deletion_refused
+    internals: []
+    encodes:
+    - DATA-RET R-5.1
+    - DATA-RET R-5.2
+    judgement_inputs:
+    - erasure_request_valid
+    - retention_required_by_legal_obligation
+    - retention_required_for_legal_claims
+    law_headings: []
+  ExpenseDefs.PreApprovalValid:
+    module: ExpenseDefs
+    scope: PreApprovalValid
+    path: catala/modules/expensedefs.catala_en
+    inputs:
+    - pre_approval
+    - expense_incurred_at
+    - expense_amount
+    outputs:
+    - valid
+    internals: []
+    encodes:
+    - EXP-POL E-2.4
+    judgement_inputs: []
+    law_headings: []
+  ExpenseDefs.TravelDayCount:
+    module: ExpenseDefs
+    scope: TravelDayCount
+    path: catala/modules/expensedefs.catala_en
+    inputs:
+    - departure_date
+    - return_date
+    outputs:
+    - travel_days
+    internals: []
+    encodes:
+    - EXP-POL E-2.3
+    judgement_inputs: []
+    law_headings: []
+  GroundTransport.RailFare:
+    module: GroundTransport
+    scope: RailFare
+    path: catala/modules/groundtransport.catala_en
+    inputs:
+    - class_of_travel
+    - ticket_cost
+    - standard_class_fare_same_day
+    - pre_approval
+    - incurred_on
+    outputs:
+    - reimbursable_amount
+    internals:
+    - is_standard_class
+    - is_first_class
+    - pre_approval_obtained
+    encodes:
+    - EXP-POL E-5.1
+    - EXP-POL E-5.2
+    judgement_inputs: []
+    law_headings: []
+  GroundTransport.TaxiFare:
+    module: GroundTransport
+    scope: TaxiFare
+    path: catala/modules/groundtransport.catala_en
+    inputs:
+    - journey_cost
+    - is_airport_journey
+    - journey_start_hour
+    - journey_start_minute
+    outputs:
+    - reimbursable_amount
+    internals:
+    - minutes_after_midnight
+    encodes:
+    - EXP-POL E-5.3
+    judgement_inputs: []
+    law_headings: []
+  LeaveAccrual.CarryForward:
+    module: LeaveAccrual
+    scope: CarryForward
+    path: catala/modules/LeaveAccrual.catala_en
+    inputs:
+    - accrued_untaken_days
+    - prevented_from_taking_leave_by_long_term_sickness
+    outputs:
+    - permitted_carry_forward_days
+    - carry_forward_days
+    - forfeited_days
+    - forfeited_days_payable_on_termination
+    internals: []
+    encodes:
+    - EMP-ANNEX-C C-9.3
+    - EMP-ANNEX-C C-9.4
+    - EMP-ANNEX-C C-9.5
+    judgement_inputs:
+    - prevented_from_taking_leave_by_long_term_sickness
+    law_headings: []
+  LeaveAccrual.HalfDayRounding:
+    module: LeaveAccrual
+    scope: HalfDayRounding
+    path: catala/modules/LeaveAccrual.catala_en
+    inputs:
+    - raw_days
+    outputs:
+    - half_steps
+    - half_steps_below
+    - excess_half_steps
+    - is_exact_quarter
+    - rounded_days
+    internals: []
+    encodes:
+    - EMP-ANNEX-C C-9.2
+    judgement_inputs: []
+    law_headings: []
+  LeaveAccrual.MonthlyAccrual:
+    module: LeaveAccrual
+    scope: MonthlyAccrual
+    path: catala/modules/LeaveAccrual.catala_en
+    inputs:
+    - day_in_month
+    - service_start
+    - service_end
+    outputs:
+    - days_in_month
+    - days_of_service_in_month
+    - month_is_completed
+    - pro_rated_days
+    - days_accrued
+    internals:
+    - month_first_day
+    - month_last_day
+    encodes:
+    - EMP-ANNEX-C C-9.1
+    - EMP-ANNEX-C C-9.2
+    judgement_inputs: []
+    law_headings: []
+  LegalHold.HoldEffect:
+    module: LegalHold
+    scope: HoldEffect
+    path: catala/modules/LegalHold.catala_en
+    inputs:
+    - hold_issued_date
+    - hold_released_date
+    - retention_end_date
+    - assessment_date
+    - retention_under_hold_permitted_by_data_protection_law
+    outputs:
+    - hold_in_force
+    - deletion_due_date
+    - erasure_blocked_by_hold
+    internals: []
+    encodes:
+    - DATA-RET R-2.3
+    - DATA-RET R-4.3
+    - DATA-RET R-4.1
+    - DATA-RET R-4.2
+    judgement_inputs:
+    - retention_under_hold_permitted_by_data_protection_law
+    law_headings: []
+  MealPerDiem.MealPerDiemForDay:
+    module: MealPerDiem
+    scope: MealPerDiemForDay
+    path: catala/modules/mealperdiem.catala_en
+    inputs:
+    - city_tier
+    - client_billable
+    - pre_approval
+    - incurred_on
+    - meals_provided_free
+    - meal_expense_incurred
+    - on_critical_incident_response
+    outputs:
+    - per_diem_cap
+    - adjusted_per_diem
+    - reimbursable_amount
+    internals:
+    - per_diem_under_e3_1
+    - per_diem_apart_from_e3_3
+    - pre_approval_effective
+    - e3_4_reduction
+    encodes:
+    - EXP-POL E-3.1
+    - EXP-POL E-3.2
+    - EXP-POL E-3.3
+    - EXP-POL E-3.4
+    - EXP-POL E-3.5
+    - EXP-POL E-7.2
+    judgement_inputs: []
+    law_headings: []
+  NdaSurvival.SurvivalEnd:
+    module: NdaSurvival
+    scope: SurvivalEnd
+    path: catala/modules/NdaSurvival.catala_en
+    inputs:
+    - effective_date
+    - termination_notice_date
+    - is_personal_data
+    - date_ceased_to_hold
+    - information_is_trade_secret
+    - information_remains_trade_secret
+    - assessment_date
+    outputs:
+    - agreement_end_date
+    - survival_end_date
+    - obligations_subsist
+    internals: []
+    encodes:
+    - NDA-MUT N-5.1
+    - NDA-MUT N-5.2
+    - NDA-MUT N-5.3
+    - NDA-MUT N-5.4
+    judgement_inputs:
+    - information_is_trade_secret
+    - information_remains_trade_secret
+    law_headings: []
   Overtime.HourPremium:
     module: Overtime
     scope: HourPremium
@@ -48,5 +646,212 @@ scopes:
     - toil_hours
     internals: []
     encodes: []
+    judgement_inputs: []
+    law_headings: []
+  QuotaRelief.QualifyingAbsence:
+    module: QuotaRelief
+    scope: QualifyingAbsence
+    path: catala/modules/QuotaRelief.catala_en
+    inputs:
+    - absence
+    outputs:
+    - days_of_absence
+    - is_qualifying_category
+    - is_qualifying
+    - relief_days
+    internals: []
+    encodes:
+    - COMM-PLAN S-6.1
+    judgement_inputs: []
+    law_headings: []
+  QuotaRelief.RelievedQuota:
+    module: QuotaRelief
+    scope: RelievedQuota
+    path: catala/modules/QuotaRelief.catala_en
+    inputs:
+    - annual_quota
+    - absence_periods
+    outputs:
+    - relief_days
+    - relief
+    - relieved_quota
+    - quota_for_attainment
+    internals: []
+    encodes:
+    - COMM-PLAN S-6.1
+    - COMM-PLAN S-6.2
+    judgement_inputs: []
+    law_headings: []
+  Retention.RetentionEnd:
+    module: Retention
+    scope: RetentionEnd
+    path: catala/modules/retention.catala_en
+    inputs:
+    - data_class
+    - retention_trigger_date
+    - most_recent_engagement_date
+    - talent_pool_consent_date
+    - consent_renewal_dates
+    - statutory_retention_applies
+    - statutory_retention_period
+    outputs:
+    - retention_end_date
+    - backup_purge_deadline
+    internals: []
+    encodes:
+    - DATA-RET R-3.1
+    - DATA-RET R-3.2
+    - DATA-RET R-3.3
+    - DATA-RET R-6.1
+    judgement_inputs:
+    - statutory_retention_applies
+    - statutory_retention_period
+    law_headings: []
+  ServiceCreditClaim.CreditClaim:
+    module: ServiceCreditClaim
+    scope: CreditClaim
+    path: catala/modules/ServiceCreditClaim.catala_en
+    inputs:
+    - measurement_period_end
+    - claim_made
+    - claim_date
+    - claim_accepted_date
+    - further_invoice_expected
+    - next_invoice_date
+    outputs:
+    - claim_deadline
+    - claim_in_time
+    - waived
+    - settlement
+    - settlement_due_date
+    internals: []
+    encodes:
+    - MSA-SCH4 L-5.1
+    - MSA-SCH4 L-5.2
+    judgement_inputs: []
+    law_headings: []
+  ServiceCredits.MonthlyServiceCharge:
+    module: ServiceCredits
+    scope: MonthlyServiceCharge
+    path: catala/modules/ServiceCredits.catala_en
+    inputs:
+    - charges_for_the_service
+    - one_off_charges
+    - professional_services_charges
+    - pass_through_charges
+    outputs:
+    - monthly_service_charge
+    internals: []
+    encodes:
+    - MSA-SCH4 L-2.7
+    judgement_inputs: []
+    law_headings: []
+  ServiceCredits.ServiceCredit:
+    module: ServiceCredits
+    scope: ServiceCredit
+    path: catala/modules/ServiceCredits.catala_en
+    inputs:
+    - availability_percentage
+    - monthly_service_charge
+    - arrears_days
+    - invoice_undisputed
+    outputs:
+    - credit_percentage
+    - credit_cap_percentage
+    - credit_payable_percentage
+    - credit_amount
+    internals: []
+    encodes:
+    - MSA-SCH4 L-4.1
+    - MSA-SCH4 L-4.2
+    - MSA-SCH4 L-4.3
+    - MSA-SCH4 L-4.4
+    judgement_inputs:
+    - invoice_undisputed
+    law_headings: []
+  WorkingTimeDefs.BaseHourlyRate:
+    module: WorkingTimeDefs
+    scope: BaseHourlyRate
+    path: catala/modules/WorkingTimeDefs.catala_en
+    inputs:
+    - annual_base_salary
+    outputs:
+    - base_hourly_rate
+    internals: []
+    encodes:
+    - EMP-ANNEX-C C-2.1
+    judgement_inputs: []
+    law_headings: []
+  WorkingTimeDefs.CriticalIncidentResponse:
+    module: WorkingTimeDefs
+    scope: CriticalIncidentResponse
+    path: catala/modules/WorkingTimeDefs.catala_en
+    inputs:
+    - incident
+    - work_performed_at
+    - performed_in_response_to_incident
+    outputs:
+    - within_incident_period
+    - is_critical_incident_response
+    internals: []
+    encodes:
+    - EMP-ANNEX-C C-2.5
+    judgement_inputs: []
+    law_headings: []
+  WorkingTimeDefs.GazettedPublicHolidays:
+    module: WorkingTimeDefs
+    scope: GazettedPublicHolidays
+    path: catala/modules/WorkingTimeDefs.catala_en
+    inputs:
+    - gazette
+    - principal_place_of_work
+    - calendar_day
+    outputs:
+    - is_gazetted_public_holiday
+    internals: []
+    encodes:
+    - EMP-ANNEX-C C-2.6
+    judgement_inputs: []
+    law_headings: []
+  WorkingTimeDefs.GradeForPayrollWeek:
+    module: WorkingTimeDefs
+    scope: GradeForPayrollWeek
+    path: catala/modules/WorkingTimeDefs.catala_en
+    inputs:
+    - grade_records
+    - payroll_week
+    outputs:
+    - grade
+    internals:
+    - records_in_force
+    encodes:
+    - EMP-ANNEX-C C-2.4
+    judgement_inputs: []
+    law_headings: []
+  WorkingTimeDefs.NightHours:
+    module: WorkingTimeDefs
+    scope: NightHours
+    path: catala/modules/WorkingTimeDefs.catala_en
+    inputs:
+    - hour_beginning
+    outputs:
+    - is_night_hour
+    internals: []
+    encodes:
+    - EMP-ANNEX-C C-2.3
+    judgement_inputs: []
+    law_headings: []
+  WorkingTimeDefs.PayrollWeekOf:
+    module: WorkingTimeDefs
+    scope: PayrollWeekOf
+    path: catala/modules/WorkingTimeDefs.catala_en
+    inputs:
+    - calendar_day
+    outputs:
+    - days_since_monday
+    - payroll_week
+    internals: []
+    encodes:
+    - EMP-ANNEX-C C-2.2
     judgement_inputs: []
     law_headings: []

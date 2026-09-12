@@ -1,6 +1,6 @@
 # MSA Schedule 4 — Claiming a Service Credit
 
-> Module Service_credit_claim
+> Module ServiceCreditClaim
 
 A Service Credit computed by `Service_credits` is not yet money: L-5.1 puts a
 30-day claim window on it and waives it outright if the window closes, and

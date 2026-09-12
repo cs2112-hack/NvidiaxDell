@@ -1,0 +1,596 @@
+# Tests — NDA-MUT N-5 term and survival
+
+Assertion-based tests for `NdaSurvival.SurvivalEnd`. Every branch of the two
+exception hierarchies (`survival_end_date` and `obligations_subsist`) is
+covered, and both sides of every date threshold are tested: the last day of
+the survival period and the day after, the last day of holding and the day
+after, notice served one day before and one day after the point at which 30
+days' notice still expires inside the term.
+
+Three families of test exist specifically to catch encoding defects that the
+type checker cannot see:
+
+* **Composition of N-5.1 into N-5.2.** Early termination must pull the
+  survival end date *earlier*. `EarlyTermination` asserts 2028-02-09, three
+  years from the actual end, and not 2029-07-01, three years from the
+  two-year anniversary.
+* **The N-5.3 / N-5.4 contrast.** On otherwise identical facts, a trade
+  secret yields **no** end date and personal data yields a computed one.
+  `TradeSecretIndefinite` and `PersonalDataCeased` are that pair.
+* **Trap 1, exceptions not inheriting their parent's condition.** Each
+  exception's discriminating input is set while its class input is left
+  false, so an exception missing its own condition would fire and the base
+  answer would change. `CeasedDateIgnoredWhenNotPersonalData` and
+  `NotTradeSecretJudgementIgnored` are those tests.
+
+> Using NdaSurvival
+
+## N5_1_FullTerm
+
+N-5.1 base: the Agreement runs 2 years from the Effective Date where no party
+serves notice, and N-5.2 then adds 3 years.
+
+```catala
+#[test]
+declaration scope TestN5_1_FullTerm:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_1_FullTerm:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2026-01-01|
+    }
+  assertion r.agreement_end_date = |2026-07-01|
+  assertion r.survival_end_date = Present content |2029-07-01|
+  assertion r.obligations_subsist = true
+```
+
+## N5_2_LastDayOfSurvival
+
+The survival end date is the last day on which the obligations bind.
+
+```catala
+#[test]
+declaration scope TestN5_2_LastDayOfSurvival:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_2_LastDayOfSurvival:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2029-07-01|
+    }
+  assertion r.survival_end_date = Present content |2029-07-01|
+  assertion r.obligations_subsist = true
+```
+
+## N5_2_DayAfterSurvival
+
+The other side of the same threshold.
+
+```catala
+#[test]
+declaration scope TestN5_2_DayAfterSurvival:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_2_DayAfterSurvival:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2029-07-02|
+    }
+  assertion r.survival_end_date = Present content |2029-07-01|
+  assertion r.obligations_subsist = false
+```
+
+## N5_1_EarlyTermination
+
+N-5.1 and N-5.2 compose. Notice on 2025-01-10 ends the Agreement 30 days
+later, on 2025-02-09, and the 3 years of N-5.2 run from **that** date. The
+survival therefore ends on 2028-02-09 — earlier than the 2029-07-01 the
+two-year anniversary would have produced.
+
+```catala
+#[test]
+declaration scope TestN5_1_EarlyTermination:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_1_EarlyTermination:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Present content |2025-01-10|
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2026-01-01|
+    }
+  assertion r.agreement_end_date = |2025-02-09|
+  assertion r.survival_end_date = Present content |2028-02-09|
+  assertion r.obligations_subsist = true
+```
+
+## N5_1_EarlyTerminationSurvivalExpired
+
+The same early termination, assessed after the shortened survival has run.
+Had the survival been measured from the two-year anniversary the obligations
+would still bind here.
+
+```catala
+#[test]
+declaration scope TestN5_1_EarlyTerminationSurvivalExpired:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_1_EarlyTerminationSurvivalExpired:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Present content |2025-01-10|
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2028-02-10|
+    }
+  assertion r.survival_end_date = Present content |2028-02-09|
+  assertion r.obligations_subsist = false
+```
+
+## N5_1_NoticeTooLateToShortenTerm
+
+Notice served on 2026-06-20 expires on 2026-07-20, after the second
+anniversary, so the Agreement is not "terminated earlier" and the ordinary
+expiry stands.
+
+```catala
+#[test]
+declaration scope TestN5_1_NoticeTooLateToShortenTerm:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_1_NoticeTooLateToShortenTerm:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Present content |2026-06-20|
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2026-06-25|
+    }
+  assertion r.agreement_end_date = |2026-07-01|
+  assertion r.survival_end_date = Present content |2029-07-01|
+```
+
+## N5_1_NoticeExpiringExactlyOnExpiry
+
+Notice on 2026-06-01 expires on 2026-07-01, the day the Agreement expires
+anyway. That is not earlier, so the ordinary expiry governs. This is one side
+of the "terminated earlier" threshold.
+
+```catala
+#[test]
+declaration scope TestN5_1_NoticeExpiringExactlyOnExpiry:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_1_NoticeExpiringExactlyOnExpiry:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Present content |2026-06-01|
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2026-06-25|
+    }
+  assertion r.agreement_end_date = |2026-07-01|
+  assertion r.survival_end_date = Present content |2029-07-01|
+```
+
+## N5_1_NoticeOneDayEarlier
+
+The other side of that threshold: notice one day earlier expires on
+2026-06-30, which is earlier, so it terminates the Agreement and pulls the
+survival back to 2029-06-30.
+
+```catala
+#[test]
+declaration scope TestN5_1_NoticeOneDayEarlier:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_1_NoticeOneDayEarlier:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Present content |2026-05-31|
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2026-06-25|
+    }
+  assertion r.agreement_end_date = |2026-06-30|
+  assertion r.survival_end_date = Present content |2029-06-30|
+```
+
+## N5_1_MonthEndRounding
+
+An Effective Date of 29 February is the month-end case where Catala date
+addition is ambiguous and would raise without a declared rounding mode. The
+scope declares `date round up`, so the two-year term ends on 2026-03-01 and
+the survival on 2029-03-01.
+
+```catala
+#[test]
+declaration scope TestN5_1_MonthEndRounding:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_1_MonthEndRounding:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-02-29|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2026-01-01|
+    }
+  assertion r.agreement_end_date = |2026-03-01|
+  assertion r.survival_end_date = Present content |2029-03-01|
+  assertion r.obligations_subsist = true
+```
+
+## N5_3_TradeSecretIndefinite
+
+N-5.3: the 3-year arithmetic is disapplied and **no** end date is produced.
+The obligations still bind seventy years on, because the information remains
+a trade secret. A module that answered "three years" here would be asserting
+the one thing the clause contradicts.
+
+```catala
+#[test]
+declaration scope TestN5_3_TradeSecretIndefinite:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_3_TradeSecretIndefinite:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: true
+      -- information_remains_trade_secret: true
+      -- assessment_date: |2099-01-01|
+    }
+  assertion r.agreement_end_date = |2026-07-01|
+  assertion r.survival_end_date = Absent
+  assertion r.obligations_subsist = true
+```
+
+## N5_3_TradeSecretNoLongerRemains
+
+The second judgement input doing its work: the information was a trade secret
+but no longer is, so the N-5.3 obligations have ended. Still no end date is
+produced — the module cannot know the date on which it ceased.
+
+```catala
+#[test]
+declaration scope TestN5_3_TradeSecretNoLongerRemains:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_3_TradeSecretNoLongerRemains:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: true
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2027-01-01|
+    }
+  assertion r.survival_end_date = Absent
+  assertion r.obligations_subsist = false
+```
+
+## N5_3_TradeSecretWithEarlyTermination
+
+N-5.3 disapplies N-5.2's arithmetic but not N-5.1's term, so the Agreement
+still ends when notice says it does, and still no expiry date is produced.
+
+```catala
+#[test]
+declaration scope TestN5_3_TradeSecretWithEarlyTermination:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_3_TradeSecretWithEarlyTermination:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Present content |2025-01-10|
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: true
+      -- information_remains_trade_secret: true
+      -- assessment_date: |2026-01-01|
+    }
+  assertion r.agreement_end_date = |2025-02-09|
+  assertion r.survival_end_date = Absent
+  assertion r.obligations_subsist = true
+```
+
+## N5_3_NotTradeSecretJudgementIgnored
+
+Trap 1. The "remains a trade secret" judgement is true but the information is
+not characterised as a trade secret, so N-5.3 must not fire and the N-5.2
+base must govern. An exception written without its own condition would return
+`Absent` here.
+
+```catala
+#[test]
+declaration scope TestN5_3_NotTradeSecretJudgementIgnored:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_3_NotTradeSecretJudgementIgnored:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: true
+      -- assessment_date: |2027-01-01|
+    }
+  assertion r.survival_end_date = Present content |2029-07-01|
+  assertion r.obligations_subsist = true
+```
+
+## N5_4_PersonalDataStillHeld
+
+N-5.4: while the Recipient still holds the personal data no end date has
+arisen, and the obligations bind however long that is.
+
+```catala
+#[test]
+declaration scope TestN5_4_PersonalDataStillHeld:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_4_PersonalDataStillHeld:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: true
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2099-01-01|
+    }
+  assertion r.survival_end_date = Absent
+  assertion r.obligations_subsist = true
+```
+
+## N5_4_PersonalDataCeased
+
+The N-5.3 / N-5.4 contrast. On facts differing only in which class the
+information falls into, N-5.4 produces a determinate end date — the date the
+Recipient ceased to hold the data — where N-5.3 produced none. Here it
+shortens the survival: 2027-03-15 is well before the N-5.2 date of
+2029-07-01.
+
+```catala
+#[test]
+declaration scope TestN5_4_PersonalDataCeased:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_4_PersonalDataCeased:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: true
+      -- date_ceased_to_hold: Present content |2027-03-15|
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2027-03-15|
+    }
+  assertion r.survival_end_date = Present content |2027-03-15|
+  assertion r.obligations_subsist = true
+```
+
+## N5_4_PersonalDataCeasedDayAfter
+
+The other side of the N-5.4 threshold.
+
+```catala
+#[test]
+declaration scope TestN5_4_PersonalDataCeasedDayAfter:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_4_PersonalDataCeasedDayAfter:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: true
+      -- date_ceased_to_hold: Present content |2027-03-15|
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2027-03-16|
+    }
+  assertion r.survival_end_date = Present content |2027-03-15|
+  assertion r.obligations_subsist = false
+```
+
+## N5_4_PersonalDataCeasedAfterThreeYears
+
+N-5.4 can lengthen as well as shorten: holding personal data past the N-5.2
+three years keeps the obligations running to the date holding ceases.
+
+```catala
+#[test]
+declaration scope TestN5_4_PersonalDataCeasedAfterThreeYears:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_4_PersonalDataCeasedAfterThreeYears:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: true
+      -- date_ceased_to_hold: Present content |2031-01-01|
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2030-01-01|
+    }
+  assertion r.survival_end_date = Present content |2031-01-01|
+  assertion r.obligations_subsist = true
+```
+
+## N5_4_CeasedDateIgnoredWhenNotPersonalData
+
+Trap 1. A date of ceasing to hold is on file but the information is not
+personal data, so N-5.4 must not fire and the N-5.2 base must govern. An
+exception written without its own condition would return 2027-01-01 here.
+
+```catala
+#[test]
+declaration scope TestN5_4_CeasedDateIgnoredWhenNotPersonalData:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_4_CeasedDateIgnoredWhenNotPersonalData:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Present content |2027-01-01|
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2028-01-01|
+    }
+  assertion r.survival_end_date = Present content |2029-07-01|
+  assertion r.obligations_subsist = true
+```
+
+## N5_34_BothStillHeldNotTradeSecretAnyMore
+
+Both exceptions bear on the same information. The trade secret has lapsed but
+the Recipient still holds the personal data, so the obligations subsist on
+the N-5.4 ground: neither clause disapplies the other.
+
+```catala
+#[test]
+declaration scope TestN5_34_BothStillHeldNotTradeSecretAnyMore:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_34_BothStillHeldNotTradeSecretAnyMore:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: true
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: true
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2099-01-01|
+    }
+  assertion r.survival_end_date = Absent
+  assertion r.obligations_subsist = true
+```
+
+## N5_34_BothTradeSecretAfterCeasingToHold
+
+The mirror case: holding has ceased but the information remains a trade
+secret, so the obligations subsist on the N-5.3 ground and no end date is
+produced even though N-5.4 alone would have produced 2027-01-01.
+
+```catala
+#[test]
+declaration scope TestN5_34_BothTradeSecretAfterCeasingToHold:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_34_BothTradeSecretAfterCeasingToHold:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: true
+      -- date_ceased_to_hold: Present content |2027-01-01|
+      -- information_is_trade_secret: true
+      -- information_remains_trade_secret: true
+      -- assessment_date: |2030-01-01|
+    }
+  assertion r.survival_end_date = Absent
+  assertion r.obligations_subsist = true
+```
+
+## N5_34_BothNeitherGroundRuns
+
+Both exceptions apply and neither ground still runs, so the obligations have
+ended. This is the third branch of the combined limb.
+
+```catala
+#[test]
+declaration scope TestN5_34_BothNeitherGroundRuns:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_34_BothNeitherGroundRuns:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: true
+      -- date_ceased_to_hold: Present content |2027-01-01|
+      -- information_is_trade_secret: true
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2027-01-02|
+    }
+  assertion r.survival_end_date = Absent
+  assertion r.obligations_subsist = false
+```
+
+## N5_34_BothLastDayOfHolding
+
+The N-5.4 boundary inside the combined limb, on its inclusive side.
+
+```catala
+#[test]
+declaration scope TestN5_34_BothLastDayOfHolding:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_34_BothLastDayOfHolding:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: true
+      -- date_ceased_to_hold: Present content |2027-01-01|
+      -- information_is_trade_secret: true
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2027-01-01|
+    }
+  assertion r.survival_end_date = Absent
+  assertion r.obligations_subsist = true
+```

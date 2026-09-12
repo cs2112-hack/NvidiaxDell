@@ -1,0 +1,204 @@
+# Tests — MSA Schedule 4 claiming a Service Credit
+
+Assertion-based tests for `Service_credit_claim`. The Measurement Period ends
+on 31 January 2025 throughout, so the L-5.1 deadline is 2 March 2025, and the
+window is tested on both sides of it: a claim on day 30 is in time, a claim on
+day 31 is waived. Both branches of the L-5.2 settlement hierarchy are covered,
+with their dates.
+
+> Using ServiceCreditClaim
+
+## L5_1_ClaimOnDayThirty
+
+L-5.1: "within 30 days after the end of the Measurement Period" is inclusive
+of the thirtieth day, so a claim on 2 March is in time.
+
+```catala
+#[test]
+declaration scope TestL5_1_ClaimOnDayThirty:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestL5_1_ClaimOnDayThirty:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: true
+      -- claim_date: |2025-03-02|
+      -- claim_accepted_date: |2025-03-10|
+      -- further_invoice_expected: true
+      -- next_invoice_date: |2025-04-01|
+    }
+  assertion r.claim_deadline = |2025-03-02|
+  assertion r.claim_in_time = true
+  assertion r.waived = false
+```
+
+## L5_1_ClaimOnDayThirtyOne
+
+L-5.1: one day later and the Service Credit is waived.
+
+```catala
+#[test]
+declaration scope TestL5_1_ClaimOnDayThirtyOne:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestL5_1_ClaimOnDayThirtyOne:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: true
+      -- claim_date: |2025-03-03|
+      -- claim_accepted_date: |2025-03-10|
+      -- further_invoice_expected: true
+      -- next_invoice_date: |2025-04-01|
+    }
+  assertion r.claim_deadline = |2025-03-02|
+  assertion r.claim_in_time = false
+  assertion r.waived = true
+```
+
+## L5_1_EarlyClaim
+
+L-5.1: a claim made promptly after the end of the period is plainly in time.
+
+```catala
+#[test]
+declaration scope TestL5_1_EarlyClaim:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestL5_1_EarlyClaim:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: true
+      -- claim_date: |2025-02-03|
+      -- claim_accepted_date: |2025-02-10|
+      -- further_invoice_expected: true
+      -- next_invoice_date: |2025-03-01|
+    }
+  assertion r.claim_in_time = true
+  assertion r.waived = false
+```
+
+## L5_1_NoClaimAtAll
+
+L-5.1: "a Service Credit not claimed within that period is waived" catches the
+Customer who never claims, not only the one who claims late.
+
+```catala
+#[test]
+declaration scope TestL5_1_NoClaimAtAll:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestL5_1_NoClaimAtAll:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: false
+      -- claim_date: |2025-02-03|
+      -- claim_accepted_date: |2025-02-10|
+      -- further_invoice_expected: true
+      -- next_invoice_date: |2025-03-01|
+    }
+  assertion r.claim_in_time = false
+  assertion r.waived = true
+```
+
+## L5_1_LongMonthDeadline
+
+L-5.1: the deadline is 30 days from the end of the period, not the end of the
+following month. April ends on the 30th, so the deadline is 30 May.
+
+```catala
+#[test]
+declaration scope TestL5_1_LongMonthDeadline:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestL5_1_LongMonthDeadline:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-04-30|
+      -- claim_made: true
+      -- claim_date: |2025-05-30|
+      -- claim_accepted_date: |2025-06-02|
+      -- further_invoice_expected: true
+      -- next_invoice_date: |2025-07-01|
+    }
+  assertion r.claim_deadline = |2025-05-30|
+  assertion r.claim_in_time = true
+  assertion r.waived = false
+```
+
+## L5_2_SetOffAgainstNextInvoice
+
+L-5.2 base case: the credit is applied against the next invoice issued after
+the claim is accepted.
+
+```catala
+#[test]
+declaration scope TestL5_2_SetOffAgainstNextInvoice:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestL5_2_SetOffAgainstNextInvoice:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: true
+      -- claim_date: |2025-02-03|
+      -- claim_accepted_date: |2025-02-10|
+      -- further_invoice_expected: true
+      -- next_invoice_date: |2025-03-01|
+    }
+  assertion r.settlement = AppliedAgainstNextInvoice
+  assertion r.settlement_due_date = |2025-03-01|
+```
+
+## L5_2_PaidWhereNoFurtherInvoice
+
+L-5.2 exception: where no further invoice will be issued the credit is paid,
+within 30 days of acceptance of the claim.
+
+```catala
+#[test]
+declaration scope TestL5_2_PaidWhereNoFurtherInvoice:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestL5_2_PaidWhereNoFurtherInvoice:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: true
+      -- claim_date: |2025-02-03|
+      -- claim_accepted_date: |2025-02-10|
+      -- further_invoice_expected: false
+      -- next_invoice_date: |2025-03-01|
+    }
+  assertion r.settlement = PaidToCustomer
+  assertion r.settlement_due_date = |2025-03-12|
+```
+
+## L5_2_SettlementIsIndependentOfWaiver
+
+L-5.1 and L-5.2 answer different questions. A waived credit is still routed by
+L-5.2's mechanics, so the two outputs must be read together: `waived` is what
+says there is nothing to settle.
+
+```catala
+#[test]
+declaration scope TestL5_2_SettlementIsIndependentOfWaiver:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestL5_2_SettlementIsIndependentOfWaiver:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: true
+      -- claim_date: |2025-03-03|
+      -- claim_accepted_date: |2025-03-10|
+      -- further_invoice_expected: false
+      -- next_invoice_date: |2025-04-01|
+    }
+  assertion r.waived = true
+  assertion r.settlement = PaidToCustomer
+  assertion r.settlement_due_date = |2025-04-09|
+```

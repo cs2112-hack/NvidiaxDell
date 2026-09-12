@@ -1,0 +1,230 @@
+# Hourly premium rules — re-encoding of the plain English specification
+
+This file is an independent re-encoding, in Catala, of the plain English
+specification of the hourly premium rules.
+
+> Module Reencoded
+
+## Facts supplied about the hour, and values to determine
+
+- `ordinal` — a whole number, the position of this hour within the working
+  week.
+- `grade` — a whole number, the worker's job grade.
+- `is_public_holiday`, `is_critical_incident`, `is_night`,
+  `has_standing_shift_allowance` — true or false.
+
+The values to determine are the `multiplier`, the `night_premium`, the
+`total_rate` (the two added together) and whether the hour `accrues_toil`.
+
+```catala-metadata
+declaration scope HourPremium:
+  input ordinal content integer
+  input grade content integer
+  input is_public_holiday content boolean
+  input is_critical_incident content boolean
+  input is_night content boolean
+  input has_standing_shift_allowance content boolean
+
+  output multiplier content decimal
+  output night_premium content decimal
+  output total_rate content decimal
+  output accrues_toil content boolean
+```
+
+## Rules for the multiplier
+
+The hierarchy, from most general to most specific, is: the ordinary rule, then
+the over-40 rule, then the over-48 rule, then the senior-grade rule, then the
+critical-incident rule, then the public-holiday rule, then the
+long-public-holiday rule. Each is an exception to the one before it.
+
+Every rule below states its own condition in full: an exception does not
+inherit the condition of the rule it is an exception to.
+
+### Ordinary rule
+
+By default, an hour attracts a multiplier of 0.
+
+```catala
+scope HourPremium:
+  label ordinary_rule
+  definition multiplier equals 0.0
+```
+
+### Over-40 rule
+
+As an exception to the ordinary rule: where the ordinal is greater than 40, the
+multiplier is 1.25.
+
+```catala
+scope HourPremium:
+  label over_40_rule
+  exception ordinary_rule
+  definition multiplier
+    under condition ordinal > 40
+    consequence equals 1.25
+```
+
+### Over-48 rule
+
+As an exception to the over-40 rule: where the ordinal is greater than 48, the
+multiplier is 1.5.
+
+```catala
+scope HourPremium:
+  label over_48_rule
+  exception over_40_rule
+  definition multiplier
+    under condition ordinal > 48
+    consequence equals 1.5
+```
+
+### Senior-grade rule
+
+As an exception to the over-48 rule: where the grade is 5 or more and the
+ordinal is greater than 40, the multiplier is 0.
+
+```catala
+scope HourPremium:
+  label senior_grade_rule
+  exception over_48_rule
+  definition multiplier
+    under condition grade >= 5 and ordinal > 40
+    consequence equals 0.0
+```
+
+### Critical-incident rule
+
+As an exception to the senior-grade rule: where the grade is 5 or more, the
+ordinal is greater than 40, and the hour was worked in response to a critical
+incident, the multiplier is 1.5 if the ordinal is greater than 48, and
+otherwise 1.25.
+
+```catala
+scope HourPremium:
+  label critical_incident_rule
+  exception senior_grade_rule
+  definition multiplier
+    under condition
+      grade >= 5 and ordinal > 40 and is_critical_incident
+    consequence equals
+      if ordinal > 48 then 1.5 else 1.25
+```
+
+### Public-holiday rule
+
+As an exception to the critical-incident rule: where the hour was worked on a
+public holiday, the multiplier is 2.0. This rule has no condition on the
+ordinal, so it applies to a public holiday hour even within the first 40 hours
+of the week.
+
+```catala
+scope HourPremium:
+  label public_holiday_rule
+  exception critical_incident_rule
+  definition multiplier
+    under condition is_public_holiday
+    consequence equals 2.0
+```
+
+### Long-public-holiday rule
+
+As an exception to the public-holiday rule: where the hour was worked on a
+public holiday and the ordinal is greater than 48, the multiplier is the
+greater of 2.0 and (1.5 plus 0.25).
+
+```catala
+scope HourPremium:
+  label long_public_holiday_rule
+  exception public_holiday_rule
+  definition multiplier
+    under condition is_public_holiday and ordinal > 48
+    consequence equals
+      if 2.0 >= 1.5 + 0.25 then 2.0 else 1.5 + 0.25
+```
+
+## Rules for the night premium
+
+### Night rule
+
+By default, the night premium is 0.15 if the hour falls at night, and 0
+otherwise.
+
+```catala
+scope HourPremium:
+  label night_rule
+  definition night_premium equals
+    if is_night then 0.15 else 0.0
+```
+
+### Shift-allowance rule
+
+As an exception to the night rule: where the worker has a standing shift
+allowance, the night premium is 0.
+
+```catala
+scope HourPremium:
+  label shift_allowance_rule
+  exception night_rule
+  definition night_premium
+    under condition has_standing_shift_allowance
+    consequence equals 0.0
+```
+
+## Rule for the total rate
+
+The total rate is the multiplier plus the night premium. There is no exception
+to this; the night premium is always cumulative with the multiplier, including
+where the multiplier was determined by the public-holiday rule.
+
+```catala
+scope HourPremium:
+  label total_rate_rule
+  definition total_rate equals multiplier + night_premium
+```
+
+## Rules for time off in lieu
+
+These rules form their own hierarchy of two levels.
+
+### No-accrual rule
+
+By default, an hour does not accrue time off in lieu.
+
+```catala
+scope HourPremium:
+  label no_accrual_rule
+  definition accrues_toil equals false
+```
+
+### Senior-grade accrual rule
+
+As an exception to the no-accrual rule: where the grade is 5 or more and the
+ordinal is greater than 40, the hour accrues time off in lieu.
+
+```catala
+scope HourPremium:
+  label senior_grade_accrual_rule
+  exception no_accrual_rule
+  definition accrues_toil
+    under condition grade >= 5 and ordinal > 40
+    consequence equals true
+```
+
+### Critical-incident accrual rule
+
+As an exception to the senior-grade accrual rule: where the grade is 5 or more,
+the ordinal is greater than 40, and the hour was worked in response to a
+critical incident, the hour does not accrue time off in lieu.
+
+Working on a public holiday does not prevent the accrual of time off in lieu.
+
+```catala
+scope HourPremium:
+  label critical_incident_accrual_rule
+  exception senior_grade_accrual_rule
+  definition accrues_toil
+    under condition
+      grade >= 5 and ordinal > 40 and is_critical_incident
+    consequence equals false
+```

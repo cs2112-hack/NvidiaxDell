@@ -47,6 +47,7 @@ from .catala_runner import (
     exception_tree,
     json_schema,
     run_scope,
+    structural_signature,
     toolchain,
     tree_signature,
     values_agree,
@@ -155,12 +156,20 @@ def generate_battery(
 class VariableDiff:
     scope: str
     variable: str
-    signature_a: str
+    signature_a: str          # label-blind: shape + conditions
     signature_b: str
+    labels_a: str = ""        # label-bearing, advisory only
+    labels_b: str = ""
 
     @property
     def equal(self) -> bool:
+        """Agreement about the law: same shape, same conditions. Label names
+        are recorded but do not decide this."""
         return self.signature_a == self.signature_b
+
+    @property
+    def labels_differ(self) -> bool:
+        return bool(self.labels_a) and self.labels_a != self.labels_b
 
 
 @dataclass
@@ -195,6 +204,13 @@ class RoundtripResult:
             f"exception trees: {len(self.tree_diffs) - len(bad_trees)}/{len(self.tree_diffs)} identical",
             f"behaviour: {self.battery_size} input vectors, {len(self.behaviour_diffs)} disagreement(s)",
         ]
+        renamed = [d for d in self.tree_diffs if d.equal and d.labels_differ]
+        if renamed:
+            lines.append(
+                f"  {len(renamed)} hierarchy/hierarchies identical in shape and "
+                f"conditions but with different label names (not a divergence): "
+                + ", ".join(f"{d.scope}.{d.variable}" for d in renamed[:6])
+            )
         for d in bad_trees[:5]:
             lines.append(f"  tree differs at {d.scope}.{d.variable}:")
             lines.append(f"    A: {d.signature_a.replace(chr(10), ' | ')[:150]}")
@@ -269,7 +285,11 @@ def compare_encodings(
                 continue
             all_trees.extend(ta)
             res.tree_diffs.append(
-                VariableDiff(sa, var, tree_signature(ta), tree_signature(tb))
+                VariableDiff(
+                    sa, var,
+                    structural_signature(ta), structural_signature(tb),
+                    tree_signature(ta), tree_signature(tb),
+                )
             )
 
         thresholds = collect_thresholds(all_trees)

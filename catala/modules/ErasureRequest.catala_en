@@ -1,6 +1,6 @@
 # Data Retention and Deletion Standard — R-5 Erasure requests
 
-> Module Erasure_request
+> Module ErasureRequest
 
 This module answers: by when must personal data be deleted on a data
 subject's request for erasure?
@@ -28,7 +28,7 @@ excessive, none of which this Standard defines.
 `retention_required_for_legal_claims` are the two **judgement inputs** of
 R-5.2's first and second limbs. Its third limb, a Legal Hold, is computable,
 and arrives as `legal_hold_blocks_erasure` — which is
-`Legal_hold.HoldEffect.erasure_blocked_by_hold`, so it already carries R-4.2's
+`LegalHold.HoldEffect.erasure_blocked_by_hold`, so it already carries R-4.2's
 own judgement that applicable data protection law permits the retention. A
 plain "is a hold in force" input here would let a hold defeat an erasure
 request unconditionally, which is what R-4.2 says it does not do.

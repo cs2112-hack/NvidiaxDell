@@ -240,6 +240,13 @@ The proviso sets a ceiling of 8 hours — 480 minutes — on Scheduled Maintenan
 in aggregate across the Measurement Period. The ceiling is stated here; its
 consequence is stated by L-4.5 below.
 
+The Schedule does not say whether the 8 hours are measured by the length of
+the notified windows or by the minutes inside them during which the Service
+was not Available. Only the second reading connects to anything: L-4.5 makes
+the excess minutes count as Unavailable Minutes, and a minute during which the
+Service was Available cannot become an Unavailable Minute. So the aggregate is
+of unavailable minutes falling inside qualifying windows.
+
 ```catala
 scope ScheduledMaintenance:
   definition cap_minutes equals 8 * 60

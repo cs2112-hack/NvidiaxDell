@@ -1,6 +1,6 @@
 # Employment Terms — Annex C: defined terms of working time
 
-> Module Working_time_defs
+> Module WorkingTimeDefs
 
 The module is declared `Working_time_defs` rather than `WorkingTimeDefs`
 because Catala 1.2.1 requires the module name to match the file name up to

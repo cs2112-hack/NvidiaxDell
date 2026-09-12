@@ -1,6 +1,6 @@
 # Sales Commission Plan — FY26: quota relief
 
-> Module Quota_relief
+> Module QuotaRelief
 
 This module computes the Quota against which Attainment is measured, after
 relief for qualifying absence under S-6. It is deliberately upstream of

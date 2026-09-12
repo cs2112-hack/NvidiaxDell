@@ -1,0 +1,278 @@
+# Tests — FY26 Sales Commission Plan: clawback
+
+Assertion-based tests for `Clawback.RecoverableCommission`. Every branch of
+the `recoverable_amount` chain is covered — the `no_recovery` base, S-7.1,
+S-7.2 and S-7.3 — and the 24-month long-stop in S-7.3 is tested on both sides
+of the boundary, including the case where both S-7.2 and S-7.3 would apply,
+which is the case that would raise a runtime `Conflict` if S-7.3 had been
+encoded as a sibling of S-7.2 rather than below it.
+
+The judgement input `terminated_for_company_material_breach` is supplied by
+the test, never inferred: each test says what a human decided.
+
+> Using Clawback
+
+## The base case — no general right of recovery
+
+A contract that has not become a Churned Contract yields nothing recoverable,
+whatever was paid on it.
+
+```catala
+#[test]
+declaration scope TestBase_NotChurnedNothingRecoverable:
+  output r content Clawback.RecoverableCommission
+
+scope TestBase_NotChurnedNothingRecoverable:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2026-06-30|
+      -- is_churned_contract: false
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.recovery_time_barred = false
+  assertion r.recoverable_amount = $0
+```
+
+## S-7.1 Churn makes the commission recoverable
+
+```catala
+#[test]
+declaration scope TestS7_1_ChurnedRecoverable:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_1_ChurnedRecoverable:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2026-06-30|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.long_stop_date = |2028-01-31|
+  assertion r.recovery_time_barred = false
+  assertion r.recoverable_amount = $40,000
+```
+
+The whole of the commission attributable to the contract is recoverable, not a
+proportion of it.
+
+```catala
+#[test]
+declaration scope TestS7_1_WholeAttributableAmount:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_1_WholeAttributableAmount:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $137.55
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2026-02-01|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.recoverable_amount = $137.55
+```
+
+## S-7.2 A material breach by the Company bars recovery
+
+```catala
+#[test]
+declaration scope TestS7_2_MaterialBreachBarsRecovery:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_2_MaterialBreachBarsRecovery:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2026-06-30|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: true
+    }
+  assertion r.recovery_time_barred = false
+  assertion r.recoverable_amount = $0
+```
+
+S-7.2's condition repeats S-7.1's: on a contract that never churned, the
+judgement that the Company was in material breach changes nothing, because no
+right of recovery arose for it to defeat.
+
+```catala
+#[test]
+declaration scope TestS7_2_BreachOnUnchurnedContract:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_2_BreachOnUnchurnedContract:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2026-06-30|
+      -- is_churned_contract: false
+      -- terminated_for_company_material_breach: true
+    }
+  assertion r.recoverable_amount = $0
+```
+
+## S-7.3 The 24-month long-stop, on both sides
+
+The long-stop runs from the date the commission was **paid**. Commission paid
+on 31 January 2026 may still be recovered on 31 January 2028: that is exactly
+24 months after, and S-7.3 bars recovery only "more than" 24 months after.
+
+```catala
+#[test]
+declaration scope TestS7_3_ExactlyTwentyFourMonths:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_3_ExactlyTwentyFourMonths:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2028-01-31|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.long_stop_date = |2028-01-31|
+  assertion r.recovery_time_barred = false
+  assertion r.recoverable_amount = $40,000
+```
+
+One day later it is out of time.
+
+```catala
+#[test]
+declaration scope TestS7_3_OneDayAfterTwentyFourMonths:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_3_OneDayAfterTwentyFourMonths:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2028-02-01|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.long_stop_date = |2028-01-31|
+  assertion r.recovery_time_barred = true
+  assertion r.recoverable_amount = $0
+```
+
+The long-stop is measured from payment and not from signature or churn: a
+churn event long inside the 180-day window of S-2.4 does not restart it. Here
+the commission was paid on 1 October 2025 and the assessment is on 1 November
+2027, which is more than 24 months after payment.
+
+```catala
+#[test]
+declaration scope TestS7_3_MeasuredFromPaymentDate:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_3_MeasuredFromPaymentDate:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2025-10-01|
+      -- assessment_date: |2027-11-01|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.long_stop_date = |2027-10-01|
+  assertion r.recovery_time_barred = true
+  assertion r.recoverable_amount = $0
+```
+
+## S-7.3 sits below S-7.2, so the two bars cannot conflict
+
+Both bars apply on these facts. Encoded as siblings they would be two
+applicable definitions with neither an exception to the other, which is a
+runtime `Conflict`. Encoded as a chain, S-7.3 governs and the answer is nil.
+
+```catala
+#[test]
+declaration scope TestS7_3_BreachAndTimeBarredTogether:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_3_BreachAndTimeBarredTogether:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2028-06-30|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: true
+    }
+  assertion r.recovery_time_barred = true
+  assertion r.recoverable_amount = $0
+```
+
+S-7.3 repeats S-7.1's condition but not S-7.2's: it applies whether or not
+there was a material breach, and it does not reach a contract that never
+churned.
+
+```catala
+#[test]
+declaration scope TestS7_3_TimeBarredOnUnchurnedContract:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_3_TimeBarredOnUnchurnedContract:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2026-01-31|
+      -- assessment_date: |2028-06-30|
+      -- is_churned_contract: false
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.recovery_time_barred = true
+  assertion r.recoverable_amount = $0
+```
+
+## S-7.3 The leap-day long-stop
+
+24 months after 29 February 2024 is a date that does not exist. `date round
+down` puts the long-stop on 28 February 2026, which is the reading that does
+not extend the Company's recovery window. Recovery on that day is in time.
+
+```catala
+#[test]
+declaration scope TestS7_3_LeapDayLongStopInTime:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_3_LeapDayLongStopInTime:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2024-02-29|
+      -- assessment_date: |2026-02-28|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.long_stop_date = |2026-02-28|
+  assertion r.recovery_time_barred = false
+  assertion r.recoverable_amount = $40,000
+```
+
+```catala
+#[test]
+declaration scope TestS7_3_LeapDayLongStopOutOfTime:
+  output r content Clawback.RecoverableCommission
+
+scope TestS7_3_LeapDayLongStopOutOfTime:
+  definition r equals
+    output of Clawback.RecoverableCommission with {
+      -- commission_paid: $40,000
+      -- payment_date: |2024-02-29|
+      -- assessment_date: |2026-03-01|
+      -- is_churned_contract: true
+      -- terminated_for_company_material_breach: false
+    }
+  assertion r.long_stop_date = |2026-02-28|
+  assertion r.recovery_time_barred = true
+  assertion r.recoverable_amount = $0
+```

@@ -10,7 +10,7 @@ by one day or one hour silently mis-prices every entitlement computed from it.
 Counterexamples found by the adversarial reviewer are kept separately, in
 `tests/counterexamples/`, and are re-run by `scripts/check.sh`.
 
-> Using Working_time_defs as WTD
+> Using WorkingTimeDefs as WTD
 
 ## C2_1_BaseHourlyRate
 

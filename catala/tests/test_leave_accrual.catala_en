@@ -1,0 +1,712 @@
+# Tests — Annex C annual leave accrual (C-9)
+
+Assertion-based tests for `Leave_accrual`. Three things in C-9 can only be got
+wrong silently, and each has its own group of tests here.
+
+The first is the boundary between C-9.1 and C-9.2: a month is either completed
+or it is not, and the tests check the day either side of both ends of a month.
+The second is C-9.2's denominator, which is the number of days in the month
+under examination and not a constant: February 2023, February 2024, a 30-day
+month and a 31-day month are all tested, including a pair that differ only in
+the leap day and accrue different amounts because of it. The third is C-9.2's
+rounding proviso, which is tested directly against `HalfDayRounding` at every
+exact quarter and on both sides of every one of them, because the exact
+quarter is unreachable through `MonthlyAccrual` (see the module) and would
+otherwise never be executed at all.
+
+Counterexamples found by the adversarial reviewer are kept separately, in
+`tests/counterexamples/`, and are re-run by `scripts/check.sh`.
+
+> Using LeaveAccrual as LA
+
+## Rounding_Zero
+
+C-9.2: nothing rounds to nothing.
+
+```catala
+#[test]
+declaration scope TestRounding_Zero:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_Zero:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 0.0 }
+  assertion r.is_exact_quarter = false
+  assertion r.rounded_days = 0.0
+```
+
+## Rounding_ExactQuarter_0_25
+
+C-9.2's proviso, the case it was written for: an exact quarter of a day is
+exactly midway between nothing and half a day, and it rounds upwards.
+
+```catala
+#[test]
+declaration scope TestRounding_ExactQuarter_0_25:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_ExactQuarter_0_25:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 0.25 }
+  assertion r.is_exact_quarter = true
+  assertion r.rounded_days = 0.5
+```
+
+## Rounding_JustBelowQuarter_0_24
+
+C-9.2: below the quarter the nearest half day is nothing, so the proviso does
+not apply and nothing accrues. This is the exact quarter from below.
+
+```catala
+#[test]
+declaration scope TestRounding_JustBelowQuarter_0_24:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_JustBelowQuarter_0_24:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 0.24 }
+  assertion r.is_exact_quarter = false
+  assertion r.rounded_days = 0.0
+```
+
+## Rounding_JustAboveQuarter_0_26
+
+C-9.2: above the quarter the nearest half day is half a day, which is the same
+answer the proviso gives, but by the rule and not by the proviso.
+
+```catala
+#[test]
+declaration scope TestRounding_JustAboveQuarter_0_26:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_JustAboveQuarter_0_26:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 0.26 }
+  assertion r.is_exact_quarter = false
+  assertion r.rounded_days = 0.5
+```
+
+## Rounding_ExactQuarter_0_75
+
+C-9.2's proviso at the second quarter. 0.75 is an exact quarter of a day and
+is exactly midway between half a day and a whole day, so it rounds upwards to
+1.0. The reading that treats only 0.25 as 'an exact quarter' would leave this
+value with no rule at all.
+
+```catala
+#[test]
+declaration scope TestRounding_ExactQuarter_0_75:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_ExactQuarter_0_75:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 0.75 }
+  assertion r.is_exact_quarter = true
+  assertion r.rounded_days = 1.0
+```
+
+## Rounding_JustBelow_0_75
+
+C-9.2: the second quarter from below.
+
+```catala
+#[test]
+declaration scope TestRounding_JustBelow_0_75:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_JustBelow_0_75:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 0.74 }
+  assertion r.is_exact_quarter = false
+  assertion r.rounded_days = 0.5
+```
+
+## Rounding_JustAbove_0_75
+
+C-9.2: the second quarter from above.
+
+```catala
+#[test]
+declaration scope TestRounding_JustAbove_0_75:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_JustAbove_0_75:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 0.76 }
+  assertion r.is_exact_quarter = false
+  assertion r.rounded_days = 1.0
+```
+
+## Rounding_ExactQuarter_1_25
+
+C-9.2's proviso at the third quarter.
+
+```catala
+#[test]
+declaration scope TestRounding_ExactQuarter_1_25:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_ExactQuarter_1_25:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 1.25 }
+  assertion r.is_exact_quarter = true
+  assertion r.rounded_days = 1.5
+```
+
+## Rounding_ExactQuarter_1_75
+
+C-9.2's proviso at the fourth quarter, which rounds up to the full monthly
+accrual of C-9.1.
+
+```catala
+#[test]
+declaration scope TestRounding_ExactQuarter_1_75:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_ExactQuarter_1_75:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 1.75 }
+  assertion r.is_exact_quarter = true
+  assertion r.rounded_days = 2.0
+```
+
+## Rounding_ExactHalf
+
+C-9.2: an exact half day is already a half day and is not an exact quarter, so
+the proviso does not touch it.
+
+```catala
+#[test]
+declaration scope TestRounding_ExactHalf:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_ExactHalf:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 0.5 }
+  assertion r.is_exact_quarter = false
+  assertion r.rounded_days = 0.5
+```
+
+## Rounding_ExactTwoDays
+
+C-9.2: the top of the range a month can produce is unchanged by rounding.
+
+```catala
+#[test]
+declaration scope TestRounding_ExactTwoDays:
+  output r content LA.HalfDayRounding
+
+scope TestRounding_ExactTwoDays:
+  definition r equals output of LA.HalfDayRounding with { -- raw_days: 2.0 }
+  assertion r.is_exact_quarter = false
+  assertion r.rounded_days = 2.0
+```
+
+## C9_1_CompletedMonthMidService
+
+C-9.1: a month falling wholly within an open-ended engagement is a completed
+calendar month and accrues 2.0 days.
+
+```catala
+#[test]
+declaration scope TestC9_1_CompletedMonthMidService:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_1_CompletedMonthMidService:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-01-15|
+      -- service_start: |2023-06-01|
+      -- service_end: Absent
+    }
+  assertion r.days_in_month = 31
+  assertion r.days_of_service_in_month = 31
+  assertion r.month_is_completed = true
+  assertion r.days_accrued = 2.0
+```
+
+## C9_1_CompletedMonthExactlyCovered
+
+C-9.1: service beginning on the first day and ending on the last day of the
+month completes it.
+
+```catala
+#[test]
+declaration scope TestC9_1_CompletedMonthExactlyCovered:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_1_CompletedMonthExactlyCovered:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-01-01|
+      -- service_start: |2024-01-01|
+      -- service_end: Present content |2024-01-31|
+    }
+  assertion r.days_of_service_in_month = 31
+  assertion r.month_is_completed = true
+  assertion r.days_accrued = 2.0
+```
+
+## C9_1_CompletedLeapFebruary
+
+C-9.1: a completed February in a leap year accrues 2.0 days like any other
+completed month, but only if service covers the 29th.
+
+```catala
+#[test]
+declaration scope TestC9_1_CompletedLeapFebruary:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_1_CompletedLeapFebruary:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-02-10|
+      -- service_start: |2024-02-01|
+      -- service_end: Present content |2024-02-29|
+    }
+  assertion r.days_in_month = 29
+  assertion r.days_of_service_in_month = 29
+  assertion r.month_is_completed = true
+  assertion r.days_accrued = 2.0
+```
+
+## C9_1_StartOneDayLateIsNotCompleted
+
+The C-9.1/C-9.2 boundary from the commencement side. Service beginning on the
+second day of the month leaves the month uncompleted, so the accrual is
+C-9.2's pro-rated figure and not C-9.1's 2.0 days — even though the pro-rated
+figure happens to round back to 2.0.
+
+```catala
+#[test]
+declaration scope TestC9_1_StartOneDayLateIsNotCompleted:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_1_StartOneDayLateIsNotCompleted:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-01-15|
+      -- service_start: |2024-01-02|
+      -- service_end: Absent
+    }
+  assertion r.days_of_service_in_month = 30
+  assertion r.month_is_completed = false
+  assertion r.pro_rated_days = 2.0
+  assertion r.days_accrued = 2.0
+```
+
+## C9_1_EndOneDayEarlyIsNotCompleted
+
+The same boundary from the termination side.
+
+```catala
+#[test]
+declaration scope TestC9_1_EndOneDayEarlyIsNotCompleted:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_1_EndOneDayEarlyIsNotCompleted:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-01-15|
+      -- service_start: |2023-06-01|
+      -- service_end: Present content |2024-01-30|
+    }
+  assertion r.days_of_service_in_month = 30
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 2.0
+```
+
+## C9_2_ThirtyOneDayDenominator
+
+C-9.2: twelve days of service in a 31-day month. 2.0 x 12/31 is 0.774..., whose
+nearest half day is 1.0.
+
+```catala
+#[test]
+declaration scope TestC9_2_ThirtyOneDayDenominator:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_ThirtyOneDayDenominator:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-01-01|
+      -- service_start: |2024-01-20|
+      -- service_end: Absent
+    }
+  assertion r.days_in_month = 31
+  assertion r.days_of_service_in_month = 12
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 1.0
+```
+
+## C9_2_ThirtyDayDenominator
+
+C-9.2: commencing on the 20th of a 30-day month instead. Eleven days of
+service out of 30 is 0.733..., whose nearest half day is 0.5 — half the answer
+the 31-day month gives for the same day of the month. The denominator is the
+days in that month and is not a constant.
+
+```catala
+#[test]
+declaration scope TestC9_2_ThirtyDayDenominator:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_ThirtyDayDenominator:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-04-01|
+      -- service_start: |2024-04-20|
+      -- service_end: Absent
+    }
+  assertion r.days_in_month = 30
+  assertion r.days_of_service_in_month = 11
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 0.5
+```
+
+## C9_2_TwentyEightDayDenominator
+
+C-9.2 in a non-leap February. Eighteen days of service out of 28 is 1.285...,
+whose nearest half day is 1.5.
+
+```catala
+#[test]
+declaration scope TestC9_2_TwentyEightDayDenominator:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_TwentyEightDayDenominator:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2023-02-01|
+      -- service_start: |2023-02-11|
+      -- service_end: Present content |2023-02-28|
+    }
+  assertion r.days_in_month = 28
+  assertion r.days_of_service_in_month = 18
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 1.5
+```
+
+## C9_2_TwentyNineDayDenominator
+
+C-9.2 in a leap February, on exactly the same dates and exactly the same
+eighteen days of service. Eighteen days out of 29 is 1.241..., whose nearest
+half day is 1.0. The leap day alone changes the entitlement from 1.5 days to
+1.0, which is what a constant denominator would get wrong.
+
+```catala
+#[test]
+declaration scope TestC9_2_TwentyNineDayDenominator:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_TwentyNineDayDenominator:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-02-01|
+      -- service_start: |2024-02-11|
+      -- service_end: Present content |2024-02-28|
+    }
+  assertion r.days_in_month = 29
+  assertion r.days_of_service_in_month = 18
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 1.0
+```
+
+## C9_2_LeapDayLeavesMonthUncompleted
+
+C-9.1 against C-9.2 across the leap day. Service from 1 to 28 February
+completes the month in 2023 and accrues under C-9.1; the identical dates in
+2024 stop one day short of the month's end, so the month is not completed and
+the accrual comes from C-9.2 instead.
+
+```catala
+#[test]
+declaration scope TestC9_2_LeapDayLeavesMonthUncompleted:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_LeapDayLeavesMonthUncompleted:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-02-01|
+      -- service_start: |2024-02-01|
+      -- service_end: Present content |2024-02-28|
+    }
+  assertion r.days_in_month = 29
+  assertion r.days_of_service_in_month = 28
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 2.0
+```
+
+## C9_1_SameDatesCompleteNonLeapFebruary
+
+The companion to the test above: 1 to 28 February 2023 is a completed calendar
+month and accrues under C-9.1.
+
+```catala
+#[test]
+declaration scope TestC9_1_SameDatesCompleteNonLeapFebruary:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_1_SameDatesCompleteNonLeapFebruary:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2023-02-01|
+      -- service_start: |2023-02-01|
+      -- service_end: Present content |2023-02-28|
+    }
+  assertion r.days_in_month = 28
+  assertion r.days_of_service_in_month = 28
+  assertion r.month_is_completed = true
+  assertion r.days_accrued = 2.0
+```
+
+## C9_2_ExactlyHalfOfAThirtyDayMonth
+
+C-9.2: fifteen days of a 30-day month is exactly one day of accrual, with no
+rounding to do.
+
+```catala
+#[test]
+declaration scope TestC9_2_ExactlyHalfOfAThirtyDayMonth:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_ExactlyHalfOfAThirtyDayMonth:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-04-01|
+      -- service_start: |2024-04-16|
+      -- service_end: Absent
+    }
+  assertion r.days_of_service_in_month = 15
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 1.0
+```
+
+## C9_2_TerminationMidMonth
+
+C-9.2 on the termination limb: service ending on the 16th of a 31-day month
+gives sixteen days of service and 1.032... days of raw accrual, whose nearest
+half day is 1.0.
+
+```catala
+#[test]
+declaration scope TestC9_2_TerminationMidMonth:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_TerminationMidMonth:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-01-01|
+      -- service_start: |2023-06-01|
+      -- service_end: Present content |2024-01-16|
+    }
+  assertion r.days_in_month = 31
+  assertion r.days_of_service_in_month = 16
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 1.0
+```
+
+## C9_2_SingleDayOfService
+
+C-9.2: one day of service in a 31-day month is 0.064... days of raw accrual,
+whose nearest half day is nothing. A single day of service accrues no leave.
+
+```catala
+#[test]
+declaration scope TestC9_2_SingleDayOfService:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_SingleDayOfService:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-01-01|
+      -- service_start: |2024-01-31|
+      -- service_end: Absent
+    }
+  assertion r.days_of_service_in_month = 1
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 0.0
+```
+
+## C9_2_NoServiceInTheMonth
+
+C-9.2's degenerate case: a month wholly before the engagement begins. The
+clause's own words describe commencement and termination, but the arithmetic
+it supplies gives zero days of service and so no accrual, which is the only
+sensible answer.
+
+```catala
+#[test]
+declaration scope TestC9_2_NoServiceInTheMonth:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_NoServiceInTheMonth:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-01-15|
+      -- service_start: |2024-03-01|
+      -- service_end: Absent
+    }
+  assertion r.days_of_service_in_month = 0
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 0.0
+```
+
+## C9_2_MonthAfterTermination
+
+The same degenerate case on the other side of the engagement.
+
+```catala
+#[test]
+declaration scope TestC9_2_MonthAfterTermination:
+  output r content LA.MonthlyAccrual
+
+scope TestC9_2_MonthAfterTermination:
+  definition r equals
+    output of LA.MonthlyAccrual with {
+      -- day_in_month: |2024-06-15|
+      -- service_start: |2023-01-01|
+      -- service_end: Present content |2024-03-31|
+    }
+  assertion r.days_of_service_in_month = 0
+  assertion r.month_is_completed = false
+  assertion r.days_accrued = 0.0
+```
+
+## C9_3_BalanceAboveTheCap
+
+C-9.3: a twelve-day balance carries forward 5 days, and C-9.5 forfeits the
+other 7, which are not payable on termination.
+
+```catala
+#[test]
+declaration scope TestC9_3_BalanceAboveTheCap:
+  output r content LA.CarryForward
+
+scope TestC9_3_BalanceAboveTheCap:
+  definition r equals
+    output of LA.CarryForward with {
+      -- accrued_untaken_days: 12.0
+      -- prevented_from_taking_leave_by_long_term_sickness: false
+    }
+  assertion r.permitted_carry_forward_days = 5.0
+  assertion r.carry_forward_days = 5.0
+  assertion r.forfeited_days = 7.0
+  assertion r.forfeited_days_payable_on_termination = false
+```
+
+## C9_4_BalanceAboveTheCapWithLongTermSickness
+
+C-9.4 on the same twelve-day balance: the permitted amount becomes the whole
+balance, all 12 days carry forward, and C-9.5 forfeits nothing. This is the
+interaction the exception exists for, and it is the pair to the test above.
+
+```catala
+#[test]
+declaration scope TestC9_4_BalanceAboveTheCapWithLongTermSickness:
+  output r content LA.CarryForward
+
+scope TestC9_4_BalanceAboveTheCapWithLongTermSickness:
+  definition r equals
+    output of LA.CarryForward with {
+      -- accrued_untaken_days: 12.0
+      -- prevented_from_taking_leave_by_long_term_sickness: true
+    }
+  assertion r.permitted_carry_forward_days = 12.0
+  assertion r.carry_forward_days = 12.0
+  assertion r.forfeited_days = 0.0
+  assertion r.forfeited_days_payable_on_termination = false
+```
+
+## C9_3_BalanceExactlyAtTheCap
+
+C-9.3: 'a maximum of 5' includes 5, so a five-day balance carries forward
+whole. This is the cap from on top of it.
+
+```catala
+#[test]
+declaration scope TestC9_3_BalanceExactlyAtTheCap:
+  output r content LA.CarryForward
+
+scope TestC9_3_BalanceExactlyAtTheCap:
+  definition r equals
+    output of LA.CarryForward with {
+      -- accrued_untaken_days: 5.0
+      -- prevented_from_taking_leave_by_long_term_sickness: false
+    }
+  assertion r.carry_forward_days = 5.0
+  assertion r.forfeited_days = 0.0
+```
+
+## C9_3_BalanceJustBelowTheCap
+
+C-9.3: the cap from below. Half days are possible balances, because C-9.2
+accrues in half days.
+
+```catala
+#[test]
+declaration scope TestC9_3_BalanceJustBelowTheCap:
+  output r content LA.CarryForward
+
+scope TestC9_3_BalanceJustBelowTheCap:
+  definition r equals
+    output of LA.CarryForward with {
+      -- accrued_untaken_days: 4.5
+      -- prevented_from_taking_leave_by_long_term_sickness: false
+    }
+  assertion r.permitted_carry_forward_days = 5.0
+  assertion r.carry_forward_days = 4.5
+  assertion r.forfeited_days = 0.0
+```
+
+## C9_3_BalanceJustAboveTheCap
+
+C-9.3 and C-9.5: the cap from above. Half a day over the cap is half a day
+forfeited.
+
+```catala
+#[test]
+declaration scope TestC9_3_BalanceJustAboveTheCap:
+  output r content LA.CarryForward
+
+scope TestC9_3_BalanceJustAboveTheCap:
+  definition r equals
+    output of LA.CarryForward with {
+      -- accrued_untaken_days: 5.5
+      -- prevented_from_taking_leave_by_long_term_sickness: false
+    }
+  assertion r.carry_forward_days = 5.0
+  assertion r.forfeited_days = 0.5
+```
+
+## C9_4_BalanceBelowTheCapWithLongTermSickness
+
+C-9.4 where the balance is already under the C-9.3 cap. The permitted amount
+is the whole balance, which is less than 5 days, and nothing is forfeited
+either way — the exception cannot reduce a carry-forward.
+
+```catala
+#[test]
+declaration scope TestC9_4_BalanceBelowTheCapWithLongTermSickness:
+  output r content LA.CarryForward
+
+scope TestC9_4_BalanceBelowTheCapWithLongTermSickness:
+  definition r equals
+    output of LA.CarryForward with {
+      -- accrued_untaken_days: 3.0
+      -- prevented_from_taking_leave_by_long_term_sickness: true
+    }
+  assertion r.permitted_carry_forward_days = 3.0
+  assertion r.carry_forward_days = 3.0
+  assertion r.forfeited_days = 0.0
+```
+
+## C9_5_NothingAccruedNothingForfeited
+
+C-9.5: a zero balance forfeits nothing.
+
+```catala
+#[test]
+declaration scope TestC9_5_NothingAccruedNothingForfeited:
+  output r content LA.CarryForward
+
+scope TestC9_5_NothingAccruedNothingForfeited:
+  definition r equals
+    output of LA.CarryForward with {
+      -- accrued_untaken_days: 0.0
+      -- prevented_from_taking_leave_by_long_term_sickness: false
+    }
+  assertion r.carry_forward_days = 0.0
+  assertion r.forfeited_days = 0.0
+  assertion r.forfeited_days_payable_on_termination = false
+```

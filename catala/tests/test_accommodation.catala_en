@@ -1,0 +1,452 @@
+# Tests — EXP-POL E-4 accommodation
+
+Assertion-based tests for `Accommodation.NightlyAccommodation`. Both branches of
+the `e4_1 <- e4_2` chain on `applicable_cap` are covered at each City Tier, and
+every cap is tested on both sides: at the cap, a penny above it, and — with the
+E-4.2 relief in hand — at 1.4 times the cap and a penny above that.
+
+E-4.3 is tested by varying what the cost is made of rather than how much it is:
+the same total behaves differently depending on whether the extra is a
+mandatory city charge (inside the cap) or parking (outside it). That is the
+distinction E-4.3 draws and the one an encoding is most likely to lose.
+
+The judgement input `no_compliant_accommodation_available_evidenced` is supplied
+explicitly in every test, including the tests where the actual cost exceeds the
+cap without it — which is the fact pattern that would expose a module that had
+inferred the judgement from the numbers.
+
+Counterexamples found by the adversarial reviewer are kept separately, in
+`tests/counterexamples/`, and are re-run by `scripts/check.sh`.
+
+> Using ExpenseDefs
+
+> Using Accommodation
+
+## E4_1_Tier1WithinCap
+
+E-4.1: a £200 room in a Tier 1 city is reimbursed at actual cost.
+
+```catala
+#[test]
+declaration scope TestE4_1_Tier1WithinCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_1_Tier1WithinCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $200.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.applicable_cap = $220.00
+  assertion r.cost_against_cap = $200.00
+  assertion r.accommodation_reimbursable = $200.00
+  assertion r.reimbursable_amount = $200.00
+```
+
+## E4_1_Tier1ExactlyAtCap
+
+Boundary: "up to £220" includes £220.
+
+```catala
+#[test]
+declaration scope TestE4_1_Tier1ExactlyAtCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_1_Tier1ExactlyAtCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $220.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.accommodation_reimbursable = $220.00
+```
+
+## E4_1_Tier1APennyAboveCap
+
+Boundary, other side: the excess is not reimbursable.
+
+```catala
+#[test]
+declaration scope TestE4_1_Tier1APennyAboveCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_1_Tier1APennyAboveCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $220.01
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.accommodation_reimbursable = $220.00
+```
+
+## E4_1_Tier2Cap
+
+E-4.1: £160 in a Tier 2 city.
+
+```catala
+#[test]
+declaration scope TestE4_1_Tier2Cap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_1_Tier2Cap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier2
+      -- room_cost: $190.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.applicable_cap = $160.00
+  assertion r.accommodation_reimbursable = $160.00
+```
+
+## E4_1_Tier3Cap
+
+E-4.1: £120 in a Tier 3 city.
+
+```catala
+#[test]
+declaration scope TestE4_1_Tier3Cap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_1_Tier3Cap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier3
+      -- room_cost: $140.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.applicable_cap = $120.00
+  assertion r.accommodation_reimbursable = $120.00
+```
+
+## E4_2_EvidencedTier1UpliftedCap
+
+E-4.2: with evidence that no compliant accommodation was available within the
+cap, the cap becomes 1.4 x £220 = £308, and a £300 room is reimbursed in full.
+
+```catala
+#[test]
+declaration scope TestE4_2_EvidencedTier1UpliftedCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_2_EvidencedTier1UpliftedCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $300.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: true
+    }
+  assertion r.applicable_cap = $308.00
+  assertion r.accommodation_reimbursable = $300.00
+```
+
+## E4_2_EvidencedExactlyAtUpliftedCap
+
+Boundary: "up to 1.4 times the applicable cap" includes £308 exactly.
+
+```catala
+#[test]
+declaration scope TestE4_2_EvidencedExactlyAtUpliftedCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_2_EvidencedExactlyAtUpliftedCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $308.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: true
+    }
+  assertion r.accommodation_reimbursable = $308.00
+```
+
+## E4_2_EvidencedAPennyAboveUpliftedCap
+
+Boundary, other side: E-4.2 raises the ceiling, it does not remove it.
+
+```catala
+#[test]
+declaration scope TestE4_2_EvidencedAPennyAboveUpliftedCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_2_EvidencedAPennyAboveUpliftedCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $308.01
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: true
+    }
+  assertion r.applicable_cap = $308.00
+  assertion r.accommodation_reimbursable = $308.00
+```
+
+## E4_2_NotEvidencedSameCost
+
+The same £300 room without the evidence: the E-4.1 cap stands. A module that
+inferred the judgement from the cost exceeding the cap would return £308 here.
+
+```catala
+#[test]
+declaration scope TestE4_2_NotEvidencedSameCost:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_2_NotEvidencedSameCost:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $300.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.applicable_cap = $220.00
+  assertion r.accommodation_reimbursable = $220.00
+```
+
+## E4_2_EvidencedTier2UpliftedCap
+
+1.4 x £160 = £224.
+
+```catala
+#[test]
+declaration scope TestE4_2_EvidencedTier2UpliftedCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_2_EvidencedTier2UpliftedCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier2
+      -- room_cost: $500.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: true
+    }
+  assertion r.applicable_cap = $224.00
+  assertion r.accommodation_reimbursable = $224.00
+```
+
+## E4_2_EvidencedTier3UpliftedCap
+
+1.4 x £120 = £168.
+
+```catala
+#[test]
+declaration scope TestE4_2_EvidencedTier3UpliftedCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_2_EvidencedTier3UpliftedCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier3
+      -- room_cost: $500.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: true
+    }
+  assertion r.applicable_cap = $168.00
+  assertion r.accommodation_reimbursable = $168.00
+```
+
+## E4_2_EvidencedButStillWithinTheOriginalCap
+
+E-4.2 changes the cap and nothing else: a cheap room is still reimbursed at
+actual cost.
+
+```catala
+#[test]
+declaration scope TestE4_2_EvidencedButStillWithinTheOriginalCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_2_EvidencedButStillWithinTheOriginalCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $150.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: true
+    }
+  assertion r.applicable_cap = $308.00
+  assertion r.accommodation_reimbursable = $150.00
+```
+
+## E4_3_TaxesAndCityChargeCountAgainstTheCap
+
+E-4.3: a £210 room with £15 of local taxes and a £10 mandatory city charge is
+£235 against a £220 cap, so £220 is reimbursed — not the £210 room rate.
+
+```catala
+#[test]
+declaration scope TestE4_3_TaxesAndCityChargeCountAgainstTheCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_3_TaxesAndCityChargeCountAgainstTheCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $210.00
+      -- local_taxes: $15.00
+      -- mandatory_resort_or_city_charge: $10.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.cost_against_cap = $235.00
+  assertion r.accommodation_reimbursable = $220.00
+  assertion r.reimbursable_amount = $220.00
+```
+
+## E4_3_TaxesExactlyReachTheCap
+
+Boundary: £200 room plus £20 of taxes is exactly £220 and is reimbursed in
+full.
+
+```catala
+#[test]
+declaration scope TestE4_3_TaxesExactlyReachTheCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_3_TaxesExactlyReachTheCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $200.00
+      -- local_taxes: $20.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.cost_against_cap = $220.00
+  assertion r.accommodation_reimbursable = $220.00
+```
+
+## E4_3_TaxesTakeTheCostAPennyOverTheCap
+
+Boundary, other side: a penny of tax over the cap is a penny not reimbursed.
+
+```catala
+#[test]
+declaration scope TestE4_3_TaxesTakeTheCostAPennyOverTheCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_3_TaxesTakeTheCostAPennyOverTheCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $200.00
+      -- local_taxes: $20.01
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $0.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.cost_against_cap = $220.01
+  assertion r.accommodation_reimbursable = $220.00
+```
+
+## E4_3_ParkingDoesNotCountAgainstTheCap
+
+E-4.3: parking is excluded from the cap. A £200 room with £30 of parking leaves
+£200 against the cap; the parking is reimbursed alongside it.
+
+```catala
+#[test]
+declaration scope TestE4_3_ParkingDoesNotCountAgainstTheCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_3_ParkingDoesNotCountAgainstTheCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $200.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $30.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.cost_against_cap = $200.00
+  assertion r.accommodation_reimbursable = $200.00
+  assertion r.parking_reimbursable = $30.00
+  assertion r.reimbursable_amount = $230.00
+```
+
+## E4_3_ParkingIsNotSqueezedOutByTheCap
+
+The night is already over the cap on the accommodation limb, and the parking is
+still paid in full: if parking were inside the cap this would be £220 in total,
+and if the cap absorbed it the answer would be £220 rather than £245.
+
+```catala
+#[test]
+declaration scope TestE4_3_ParkingIsNotSqueezedOutByTheCap:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_3_ParkingIsNotSqueezedOutByTheCap:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $210.00
+      -- local_taxes: $20.00
+      -- mandatory_resort_or_city_charge: $0.00
+      -- parking_cost: $25.00
+      -- no_compliant_accommodation_available_evidenced: false
+    }
+  assertion r.cost_against_cap = $230.00
+  assertion r.accommodation_reimbursable = $220.00
+  assertion r.parking_reimbursable = $25.00
+  assertion r.reimbursable_amount = $245.00
+```
+
+## E4_3_WithE4_2Relief
+
+E-4.3 and E-4.2 compose: £290 room plus £25 city charge is £315 against the
+uplifted £308 cap, plus £40 of parking outside it.
+
+```catala
+#[test]
+declaration scope TestE4_3_WithE4_2Relief:
+  output r content Accommodation.NightlyAccommodation
+
+scope TestE4_3_WithE4_2Relief:
+  definition r equals
+    output of Accommodation.NightlyAccommodation with {
+      -- city_tier: ExpenseDefs.CityTier.Tier1
+      -- room_cost: $290.00
+      -- local_taxes: $0.00
+      -- mandatory_resort_or_city_charge: $25.00
+      -- parking_cost: $40.00
+      -- no_compliant_accommodation_available_evidenced: true
+    }
+  assertion r.applicable_cap = $308.00
+  assertion r.cost_against_cap = $315.00
+  assertion r.accommodation_reimbursable = $308.00
+  assertion r.reimbursable_amount = $348.00
+```

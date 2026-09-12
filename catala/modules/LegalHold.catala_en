@@ -1,6 +1,6 @@
 # Data Retention and Deletion Standard — R-4 Legal Hold
 
-> Module Legal_hold
+> Module LegalHold
 
 This module answers two questions: does a Legal Hold suspend deletion of a
 record, and when does deletion fall due once the hold is released?

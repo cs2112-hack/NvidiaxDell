@@ -1,0 +1,304 @@
+# Tests — EXP-POL E-6 submission and time limits
+
+Assertion-based tests for `ClaimWindow.ClaimAdmissible`. E-6 is a 60/120-day
+staircase, and a staircase is exactly the shape that an off-by-one hides in, so
+every step is pinned on both sides: 59, 60, 61, 119, 120 and 121 days, each with
+and without the line manager's certification.
+
+The expense is incurred on 2025-01-01 throughout, so the submission dates read
+directly as elapsed days: 2025-03-01 is day 59, 2025-03-02 is day 60,
+2025-03-03 is day 61, 2025-04-30 is day 119, 2025-05-01 is day 120 and
+2025-05-02 is day 121.
+
+`delay_certified_for_good_reason` is the judgement input. Every test supplies it
+explicitly, and the pairs of tests at days 61, 119 and 120 differ in nothing
+else — which is what demonstrates that the module is deciding on the
+certification and not on the length of the delay.
+
+Counterexamples found by the adversarial reviewer are kept separately, in
+`tests/counterexamples/`, and are re-run by `scripts/check.sh`.
+
+> Using ClaimWindow
+
+## E6_1_SameDay
+
+Zero days elapsed: well within E-6.1.
+
+```catala
+#[test]
+declaration scope TestE6_1_SameDay:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_1_SameDay:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-01-01|
+      -- delay_certified_for_good_reason: false
+    }
+  assertion r.days_elapsed = 0
+  assertion r.admissible = true
+```
+
+## E6_1_Day59
+
+Day 59, no certification needed.
+
+```catala
+#[test]
+declaration scope TestE6_1_Day59:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_1_Day59:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-03-01|
+      -- delay_certified_for_good_reason: false
+    }
+  assertion r.days_elapsed = 59
+  assertion r.admissible = true
+```
+
+## E6_1_Day60
+
+Boundary, admitted side: "within 60 days" includes day 60.
+
+```catala
+#[test]
+declaration scope TestE6_1_Day60:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_1_Day60:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-03-02|
+      -- delay_certified_for_good_reason: false
+    }
+  assertion r.days_elapsed = 60
+  assertion r.admissible = true
+```
+
+## E6_1_Day60WithCertification
+
+Day 60 needs no certification, and having one changes nothing.
+
+```catala
+#[test]
+declaration scope TestE6_1_Day60WithCertification:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_1_Day60WithCertification:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-03-02|
+      -- delay_certified_for_good_reason: true
+    }
+  assertion r.days_elapsed = 60
+  assertion r.admissible = true
+```
+
+## E6_1_Day61Uncertified
+
+Boundary, refused side: day 61 is outside E-6.1 and E-6.2 is not engaged
+without the certification.
+
+```catala
+#[test]
+declaration scope TestE6_1_Day61Uncertified:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_1_Day61Uncertified:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-03-03|
+      -- delay_certified_for_good_reason: false
+    }
+  assertion r.days_elapsed = 61
+  assertion r.admissible = false
+```
+
+## E6_2_Day61Certified
+
+E-6.2, first day on which it can bite: day 61 with the certification.
+
+```catala
+#[test]
+declaration scope TestE6_2_Day61Certified:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_2_Day61Certified:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-03-03|
+      -- delay_certified_for_good_reason: true
+    }
+  assertion r.days_elapsed = 61
+  assertion r.admissible = true
+```
+
+## E6_2_Day119Certified
+
+Mid-window, certified.
+
+```catala
+#[test]
+declaration scope TestE6_2_Day119Certified:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_2_Day119Certified:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-04-30|
+      -- delay_certified_for_good_reason: true
+    }
+  assertion r.days_elapsed = 119
+  assertion r.admissible = true
+```
+
+## E6_2_Day119Uncertified
+
+Mid-window, uncertified: E-6.1 governs and the claim is out of time.
+
+```catala
+#[test]
+declaration scope TestE6_2_Day119Uncertified:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_2_Day119Uncertified:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-04-30|
+      -- delay_certified_for_good_reason: false
+    }
+  assertion r.days_elapsed = 119
+  assertion r.admissible = false
+```
+
+## E6_2_Day120Certified
+
+Boundary, admitted side: "within 120 days" includes day 120.
+
+```catala
+#[test]
+declaration scope TestE6_2_Day120Certified:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_2_Day120Certified:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-05-01|
+      -- delay_certified_for_good_reason: true
+    }
+  assertion r.days_elapsed = 120
+  assertion r.admissible = true
+```
+
+## E6_2_Day120Uncertified
+
+Day 120 without the certification is still out of time under E-6.1.
+
+```catala
+#[test]
+declaration scope TestE6_2_Day120Uncertified:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_2_Day120Uncertified:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-05-01|
+      -- delay_certified_for_good_reason: false
+    }
+  assertion r.days_elapsed = 120
+  assertion r.admissible = false
+```
+
+## E6_3_Day121Certified
+
+Boundary, refused side, and the point of E-6.3: day 121 is refused "in any
+circumstances", so the certification does not save it.
+
+```catala
+#[test]
+declaration scope TestE6_3_Day121Certified:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_3_Day121Certified:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-05-02|
+      -- delay_certified_for_good_reason: true
+    }
+  assertion r.days_elapsed = 121
+  assertion r.admissible = false
+```
+
+## E6_3_Day121Uncertified
+
+Day 121 uncertified.
+
+```catala
+#[test]
+declaration scope TestE6_3_Day121Uncertified:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_3_Day121Uncertified:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-05-02|
+      -- delay_certified_for_good_reason: false
+    }
+  assertion r.days_elapsed = 121
+  assertion r.admissible = false
+```
+
+## E6_3_LongStopWellBeyond120Days
+
+Day 200 with a certification: the long-stop is absolute.
+
+```catala
+#[test]
+declaration scope TestE6_3_LongStopWellBeyond120Days:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_3_LongStopWellBeyond120Days:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2025-01-01|
+      -- submission_date: |2025-07-20|
+      -- delay_certified_for_good_reason: true
+    }
+  assertion r.days_elapsed = 200
+  assertion r.admissible = false
+```
+
+## E6_1_AcrossALeapDay
+
+The elapsed period is a count of calendar days, so a leap day counts as a day:
+2024-02-01 to 2024-04-01 is 60 days because February 2024 had 29.
+
+```catala
+#[test]
+declaration scope TestE6_1_AcrossALeapDay:
+  output r content ClaimWindow.ClaimAdmissible
+
+scope TestE6_1_AcrossALeapDay:
+  definition r equals
+    output of ClaimWindow.ClaimAdmissible with {
+      -- expense_incurred_date: |2024-02-01|
+      -- submission_date: |2024-04-01|
+      -- delay_certified_for_good_reason: false
+    }
+  assertion r.days_elapsed = 60
+  assertion r.admissible = true
+```

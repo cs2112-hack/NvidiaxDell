@@ -1,0 +1,389 @@
+# Tests — DATA-RET R-4 Legal Hold
+
+Assertion-based tests for `LegalHold.HoldEffect`. Every branch of the
+exception chain on `deletion_due_date` (`r3_ordinary` ← `r4_3` ← `r4_1`) and
+of the chain on `erasure_blocked_by_hold` is covered, and both sides of every
+date threshold are tested: the issue date, the release date, and the point at
+which the retention period counts as having "already expired" when the hold
+was released.
+
+The tests that matter most are the ones that would pass under a wrong
+encoding of the precedence:
+
+* **R-4.1 must defeat the whole of R-3.** `HoldInForceRetentionExpired` has a
+  retention period that expired five months before the assessment date. If
+  R-4.1 sat anywhere but the bottom of the chain, or were folded into a
+  condition on R-3, the module would report a deletion date for a record the
+  Standard forbids deleting.
+* **R-4.1 must also defeat R-4.3.** `HoldAssessedWhileStillInForce` asks
+  about a hold that has since been released, as at a date while it was still
+  in force: R-4.3 would offer a date, and R-4.1 must still say none falls due.
+* **R-4.2's judgement input must be able to say no.**
+  `HoldInForceNotPermittedByLaw` turns the judgement off with a hold in
+  force, so a module that encoded the precedence as an unconditional rule
+  would still block the erasure request.
+
+`retention_end_date` is supplied directly here rather than through
+`Retention`, which is what makes R-4.1's indifference to *which* R-3 limb
+produced it testable in one place.
+
+> Using LegalHold
+
+## NoHoldEverIssued
+
+R-3's ordinary expiry governs where there is no hold: the base case of the
+chain.
+
+```catala
+#[test]
+declaration scope TestNoHoldEverIssued:
+  output r content LegalHold.HoldEffect
+
+scope TestNoHoldEverIssued:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Absent
+      -- hold_released_date: Absent
+      -- retention_end_date: |2025-08-31|
+      -- assessment_date: |2026-01-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = false
+  assertion r.deletion_due_date = Present content |2025-08-31|
+  assertion r.erasure_blocked_by_hold = false
+```
+
+## HoldInForceRetentionExpired
+
+R-4.1, the central case. The retention period expired on 2025-08-31 and the
+assessment date is four months later, but the hold is in force, so no
+deletion date falls due — "irrespective of the expiry of the applicable
+retention period".
+
+```catala
+#[test]
+declaration scope TestHoldInForceRetentionExpired:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldInForceRetentionExpired:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Absent
+      -- retention_end_date: |2025-08-31|
+      -- assessment_date: |2026-01-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = true
+  assertion r.deletion_due_date = Absent
+```
+
+## HoldInForceRetentionNotExpired
+
+The same suspension where the retention period has not yet run: still no due
+date, because the record must not be deleted while the hold is in force.
+
+```catala
+#[test]
+declaration scope TestHoldInForceRetentionNotExpired:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldInForceRetentionNotExpired:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Absent
+      -- retention_end_date: |2030-01-01|
+      -- assessment_date: |2026-01-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = true
+  assertion r.deletion_due_date = Absent
+```
+
+## HoldIssuedOnAssessmentDate
+
+R-2.3 boundary, inclusive side: a hold is in force from the day it is issued.
+
+```catala
+#[test]
+declaration scope TestHoldIssuedOnAssessmentDate:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldIssuedOnAssessmentDate:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Absent
+      -- retention_end_date: |2025-08-31|
+      -- assessment_date: |2024-01-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = true
+  assertion r.deletion_due_date = Absent
+```
+
+## HoldNotYetIssued
+
+The other side of that boundary: a hold dated after the assessment date is
+not yet in force, so R-3's ordinary expiry governs.
+
+```catala
+#[test]
+declaration scope TestHoldNotYetIssued:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldNotYetIssued:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2027-01-01|
+      -- hold_released_date: Absent
+      -- retention_end_date: |2025-08-31|
+      -- assessment_date: |2026-01-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = false
+  assertion r.deletion_due_date = Present content |2025-08-31|
+  assertion r.erasure_blocked_by_hold = false
+```
+
+## HoldReleasedRetentionAlreadyExpired
+
+R-4.3, first branch: the retention period expired on 2025-01-31, before the
+hold was released on 2025-06-15, so the record is deleted within 30 days of
+release.
+
+```catala
+#[test]
+declaration scope TestHoldReleasedRetentionAlreadyExpired:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldReleasedRetentionAlreadyExpired:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Present content |2025-06-15|
+      -- retention_end_date: |2025-01-31|
+      -- assessment_date: |2025-07-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = false
+  assertion r.deletion_due_date = Present content |2025-07-15|
+```
+
+## HoldReleasedRetentionNotYetExpired
+
+R-4.3, second branch: the period had not expired when the hold was released,
+so deletion falls due "on the ordinary expiry of its retention period" —
+nineteen months later, not thirty days later.
+
+```catala
+#[test]
+declaration scope TestHoldReleasedRetentionNotYetExpired:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldReleasedRetentionNotYetExpired:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Present content |2025-06-15|
+      -- retention_end_date: |2027-01-31|
+      -- assessment_date: |2025-07-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = false
+  assertion r.deletion_due_date = Present content |2027-01-31|
+```
+
+## HoldReleasedOnDayOfExpiry
+
+The R-4.3 threshold. A period expiring on the very day of release has not
+"already" expired, so the second branch applies and the due date is the
+ordinary expiry, which is that same day — not 30 days later.
+
+```catala
+#[test]
+declaration scope TestHoldReleasedOnDayOfExpiry:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldReleasedOnDayOfExpiry:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Present content |2025-06-15|
+      -- retention_end_date: |2025-06-15|
+      -- assessment_date: |2025-07-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.deletion_due_date = Present content |2025-06-15|
+```
+
+## HoldReleasedDayAfterExpiry
+
+The other side of that threshold: a period that expired one day before
+release has "already" expired, so the 30 days run.
+
+```catala
+#[test]
+declaration scope TestHoldReleasedDayAfterExpiry:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldReleasedDayAfterExpiry:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Present content |2025-06-15|
+      -- retention_end_date: |2025-06-14|
+      -- assessment_date: |2025-07-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.deletion_due_date = Present content |2025-07-15|
+```
+
+## HoldReleaseDateIsFirstDayNotInForce
+
+R-2.3 boundary on release: the hold is spent on the day it is released, so
+R-4.3 governs from that day.
+
+```catala
+#[test]
+declaration scope TestHoldReleaseDateIsFirstDayNotInForce:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldReleaseDateIsFirstDayNotInForce:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Present content |2025-06-15|
+      -- retention_end_date: |2025-01-31|
+      -- assessment_date: |2025-06-15|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = false
+  assertion r.deletion_due_date = Present content |2025-07-15|
+```
+
+## HoldAssessedWhileStillInForce
+
+R-4.1 defeats R-4.3 as well as R-3. Asked about the same released hold as at
+a date on which it was still in force, the answer is that no deletion date
+fell due — even though the retention period had by then expired and R-4.3
+would offer 2025-07-15.
+
+```catala
+#[test]
+declaration scope TestHoldAssessedWhileStillInForce:
+  output r content LegalHold.HoldEffect
+
+scope TestHoldAssessedWhileStillInForce:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Present content |2025-06-15|
+      -- retention_end_date: |2025-01-31|
+      -- assessment_date: |2025-06-14|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = true
+  assertion r.deletion_due_date = Absent
+```
+
+## R4_2_BlockedWhenPermittedByLaw
+
+R-4.2: a hold in force takes precedence over an erasure request where
+applicable data protection law permits the retention.
+
+```catala
+#[test]
+declaration scope TestR4_2_BlockedWhenPermittedByLaw:
+  output r content LegalHold.HoldEffect
+
+scope TestR4_2_BlockedWhenPermittedByLaw:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Absent
+      -- retention_end_date: |2025-08-31|
+      -- assessment_date: |2026-01-01|
+      -- retention_under_hold_permitted_by_data_protection_law: true
+    }
+  assertion r.hold_in_force = true
+  assertion r.erasure_blocked_by_hold = true
+  assertion r.deletion_due_date = Absent
+```
+
+## R4_2_NotBlockedWhenNotPermittedByLaw
+
+The limitation doing its work: the same hold, but the law does not permit
+retention against the request, so the hold does not defeat it. A module that
+encoded R-4.2 as an unconditional precedence would answer `true` here.
+
+Note that the hold still suspends ordinary R-3 deletion under R-4.1 — R-4.2
+limits only the precedence over an erasure request.
+
+```catala
+#[test]
+declaration scope TestR4_2_NotBlockedWhenNotPermittedByLaw:
+  output r content LegalHold.HoldEffect
+
+scope TestR4_2_NotBlockedWhenNotPermittedByLaw:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Absent
+      -- retention_end_date: |2025-08-31|
+      -- assessment_date: |2026-01-01|
+      -- retention_under_hold_permitted_by_data_protection_law: false
+    }
+  assertion r.hold_in_force = true
+  assertion r.erasure_blocked_by_hold = false
+  assertion r.deletion_due_date = Absent
+```
+
+## R4_2_NoHoldEvenWherePermittedByLaw
+
+Trap 1 in the other direction. The judgement that the law permits retention
+is on, but there is no hold to take precedence, so nothing blocks the erasure
+request.
+
+```catala
+#[test]
+declaration scope TestR4_2_NoHoldEvenWherePermittedByLaw:
+  output r content LegalHold.HoldEffect
+
+scope TestR4_2_NoHoldEvenWherePermittedByLaw:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Absent
+      -- hold_released_date: Absent
+      -- retention_end_date: |2025-08-31|
+      -- assessment_date: |2026-01-01|
+      -- retention_under_hold_permitted_by_data_protection_law: true
+    }
+  assertion r.hold_in_force = false
+  assertion r.erasure_blocked_by_hold = false
+```
+
+## R4_2_ReleasedHoldNoLongerBlocks
+
+A released hold is no longer in force, so it no longer takes precedence over
+an erasure request, however the law stands.
+
+```catala
+#[test]
+declaration scope TestR4_2_ReleasedHoldNoLongerBlocks:
+  output r content LegalHold.HoldEffect
+
+scope TestR4_2_ReleasedHoldNoLongerBlocks:
+  definition r equals
+    output of LegalHold.HoldEffect with {
+      -- hold_issued_date: Present content |2024-01-01|
+      -- hold_released_date: Present content |2025-06-15|
+      -- retention_end_date: |2025-01-31|
+      -- assessment_date: |2025-07-01|
+      -- retention_under_hold_permitted_by_data_protection_law: true
+    }
+  assertion r.hold_in_force = false
+  assertion r.erasure_blocked_by_hold = false
+  assertion r.deletion_due_date = Present content |2025-07-15|
+```

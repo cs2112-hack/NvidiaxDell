@@ -1,6 +1,6 @@
 # MSA Schedule 4 — Chronic failure
 
-> Module Chronic_failure
+> Module ChronicFailure
 
 L-6.1 gives the Customer a termination right on a **pattern** of failures
 rather than on any single one, and the pattern has two independent triggers:

@@ -1,0 +1,545 @@
+# Tests — DATA-RET R-3 retention periods and R-6 backup bound
+
+Assertion-based tests for `Retention.RetentionEnd`. All six limbs of the
+R-3.1 table are covered, both limb-specific exceptions are covered on both
+sides, and the month-end cases where Catala date addition would raise are
+tested explicitly.
+
+Three families of test exist specifically to catch encoding defects the type
+checker cannot see:
+
+* **R-3.1(d) is a maximum over two dates.** `MarketingCollectionLater`
+  supplies an engagement date *earlier* than the collection date, so an
+  encoding that ran the 24 months from either date unconditionally would give
+  the wrong answer on one of that pair of tests.
+* **Trap 1, exceptions not inheriting their parent's condition.**
+  `ConsentIgnoredForEmployeeRecord` puts a talent-pool consent date on an
+  Employee Record and `StatutoryIgnoredForCustomerContract` turns the
+  statutory determination on for a Customer Contract. An exception written
+  without its own limb condition would fire in both and change the answer.
+* **Month-end rounding.** `EmployeeRecordMonthEnd` (6 years from 29
+  February) and `SecurityLogMonthEnd` (13 months from 31 January) are the
+  cases where `|2020-02-29| + 6 year` and `|2025-01-31| + 13 month` are
+  ambiguous. The scope declares `date round down`, so both land on 28
+  February.
+
+`statutory_retention_period` is `0 day` wherever `statutory_retention_applies`
+is false: the input must still be supplied, and no limb reads it.
+
+> Using Retention
+
+## R3_1_a_EmployeeRecord
+
+R-3.1(a): 6 years from the end of employment. R-6.1 then adds the 90-day
+backup bound.
+
+```catala
+#[test]
+declaration scope TestR3_1_a_EmployeeRecord:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_a_EmployeeRecord:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2019-08-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2025-08-31|
+  assertion r.backup_purge_deadline = |2025-11-29|
+```
+
+## R3_1_a_EmployeeRecordMonthEnd
+
+6 years from 29 February. `|2020-02-29| + 6 year` has no corresponding day
+and would raise; `date round down` resolves it to 28 February 2026.
+
+```catala
+#[test]
+declaration scope TestR3_1_a_EmployeeRecordMonthEnd:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_a_EmployeeRecordMonthEnd:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2020-02-29|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2026-02-28|
+  assertion r.backup_purge_deadline = |2026-05-29|
+```
+
+## R3_1_b_CustomerContract
+
+R-3.1(b): 7 years from expiry or termination of the contract.
+
+```catala
+#[test]
+declaration scope TestR3_1_b_CustomerContract:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_b_CustomerContract:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.CustomerContract
+      -- retention_trigger_date: |2018-03-15|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2025-03-15|
+```
+
+## R3_1_c_FinancialRecord
+
+R-3.1(c): 7 years from the end of the financial year to which it relates.
+
+```catala
+#[test]
+declaration scope TestR3_1_c_FinancialRecord:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_c_FinancialRecord:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.FinancialRecord
+      -- retention_trigger_date: |2020-12-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2027-12-31|
+```
+
+## R3_1_d_MarketingEngagementLater
+
+R-3.1(d): 24 months from the later of collection and most recent engagement.
+Here the engagement is later, so the period runs from it.
+
+```catala
+#[test]
+declaration scope TestR3_1_d_MarketingEngagementLater:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_d_MarketingEngagementLater:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.MarketingContact
+      -- retention_trigger_date: |2023-05-10|
+      -- most_recent_engagement_date: Present content |2024-11-20|
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2026-11-20|
+  assertion r.backup_purge_deadline = |2027-02-18|
+```
+
+## R3_1_d_MarketingCollectionLater
+
+The other half of the "later of". The engagement predates collection, so the
+period runs from collection. An encoding that took the engagement date
+whenever one was present would give 2025-06-01 here.
+
+```catala
+#[test]
+declaration scope TestR3_1_d_MarketingCollectionLater:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_d_MarketingCollectionLater:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.MarketingContact
+      -- retention_trigger_date: |2024-01-15|
+      -- most_recent_engagement_date: Present content |2023-06-01|
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2026-01-15|
+```
+
+## R3_1_d_MarketingNoEngagement
+
+A contact who has never engaged: the later of the two dates is the only one
+there is.
+
+```catala
+#[test]
+declaration scope TestR3_1_d_MarketingNoEngagement:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_d_MarketingNoEngagement:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.MarketingContact
+      -- retention_trigger_date: |2024-01-15|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2026-01-15|
+```
+
+## R3_1_e_SecurityLog
+
+R-3.1(e): 13 months from the logged event.
+
+```catala
+#[test]
+declaration scope TestR3_1_e_SecurityLog:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_e_SecurityLog:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.SecurityLog
+      -- retention_trigger_date: |2025-06-15|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2026-07-15|
+```
+
+## R3_1_e_SecurityLogMonthEnd
+
+13 months from 31 January lands in a month with no 31st. `date round down`
+resolves it to 28 February 2026; rounding up would give 1 March and retain
+the log a day longer than the Standard's maximum.
+
+```catala
+#[test]
+declaration scope TestR3_1_e_SecurityLogMonthEnd:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_e_SecurityLogMonthEnd:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.SecurityLog
+      -- retention_trigger_date: |2025-01-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2026-02-28|
+```
+
+## R3_1_f_CandidateRecordNoConsent
+
+R-3.1(f): 12 months from the conclusion of the recruitment process, where the
+candidate has given no talent-pool consent.
+
+```catala
+#[test]
+declaration scope TestR3_1_f_CandidateRecordNoConsent:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_f_CandidateRecordNoConsent:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.CandidateRecord
+      -- retention_trigger_date: |2025-03-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2026-03-31|
+```
+
+## R3_1_f_RenewalsWithoutConsent
+
+A renewal register entry with no recorded consent does not engage R-3.2,
+which requires that the candidate "has given consent". The R-3.1(f) period
+stands.
+
+```catala
+#[test]
+declaration scope TestR3_1_f_RenewalsWithoutConsent:
+  output r content Retention.RetentionEnd
+
+scope TestR3_1_f_RenewalsWithoutConsent:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.CandidateRecord
+      -- retention_trigger_date: |2025-03-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: [|2026-09-01|]
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2026-03-31|
+```
+
+## R3_2_TalentPoolConsentNoRenewal
+
+R-3.2 displaces R-3.1(f): 24 months from the date of consent. Note that this
+is measured from the consent date and not from the recruitment trigger, so
+the answer is not 2027-03-31.
+
+```catala
+#[test]
+declaration scope TestR3_2_TalentPoolConsentNoRenewal:
+  output r content Retention.RetentionEnd
+
+scope TestR3_2_TalentPoolConsentNoRenewal:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.CandidateRecord
+      -- retention_trigger_date: |2025-03-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Present content |2025-02-28|
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2027-02-28|
+```
+
+## R3_2_TalentPoolPeriodRestartsOnRenewal
+
+"The period restarts on each renewal of consent": the 24 months run from the
+most recent renewal, 2025-08-31, and not from the original consent, which
+would have given 2026-08-31.
+
+```catala
+#[test]
+declaration scope TestR3_2_TalentPoolPeriodRestartsOnRenewal:
+  output r content Retention.RetentionEnd
+
+scope TestR3_2_TalentPoolPeriodRestartsOnRenewal:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.CandidateRecord
+      -- retention_trigger_date: |2024-06-30|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Present content |2024-08-31|
+      -- consent_renewal_dates: [|2025-01-31|; |2025-08-31|]
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2027-08-31|
+```
+
+## R3_2_RenewalsEarlierThanConsent
+
+A renewal register that holds only entries predating the consent cannot pull
+the period backwards: the period runs from the latest of consent and renewals.
+
+```catala
+#[test]
+declaration scope TestR3_2_RenewalsEarlierThanConsent:
+  output r content Retention.RetentionEnd
+
+scope TestR3_2_RenewalsEarlierThanConsent:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.CandidateRecord
+      -- retention_trigger_date: |2024-06-30|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Present content |2025-06-30|
+      -- consent_renewal_dates: [|2024-01-01|]
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2027-06-30|
+```
+
+## R3_2_ConsentIgnoredForEmployeeRecord
+
+Trap 1. R-3.2 is an exception to R-3.1(f) alone, so a talent-pool consent
+date on an Employee Record must leave the 6-year period untouched. An
+exception written without `data_class with pattern CandidateRecord` would
+give 2027-02-28 here.
+
+```catala
+#[test]
+declaration scope TestR3_2_ConsentIgnoredForEmployeeRecord:
+  output r content Retention.RetentionEnd
+
+scope TestR3_2_ConsentIgnoredForEmployeeRecord:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2019-08-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Present content |2025-02-28|
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2025-08-31|
+```
+
+## R3_3_StatutoryPeriodLonger
+
+R-3.3 displaces R-3.1(a) where pensions or payroll legislation requires
+longer. Ten years from the end of employment beats six.
+
+```catala
+#[test]
+declaration scope TestR3_3_StatutoryPeriodLonger:
+  output r content Retention.RetentionEnd
+
+scope TestR3_3_StatutoryPeriodLonger:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2019-08-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 10 year
+    }
+  assertion r.retention_end_date = |2029-08-31|
+  assertion r.backup_purge_deadline = |2029-11-29|
+```
+
+## R3_3_StatutoryPeriodShorter
+
+R-3.3 bites only where the statutory period is the longer one, so a shorter
+statutory period cannot cut R-3.1(a) down: the result is the later of the two.
+
+```catala
+#[test]
+declaration scope TestR3_3_StatutoryPeriodShorter:
+  output r content Retention.RetentionEnd
+
+scope TestR3_3_StatutoryPeriodShorter:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2019-08-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 3 year
+    }
+  assertion r.retention_end_date = |2025-08-31|
+```
+
+## R3_3_StatutoryPeriodEqual
+
+The threshold itself: a statutory period of exactly six years leaves the
+R-3.1(a) date unchanged.
+
+```catala
+#[test]
+declaration scope TestR3_3_StatutoryPeriodEqual:
+  output r content Retention.RetentionEnd
+
+scope TestR3_3_StatutoryPeriodEqual:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2019-08-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 6 year
+    }
+  assertion r.retention_end_date = |2025-08-31|
+```
+
+## R3_3_StatutoryIgnoredForCustomerContract
+
+Trap 1. R-3.3 is an exception to R-3.1(a) alone, so a standing determination
+that payroll legislation requires ten years must not lengthen a Customer
+Contract. An exception written without `data_class with pattern
+EmployeeRecord` would give 2028-03-15 here.
+
+```catala
+#[test]
+declaration scope TestR3_3_StatutoryIgnoredForCustomerContract:
+  output r content Retention.RetentionEnd
+
+scope TestR3_3_StatutoryIgnoredForCustomerContract:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.CustomerContract
+      -- retention_trigger_date: |2018-03-15|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 10 year
+    }
+  assertion r.retention_end_date = |2025-03-15|
+```
+
+## R3_3_StatutoryIgnoredForCandidateRecordWithConsent
+
+The two limb-specific exceptions do not interfere: a Candidate Record with
+talent-pool consent takes R-3.2's 24 months even though the statutory
+determination is also on, because R-3.3 attaches only to limb (a).
+
+```catala
+#[test]
+declaration scope TestR3_3_StatutoryIgnoredForCandidateRecordWithConsent:
+  output r content Retention.RetentionEnd
+
+scope TestR3_3_StatutoryIgnoredForCandidateRecordWithConsent:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.CandidateRecord
+      -- retention_trigger_date: |2024-06-30|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Present content |2025-06-30|
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 10 year
+    }
+  assertion r.retention_end_date = |2027-06-30|
+```
+
+## R6_1_BackupBoundOnShortestPeriod
+
+R-6.1 bounds the backup purge at 90 days after production deletion, whatever
+limb fixed the production date.
+
+```catala
+#[test]
+declaration scope TestR6_1_BackupBoundOnShortestPeriod:
+  output r content Retention.RetentionEnd
+
+scope TestR6_1_BackupBoundOnShortestPeriod:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.SecurityLog
+      -- retention_trigger_date: |2025-01-31|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  assertion r.retention_end_date = |2026-02-28|
+  assertion r.backup_purge_deadline = |2026-05-29|
+```

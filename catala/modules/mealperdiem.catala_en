@@ -25,6 +25,7 @@ declaration scope MealPerDiemForDay:
   internal per_diem_under_e3_1 content money
   internal per_diem_apart_from_e3_3 content money
   internal pre_approval_effective content boolean
+  internal e3_4_reduction content money
   output per_diem_cap content money
   output adjusted_per_diem content money
   output reimbursable_amount content money
@@ -208,30 +209,19 @@ when the entitlement reaches zero.
 
 ```catala
 scope MealPerDiemForDay:
+  definition e3_4_reduction equals $15.00 * decimal of meals_provided_free
+
   definition adjusted_per_diem equals
-    Money.max of
-      $0.00,
-      per_diem_cap - ($15.00 * decimal of meals_provided_free)
+    Money.max of $0.00, (per_diem_cap - e3_4_reduction)
 ```
 
-## E-3.5 No meal expense incurred
+## E-3.1 again — reimbursement up to the day's per diem
 
-| EXP-POL E-3.5 (002-expense-reimbursement-policy.md:64)
-|
-| No per diem is payable in respect of a Travel Day on which the Employee
-| does not incur any meal expense.
-
-The reimbursable amount is the per diem *as reduced* under E-3.4, capped by
-what was actually spent (E-3.1: "reimbursement of meal expenses ... up to the
-following amounts"), and E-3.5 is an exception to that which forces nil where
-nothing was spent.
-
-On these two definitions alone E-3.5 changes no number — the minimum of nil and
-any cap is already nil — but it is encoded as its own exception rather than
-left implicit, because it is the clause that answers the question "is the per
-diem an allowance or a reimbursement?" and because an encoding that loses it
-would start paying the cap out the moment anyone reads E-3.1's "entitled to"
-as an allowance.
+The second limb of E-3.1 is the reimbursement itself, which is a separate
+consequence of the same clause from the tier table above and so is quoted again
+here. It is applied last, to the figure E-3.4 has already reduced: the Employee
+is reimbursed "meal expenses ... up to" the day's per diem, which is the lesser
+of what was spent and that per diem.
 
 | EXP-POL E-3.1 (002-expense-reimbursement-policy.md:46)
 |
@@ -246,7 +236,27 @@ as an allowance.
 scope MealPerDiemForDay:
   label e3_1_reimbursement definition reimbursable_amount equals
     Money.min of meal_expense_incurred, adjusted_per_diem
+```
 
+## E-3.5 No meal expense incurred
+
+| EXP-POL E-3.5 (002-expense-reimbursement-policy.md:64)
+|
+| No per diem is payable in respect of a Travel Day on which the Employee
+| does not incur any meal expense.
+
+An exception to the reimbursement limb of E-3.1 above, forcing nil where no
+meal expense was incurred at all.
+
+Against that limb alone E-3.5 changes no number — the lesser of nil and any per
+diem is already nil — and it is encoded as its own exception anyway, because it
+is the clause that answers the question "is the per diem an allowance or a
+reimbursement?". An encoding that folded it away would start paying the cap out
+the moment anyone read E-3.1's "entitled to" as conferring an allowance, and
+there would be no clause left to cite in refusing.
+
+```catala
+scope MealPerDiemForDay:
   label e3_5 exception e3_1_reimbursement definition reimbursable_amount
     under condition meal_expense_incurred = $0.00
     consequence equals $0.00

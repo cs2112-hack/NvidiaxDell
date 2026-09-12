@@ -1,0 +1,393 @@
+# Tests — DATA-RET R-5 erasure requests
+
+Assertion-based tests for `ErasureRequest.ErasureDeadline`. Every branch of
+the exception chain on `deletion_due_date` (`r5_1_none` ← `r5_1` ← `r5_2`) and
+on `deletion_refused` is covered, each of R-5.2's three alternative limbs is
+exercised on its own, and both sides of the validity and verification gates
+are tested.
+
+The tests that matter most are the ones a plain-RULE encoding would fail:
+
+* **No deadline for an unvalidated request.** `NotValidButVerified` supplies
+  a verification date and asks for the deadline with validity not
+  established. R-5.1 is HYBRID precisely so the answer is `Absent` and not
+  "thirty days from verification".
+* **The 30 days run from verification, not from the request.**
+  `DeadlineRunsFromVerification` separates the two dates by five months, so
+  an encoding that measured from the request would be out by that much.
+* **Trap 1, R-5.2 not inheriting R-5.1's condition.**
+  `InvalidRequestWithLegalObligation` turns a R-5.2 ground on for an invalid
+  request. R-5.2 is an exception to R-5.1 and has no application where R-5.1
+  does not, so the Company has refused nothing.
+
+`legal_hold_blocks_erasure` is `LegalHold.HoldEffect.erasure_blocked_by_hold`
+and therefore already carries R-4.2's judgement, which is why
+`ValidWithHoldThatLawDoesNotPermit` deletes on time.
+
+> Using ErasureRequest
+
+## R5_1_ValidAndVerified
+
+R-5.1: a valid, verified request is deleted within 30 days of verification.
+
+```catala
+#[test]
+declaration scope TestR5_1_ValidAndVerified:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_1_ValidAndVerified:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Present content |2025-03-03|
+  assertion r.deletion_refused = false
+```
+
+## R5_1_VerifiedOnMonthEnd
+
+Thirty days from 31 January crosses a short month: 2 March, not 2 February.
+The 30 days are a day duration, so this is exact arithmetic and no rounding
+mode bears on it.
+
+```catala
+#[test]
+declaration scope TestR5_1_VerifiedOnMonthEnd:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_1_VerifiedOnMonthEnd:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-15|
+      -- verification_date: Present content |2025-01-31|
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Present content |2025-03-02|
+  assertion r.deletion_refused = false
+```
+
+## R5_1_DeadlineRunsFromVerification
+
+The clock starts on verification and not on the request. Measured from the
+request date this would have fallen due on 2025-01-31.
+
+```catala
+#[test]
+declaration scope TestR5_1_DeadlineRunsFromVerification:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_1_DeadlineRunsFromVerification:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-06-10|
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Present content |2025-07-10|
+```
+
+## R5_1_ValidNotYetVerified
+
+A valid request that has not been verified has no deadline: R-5.1 gives the
+clock no start. That is not a refusal.
+
+```catala
+#[test]
+declaration scope TestR5_1_ValidNotYetVerified:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_1_ValidNotYetVerified:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Absent
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = false
+```
+
+## R5_1_NotValidButVerified
+
+The HYBRID gate. Validity has not been established, so the module must not
+assert a 30-day deadline even though a verification date is on file. This is
+the one answer a plain-RULE encoding of R-5.1 would get wrong.
+
+```catala
+#[test]
+declaration scope TestR5_1_NotValidButVerified:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_1_NotValidButVerified:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: false
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = false
+```
+
+## R5_1_NotValidNotVerified
+
+The same where nothing at all has happened.
+
+```catala
+#[test]
+declaration scope TestR5_1_NotValidNotVerified:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_1_NotValidNotVerified:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Absent
+      -- erasure_request_valid: false
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = false
+```
+
+## R5_2_LegalObligation
+
+R-5.2, first limb: retention required to comply with a legal obligation
+disapplies the deadline, and this time it is a refusal.
+
+```catala
+#[test]
+declaration scope TestR5_2_LegalObligation:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_2_LegalObligation:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: true
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = true
+```
+
+## R5_2_LegalClaims
+
+R-5.2, second limb: retention for the establishment or exercise of legal
+claims.
+
+```catala
+#[test]
+declaration scope TestR5_2_LegalClaims:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_2_LegalClaims:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: true
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = true
+```
+
+## R5_2_LegalHoldApplies
+
+R-5.2, third limb: a Legal Hold applies. The input is
+`LegalHold.HoldEffect.erasure_blocked_by_hold`, so reaching this branch
+already means R-4.2's judgement was made in favour of retention.
+
+```catala
+#[test]
+declaration scope TestR5_2_LegalHoldApplies:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_2_LegalHoldApplies:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: true
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = true
+```
+
+## R5_2_AllThreeLimbs
+
+The limbs are alternatives; all three together are no different from one.
+
+```catala
+#[test]
+declaration scope TestR5_2_AllThreeLimbs:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_2_AllThreeLimbs:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: true
+      -- retention_required_for_legal_claims: true
+      -- legal_hold_blocks_erasure: true
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = true
+```
+
+## R5_2_RefusedBeforeVerification
+
+R-5.2 does not depend on verification: a valid request met by a ground of
+retention is refused whether or not the clock ever started. This is what
+`deletion_refused` is for — it distinguishes "no deadline yet" from "no
+deletion".
+
+```catala
+#[test]
+declaration scope TestR5_2_RefusedBeforeVerification:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_2_RefusedBeforeVerification:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Absent
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: true
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = true
+```
+
+## R5_2_InvalidRequestWithLegalObligation
+
+Trap 1. A ground of retention is present but the request was never held
+valid, so R-5.2 must not fire: the Company has refused nothing, because R-5.1
+never engaged. An exception written without `erasure_request_valid` would
+report a refusal here.
+
+```catala
+#[test]
+declaration scope TestR5_2_InvalidRequestWithLegalObligation:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_2_InvalidRequestWithLegalObligation:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: false
+      -- retention_required_by_legal_obligation: true
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = false
+```
+
+## R5_2_InvalidRequestWithLegalHold
+
+The same for the third limb.
+
+```catala
+#[test]
+declaration scope TestR5_2_InvalidRequestWithLegalHold:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestR5_2_InvalidRequestWithLegalHold:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: false
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: true
+    }
+  assertion r.deletion_due_date = Absent
+  assertion r.deletion_refused = false
+```
+
+## ValidWithHoldThatLawDoesNotPermit
+
+The composition with R-4.2. A Legal Hold is in force but applicable data
+protection law does not permit retaining against this request, so
+`LegalHold.HoldEffect.erasure_blocked_by_hold` is false, R-5.2's third limb
+is not made out, and the 30-day deadline stands. Passing "a hold is in force"
+here instead would have blocked the deletion, which is the error R-4.2 exists
+to prevent.
+
+```catala
+#[test]
+declaration scope TestValidWithHoldThatLawDoesNotPermit:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestValidWithHoldThatLawDoesNotPermit:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-01-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Present content |2025-03-03|
+  assertion r.deletion_refused = false
+```
+
+## VerifiedOnDayOfRequest
+
+The well-formedness invariant on its inclusive boundary: a request verified
+the day it is made is fine, and the 30 days run from that day.
+
+```catala
+#[test]
+declaration scope TestVerifiedOnDayOfRequest:
+  output r content ErasureRequest.ErasureDeadline
+
+scope TestVerifiedOnDayOfRequest:
+  definition r equals
+    output of ErasureRequest.ErasureDeadline with {
+      -- request_date: |2025-02-01|
+      -- verification_date: Present content |2025-02-01|
+      -- erasure_request_valid: true
+      -- retention_required_by_legal_obligation: false
+      -- retention_required_for_legal_claims: false
+      -- legal_hold_blocks_erasure: false
+    }
+  assertion r.deletion_due_date = Present content |2025-03-03|
+  assertion r.deletion_refused = false
+```

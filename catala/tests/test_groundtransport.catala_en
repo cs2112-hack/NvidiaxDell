@@ -1,0 +1,522 @@
+# Tests — EXP-POL E-5 ground transport
+
+Assertion-based tests for `GroundTransport.RailFare` (E-5.1, E-5.2) and
+`GroundTransport.TaxiFare` (E-5.3).
+
+E-5.2 has two independent releases from the first-class prohibition, so each is
+tested alone and the refusal is tested with both absent. The comparison
+boundary is pinned on both sides — a ticket equal to the same-day standard class
+fare and a ticket a penny above it — and each of E-2.4's three conjuncts is
+failed in turn so that a defective approval cannot open the second gate.
+
+E-5.3's carve-out is conjunctive (airport **and** outside 06:00–22:00), so both
+half-satisfied cases are tested, and the clock boundaries are pinned at 05:59
+against 06:00 and at 22:00 against 22:01.
+
+Counterexamples found by the adversarial reviewer are kept separately, in
+`tests/counterexamples/`, and are re-run by `scripts/check.sh`.
+
+> Using ExpenseDefs
+
+> Using GroundTransport
+
+## Fixtures
+
+Pre-Approval values reused below. They encode no clause.
+
+```catala
+declaration no_pre_approval content ExpenseDefs.PreApproval equals
+  ExpenseDefs.PreApproval {
+    -- obtained: false
+    -- in_writing: false
+    -- obtained_at: |2025-06-09|
+    -- approver_authority_limit: $0.00
+    -- specified_amount: Absent
+  }
+
+declaration pre_approval_up_to content ExpenseDefs.PreApproval
+  depends on limit content money
+  equals
+  ExpenseDefs.PreApproval {
+    -- obtained: true
+    -- in_writing: true
+    -- obtained_at: |2025-06-09|
+    -- approver_authority_limit: limit
+    -- specified_amount: Absent
+  }
+```
+
+## E5_1_StandardClass
+
+E-5.1: standard class rail at actual cost.
+
+```catala
+#[test]
+declaration scope TestE5_1_StandardClass:
+  output r content GroundTransport.RailFare
+
+scope TestE5_1_StandardClass:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.StandardClass
+      -- ticket_cost: $50.00
+      -- standard_class_fare_same_day: $50.00
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $50.00
+```
+
+## E5_1_StandardClassIsUncapped
+
+E-5.1 states no cap, so an expensive standard class ticket is reimbursed in
+full. This is the test that would fail if a £60-style cap leaked across from
+E-5.3.
+
+```catala
+#[test]
+declaration scope TestE5_1_StandardClassIsUncapped:
+  output r content GroundTransport.RailFare
+
+scope TestE5_1_StandardClassIsUncapped:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.StandardClass
+      -- ticket_cost: $480.00
+      -- standard_class_fare_same_day: $120.00
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $480.00
+```
+
+## E5_2_FirstClassBelowSameDayStandardFare
+
+E-5.2 first gate: the first class ticket cost £80 against a same-day standard
+class fare of £100.
+
+```catala
+#[test]
+declaration scope TestE5_2_FirstClassBelowSameDayStandardFare:
+  output r content GroundTransport.RailFare
+
+scope TestE5_2_FirstClassBelowSameDayStandardFare:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $80.00
+      -- standard_class_fare_same_day: $100.00
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $80.00
+```
+
+## E5_2_FirstClassEqualToSameDayStandardFare
+
+Boundary, admitted side: "does not exceed" is satisfied by equality.
+
+```catala
+#[test]
+declaration scope TestE5_2_FirstClassEqualToSameDayStandardFare:
+  output r content GroundTransport.RailFare
+
+scope TestE5_2_FirstClassEqualToSameDayStandardFare:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $100.00
+      -- standard_class_fare_same_day: $100.00
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $100.00
+```
+
+## E5_2_FirstClassAPennyAboveSameDayStandardFare
+
+Boundary, refused side: a penny over, and with no Pre-Approval, nothing is
+reimbursable. E-5.2 is a prohibition on reimbursement, not a cap at the
+standard class fare, so the answer is nil rather than £100.
+
+```catala
+#[test]
+declaration scope TestE5_2_FirstClassAPennyAboveSameDayStandardFare:
+  output r content GroundTransport.RailFare
+
+scope TestE5_2_FirstClassAPennyAboveSameDayStandardFare:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $100.01
+      -- standard_class_fare_same_day: $100.00
+      -- pre_approval: no_pre_approval
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $0.00
+```
+
+## E5_2_FirstClassWithPreApproval
+
+E-5.2 second gate: Pre-Approval makes the ticket reimbursable in full even far
+above the standard class fare.
+
+```catala
+#[test]
+declaration scope TestE5_2_FirstClassWithPreApproval:
+  output r content GroundTransport.RailFare
+
+scope TestE5_2_FirstClassWithPreApproval:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $200.00
+      -- standard_class_fare_same_day: $100.00
+      -- pre_approval: pre_approval_up_to of $500.00
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $200.00
+```
+
+## E5_2_PreApprovalNotInWriting
+
+E-2.4 requires written approval.
+
+```catala
+#[test]
+declaration scope TestE5_2_PreApprovalNotInWriting:
+  output r content GroundTransport.RailFare
+
+scope TestE5_2_PreApprovalNotInWriting:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $200.00
+      -- standard_class_fare_same_day: $100.00
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: false
+           -- obtained_at: |2025-06-09|
+           -- approver_authority_limit: $500.00
+           -- specified_amount: Absent
+         }
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $0.00
+```
+
+## E5_2_PreApprovalAuthorityBelowTicketCost
+
+E-2.4 requires the approver's delegated authority to be at or above the
+threshold of the expense: £150 of authority cannot approve a £200 ticket.
+
+```catala
+#[test]
+declaration scope TestE5_2_PreApprovalAuthorityBelowTicketCost:
+  output r content GroundTransport.RailFare
+
+scope TestE5_2_PreApprovalAuthorityBelowTicketCost:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $200.00
+      -- standard_class_fare_same_day: $100.00
+      -- pre_approval: pre_approval_up_to of $150.00
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $0.00
+```
+
+## E5_2_PreApprovalAuthorityExactlyAtTicketCost
+
+Boundary, other side: authority exactly equal to the ticket cost is "at or
+above the threshold".
+
+```catala
+#[test]
+declaration scope TestE5_2_PreApprovalAuthorityExactlyAtTicketCost:
+  output r content GroundTransport.RailFare
+
+scope TestE5_2_PreApprovalAuthorityExactlyAtTicketCost:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $200.00
+      -- standard_class_fare_same_day: $100.00
+      -- pre_approval: pre_approval_up_to of $200.00
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $200.00
+```
+
+## E5_2_PreApprovalObtainedOnTheDayOfTravel
+
+E-2.4 requires the approval to have been obtained before the expense was
+incurred.
+
+```catala
+#[test]
+declaration scope TestE5_2_PreApprovalObtainedOnTheDayOfTravel:
+  output r content GroundTransport.RailFare
+
+scope TestE5_2_PreApprovalObtainedOnTheDayOfTravel:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $200.00
+      -- standard_class_fare_same_day: $100.00
+      -- pre_approval: ExpenseDefs.PreApproval {
+           -- obtained: true
+           -- in_writing: true
+           -- obtained_at: |2025-06-10|
+           -- approver_authority_limit: $500.00
+           -- specified_amount: Absent
+         }
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $0.00
+```
+
+## E5_2_BothGatesOpen
+
+Both releases satisfied at once: still reimbursable, and no `Conflict` — the
+two limbs are one exception carrying a disjunction, not two sibling exceptions.
+
+```catala
+#[test]
+declaration scope TestE5_2_BothGatesOpen:
+  output r content GroundTransport.RailFare
+
+scope TestE5_2_BothGatesOpen:
+  definition r equals
+    output of GroundTransport.RailFare with {
+      -- class_of_travel: GroundTransport.RailClass.FirstClass
+      -- ticket_cost: $90.00
+      -- standard_class_fare_same_day: $100.00
+      -- pre_approval: pre_approval_up_to of $500.00
+      -- incurred_on: |2025-06-10|
+    }
+  assertion r.reimbursable_amount = $90.00
+```
+
+## E5_3_TaxiWithinCap
+
+E-5.3: a £45 journey is reimbursed at actual cost.
+
+```catala
+#[test]
+declaration scope TestE5_3_TaxiWithinCap:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_TaxiWithinCap:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $45.00
+      -- is_airport_journey: false
+      -- journey_start_hour: 12
+      -- journey_start_minute: 0
+    }
+  assertion r.reimbursable_amount = $45.00
+```
+
+## E5_3_TaxiExactlyAtCap
+
+Boundary: "up to £60 per journey" includes £60.
+
+```catala
+#[test]
+declaration scope TestE5_3_TaxiExactlyAtCap:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_TaxiExactlyAtCap:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $60.00
+      -- is_airport_journey: false
+      -- journey_start_hour: 12
+      -- journey_start_minute: 0
+    }
+  assertion r.reimbursable_amount = $60.00
+```
+
+## E5_3_TaxiAPennyAboveCap
+
+Boundary, other side.
+
+```catala
+#[test]
+declaration scope TestE5_3_TaxiAPennyAboveCap:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_TaxiAPennyAboveCap:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $60.01
+      -- is_airport_journey: false
+      -- journey_start_hour: 12
+      -- journey_start_minute: 0
+    }
+  assertion r.reimbursable_amount = $60.00
+```
+
+## E5_3_AirportJustBefore0600
+
+Clock boundary, uncapped side: 05:59 is "before 06:00".
+
+```catala
+#[test]
+declaration scope TestE5_3_AirportJustBefore0600:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_AirportJustBefore0600:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $90.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 5
+      -- journey_start_minute: 59
+    }
+  assertion r.reimbursable_amount = $90.00
+```
+
+## E5_3_AirportExactlyAt0600
+
+Clock boundary, capped side: 06:00 is not "before 06:00".
+
+```catala
+#[test]
+declaration scope TestE5_3_AirportExactlyAt0600:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_AirportExactlyAt0600:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $90.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 6
+      -- journey_start_minute: 0
+    }
+  assertion r.reimbursable_amount = $60.00
+```
+
+## E5_3_AirportExactlyAt2200
+
+Clock boundary, capped side: 22:00 is not "after 22:00".
+
+```catala
+#[test]
+declaration scope TestE5_3_AirportExactlyAt2200:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_AirportExactlyAt2200:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $90.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 22
+      -- journey_start_minute: 0
+    }
+  assertion r.reimbursable_amount = $60.00
+```
+
+## E5_3_AirportJustAfter2200
+
+Clock boundary, uncapped side: 22:01 is "after 22:00".
+
+```catala
+#[test]
+declaration scope TestE5_3_AirportJustAfter2200:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_AirportJustAfter2200:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $90.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 22
+      -- journey_start_minute: 1
+    }
+  assertion r.reimbursable_amount = $90.00
+```
+
+## E5_3_AirportAtMidnight
+
+Well inside the uncapped window.
+
+```catala
+#[test]
+declaration scope TestE5_3_AirportAtMidnight:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_AirportAtMidnight:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $150.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 0
+      -- journey_start_minute: 0
+    }
+  assertion r.reimbursable_amount = $150.00
+```
+
+## E5_3_AirportAtMidday
+
+The carve-out needs the unsocial hour as well as the airport.
+
+```catala
+#[test]
+declaration scope TestE5_3_AirportAtMidday:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_AirportAtMidday:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $90.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 12
+      -- journey_start_minute: 0
+    }
+  assertion r.reimbursable_amount = $60.00
+```
+
+## E5_3_NonAirportInTheSmallHours
+
+The carve-out needs the airport as well as the unsocial hour: a 03:00 journey
+that is not to or from an airport is capped.
+
+```catala
+#[test]
+declaration scope TestE5_3_NonAirportInTheSmallHours:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_NonAirportInTheSmallHours:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $90.00
+      -- is_airport_journey: false
+      -- journey_start_hour: 3
+      -- journey_start_minute: 0
+    }
+  assertion r.reimbursable_amount = $60.00
+```
+
+## E5_3_AirportOutOfHoursButCheap
+
+The carve-out removes the cap; it does not substitute a payment. A £20 journey
+is reimbursed at £20.
+
+```catala
+#[test]
+declaration scope TestE5_3_AirportOutOfHoursButCheap:
+  output r content GroundTransport.TaxiFare
+
+scope TestE5_3_AirportOutOfHoursButCheap:
+  definition r equals
+    output of GroundTransport.TaxiFare with {
+      -- journey_cost: $20.00
+      -- is_airport_journey: true
+      -- journey_start_hour: 4
+      -- journey_start_minute: 30
+    }
+  assertion r.reimbursable_amount = $20.00
+```

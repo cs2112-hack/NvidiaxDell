@@ -1,6 +1,6 @@
 # MSA Schedule 4 — Service Credits
 
-> Module Service_credits
+> Module ServiceCredits
 
 This module encodes the money half of Schedule 4: the credit base (L-2.7), the
 L-4.1 band table, the L-4.2 cap, L-4.3's double override of both, and L-4.4's
@@ -184,6 +184,9 @@ scope ServiceCredit:
 Two thresholds are strict. "More than 30 days" in arrears means 30 days is not
 enough and 31 days is, and "undisputed" is the judgement input: an invoice the
 Customer disputes does not engage the clause at all, whatever the arrears.
+The clause bites on arrears of "any" undisputed invoice, so `arrears_days` is
+the longest such arrears outstanding and `invoice_undisputed` the
+characterisation of that invoice.
 
 L-4.4 is expressed as an exception to L-4.1 but it forfeits the credit
 outright — "no Service Credit is payable in respect of a Measurement Period" —
