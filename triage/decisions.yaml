@@ -6,805 +6,1192 @@ decisions:
   EMP-ANNEX-C C-1.1:
     ref: EMP-ANNEX-C C-1.1
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: 'Applicability clause: it fixes the personal scope (Employees engaged under a contract of
+      employment, hence not contingent workers) and the subject matter of the Annex. It states no quantity,
+      but every working-time computation is conditioned on it.'
+    source: adjudicated
     clause_hash: 0a1c98d608e98329
+    qualifies:
+    - WorkingTimeDefs
+    - Overtime
+    - LeaveAccrual
   EMP-ANNEX-C C-1.2:
     ref: EMP-ANNEX-C C-1.2
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: 'A statutory-floor override: where the Annex would be less favourable than working time legislation,
+      the statutory minimum prevails. Not HYBRID, because the clause supplies no quantity of its own --
+      the floor lies entirely outside the corpus and ''less favourable to the Employee'' is a comparison
+      of whole entitlement packages, not a numeric maximum a scope could take as an input.'
+    source: adjudicated
     clause_hash: c141ec66cca72d62
+    qualifies:
+    - Overtime
+    - LeaveAccrual
   EMP-ANNEX-C C-1.3:
     ref: EMP-ANNEX-C C-1.3
     label: PROSE
-    reason: boilerplate//interpretive markers ['headings are for convenience']
-    source: heuristic
+    reason: Construction boilerplate; headings have no operative effect and nothing computational turns
+      on it.
+    source: adjudicated
     clause_hash: 00e8dbae6a39a340
   EMP-ANNEX-C C-2.1:
     ref: EMP-ANNEX-C C-2.1
     label: RULE
-    reason: quantified definition (score 4) -> becomes a struct/type
-    source: heuristic
+    reason: Defines a computable quantity -- annual base salary divided by 2,080 -- which is the multiplicand
+      of every premium in C-4 to C-7.
+    source: adjudicated
     clause_hash: ef6e01571ad104c2
+    module: WorkingTimeDefs
   EMP-ANNEX-C C-2.2:
     ref: EMP-ANNEX-C C-2.2
     label: RULE
-    reason: quantified definition (score 4) -> becomes a struct/type
-    source: heuristic
+    reason: Defines a determinate seven-day window (Monday 00:00 to Sunday 23:59:59) over which the 40-
+      and 48-hour thresholds are measured; pure calendar arithmetic.
+    source: adjudicated
     clause_hash: 75b15367ef506b4a
+    module: WorkingTimeDefs
   EMP-ANNEX-C C-2.3:
     ref: EMP-ANNEX-C C-2.3
     label: RULE
-    reason: quantified definition (score 4) -> becomes a struct/type
-    source: heuristic
+    reason: Defines a determinate clock interval (22:00 to 06:00) that is decidable for any worked hour;
+      it is the predicate the C-6 night premium counts over.
+    source: adjudicated
     clause_hash: b60d94cde1857a6b
+    module: WorkingTimeDefs
   EMP-ANNEX-C C-2.4:
     ref: EMP-ANNEX-C C-2.4
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'Classifies by reference to a system of record rather than by arithmetic, so it is modelled
+      as a Catala input type (grade) -- but it is RULE, not PROSE: it contributes an input without which
+      the C-5 exceptions cannot be stated, and it fixes a deterministic as-of date (the first day of the
+      Payroll Week). Reading a record is data, not judgement.'
+    source: adjudicated
     clause_hash: 13dd4342388e9698
+    module: WorkingTimeDefs
   EMP-ANNEX-C C-2.5:
     ref: EMP-ANNEX-C C-2.5
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'Modelled as an input struct: the Severity 1 classification is made under the incident management
+      standard (a record, not a judgement made here) and the period from declaration to formal closure
+      is a computable interval. C-5.2 and EXP-POL E-7.2 both switch on it, so the type belongs in Catala.'
+    source: adjudicated
     clause_hash: 281f71448d9ee073
+    module: WorkingTimeDefs
   EMP-ANNEX-C C-2.6:
     ref: EMP-ANNEX-C C-2.6
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'A calendar lookup: the set of gazetted holidays for a principal place of work is an input
+      table and membership is decidable. It contributes the input C-7 is conditioned on.'
+    source: adjudicated
     clause_hash: b3560225d04afd6d
+    module: WorkingTimeDefs
   EMP-ANNEX-C C-3.1:
     ref: EMP-ANNEX-C C-3.1
-    label: PROSE
-    reason: no computable content (score 2)
-    source: heuristic
+    label: RULE
+    reason: States the constant (40 hours) against which C-4.1 and C-5.1 measure excess hours; a bare
+      quantity, not an exhortation.
+    source: adjudicated
     clause_hash: e920deabc9dd1dba
+    module: WorkingTimeDefs
   EMP-ANNEX-C C-4.1:
     ref: EMP-ANNEX-C C-4.1
     label: RULE
-    reason: quantified and computable (score 11)
-    source: heuristic
+    reason: 'Base overtime entitlement: each hour above 40 in a Payroll Week at 1.25 times the Base Hourly
+      Rate. Wholly determinate.'
+    source: adjudicated
     clause_hash: b6ac265197f7f162
+    module: Overtime
   EMP-ANNEX-C C-4.2:
     ref: EMP-ANNEX-C C-4.2
     label: RULE
-    reason: quantified and computable (score 10)
-    source: heuristic
+    reason: Exception to C-4.1 for hours above 48 at 1.5 times the Base Hourly Rate; a second determinate
+      band, to be encoded as an exception rather than merged into C-4.1.
+    source: adjudicated
     clause_hash: e49fc45645975c88
+    module: Overtime
   EMP-ANNEX-C C-5.1:
     ref: EMP-ANNEX-C C-5.1
     label: RULE
-    reason: quantified and computable (score 12)
-    source: heuristic
+    reason: 'Exception to the whole of C-4 for Grade 5 and above: no overtime payment, and time off in
+      lieu accrues one hour per hour above 40. Both limbs are computable once grade (C-2.4) is supplied.'
+    source: adjudicated
     clause_hash: 598451dbe762baa8
+    module: Overtime
   EMP-ANNEX-C C-5.2:
     ref: EMP-ANNEX-C C-5.2
     label: RULE
-    reason: quantified and computable (score 9)
-    source: heuristic
+    reason: Exception to C-5.1 restoring the C-4 rates for hours worked on Critical Incident Response;
+      determinate given the C-2.5 input, and it must sit one level below C-5.1 as the word 'notwithstanding'
+      requires.
+    source: adjudicated
     clause_hash: d2544eac9f569176
+    module: Overtime
   EMP-ANNEX-C C-6.1:
     ref: EMP-ANNEX-C C-6.1
     label: RULE
-    reason: quantified and computable (score 10)
-    source: heuristic
+    reason: Night premium of 0.15 times the Base Hourly Rate per Night Hour, expressly additional to and
+      not in substitution for C-4, C-5.2 and C-7. Pure arithmetic, and the cumulative character is itself
+      operative.
+    source: adjudicated
     clause_hash: a952db495deff0d1
+    module: Overtime
   EMP-ANNEX-C C-6.2:
     ref: EMP-ANNEX-C C-6.2
     label: RULE
-    reason: weakly quantified but computable (score 3)
-    source: heuristic
+    reason: Exception to C-6.1. Whether the Employee receives a standing shift allowance is a term of
+      their individual contract -- a recorded fact supplied as a boolean input, not a judgement -- so
+      the disapplication is computable.
+    source: adjudicated
     clause_hash: 0b2038b941623d7d
+    module: Overtime
   EMP-ANNEX-C C-7.1:
     ref: EMP-ANNEX-C C-7.1
     label: RULE
-    reason: quantified and computable (score 8)
-    source: heuristic
+    reason: Public holiday rate of 2.0 times the Base Hourly Rate, expressly in substitution for amounts
+      otherwise payable under C-4. Determinate, and the substitutive character must be encoded or premia
+      will be stacked.
+    source: adjudicated
     clause_hash: 78d28630cbe353cd
+    module: Overtime
   EMP-ANNEX-C C-7.2:
     ref: EMP-ANNEX-C C-7.2
     label: RULE
-    reason: quantified and computable (score 13)
-    source: heuristic
+    reason: 'Exception to C-7.1: the greater of 2.0 times the Base Hourly Rate and the C-4.2 rate plus
+      0.25. A maximum over two computed rates, with no judgement term.'
+    source: adjudicated
     clause_hash: 220100582d283d7d
+    module: Overtime
   EMP-ANNEX-C C-8.1:
     ref: EMP-ANNEX-C C-8.1
     label: RULE
-    reason: weakly quantified but computable (score 3)
-    source: heuristic
+    reason: 'Precedence rule: only the single highest applicable multiplier applies to an hour across
+      C-4, C-5 and C-7. This is a computation over the other rules, not commentary; without it the module
+      would double-count.'
+    source: adjudicated
     clause_hash: 8439478f15cee9b0
+    module: Overtime
   EMP-ANNEX-C C-8.2:
     ref: EMP-ANNEX-C C-8.2
     label: RULE
-    reason: weakly quantified but computable (score 4)
-    source: heuristic
+    reason: Carves the C-6 night premium out of C-8.1 and makes it cumulative with the C-4, C-5.2 or C-7
+      multiplier. Whether premia add or displace is arithmetic.
+    source: adjudicated
     clause_hash: cc1efdd2a37191aa
+    module: Overtime
   EMP-ANNEX-C C-9.1:
     ref: EMP-ANNEX-C C-9.1
     label: RULE
-    reason: quantified and computable (score 6)
-    source: heuristic
+    reason: Accrual rate of 2.0 days for each completed calendar month of service.
+    source: adjudicated
     clause_hash: 10198e637a8c7277
+    module: LeaveAccrual
   EMP-ANNEX-C C-9.2:
     ref: EMP-ANNEX-C C-9.2
     label: RULE
-    reason: quantified and computable (score 6)
-    source: heuristic
+    reason: Pro-rating formula with a fully specified rounding rule (nearest half day, exact quarter upwards);
+      determinate down to the edge case.
+    source: adjudicated
     clause_hash: b74f82f2fec11016
+    module: LeaveAccrual
   EMP-ANNEX-C C-9.3:
     ref: EMP-ANNEX-C C-9.3
     label: RULE
-    reason: weakly quantified but computable (score 5)
-    source: heuristic
+    reason: Carry-forward cap of 5 accrued but untaken days into the next leave year.
+    source: adjudicated
     clause_hash: 646296e31b8d3773
+    module: LeaveAccrual
   EMP-ANNEX-C C-9.4:
     ref: EMP-ANNEX-C C-9.4
-    label: RULE
-    reason: weakly quantified but computable (score 3)
-    source: heuristic
+    label: HYBRID
+    reason: 'The consequence is arithmetic: the C-9.3 cap of 5 days is replaced by the whole accrued but
+      untaken balance, which also fixes the C-9.5 forfeiture figure. The trigger is not: whether the Employee
+      was ''prevented'' from taking leave ''by reason of'' long-term sickness absence is a causal judgement,
+      and the Annex defines neither limb. The module computes the uncapped carry-forward given that judgement
+      and never makes it.'
+    source: adjudicated
     clause_hash: 0c284d7efb1eea48
+    module: LeaveAccrual
+    judgement_inputs:
+    - prevented_from_taking_leave_by_long_term_sickness
   EMP-ANNEX-C C-9.5:
     ref: EMP-ANNEX-C C-9.5
     label: RULE
-    reason: quantified and computable (score 6)
-    source: heuristic
+    reason: Forfeiture of the excess over the permitted carry-forward, and exclusion from termination
+      pay; a determinate consequence of the C-9.3/C-9.4 figure.
+    source: adjudicated
     clause_hash: 80b3d40bfd4fe706
+    module: LeaveAccrual
   EMP-ANNEX-C C-10.1:
     ref: EMP-ANNEX-C C-10.1
     label: PROSE
-    reason: boilerplate//interpretive markers ['no variation']
-    source: heuristic
+    reason: Variation machinery. The one month's notice period is real but governs when an amended rule
+      may be applied, not any entitlement; the proviso protecting entitlements already accrued is a floor
+      on every future version of the Annex, so it qualifies the working-time modules rather than being
+      computed by them.
+    source: adjudicated
     clause_hash: 7f91ab5eb0983cec
+    qualifies:
+    - Overtime
+    - LeaveAccrual
   EXP-POL E-1.1:
     ref: EXP-POL E-1.1
     label: PROSE
-    reason: judgement-dependent ['properly incurred'], score 0
-    source: heuristic
+    reason: 'Scope clause: it extends the Policy to Contingent Workers as well as Employees and conditions
+      every reimbursement on the expense being ''properly incurred ... in the course of Company business'',
+      an irreducibly evaluative gate that no scope should pretend to apply.'
+    source: adjudicated
     clause_hash: b57d4f9dc327c5a3
+    qualifies:
+    - MealPerDiem
+    - Accommodation
+    - GroundTransport
+    - ClaimWindow
   EXP-POL E-1.2:
     ref: EXP-POL E-1.2
     label: PROSE
-    reason: boilerplate//interpretive markers ['is not intended to describe']
-    source: heuristic
+    reason: Expressly states that the Policy is not exhaustive and that unaddressed circumstances fall
+      to the Employee's judgement and managerial guidance. It is the warrant for answering 'no rule module
+      covers this' rather than computing zero.
+    source: adjudicated
     clause_hash: 8ed559af0bdc722a
+    qualifies:
+    - MealPerDiem
+    - Accommodation
+    - GroundTransport
   EXP-POL E-1.3:
     ref: EXP-POL E-1.3
     label: PROSE
-    reason: boilerplate//interpretive markers ['remain responsible for their own']
-    source: heuristic
+    reason: Tax disclaimer allocating personal tax responsibility; it changes no reimbursable amount.
+    source: adjudicated
     clause_hash: 60119eccb20dc9bb
   EXP-POL E-2.1:
     ref: EXP-POL E-2.1
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: Classifies by reference to an externally published schedule, so it is modelled as a Catala
+      input type -- but RULE, because it contributes the closed three-valued enum (Tier 1, Tier 2, Tier
+      3) without which the E-3.1 and E-4.1 tables cannot be stated.
+    source: adjudicated
     clause_hash: 39d3a28f2c6962c6
+    module: ExpenseDefs
   EXP-POL E-2.2:
     ref: EXP-POL E-2.2
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'Input type declaration: whether travel is recoverable from a client under an executed statement
+      of work is a term of that statement of work, a recorded fact rather than a judgement. It supplies
+      the boolean E-3.2 switches on, together with any per diem the statement of work specifies.'
+    source: adjudicated
     clause_hash: e5d35dd4091dacdc
+    module: ExpenseDefs
   EXP-POL E-2.3:
     ref: EXP-POL E-2.3
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'A computable counting rule: each calendar day or part day away overnight, with the day of
+      departure and the day of return each counted. This is the unit E-3 multiplies.'
+    source: adjudicated
     clause_hash: 3ba43497fbc4bf1e
+    module: ExpenseDefs
   EXP-POL E-2.4:
     ref: EXP-POL E-2.4
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'Contributes a struct with three decidable conditions: approval in writing; obtained before
+      the expense was incurred (a date comparison); and given by a holder of delegated financial authority
+      at or above the threshold of the expense (a numeric comparison). E-3.3 and E-5.2 are unencodable
+      without it.'
+    source: adjudicated
     clause_hash: 2b4cab256c0f3377
+    module: ExpenseDefs
   EXP-POL E-3.1:
     ref: EXP-POL E-3.1
     label: RULE
-    reason: quantified and computable (score 14)
-    source: heuristic
+    reason: Per-tier meal caps of GBP 75, GBP 55 and GBP 40 per Travel Day; an exhaustive lookup table.
+    source: adjudicated
     clause_hash: 07e5c014f50210db
+    module: MealPerDiem
   EXP-POL E-3.2:
     ref: EXP-POL E-3.2
     label: RULE
-    reason: weakly quantified but computable (score 5)
-    source: heuristic
+    reason: 'Exception to E-3.1: the amount specified in the statement of work, or failing that 1.5 times
+      the E-3.1 cap. Determinate once the E-2.2 inputs are supplied.'
+    source: adjudicated
     clause_hash: 6fd9f97d3602fa8b
+    module: MealPerDiem
   EXP-POL E-3.3:
     ref: EXP-POL E-3.3
-    label: PROSE
-    reason: no computable content (score 2)
-    source: heuristic
+    label: RULE
+    reason: Exception to both E-3.1 and E-3.2, substituting the pre-approved amount. Its trigger is E-2.4
+      Pre-Approval, which is decidable, so it belongs in the module; leaving it in prose would truncate
+      the per diem hierarchy at its top.
+    source: adjudicated
     clause_hash: 17b874525bff815b
+    module: MealPerDiem
   EXP-POL E-3.4:
     ref: EXP-POL E-3.4
     label: RULE
-    reason: weakly quantified but computable (score 5)
-    source: heuristic
+    reason: Deduction of GBP 15 from that Travel Day's per diem for each meal provided at no cost; arithmetic.
+    source: adjudicated
     clause_hash: 8b3fc8965636b1e9
+    module: MealPerDiem
   EXP-POL E-3.5:
     ref: EXP-POL E-3.5
-    label: PROSE
-    reason: no computable content (score 2)
-    source: heuristic
+    label: RULE
+    reason: Zeroes the per diem for a Travel Day on which no meal expense is incurred. A determinate condition
+      on entitlement, not a caveat.
+    source: adjudicated
     clause_hash: 6f623695d0665542
+    module: MealPerDiem
   EXP-POL E-4.1:
     ref: EXP-POL E-4.1
     label: RULE
-    reason: quantified and computable (score 14)
-    source: heuristic
+    reason: Actual cost subject to nightly caps of GBP 220, GBP 160 and GBP 120 by City Tier; a lookup
+      table.
+    source: adjudicated
     clause_hash: 8595c2882e934c7b
+    module: Accommodation
   EXP-POL E-4.2:
     ref: EXP-POL E-4.2
-    label: RULE
-    reason: quantified and computable (score 8)
-    source: heuristic
+    label: HYBRID
+    reason: The relief is exact -- the applicable E-4.1 cap becomes 1.4 times itself -- but it is triggered
+      by the Employee evidencing that no compliant accommodation was available within the cap at the time
+      of booking. Compliance, availability and the sufficiency of the evidence are assessments the Policy
+      reduces to no test, so they are lifted to a judgement input and the module computes the uplifted
+      cap given it.
+    source: adjudicated
     clause_hash: aad5dc01726202e5
+    module: Accommodation
+    judgement_inputs:
+    - no_compliant_accommodation_available_evidenced
   EXP-POL E-4.3:
     ref: EXP-POL E-4.3
-    label: PROSE
-    reason: no computable content (score 1)
-    source: heuristic
+    label: RULE
+    reason: 'Specifies the composition of the amount measured against the cap: local taxes and mandatory
+      resort or city charges in, parking out. This defines the quantity being capped, so without it the
+      E-4.1 comparison is undefined -- it is a computation rule, not a gloss.'
+    source: adjudicated
     clause_hash: 4bb6c958dece2e01
+    module: Accommodation
   EXP-POL E-5.1:
     ref: EXP-POL E-5.1
-    label: PROSE
-    reason: no computable content (score 2)
-    source: heuristic
+    label: RULE
+    reason: 'Standard class rail is reimbursable at actual cost: a determinate, uncapped entitlement that
+      the module must state in order to distinguish it from the capped heads.'
+    source: adjudicated
     clause_hash: 5c894fe0cfe2e255
+    module: GroundTransport
   EXP-POL E-5.2:
     ref: EXP-POL E-5.2
     label: RULE
-    reason: weakly quantified but computable (score 4)
-    source: heuristic
+    reason: 'Two decidable limbs: the first class fare must not exceed the standard class fare for the
+      same journey booked on the day of travel (a numeric comparison), or E-2.4 Pre-Approval must exist.
+      Not HYBRID -- the counterfactual standard class fare is a price to be evidenced, an ordinary input
+      like a salary, not a judgement anyone exercises.'
+    source: adjudicated
     clause_hash: 260ee75a446a701f
+    module: GroundTransport
   EXP-POL E-5.3:
     ref: EXP-POL E-5.3
     label: RULE
-    reason: quantified and computable (score 10)
-    source: heuristic
+    reason: 'GBP 60 per journey cap with a determinate carve-out: an airport journey before 06:00 or after
+      22:00 is uncapped. Time of day and journey endpoints are both data.'
+    source: adjudicated
     clause_hash: f77f6156c7de6911
+    module: GroundTransport
   EXP-POL E-6.1:
     ref: EXP-POL E-6.1
     label: RULE
-    reason: weakly quantified but computable (score 4)
-    source: heuristic
+    reason: 'Base limitation period: a claim must be submitted within 60 days after the expense was incurred.'
+    source: adjudicated
     clause_hash: 61bbd79e920a1e1d
+    module: ClaimWindow
   EXP-POL E-6.2:
     ref: EXP-POL E-6.2
     label: HYBRID
-    reason: arithmetic (score 11) gated on judgement ['good reason']
-    source: heuristic
+    reason: The 60/120-day window is exact arithmetic; 'good reason' is not computable and the Policy
+      supplies no test for it. The line manager's certification is lifted to a judgement input so the
+      module can decide admissibility given the certification without inventing a definition of good reason.
+    source: adjudicated
     clause_hash: 091e34eeeed377ab
+    module: ClaimWindow
+    judgement_inputs:
+    - delay_certified_for_good_reason
   EXP-POL E-6.3:
     ref: EXP-POL E-6.3
     label: RULE
-    reason: quantified and computable (score 6)
-    source: heuristic
+    reason: Absolute long-stop at 120 days admitting no exception; a hard date comparison that bounds
+      E-6.2.
+    source: adjudicated
     clause_hash: 89df9d9083cb6fe9
+    module: ClaimWindow
   EXP-POL E-7.1:
     ref: EXP-POL E-7.1
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: 'A conflict rule across documents: nothing in this Policy may cut down an Employee''s Annex
+      C entitlements. It computes nothing, but it constrains how the two sets of modules may be combined.'
+    source: adjudicated
     clause_hash: 75a1809a8ce2e1a6
+    qualifies:
+    - Overtime
+    - LeaveAccrual
   EXP-POL E-7.2:
     ref: EXP-POL E-7.2
     label: RULE
-    reason: quantified and computable (score 9)
-    source: heuristic
+    reason: Increases the E-3.1 per diem by GBP 20 per Travel Day for Critical Incident Response work
+      and disapplies the Pre-Approval requirement for that increase. Determinate once the EMP-ANNEX-C
+      C-2.5 input is supplied; a cross-document dependency, not a judgement.
+    source: adjudicated
     clause_hash: 596ab0243cb2d6de
+    module: MealPerDiem
   EXP-POL E-8.1:
     ref: EXP-POL E-8.1
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: Disciplinary and remedies clause. Whether a claim was 'known by the Employee to be false'
+      and whether conduct is gross misconduct are determinations for a disciplinary process, and the clause
+      alters no reimbursable amount.
+    source: adjudicated
     clause_hash: f791262c15e412dd
   COMM-PLAN S-1.1:
     ref: COMM-PLAN S-1.1
     label: RULE
-    reason: weakly quantified but computable (score 4)
-    source: heuristic
+    reason: The only place the Plan Year is fixed (1 October 2025 to 30 September 2026). Net Booked Revenue,
+      Quota assignment and the leaver cut-off all range over that window, so the dates must exist as constants
+      in Catala; it also fixes eligibility to quota-bearing sales roles.
+    source: adjudicated
     clause_hash: f8a4d01d3dd3fff4
+    module: Commission
   COMM-PLAN S-1.2:
     ref: COMM-PLAN S-1.2
     label: PROSE
-    reason: boilerplate//interpretive markers ['is discretionary']
-    source: heuristic
+    reason: Discretion as to continuation in future years; it creates no entitlement and bears on no computation
+      for this Plan Year.
+    source: adjudicated
     clause_hash: 916c5ab37a511d00
   COMM-PLAN S-1.3:
     ref: COMM-PLAN S-1.3
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: Characterisation of commission as variable and non-pensionable; no operative quantity in this
+      Plan.
+    source: adjudicated
     clause_hash: 0a5293dace74e9e8
   COMM-PLAN S-2.1:
     ref: COMM-PLAN S-2.1
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: Input declaration for the Quota amount with a deterministic as-of rule (assigned in writing
+      at the start of the Plan Year, or on joining if later). Attainment cannot be computed without it.
+    source: adjudicated
     clause_hash: 0a854f5452fe6d40
+    module: Commission
   COMM-PLAN S-2.2:
     ref: COMM-PLAN S-2.2
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'A computable quantity: Net Booked Revenue expressed as a percentage of Quota. It is the argument
+      of the S-4 accelerator table and of the S-5.3 cap test, so treating it as a qualitative definition
+      was plainly wrong.'
+    source: adjudicated
     clause_hash: 11d97cee240c4d4f
+    module: Commission
   COMM-PLAN S-2.3:
     ref: COMM-PLAN S-2.3
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'A computable quantity: aggregate annual contract value of contracts signed in the Plan Year
+      less the annual contract value of any Churned Contract. Arithmetic over contract records.'
+    source: adjudicated
     clause_hash: 24adf9e0a9933d3e
+    module: Commission
   COMM-PLAN S-2.4:
     ref: COMM-PLAN S-2.4
     label: RULE
-    reason: quantified definition (score 4) -> becomes a struct/type
-    source: heuristic
+    reason: 'Decidable from dates and events: termination by the customer, or non-renewal at the first
+      renewal date, in either case within 180 days after the signature date.'
+    source: adjudicated
     clause_hash: 78a133264d19bf14
+    module: Commission
   COMM-PLAN S-2.5:
     ref: COMM-PLAN S-2.5
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: A bare constant -- 8.0% of Net Booked Revenue -- and the rate S-3.1 multiplies by.
+    source: adjudicated
     clause_hash: 4408290392a2eb1e
+    module: Commission
   COMM-PLAN S-2.6:
     ref: COMM-PLAN S-2.6
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'Decidable from contract history: no contract with the Company at any time in the 24 months
+      preceding the signature date. It is the per-contract predicate the S-4.3 60% test aggregates over.'
+    source: adjudicated
     clause_hash: c6ca5dcdca05bed6
+    module: Commission
   COMM-PLAN S-3.1:
     ref: COMM-PLAN S-3.1
     label: RULE
-    reason: quantified and computable (score 7)
-    source: heuristic
+    reason: 'The core formula: Net Booked Revenue multiplied by the Base Commission Rate multiplied by
+      the S-4 accelerator.'
+    source: adjudicated
     clause_hash: e0eabdfcbf3f2f3a
+    module: Commission
   COMM-PLAN S-4.1:
     ref: COMM-PLAN S-4.1
     label: RULE
-    reason: quantified and computable (score 22)
-    source: heuristic
+    reason: The accelerator band table keyed on Attainment; an exhaustive lookup with no judgement term.
+    source: adjudicated
     clause_hash: 618a40367898c1e2
+    module: Commission
   COMM-PLAN S-4.2:
     ref: COMM-PLAN S-4.2
-    label: PROSE
-    reason: no computable content (score 1)
-    source: heuristic
+    label: RULE
+    reason: 'States that the accelerator applies to the whole of Net Booked Revenue and not marginally
+      to the excess over the band threshold. That is a choice of formula, not a gloss: encoding S-4.1
+      without it gives materially different answers.'
+    source: adjudicated
     clause_hash: acde63250607cb42
+    module: Commission
   COMM-PLAN S-4.3:
     ref: COMM-PLAN S-4.3
     label: RULE
-    reason: quantified and computable (score 10)
-    source: heuristic
+    reason: 'Exception to S-4.1: the accelerator is increased by 0.25 where more than 60% of Net Booked
+      Revenue is attributable to New Logo customers; a ratio test over the S-2.6 predicate.'
+    source: adjudicated
     clause_hash: 5238ced960d3259a
+    module: Commission
   COMM-PLAN S-4.4:
     ref: COMM-PLAN S-4.4
     label: RULE
-    reason: weakly quantified but computable (score 5)
-    source: heuristic
+    reason: Exception to S-4.1 and S-4.3 capping the accelerator at 1.5 for an Employee who commenced
+      after the start of the Plan Year; determinate from the commencement date.
+    source: adjudicated
     clause_hash: 31507044d3f8dccb
+    module: Commission
   COMM-PLAN S-5.1:
     ref: COMM-PLAN S-5.1
     label: RULE
-    reason: quantified and computable (score 7)
-    source: heuristic
+    reason: Cap of 250% of annual base salary on total Plan Year commission.
+    source: adjudicated
     clause_hash: 834aec26ce3e4608
+    module: Commission
   COMM-PLAN S-5.2:
     ref: COMM-PLAN S-5.2
     label: RULE
-    reason: weakly quantified but computable (score 5)
-    source: heuristic
+    reason: Fixes the order of operations -- the cap is applied after the S-4 accelerator and after any
+      S-6 adjustment. Ordering is part of the computation, not commentary on it.
+    source: adjudicated
     clause_hash: 7a82b9bb80a2a5f6
+    module: Commission
   COMM-PLAN S-5.3:
     ref: COMM-PLAN S-5.3
     label: RULE
-    reason: quantified and computable (score 9)
-    source: heuristic
+    reason: 'Exception to S-5.1: the cap becomes 400% of annual base salary where Attainment exceeds 200%.'
+    source: adjudicated
     clause_hash: 3b8f6965bf9e9d0c
+    module: Commission
   COMM-PLAN S-6.1:
     ref: COMM-PLAN S-6.1
     label: RULE
-    reason: quantified and computable (score 9)
-    source: heuristic
+    reason: Quota is reduced by 1/365th per day of qualifying absence once the absence reaches a continuous
+      period of 30 days. The absence categories are legal statuses recorded by payroll and the 30-day
+      threshold supplies the content of 'long-term', so no judgement input is required.
+    source: adjudicated
     clause_hash: 8f01fd106b4e774f
+    module: QuotaRelief
   COMM-PLAN S-6.2:
     ref: COMM-PLAN S-6.2
     label: RULE
-    reason: weakly quantified but computable (score 5)
-    source: heuristic
+    reason: 'Sequencing rule: relief is applied before Attainment is calculated. Without it the S-2.2
+      quotient is computed on the wrong denominator.'
+    source: adjudicated
     clause_hash: e6e58b17adabbbf3
+    module: QuotaRelief
   COMM-PLAN S-7.1:
     ref: COMM-PLAN S-7.1
-    label: PROSE
-    reason: no computable content (score 2)
-    source: heuristic
+    label: RULE
+    reason: The recoverable amount -- the commission attributable to a contract that has become a Churned
+      Contract -- is computable from the S-3.1 calculation and the S-2.4 test. The Company's election
+      to recover, and the choice between deduction and suing as a debt, go to enforcement rather than
+      quantum.
+    source: adjudicated
     clause_hash: e145e2a64fa27e97
+    module: Clawback
   COMM-PLAN S-7.2:
     ref: COMM-PLAN S-7.2
-    label: PROSE
-    reason: judgement-dependent ['material'], score 3
-    source: heuristic
+    label: HYBRID
+    reason: An exception that zeroes the S-7.1 recoverable amount, so it must sit in the module or the
+      module will over-recover. But 'material breach by the Company' is a legal characterisation the Plan
+      does not define, so it is lifted to a judgement input and the module computes nil recovery given
+      it.
+    source: adjudicated
     clause_hash: d05593edf884f05a
+    module: Clawback
+    judgement_inputs:
+    - terminated_for_company_material_breach
   COMM-PLAN S-7.3:
     ref: COMM-PLAN S-7.3
     label: RULE
-    reason: quantified and computable (score 6)
-    source: heuristic
+    reason: 'Long-stop: no recovery more than 24 months after the date the commission was paid; a date
+      comparison.'
+    source: adjudicated
     clause_hash: 71d0b5cd74570e63
+    module: Clawback
   COMM-PLAN S-8.1:
     ref: COMM-PLAN S-8.1
     label: RULE
-    reason: weakly quantified but computable (score 4)
-    source: heuristic
+    reason: Leaver entitlement determined by a date cut-off -- contracts signed on or before the last
+      day of employment. Determinate.
+    source: adjudicated
     clause_hash: e74783862236e688
+    module: Commission
   COMM-PLAN S-8.2:
     ref: COMM-PLAN S-8.2
     label: RULE
-    reason: weakly quantified but computable (score 3)
-    source: heuristic
+    reason: Exception to S-8.1 forfeiting commission not yet paid. The determination of gross misconduct
+      is made by the disciplinary process and reaches the module as a recorded termination reason, in
+      the same way as the C-2.4 grade, so it is an ordinary categorical input rather than a judgement
+      the scope makes.
+    source: adjudicated
     clause_hash: b11f7c7a045865ec
+    module: Commission
   COMM-PLAN S-9.1:
     ref: COMM-PLAN S-9.1
     label: PROSE
-    reason: judgement-dependent ['determined by the', 'final'], score 0
-    source: heuristic
+    reason: 'Interpretive authority: the Chief Revenue Officer''s determination on the interpretation
+      or operation of the Plan is final, subject to statutory rights. Any executed figure is therefore
+      defeasible, which is exactly the caveat a computed commission answer must carry.'
+    source: adjudicated
     clause_hash: 3def82096540b5e0
+    qualifies:
+    - Commission
+    - QuotaRelief
+    - Clawback
   MSA-SCH4 L-1.1:
     ref: MSA-SCH4 L-1.1
     label: PROSE
-    reason: no computable content (score 1)
-    source: heuristic
+    reason: Incorporation and interpretation boilerplate; it assigns no quantity and states no operative
+      rule.
+    source: adjudicated
     clause_hash: a9ba868fa05cb393
   MSA-SCH4 L-1.2:
     ref: MSA-SCH4 L-1.2
     label: PROSE
-    reason: boilerplate//interpretive markers ['sole financial remedy']
-    source: heuristic
+    reason: Exclusive remedy clause, carved out for a failure constituting a material breach giving rise
+      to a right of termination. It bounds what a computed credit means in law and its materiality carve-out
+      is not computable, so it must ride alongside any executed credit figure.
+    source: adjudicated
     clause_hash: 4d710d0dffdb941e
+    qualifies:
+    - ServiceCredits
+    - ChronicFailure
   MSA-SCH4 L-1.3:
     ref: MSA-SCH4 L-1.3
     label: PROSE
-    reason: boilerplate//interpretive markers ['acknowledge that']
-    source: heuristic
+    reason: Genuine pre-estimate recital directed at the penalty rule; it changes no credit calculation.
+    source: adjudicated
     clause_hash: 4b65847c63511250
   MSA-SCH4 L-2.1:
     ref: MSA-SCH4 L-2.1
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: Fixes the measurement window as each calendar month -- the determinate period over which minutes
+      are counted.
+    source: adjudicated
     clause_hash: 23ef6dbcedb76b25
+    module: Availability
   MSA-SCH4 L-2.2:
     ref: MSA-SCH4 L-2.2
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'Modelled as an input predicate rather than as arithmetic: availability is decided per request
+      against the documented endpoint and the latency threshold supplied by the Agreement. RULE because
+      L-2.4 counts minutes over exactly this predicate, so the input type must exist in Catala.'
+    source: adjudicated
     clause_hash: 25f2e2348c697d1f
+    module: Availability
   MSA-SCH4 L-2.3:
     ref: MSA-SCH4 L-2.3
     label: RULE
-    reason: quantified definition (score 4) -> becomes a struct/type
-    source: heuristic
+    reason: 'A closed formula with a stated rounding rule: total minutes less Unavailable Minutes, divided
+      by total minutes, as a percentage to two decimal places.'
+    source: adjudicated
     clause_hash: b36cf00825975218
+    module: Availability
   MSA-SCH4 L-2.4:
     ref: MSA-SCH4 L-2.4
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: 'A counting rule: each whole minute during which the Service is not Available, less Excluded
+      Minutes. Determinate given the L-2.2 and L-2.5 inputs.'
+    source: adjudicated
     clause_hash: 09161c75b64143a4
+    module: Availability
   MSA-SCH4 L-2.5:
     ref: MSA-SCH4 L-2.5
-    label: RULE
-    reason: quantified definition (score 5) -> becomes a struct/type
-    source: heuristic
+    label: HYBRID
+    reason: 'Limbs (a), (b) and (e) are computable -- (b) turns on a 60-minute notice threshold and (a)
+      on the L-2.6 window -- and the excluded minutes feed straight into the L-2.3 percentage and so into
+      the L-4.1 credit. Limbs (c) and (d) are not: whether an event is a Force Majeure Event, and whether
+      an outage arises by reason of the Customer''s own act or omission or a Customer system failure,
+      are causal and legal attributions. The minute arithmetic is executed given those attributions as
+      inputs.'
+    source: adjudicated
     clause_hash: 8dfa98bdfee6bfd0
+    module: Availability
+    judgement_inputs:
+    - force_majeure_event_certified
+    - outage_attributable_to_customer
   MSA-SCH4 L-2.6:
     ref: MSA-SCH4 L-2.6
     label: RULE
-    reason: quantified definition (score 10) -> becomes a struct/type
-    source: heuristic
+    reason: 'Both limbs are date and duration arithmetic: a window notified not less than 5 Business Days
+      in advance, and an 8-hour aggregate ceiling per Measurement Period. The Business Day calendar is
+      an ordinary input, not a judgement, so this is RULE and not HYBRID.'
+    source: adjudicated
     clause_hash: bd5a5c6faea8484c
+    module: Availability
   MSA-SCH4 L-2.7:
     ref: MSA-SCH4 L-2.7
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: Defines the credit base by inclusion and exclusion -- charges for the Service in the Measurement
+      Period, excluding one-off, professional services and pass-through charges. Every L-4 percentage
+      is applied to this quantity, so it cannot be left to prose.
+    source: adjudicated
     clause_hash: 59bd63a768454363
+    module: ServiceCredits
   MSA-SCH4 L-3.1:
     ref: MSA-SCH4 L-3.1
     label: RULE
-    reason: weakly quantified but computable (score 5)
-    source: heuristic
+    reason: 'States the service level itself, 99.90% per Measurement Period: the constant against which
+      the L-4 bands and the L-6.1 chronic failure test are measured.'
+    source: adjudicated
     clause_hash: a2acd3c3dd71afe6
+    module: Availability
   MSA-SCH4 L-4.1:
     ref: MSA-SCH4 L-4.1
     label: RULE
-    reason: quantified and computable (score 48)
-    source: heuristic
+    reason: Exhaustive band table mapping Availability Percentage to a percentage of the Monthly Service
+      Charge; no judgement term.
+    source: adjudicated
     clause_hash: ba628deed8e00055
+    module: ServiceCredits
   MSA-SCH4 L-4.2:
     ref: MSA-SCH4 L-4.2
     label: RULE
-    reason: weakly quantified but computable (score 3)
-    source: heuristic
+    reason: Aggregate cap of 30% of the Monthly Service Charge per Measurement Period.
+    source: adjudicated
     clause_hash: a7686f5ab9332df3
+    module: ServiceCredits
   MSA-SCH4 L-4.3:
     ref: MSA-SCH4 L-4.3
     label: RULE
-    reason: quantified and computable (score 10)
-    source: heuristic
+    reason: 'Exception to L-4.2 below 95.00%: both the cap and the credit itself become 50% of the Monthly
+      Service Charge.'
+    source: adjudicated
     clause_hash: 611dd48a30c5bb3d
+    module: ServiceCredits
   MSA-SCH4 L-4.4:
     ref: MSA-SCH4 L-4.4
-    label: RULE
-    reason: quantified and computable (score 7)
-    source: heuristic
+    label: HYBRID
+    reason: The arrears test is exact (in arrears for more than 30 days) and so is its consequence (no
+      Service Credit at all for that Measurement Period), but it bites only on an 'undisputed' invoice.
+      Whether the Customer's assertion of a dispute takes an invoice outside the exception is a characterisation
+      the Schedule does not define, so it is lifted to a judgement input and the module computes forfeiture
+      given it.
+    source: adjudicated
     clause_hash: 4039e56a06297dfa
+    module: ServiceCredits
+    judgement_inputs:
+    - invoice_undisputed
   MSA-SCH4 L-4.5:
     ref: MSA-SCH4 L-4.5
     label: RULE
-    reason: weakly quantified but computable (score 4)
-    source: heuristic
+    reason: 'Feedback rule: Scheduled Maintenance minutes beyond the 8-hour aggregate cease to be Excluded
+      Minutes and count as Unavailable Minutes. Pure arithmetic, and without it the L-2.6 ceiling has
+      no effect.'
+    source: adjudicated
     clause_hash: e1b3ff76a0effe38
+    module: Availability
   MSA-SCH4 L-5.1:
     ref: MSA-SCH4 L-5.1
     label: RULE
-    reason: quantified and computable (score 6)
-    source: heuristic
+    reason: Claim window of 30 days after the end of the Measurement Period, with waiver as the determinate
+      consequence of missing it.
+    source: adjudicated
     clause_hash: cefcc6f808554f39
+    module: ServiceCreditClaim
   MSA-SCH4 L-5.2:
     ref: MSA-SCH4 L-5.2
     label: RULE
-    reason: quantified and computable (score 6)
-    source: heuristic
+    reason: 'Settlement mechanics with a computable deadline: set-off against the next invoice issued
+      after acceptance, and otherwise payment within 30 days.'
+    source: adjudicated
     clause_hash: 2e35c95e16c8b99d
+    module: ServiceCreditClaim
   MSA-SCH4 L-6.1:
     ref: MSA-SCH4 L-6.1
     label: RULE
-    reason: quantified and computable (score 9)
-    source: heuristic
+    reason: A pattern test over a series of Measurement Periods -- three consecutive, or any four in a
+      rolling twelve-month period, below 99.90% -- plus a 30-day notice period. Entirely determinate given
+      the L-2.3 history.
+    source: adjudicated
     clause_hash: fbe363fc6d4ca9a2
+    module: ChronicFailure
   MSA-SCH4 L-6.2:
     ref: MSA-SCH4 L-6.2
     label: RULE
-    reason: weakly quantified but computable (score 5)
-    source: heuristic
+    reason: Exercise window of 30 days after the end of the triggering Measurement Period, with lapse
+      in respect of that occurrence as the consequence; a per-occurrence date computation.
+    source: adjudicated
     clause_hash: 23edb6e8bbd70ffc
+    module: ChronicFailure
   NDA-MUT N-1.1:
     ref: NDA-MUT N-1.1
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: Recital defining the Permitted Purpose by reference to the parties' evaluation of a potential
+      commercial relationship; no computable content.
+    source: adjudicated
     clause_hash: e66668641c2b2ad2
   NDA-MUT N-1.2:
     ref: NDA-MUT N-1.2
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: Establishes that the obligations operate role-relatively and in both directions, so the N-5
+      survival clock runs separately for each direction of disclosure. That shapes how the survival scope
+      must be parameterised.
+    source: adjudicated
     clause_hash: 1479920c3531bcdf
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-2.1:
     ref: NDA-MUT N-2.1
     label: PROSE
-    reason: qualitative definition; judgement terms ['ought reasonably']
-    source: heuristic
+    reason: 'Definition resting on a qualitative standard: information which by its nature or the circumstances
+      of its disclosure ''ought reasonably to be regarded as confidential''. No arithmetic, and the survival
+      period only ever runs on information that satisfies this judgement.'
+    source: adjudicated
     clause_hash: 40b05859f7d61316
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-2.2:
     ref: NDA-MUT N-2.2
     label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    reason: Extends the definition to the existence and contents of the Agreement and the fact of discussions;
+      definitional scope with no quantity.
+    source: adjudicated
     clause_hash: 256c1f31c49f464e
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-2.3:
     ref: NDA-MUT N-2.3
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: Four carve-outs, each turning on evaluative or evidential questions (public availability,
+      prior lawful possession, an unencumbered third party source, independent development). Where a limb
+      applies there is no obligation for the survival clock to run on.
+    source: adjudicated
     clause_hash: 9a203a5966576fe2
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-3.1:
     ref: NDA-MUT N-3.1
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: The primary confidentiality obligation; qualitative. It is one of the N-3 obligations whose
+      duration N-5.2 computes.
+    source: adjudicated
     clause_hash: 0decc40ab39c3af0
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-3.2:
     ref: NDA-MUT N-3.2
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: Purpose limitation; compliance is a matter of characterising a use, not of computation.
+    source: adjudicated
     clause_hash: c0ec70a5c1871826
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-3.3:
     ref: NDA-MUT N-3.3
     label: PROSE
-    reason: judgement-dependent ['reasonable'], score 2
-    source: heuristic
+    reason: Standard of care expressed twice in evaluative terms -- no less than the care applied to the
+      Recipient's own information of like importance, and in any event no less than a reasonable degree
+      of care. Irreducible to a rule without inventing the standard.
+    source: adjudicated
     clause_hash: 5dfb6d0dd8c3a0a0
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-3.4:
     ref: NDA-MUT N-3.4
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: Need-to-know permission with a flow-down condition ('no less onerous') and continuing liability;
+      qualitative throughout.
+    source: adjudicated
     clause_hash: c9c5e6992ea95e58
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-4.1:
     ref: NDA-MUT N-4.1
     label: PROSE
-    reason: judgement-dependent ['practicable'], score 0
-    source: heuristic
+    reason: Compelled disclosure permission, conditioned on prior notice 'to the extent lawful and practicable'
+      and on notice being 'sufficient'. Both the legal compulsion and practicability are judgements.
+    source: adjudicated
     clause_hash: 6ebe0adc9178969f
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-5.1:
     ref: NDA-MUT N-5.1
     label: RULE
-    reason: weakly quantified but computable (score 4)
-    source: heuristic
+    reason: 'The term: effect from the Effective Date for 2 years, terminable earlier by either party
+      on 30 days'' written notice. A date computation producing the expiry or termination date the survival
+      periods are measured from.'
+    source: adjudicated
     clause_hash: 9ff6cf78ad55641d
+    module: NdaSurvival
   NDA-MUT N-5.2:
     ref: NDA-MUT N-5.2
     label: RULE
-    reason: quantified and computable (score 7)
-    source: heuristic
+    reason: 'Base survival period: 3 years from the date of expiry or termination; determinate given N-5.1.'
+    source: adjudicated
     clause_hash: f433ededfe337832
+    module: NdaSurvival
   NDA-MUT N-5.3:
     ref: NDA-MUT N-5.3
-    label: PROSE
-    reason: no computable content (score 1)
-    source: heuristic
+    label: HYBRID
+    reason: This must be encoded as an exception to N-5.2 or the module will confidently answer 'three
+      years' for trade secrets, which is the precise failure mode this design exists to prevent. Given
+      the judgement that the information is and remains a trade secret, the deterministic consequence
+      is that the 3-year arithmetic is disapplied and no expiry date is produced; whether information
+      constitutes a trade secret is a legal characterisation the Agreement does not define.
+    source: adjudicated
     clause_hash: 7739abf9f4bb0037
+    module: NdaSurvival
+    judgement_inputs:
+    - information_is_trade_secret
+    - information_remains_trade_secret
   NDA-MUT N-5.4:
     ref: NDA-MUT N-5.4
-    label: PROSE
-    reason: no computable content (score 1)
-    source: heuristic
+    label: RULE
+    reason: 'Exception to N-5.2 for personal data: the obligation runs for so long as the Recipient holds
+      it. Unlike N-5.3, both elements are records rather than judgements -- the class is recorded in processing
+      records and continued holding is an inventory fact -- so the end date is computable from an input
+      event.'
+    source: adjudicated
     clause_hash: b05263cf61b3879d
+    module: NdaSurvival
   NDA-MUT N-6.1:
     ref: NDA-MUT N-6.1
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: Return or destruction on written request, 'promptly' and with certification if requested.
+      No period is specified, and it is the fact of return or destruction that ends the N-5.4 holding
+      period.
+    source: adjudicated
     clause_hash: 94869ed7ba883a5d
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-6.2:
     ref: NDA-MUT N-6.2
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: Permits retention of one copy as required by law or by record-keeping or backup policies,
+      still subject to the Agreement -- so obligations can persist under N-5.4 on a copy that survives
+      an N-6.1 request.
+    source: adjudicated
     clause_hash: 765bb72a0b55b533
+    qualifies:
+    - NdaSurvival
   NDA-MUT N-7.1:
     ref: NDA-MUT N-7.1
     label: PROSE
-    reason: boilerplate//interpretive markers ['no licence']
-    source: heuristic
+    reason: No-licence boilerplate; nothing computational.
+    source: adjudicated
     clause_hash: cf71ccd639eb5668
   NDA-MUT N-7.2:
     ref: NDA-MUT N-7.2
     label: PROSE
-    reason: boilerplate//interpretive markers ['as is']
-    source: heuristic
+    reason: As-is disclaimer of warranty as to accuracy or completeness; nothing computational.
+    source: adjudicated
     clause_hash: 77d03f361b8047cd
   NDA-MUT N-8.1:
     ref: NDA-MUT N-8.1
     label: PROSE
-    reason: boilerplate//interpretive markers ['acknowledges that']
-    source: heuristic
+    reason: Remedies acknowledgement supporting injunctive relief; evaluative ('may not be an adequate
+      remedy') and it computes nothing.
+    source: adjudicated
     clause_hash: 73655e38d4cefc80
   NDA-MUT N-9.1:
     ref: NDA-MUT N-9.1
     label: PROSE
-    reason: boilerplate//interpretive markers ['exclusive jurisdiction', 'is governed by the law', 'submit
-      to the']
-    source: heuristic
+    reason: Governing law and jurisdiction. It qualifies no module's computation.
+    source: adjudicated
     clause_hash: 1684cd6c4f7a44ff
   NDA-MUT N-9.2:
     ref: NDA-MUT N-9.2
     label: PROSE
-    reason: boilerplate//interpretive markers ['no variation']
-    source: heuristic
+    reason: Variation formalities only -- writing and signature -- with no substantive proviso, so unlike
+      EMP-ANNEX-C C-10.1 it constrains no computed entitlement.
+    source: adjudicated
     clause_hash: 593a995a8e02e0e7
   NDA-MUT N-9.3:
     ref: NDA-MUT N-9.3
     label: PROSE
-    reason: boilerplate//interpretive markers ['does not create any partnership']
-    source: heuristic
+    reason: No-partnership, no-agency boilerplate; nothing computational.
+    source: adjudicated
     clause_hash: 25b95d7cf2eb645c
   DATA-RET R-1.1:
     ref: DATA-RET R-1.1
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: 'Scope clause: the Standard reaches all records held by the Company in any form. It fixes
+      the universe the retention computations apply to without supplying any period.'
+    source: adjudicated
     clause_hash: 5b96492f1b7f3813
+    qualifies:
+    - Retention
+    - LegalHold
+    - ErasureRequest
   DATA-RET R-1.2:
     ref: DATA-RET R-1.2
     label: PROSE
-    reason: judgement-dependent ['expected to'], score 0
-    source: heuristic
+    reason: 'Turns the R-3 periods into maxima rather than targets: business units are expected to delete
+      earlier once the collection purpose has been achieved. That expectation is irreducibly evaluative,
+      and it means a computed retention date is a ceiling, never an instruction to keep.'
+    source: adjudicated
     clause_hash: a25ea5c18222d7d2
+    qualifies:
+    - Retention
   DATA-RET R-2.1:
     ref: DATA-RET R-2.1
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: Classifies by reference to the information classification policy, so it is modelled as an
+      input type -- but RULE, because it contributes the closed six-valued enum on which the whole R-3.1
+      table is keyed.
+    source: adjudicated
     clause_hash: 8b82ea61e8ba6202
+    module: Retention
   DATA-RET R-2.2:
     ref: DATA-RET R-2.2
-    label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    label: RULE
+    reason: Contributes the trigger-date input from which every R-3.1 period is measured; the R-3.1 arithmetic
+      is undefined without it.
+    source: adjudicated
     clause_hash: 8e8b7485b3bf6a59
+    module: Retention
   DATA-RET R-2.3:
     ref: DATA-RET R-2.3
-    label: PROSE
-    reason: qualitative definition; judgement terms ['reasonably']
-    source: heuristic
+    label: RULE
+    reason: 'Contributes an input struct: a documented instruction with an issue date and a release date.
+      Its evaluative element -- ''reasonably anticipated'' litigation -- is exercised by the General Counsel
+      before any record reaches a scope, so what the module consumes is a recorded instruction, not a
+      judgement it makes.'
+    source: adjudicated
     clause_hash: 70917eb6a185f806
+    module: LegalHold
   DATA-RET R-2.4:
     ref: DATA-RET R-2.4
     label: PROSE
-    reason: qualitative definition; judgement terms none
-    source: heuristic
+    reason: 'Definition by qualitative standard: destruction such that the record cannot be reconstructed
+      ''by ordinary means''. It supplies no quantity -- its only computable limb, the backup rotation
+      cycle, is quantified in R-6.1 -- but it governs when a computed deletion deadline is actually satisfied.'
+    source: adjudicated
     clause_hash: c27b8a277e1e0f3f
+    qualifies:
+    - Retention
+    - LegalHold
+    - ErasureRequest
   DATA-RET R-3.1:
     ref: DATA-RET R-3.1
     label: RULE
-    reason: quantified and computable (score 18)
-    source: heuristic
+    reason: Six-way period table with an explicit trigger for each Data Class, including the 'later of'
+      rule in limb (d). Entirely determinate date arithmetic.
+    source: adjudicated
     clause_hash: 173814584f6d2dcc
+    module: Retention
   DATA-RET R-3.2:
     ref: DATA-RET R-3.2
     label: RULE
-    reason: quantified and computable (score 7)
-    source: heuristic
+    reason: 'Exception to R-3.1(f): 24 months from the date of talent pool consent, restarting on each
+      renewal of consent. Consent and its renewals are recorded events, so the restart is computable.'
+    source: adjudicated
     clause_hash: 3bf8d685957ca995
+    module: Retention
   DATA-RET R-3.3:
     ref: DATA-RET R-3.3
-    label: RULE
-    reason: weakly quantified but computable (score 3)
-    source: heuristic
+    label: HYBRID
+    reason: The consequence is arithmetic -- the retention end date becomes the later of the R-3.1(a)
+      six-year date and the statutorily required date -- but whether pensions or payroll legislation requires
+      a longer period, and how long, is a legal determination this Standard does not contain. Unlike EMP-ANNEX-C
+      C-1.2 the clause identifies one quantity and one record class, so the maximum is genuinely executable
+      once a human supplies the statutory period.
+    source: adjudicated
     clause_hash: bae6aae170db8da8
+    module: Retention
+    judgement_inputs:
+    - statutory_retention_applies
+    - statutory_retention_period
   DATA-RET R-4.1:
     ref: DATA-RET R-4.1
-    label: PROSE
-    reason: no computable content (score 1)
-    source: heuristic
+    label: RULE
+    reason: 'An override of the whole of R-3: while a Legal Hold is in force the deletion date computed
+      under R-3 does not fall due, irrespective of expiry. The hold is a documented instruction under
+      R-2.3, a recorded fact rather than a judgement, so the suspension is computable -- and must be encoded,
+      or the module will report a due deletion date for held records.'
+    source: adjudicated
     clause_hash: fa41cd2a6c2f2bef
+    module: LegalHold
   DATA-RET R-4.2:
     ref: DATA-RET R-4.2
-    label: PROSE
-    reason: no computable content (score 2)
-    source: heuristic
+    label: HYBRID
+    reason: The precedence is a determinate override of the R-5.1 deletion deadline, but it holds only
+      'to the extent permitted by applicable data protection law'. Whether the law permits continued retention
+      against a particular erasure request is not computable from anything in the corpus, so it is lifted
+      to a judgement input; encoded as a plain rule the module would assert that a hold always wins.
+    source: adjudicated
     clause_hash: d5fa38f21bf33893
+    module: LegalHold
+    judgement_inputs:
+    - retention_under_hold_permitted_by_data_protection_law
   DATA-RET R-4.3:
     ref: DATA-RET R-4.3
     label: RULE
-    reason: quantified and computable (score 6)
-    source: heuristic
+    reason: On release of a hold, deletion within 30 days if the retention period has already expired
+      and otherwise on ordinary expiry -- a maximum over two dates plus a 30-day allowance.
+    source: adjudicated
     clause_hash: f8f3d4b6e2c418f8
+    module: LegalHold
   DATA-RET R-5.1:
     ref: DATA-RET R-5.1
-    label: RULE
-    reason: weakly quantified but computable (score 4)
-    source: heuristic
+    label: HYBRID
+    reason: 'The deadline is exact: 30 days from verification of the request. Validity is not -- whether
+      a request is a ''valid request for erasure'' turns on the requester''s standing, the ground relied
+      on and whether the request is manifestly unfounded or excessive, none of which this Standard defines.
+      The module computes the due date given the validity determination.'
+    source: adjudicated
     clause_hash: de303aedd09d9a94
+    module: ErasureRequest
+    judgement_inputs:
+    - erasure_request_valid
   DATA-RET R-5.2:
     ref: DATA-RET R-5.2
-    label: PROSE
-    reason: no computable content (score 1)
-    source: heuristic
+    label: HYBRID
+    reason: An exception that disapplies the R-5.1 deadline entirely, so it must be encoded at the same
+      depth or the module will report a deletion due date where the law requires retention. Two of its
+      three limbs are legal determinations and are lifted to judgement inputs; the third, the application
+      of a Legal Hold, is computable from R-2.3.
+    source: adjudicated
     clause_hash: 01bde60e7cf303f2
+    module: ErasureRequest
+    judgement_inputs:
+    - retention_required_by_legal_obligation
+    - retention_required_for_legal_claims
   DATA-RET R-6.1:
     ref: DATA-RET R-6.1
     label: RULE
-    reason: quantified and computable (score 6)
-    source: heuristic
+    reason: Backups follow production deletion at the expiry of the rotation cycle, which must not exceed
+      90 days. A hard ceiling, and therefore the outer bound on any computed deletion date.
+    source: adjudicated
     clause_hash: d5036f1d02e325a8
+    module: Retention
   DATA-RET R-7.1:
     ref: DATA-RET R-7.1
     label: PROSE
-    reason: boilerplate//interpretive markers ['is accountable for']
-    source: heuristic
+    reason: 'Accountability and governance: business unit ownership, the record of processing and annual
+      compliance review. No operative period.'
+    source: adjudicated
     clause_hash: 68d574dfc5d4437a
   DATA-RET R-7.2:
     ref: DATA-RET R-7.2
     label: PROSE
-    reason: no computable content (score 0)
-    source: heuristic
+    reason: 'Creates an approved-departure route: a written Privacy Office approval, recorded in the exceptions
+      register, displaces the Standard for that record. A computed period is therefore subject to a documented
+      override no scope can see.'
+    source: adjudicated
     clause_hash: 6c14c0682c140044
+    qualifies:
+    - Retention
+    - LegalHold
+    - ErasureRequest

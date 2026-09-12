@@ -61,11 +61,11 @@ code that encodes it, in this shape:
 ```
 ## <Section heading mirroring the source document>
 
-> EMP-ANNEX-C C-4.1 (001-employment-terms-annex-c.md:63)
->
-> An Employee is entitled to an overtime payment in respect of each hour
-> worked in excess of 40 hours in a Payroll Week, calculated at 1.25 times
-> the Base Hourly Rate.
+| EMP-ANNEX-C C-4.1 (001-employment-terms-annex-c.md:55)
+|
+| An Employee is entitled to an overtime payment in respect of each hour
+| worked in excess of 40 hours in a Payroll Week, calculated at 1.25 times
+| the Base Hourly Rate.
 
 ```catala
 <code encoding exactly that clause and nothing else>
@@ -75,10 +75,12 @@ code that encodes it, in this shape:
 Rules:
 - One clause per code block wherever the clause is separable. A code block
   encoding two clauses cannot be attributed to either.
-- The blockquote is **verbatim** source text plus a citation line. It is
+- The `|`-gutter quotation is **verbatim** source text plus a citation line. It is
   machine-checked against the corpus by `lks.literate.check_fidelity`: a drifted
   quotation is a build failure, because a literate source whose prose no longer
-  matches the law is worse than no prose at all.
+  matches the law is worse than no prose at all. The gutter is `|` and not a
+  markdown `>` blockquote because Catala reserves a leading `>` for its own
+  directives.
 - Exceptions in the document become exceptions in the code, at the same depth.
   `C-5.2` says "notwithstanding C-5.1" — so the encoding of C-5.2 must be an
   exception to the encoding of C-5.1, not a merged condition.

@@ -50,7 +50,7 @@ from .segment import load_corpus
 # `#[test]`, `#[doc = ...]` etc. are semantic attributes, not commentary.
 # A bare `#` line, or `##` doc text, is implementer voice and gets stripped.
 COMMENT_LINE_RE = re.compile(r"^\s*#(?!\[)")
-FENCE_OPEN_RE = re.compile(r"^```catala(?:-metadata|-test-cli)?\s*$")
+FENCE_OPEN_RE = re.compile(r"^```catala(?:-metadata|-test-cli|-test)?\s*$")
 FENCE_CLOSE_RE = re.compile(r"^```\s*$")
 
 

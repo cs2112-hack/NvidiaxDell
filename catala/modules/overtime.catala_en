@@ -1,0 +1,268 @@
+# Employment Terms — Annex C: Working Time and Overtime
+
+> Module Overtime
+
+This module encodes the overtime and premium provisions of Annex C. The
+premium attaching to a single hour is computed by `HourPremium`, because that
+is the unit Annex C legislates over: C-4.1 speaks of "each hour worked in
+excess of 40 hours", and every exception in C-5, C-6 and C-7 qualifies an
+hour, not a week. `WeeklyOvertime` aggregates.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration structure HourWorked:
+  data ordinal content integer
+  data is_public_holiday content boolean
+  data is_critical_incident content boolean
+  data is_night content boolean
+
+declaration scope HourPremium:
+  input ordinal content integer
+  input is_public_holiday content boolean
+  input is_critical_incident content boolean
+  input is_night content boolean
+  input grade content integer
+  input has_standing_shift_allowance content boolean
+  output multiplier content decimal
+  output night_premium content decimal
+  output total_rate content decimal
+  output accrues_toil content boolean
+
+declaration scope WeeklyOvertime:
+  input hours content list of HourWorked
+  input base_hourly_rate content money
+  input grade content integer
+  input has_standing_shift_allowance content boolean
+  output overtime_payment content money
+  output toil_hours content decimal
+```
+
+## C-3 Ordinary hours
+
+| EMP-ANNEX-C C-3.1 (001-employment-terms-annex-c.md:51)
+|
+| The ordinary working week is 40 hours.
+
+An ordinary hour attracts no premium. This is the base case of the hierarchy,
+and every provision below is an exception to it.
+
+```catala
+scope HourPremium:
+  label ordinary definition multiplier equals 0.0
+```
+
+## C-4 Overtime — general entitlement
+
+| EMP-ANNEX-C C-4.1 (001-employment-terms-annex-c.md:55)
+|
+| An Employee is entitled to an overtime payment in respect of each hour
+| worked in excess of 40 hours in a Payroll Week, calculated at 1.25 times the
+| Base Hourly Rate.
+
+```catala
+scope HourPremium:
+  label c4_1 exception ordinary definition multiplier
+    under condition ordinal > 40
+    consequence equals 1.25
+```
+
+| EMP-ANNEX-C C-4.2 (001-employment-terms-annex-c.md:59)
+|
+| By way of exception to C-4.1, each hour worked in excess of 48 hours in a
+| Payroll Week is calculated at 1.5 times the Base Hourly Rate.
+
+```catala
+scope HourPremium:
+  label c4_2 exception c4_1 definition multiplier
+    under condition ordinal > 48
+    consequence equals 1.5
+```
+
+## C-5 Overtime — grade exceptions
+
+| EMP-ANNEX-C C-5.1 (001-employment-terms-annex-c.md:64)
+|
+| By way of exception to C-4, an Employee of Grade 5 or above is not entitled
+| to an overtime payment. Such an Employee accrues time off in lieu at the
+| rate of one hour for each hour worked in excess of 40 hours in a Payroll
+| Week.
+
+C-5.1 is an exception to C-4 as a whole, so it sits below `c4_2` in the chain
+and thereby defeats both C-4 limbs. The condition `ordinal > 40` is repeated
+from the parent: a Catala exception does not inherit its parent's condition,
+so omitting it here would make this definition apply to every hour of the week
+for a Grade 5 employee.
+
+```catala
+scope HourPremium:
+  label c5_1 exception c4_2 definition multiplier
+    under condition grade >= 5 and ordinal > 40
+    consequence equals 0.0
+```
+
+| EMP-ANNEX-C C-5.2 (001-employment-terms-annex-c.md:69)
+|
+| Notwithstanding C-5.1, an Employee of Grade 5 or above is entitled to an
+| overtime payment calculated in accordance with C-4 in respect of hours
+| worked on Critical Incident Response.
+
+"Calculated in accordance with C-4" reinstates the C-4 rate, which is 1.5 for
+an hour beyond 48 and 1.25 otherwise.
+
+```catala
+scope HourPremium:
+  label c5_2 exception c5_1 definition multiplier
+    under condition
+      grade >= 5 and ordinal > 40 and is_critical_incident
+    consequence equals
+      if ordinal > 48 then 1.5 else 1.25
+```
+
+## C-7 Public holidays
+
+| EMP-ANNEX-C C-7.1 (001-employment-terms-annex-c.md:85)
+|
+| Each hour worked on a Gazetted Public Holiday is calculated at 2.0 times the
+| Base Hourly Rate. This rate is payable in substitution for, and not in
+| addition to, any amount otherwise payable under C-4.
+
+C-7.1 carries no hours threshold: an hour worked on a public holiday attracts
+2.0 even if it falls within the ordinary 40. It sits below `c5_2` in the chain
+so that it defeats C-4 (which C-7.1 states expressly) and also defeats C-5.1,
+which C-8.1 requires because 2.0 is the higher multiplier.
+
+```catala
+scope HourPremium:
+  label c7_1 exception c5_2 definition multiplier
+    under condition is_public_holiday
+    consequence equals 2.0
+```
+
+| EMP-ANNEX-C C-7.2 (001-employment-terms-annex-c.md:89)
+|
+| By way of exception to C-7.1, where hours worked on a Gazetted Public
+| Holiday are also hours worked in excess of 48 hours in the Payroll Week, the
+| applicable rate is the greater of (a) 2.0 times the Base Hourly Rate and (b)
+| the rate determined under C-4.2 plus 0.25.
+
+```catala
+scope HourPremium:
+  label c7_2 exception c7_1 definition multiplier
+    under condition is_public_holiday and ordinal > 48
+    consequence equals
+      if 2.0 > (1.5 + 0.25) then 2.0 else (1.5 + 0.25)
+```
+
+## C-6 Night work premium
+
+| EMP-ANNEX-C C-6.1 (001-employment-terms-annex-c.md:75)
+|
+| A premium of 0.15 times the Base Hourly Rate is payable in respect of each
+| Night Hour worked. This premium is payable in addition to, and not in
+| substitution for, any amount payable under C-4, C-5.2 or C-7.
+
+```catala
+scope HourPremium:
+  label c6_1 definition night_premium
+    equals if is_night then 0.15 else 0.0
+```
+
+| EMP-ANNEX-C C-6.2 (001-employment-terms-annex-c.md:79)
+|
+| By way of exception to C-6.1, the night premium is not payable in respect of
+| an Employee who receives a standing shift allowance under their individual
+| contract of employment.
+
+```catala
+scope HourPremium:
+  label c6_2 exception c6_1 definition night_premium
+    under condition has_standing_shift_allowance
+    consequence equals 0.0
+```
+
+## C-8 Precedence
+
+| EMP-ANNEX-C C-8.1 (001-employment-terms-annex-c.md:96)
+|
+| Where two or more provisions of C-4, C-5 or C-7 would apply to the same
+| hour, only the single highest applicable multiplier applies to that hour.
+
+C-8.1 is discharged structurally rather than by a rule of its own. The
+exception chain `ordinary <- c4_1 <- c4_2 <- c5_1 <- c5_2 <- c7_1 <- c7_2` is
+ordered so that the provision Catala selects is the one C-8.1 designates, and
+Catala's default logic guarantees exactly one applies. Encoding C-8.1 as a
+separate maximum over candidate multipliers would compute the same numbers
+while discarding the information about which clause governed — which is the
+thing a reader of an answer needs.
+
+| EMP-ANNEX-C C-8.2 (001-employment-terms-annex-c.md:99)
+|
+| C-8.1 does not apply to the night premium under C-6, which is cumulative
+| with any multiplier determined under C-4, C-5.2 or C-7.
+
+```catala
+scope HourPremium:
+  definition total_rate equals multiplier + night_premium
+```
+
+The second limb of C-5.1 is the time-off-in-lieu accrual, which is a separate
+consequence of the same clause and so is quoted again here.
+
+| EMP-ANNEX-C C-5.1 (001-employment-terms-annex-c.md:64)
+|
+| By way of exception to C-4, an Employee of Grade 5 or above is not entitled
+| to an overtime payment. Such an Employee accrues time off in lieu at the
+| rate of one hour for each hour worked in excess of 40 hours in a Payroll
+| Week.
+
+Time off in lieu accrues where C-5.1 governs the hour: a Grade 5 employee
+beyond 40 hours, except on Critical Incident Response, where C-5.2 restores a
+payment, and except on a public holiday, where C-7 governs.
+
+```catala
+scope HourPremium:
+  label toil_base definition accrues_toil equals false
+
+  label toil_c5_1 exception toil_base definition accrues_toil
+    under condition grade >= 5 and ordinal > 40
+    consequence equals true
+
+  label toil_c5_2 exception toil_c5_1 definition accrues_toil
+    under condition
+      grade >= 5 and ordinal > 40
+      and (is_critical_incident or is_public_holiday)
+    consequence equals false
+```
+
+## Weekly aggregation
+
+| NO-CLAUSE: Annex C states no weekly aggregation rule. Summing the per-hour
+| entitlements that C-4 to C-8 confer adds no law of its own; the legal content
+| is entirely in HourPremium above.
+
+```catala
+scope WeeklyOvertime:
+  definition overtime_payment equals
+    Money.sum of (map each h among hours to
+      (output of HourPremium with {
+         -- ordinal: h.ordinal
+         -- is_public_holiday: h.is_public_holiday
+         -- is_critical_incident: h.is_critical_incident
+         -- is_night: h.is_night
+         -- grade: grade
+         -- has_standing_shift_allowance: has_standing_shift_allowance
+       }).total_rate * base_hourly_rate)
+
+  definition toil_hours equals
+    Decimal.sum of (map each h among hours to
+      (if (output of HourPremium with {
+             -- ordinal: h.ordinal
+             -- is_public_holiday: h.is_public_holiday
+             -- is_critical_incident: h.is_critical_incident
+             -- is_night: h.is_night
+             -- grade: grade
+             -- has_standing_shift_allowance: has_standing_shift_allowance
+           }).accrues_toil
+       then 1.0 else 0.0))
+```

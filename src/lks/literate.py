@@ -9,20 +9,31 @@ next person to modify the rule.
 So the quotation is checked, not trusted. `check_fidelity` compares every
 quoted clause against the corpus by content hash and fails the build on drift.
 
+A code block that genuinely encodes no clause -- pure aggregation, a
+declaration prologue -- must say so explicitly with
+
+    | NO-CLAUSE: <why this adds no law>
+
+rather than being silently exempt. The count of such blocks is reported, so
+"how much of this module is not traceable to the corpus" is an answerable
+question.
+
 Convention (see docs/ARCHITECTURE.md):
 
-    > EMP-ANNEX-C C-4.1 (001-employment-terms-annex-c.md:63)
-    >
-    > An Employee is entitled to an overtime payment in respect of each hour
-    > worked in excess of 40 hours in a Payroll Week, calculated at 1.25 times
-    > the Base Hourly Rate.
+    | EMP-ANNEX-C C-4.1 (001-employment-terms-annex-c.md:55)
+    |
+    | An Employee is entitled to an overtime payment in respect of each hour
+    | worked in excess of 40 hours in a Payroll Week, calculated at 1.25 times
+    | the Base Hourly Rate.
 
     ```catala
     <code encoding exactly that clause>
     ```
 
-Catala treats everything outside a ```catala fence as law text, so the
-blockquote is inert to the compiler and carries no syntax risk.
+Catala reserves a leading ">" for its own directives (> Module, > Using,
+"> Include:"), so a markdown blockquote cannot be used for the quotation --
+it is a parse error. The gutter is "|", which Catala treats as ordinary law
+text and which stays visually distinct from the code beneath it.
 """
 from __future__ import annotations
 
@@ -34,9 +45,10 @@ from .model import content_hash
 from .segment import load_corpus
 
 CITATION_RE = re.compile(
-    r"^>\s*([A-Z][A-Z0-9\-]+)\s+([A-Z]{1,4}-\d+(?:\.\d+)*)\s*\(([^:]+):(\d+)\)\s*$"
+    r"^\|\s*([A-Z][A-Z0-9\-]+)\s+([A-Z]{1,4}-\d+(?:\.\d+)*)\s*\(([^:]+):(\d+)\)\s*$"
 )
-FENCE_OPEN_RE = re.compile(r"^```catala(?:-metadata|-test)?\s*$")
+NOCLAUSE_RE = re.compile(r"^\|\s*NO-CLAUSE:\s*(.+?)\s*$")
+FENCE_OPEN_RE = re.compile(r"^```catala(?:-metadata|-test-cli|-test)?\s*$")
 FENCE_CLOSE_RE = re.compile(r"^```\s*$")
 
 
@@ -59,14 +71,21 @@ class Quotation:
         return content_hash(self.text)
 
 
+MAX_QUOTE_GAP = 30
+"""Maximum lines between the end of a quotation and the code block it is
+attributed to. Prose in between is allowed; a page of it is not, because
+"directly above" has to keep meaning something."""
+
+
 @dataclass
 class CodeBlock:
     code: str
     start_line: int
     end_line: int
-    kind: str                       # "catala" | "catala-metadata" | "catala-test"
+    kind: str                       # "catala" | "catala-metadata" | "catala-test-cli"
     quotes: list[Quotation] = field(default_factory=list)
     source_file: str = ""
+    no_clause_reason: str = ""      # set by an explicit `| NO-CLAUSE:` marker
 
 
 @dataclass
@@ -74,6 +93,12 @@ class LiterateFile:
     path: str
     quotations: list[Quotation] = field(default_factory=list)
     blocks: list[CodeBlock] = field(default_factory=list)
+
+    @property
+    def unattributed(self) -> list[CodeBlock]:
+        """Code blocks deliberately marked as encoding no clause. Surfaced so a
+        reviewer can see how much logic is not traceable to the corpus."""
+        return [b for b in self.blocks if b.no_clause_reason]
 
 
 def parse_literate(path: str | Path) -> LiterateFile:
@@ -83,19 +108,25 @@ def parse_literate(path: str | Path) -> LiterateFile:
 
     i = 0
     pending: list[Quotation] = []
+    pending_no_clause = ""
     while i < len(lines):
         line = lines[i]
 
-        if line.startswith(">"):
+        if line.startswith("|"):
+            nc = NOCLAUSE_RE.match(line)
+            if nc:
+                pending_no_clause = nc.group(1)
+                i += 1
+                continue
             m = CITATION_RE.match(line)
             if m:
                 doc_id, clause_id, fname, lno = m.groups()
                 j = i + 1
                 buf: list[str] = []
-                while j < len(lines) and lines[j].startswith(">"):
+                while j < len(lines) and lines[j].startswith("|"):
                     if CITATION_RE.match(lines[j]):
                         break
-                    buf.append(re.sub(r"^>\s?", "", lines[j]))
+                    buf.append(re.sub(r"^\|\s?", "", lines[j]))
                     j += 1
                 q = Quotation(
                     doc_id=doc_id,
@@ -130,17 +161,26 @@ def parse_literate(path: str | Path) -> LiterateFile:
                     kind=kind,
                     quotes=list(pending),
                     source_file=str(path),
+                    no_clause_reason=pending_no_clause,
                 )
             )
             pending = []
+            pending_no_clause = ""
             i = j + 1
             continue
 
-        # A non-blank, non-quote, non-fence line ends the association between
-        # a quotation and the code block below it. Without this, a quotation
-        # could claim a code block three sections further down the file.
-        if line.strip() and not line.startswith("#"):
+        # A heading ends the association between a quotation and the code
+        # below it: a new section is a new subject, and without this a
+        # quotation could claim a code block sections further down the file.
+        #
+        # Ordinary prose does NOT end it. Writing a sentence or two between
+        # the clause and its encoding is good literate practice -- it is
+        # where the encoding decision gets explained -- and forbidding it
+        # would push that explanation into code comments, which is strictly
+        # worse. The distance is bounded instead, by `max_gap` below.
+        if line.strip().startswith("#"):
             pending = []
+            pending_no_clause = ""
         i += 1
 
     return lf
@@ -212,11 +252,27 @@ def check_fidelity(
                     )
                 )
         for b in lf.blocks:
-            if b.kind == "catala" and not b.quotes:
+            if b.kind != "catala":
+                continue          # metadata/declaration and test blocks encode no clause
+            if not b.quotes:
+                if b.no_clause_reason:
+                    continue      # deliberate and declared; counted, not flagged
                 problems.append(
                     FidelityProblem(
                         "unsourced-code", f"{f.name}:{b.start_line}",
-                        "code block has no clause quotation directly above it",
+                        "code block encodes no quoted clause. Either quote the "
+                        "clause it encodes, or declare it with a "
+                        "`| NO-CLAUSE: <reason>` marker if it genuinely adds no law",
+                    )
+                )
+                continue
+            gap = b.start_line - max(q.at_line for q in b.quotes)
+            if gap > MAX_QUOTE_GAP:
+                problems.append(
+                    FidelityProblem(
+                        "quote-too-far", f"{f.name}:{b.start_line}",
+                        f"nearest quotation ({b.quotes[-1].ref}) is {gap} lines above; "
+                        f"limit is {MAX_QUOTE_GAP}",
                     )
                 )
     return problems
