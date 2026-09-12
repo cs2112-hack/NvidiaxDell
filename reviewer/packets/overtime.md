@@ -276,8 +276,7 @@ scope HourPremium:
 
   label toil_c5_2 exception toil_c5_1 definition accrues_toil
     under condition
-      grade >= 5 and ordinal > 40
-      and (is_critical_incident or is_public_holiday)
+      grade >= 5 and ordinal > 40 and is_critical_incident
     consequence equals false
 ```
 

@@ -1,0 +1,240 @@
+# Mutual Non-Disclosure Agreement — N-5 Term and survival
+
+> Module Nda_survival
+
+This module answers one question: until when do the N-3 obligations of
+confidence bind? Nothing else in NDA-MUT is computable, and that is the
+correct outcome rather than a gap — N-1 to N-4 and N-6 to N-9 are qualitative
+throughout and belong to the vector store.
+
+N-5.1 fixes the end of the Agreement and N-5.2 measures the survival period
+**from that end**, so the two compose: early termination on 30 days' notice
+moves the survival end date *earlier*, never later. N-5.3 and N-5.4 are
+sibling exceptions to N-5.2, each displacing the 3-year arithmetic for the
+class of information it covers.
+
+`survival_end_date` is an `optional of date`. `Absent` means **no expiry date
+is produced**, which is the only honest answer where N-5.3 governs: the
+terminus of a trade-secret obligation is a future legal characterisation, not
+a date. The companion output `obligations_subsist` answers, as at an
+`assessment_date`, whether the obligations are still on foot — that is where
+the judgement input `information_remains_trade_secret` does its work.
+
+## Prologue — declarations
+
+`information_is_trade_secret` and `information_remains_trade_secret` are the
+two **judgement inputs** of N-5.3 (see `triage/decisions.yaml`). Whether
+information "constitutes a trade secret" is a legal characterisation the
+Agreement does not define and which must be re-made over time; this module
+therefore never decides it, and never asserts an expiry date for information
+so characterised.
+
+By deliberate contrast, `is_personal_data` and `date_ceased_to_hold` are
+**ordinary inputs**: the class of the information is recorded in the
+processing records and continued holding is an inventory fact. N-5.4 is RULE,
+not HYBRID, and the contrast with N-5.3 is load-bearing.
+
+`date_ceased_to_hold` is `Absent` while the Recipient still holds the personal
+data, and `Present content d` where the data inventory records that it ceased
+to hold it on `d`. `termination_notice_date` is `Absent` where no party has
+served notice under N-5.1.
+
+```catala-metadata
+declaration scope SurvivalEnd:
+  input effective_date content date
+  input termination_notice_date content optional of date
+  input is_personal_data content boolean
+  input date_ceased_to_hold content optional of date
+  input information_is_trade_secret content boolean
+  input information_remains_trade_secret content boolean
+  input assessment_date content date
+  output agreement_end_date content date
+  output survival_end_date content optional of date
+  output obligations_subsist content boolean
+```
+
+| NO-CLAUSE: the rounding mode is a compiler directive, not a rule. Catala
+| date addition raises on an ambiguous result, so the scope must declare one.
+| `date round up` is chosen because N-5.1 and N-5.2 confer periods of
+| protection — the Agreement "continues for a period of 2 years" and the
+| obligations "continue for a period of 3 years" — so where a calendar month
+| has no corresponding day (an Effective Date of 29 February) the period is
+| taken to the next existing day rather than ending a day early. Rounding
+| down would curtail an obligation of confidence by a calendar artefact.
+
+```catala
+scope SurvivalEnd:
+  date round up
+```
+
+## N-5 Term and survival
+
+| NDA-MUT N-5.1 (005-mutual-nda.md:71)
+|
+| This Agreement takes effect on the Effective Date and continues for a
+| period of 2 years, unless terminated earlier by either party on 30 days'
+| written notice.
+
+The clause states a term and one exception to it. The exception is encoded as
+a Catala exception rather than folded into a conditional, because "unless
+terminated earlier" is exactly that.
+
+Notice does not automatically end the Agreement: it ends it only where the
+30 days expire **before** the second anniversary, which is what "terminated
+earlier" requires. Notice served within the last 30 days of the term
+therefore leaves the ordinary expiry undisturbed.
+
+```catala
+scope SurvivalEnd:
+  label n5_1_term definition agreement_end_date
+    equals effective_date + 2 year
+
+  label n5_1_notice exception n5_1_term definition agreement_end_date
+    under condition
+      (match termination_notice_date with pattern
+       -- Absent: false
+       -- Present content notice:
+            notice + 30 day < effective_date + 2 year)
+    consequence equals
+      (match termination_notice_date with pattern
+       -- Absent: effective_date + 2 year
+       -- Present content notice: notice + 30 day)
+```
+
+| NDA-MUT N-5.2 (005-mutual-nda.md:75)
+|
+| The obligations of confidence in N-3 survive expiry or termination of this
+| Agreement and continue for a period of 3 years from the date of expiry or
+| termination.
+
+The 3 years run from `agreement_end_date`, which is the date of expiry *or*
+termination as N-5.1 determines it. This is the composition point: an early
+termination under N-5.1 pulls the survival end date back with it.
+
+The end date is the last day on which the obligations bind, so
+`obligations_subsist` compares with `<=`. This is the base case of the
+hierarchy; N-5.3 and N-5.4 are exceptions to it.
+
+```catala
+scope SurvivalEnd:
+  label n5_2 definition survival_end_date
+    equals Present content (agreement_end_date + 3 year)
+
+  label n5_2_subsist definition obligations_subsist
+    equals assessment_date <= agreement_end_date + 3 year
+```
+
+| NDA-MUT N-5.3 (005-mutual-nda.md:79)
+|
+| By way of exception to N-5.2, the obligations of confidence in respect of
+| Confidential Information which constitutes a trade secret continue for so
+| long as that information remains a trade secret.
+
+**HYBRID.** Given the judgement that the information constitutes a trade
+secret, the deterministic consequence is that the N-5.2 arithmetic is
+disapplied and **no expiry date is produced**. Returning a 3-year date here
+would be the module confidently asserting the one answer the clause
+contradicts; returning an invented indefinite date would be worse. `Absent`
+is the encoding of "this clause fixes no date".
+
+Whether the obligations are still on foot is a separate question, and it is
+the second judgement input that answers it: they subsist for so long as the
+information remains a trade secret. Where it has ceased to be one, the
+obligations have ended — but on a date this module cannot know, so it still
+produces none.
+
+The condition excludes information that is also personal data, because N-5.4
+is a sibling exception to the same base and both would otherwise apply to the
+same information. The combined case is dealt with expressly below.
+
+```catala
+scope SurvivalEnd:
+  label n5_3 exception n5_2 definition survival_end_date
+    under condition
+      information_is_trade_secret and not is_personal_data
+    consequence equals Absent
+
+  label n5_3_subsist exception n5_2_subsist definition obligations_subsist
+    under condition
+      information_is_trade_secret and not is_personal_data
+    consequence equals information_remains_trade_secret
+```
+
+| NDA-MUT N-5.4 (005-mutual-nda.md:83)
+|
+| By way of exception to N-5.2, the obligations of confidence in respect of
+| personal data continue for so long as the Recipient holds that personal
+| data.
+
+**RULE, not HYBRID.** Both elements are records rather than judgements, so
+the end date is computable: it is the date the Recipient ceased to hold the
+personal data. While it still holds it, no end date has yet arisen, so
+`Absent` is returned for that reason and not N-5.3's.
+
+Note that N-5.4 can shorten as well as lengthen the survival: personal data
+returned or destroyed under N-6.1 one year after termination ends the
+obligation then, well before the N-5.2 three years.
+
+The condition repeats nothing from `n5_2` because `n5_2` is unconditional; it
+does exclude the trade-secret case, for the reason given under N-5.3.
+
+```catala
+scope SurvivalEnd:
+  label n5_4 exception n5_2 definition survival_end_date
+    under condition
+      is_personal_data and not information_is_trade_secret
+    consequence equals date_ceased_to_hold
+
+  label n5_4_subsist exception n5_2_subsist definition obligations_subsist
+    under condition
+      is_personal_data and not information_is_trade_secret
+    consequence equals
+      (match date_ceased_to_hold with pattern
+       -- Absent: true
+       -- Present content ceased: assessment_date <= ceased)
+```
+
+## N-5.3 and N-5.4 applying to the same information
+
+| NDA-MUT N-5.3 (005-mutual-nda.md:79)
+|
+| By way of exception to N-5.2, the obligations of confidence in respect of
+| Confidential Information which constitutes a trade secret continue for so
+| long as that information remains a trade secret.
+
+| NDA-MUT N-5.4 (005-mutual-nda.md:83)
+|
+| By way of exception to N-5.2, the obligations of confidence in respect of
+| personal data continue for so long as the Recipient holds that personal
+| data.
+
+Information can be both a trade secret and personal data, and then both
+exceptions bear on it. The Agreement states no precedence between them, so
+this block encodes the interaction rather than either clause alone — hence
+the two quotations.
+
+Neither clause disapplies the other: each independently continues the N-3
+obligations for its own period. So the obligations subsist while **either**
+period runs, and no end date is produced, because the trade-secret period
+produces none and is therefore never the shorter of the two.
+
+Writing this limb out is what keeps the two sibling exceptions mutually
+exclusive. Left overlapping they would both apply and Catala would raise
+`Conflict` at runtime — a defect the type checker does not catch.
+
+```catala
+scope SurvivalEnd:
+  label n5_34 exception n5_2 definition survival_end_date
+    under condition
+      information_is_trade_secret and is_personal_data
+    consequence equals Absent
+
+  label n5_34_subsist exception n5_2_subsist definition obligations_subsist
+    under condition
+      information_is_trade_secret and is_personal_data
+    consequence equals
+      information_remains_trade_secret
+      or (match date_ceased_to_hold with pattern
+          -- Absent: true
+          -- Present content ceased: assessment_date <= ceased)
+```

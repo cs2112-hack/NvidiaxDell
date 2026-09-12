@@ -1,0 +1,113 @@
+# Sales Commission Plan — FY26: quota relief
+
+> Module Quota_relief
+
+This module computes the Quota against which Attainment is measured, after
+relief for qualifying absence under S-6. It is deliberately upstream of
+`Commission`: S-6.2 says relief is applied *before* Attainment is calculated,
+so the relieved Quota is an input to `Commission.Attainment` and never a
+correction applied to a figure computed from the assigned Quota.
+
+Nothing here is a judgement input. The three absence categories S-6.1 names are
+legal statuses payroll records, and the 30-day continuous-period threshold is
+what supplies the content of "long-term" — the Plan does not leave that to an
+assessor.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration enumeration AbsenceCategory:
+  -- StatutoryParentalLeave
+  -- AdoptionLeave
+  -- LongTermSicknessAbsence
+  -- OtherAbsence
+
+# One continuous absence, inclusive of both endpoints: an absence recorded as
+# starting and ending on the same day is one day of absence.
+declaration structure AbsencePeriod:
+  data category content AbsenceCategory
+  data start_date content date
+  data end_date content date
+
+declaration scope QualifyingAbsence:
+  input absence content AbsencePeriod
+  output days_of_absence content integer
+  output is_qualifying_category content boolean
+  output is_qualifying content boolean
+  output relief_days content integer
+
+declaration scope RelievedQuota:
+  input annual_quota content money
+  input absence_periods content list of AbsencePeriod
+  output relief_days content integer
+  output relief content money
+  output relieved_quota content money
+  output quota_for_attainment content money
+```
+
+## S-6 Quota relief
+
+| COMM-PLAN S-6.1 (003-sales-commission-plan.md:83)
+|
+| Where an Employee is absent on statutory parental leave, adoption leave
+| or long-term sickness absence for a continuous period of 30 days or more, the
+| Employee's Quota is reduced by 1/365th of the annual Quota for each day of such
+| absence.
+
+Three things are decided here. The gate is a *continuous* period of 30 days or
+more, so the test is applied to each recorded absence separately and two
+unconnected 20-day absences do not combine. "30 days or more" is inclusive, so
+a 30-day absence qualifies and a 29-day one does not. And the reduction is
+"for each day of such absence" once the gate is met — every day of the absence,
+not only the days after the thirtieth; a 30-day qualifying absence yields 30
+days of relief, not nil.
+
+Days are counted inclusively of both endpoints, which is the ordinary reading
+of an absence "from" one date "to" another: 1 January to 30 January is 30 days.
+
+```catala
+scope QualifyingAbsence:
+  definition days_of_absence equals
+    integer of ((absence.end_date - absence.start_date) / (1 day)) + 1
+
+  definition is_qualifying_category equals
+    absence.category with pattern StatutoryParentalLeave
+    or absence.category with pattern AdoptionLeave
+    or absence.category with pattern LongTermSicknessAbsence
+
+  definition is_qualifying equals
+    is_qualifying_category and days_of_absence >= 30
+
+  definition relief_days equals
+    if is_qualifying then days_of_absence else 0
+
+scope RelievedQuota:
+  definition relief_days equals
+    Integer.sum of (map each a among absence_periods to
+      (output of QualifyingAbsence with { -- absence: a }).relief_days)
+
+  definition relief equals
+    annual_quota * (decimal of relief_days / 365.0)
+
+  definition relieved_quota equals
+    annual_quota - relief
+```
+
+| COMM-PLAN S-6.2 (003-sales-commission-plan.md:88)
+|
+| Quota relief under S-6.1 is applied before Attainment is calculated.
+
+S-6.2 is an ordering rule with a concrete consequence: the denominator of the
+S-2.2 quotient is the relieved Quota, not the assigned Quota. That consequence
+is carried across the module boundary by naming the quantity —
+`quota_for_attainment` is what `Commission.Attainment`'s `quota` input is fed
+from, and a caller that passed `annual_quota` instead would be computing a
+different and lower Attainment, a different accelerator under S-4 and, because
+S-5.2 puts the cap last, a different capped figure too. The identity is the
+whole of the clause: S-6.2 adds no arithmetic of its own, it fixes which
+arithmetic comes first.
+
+```catala
+scope RelievedQuota:
+  definition quota_for_attainment equals relieved_quota
+```

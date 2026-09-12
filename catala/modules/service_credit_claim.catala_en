@@ -1,0 +1,92 @@
+# MSA Schedule 4 — Claiming a Service Credit
+
+> Module Service_credit_claim
+
+A Service Credit computed by `Service_credits` is not yet money: L-5.1 puts a
+30-day claim window on it and waives it outright if the window closes, and
+L-5.2 settles it either by set-off against the next invoice or, where there
+will be no next invoice, by payment. This module encodes both. It has no
+judgement inputs: every term is a date or a fact of record.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration enumeration Settlement:
+  -- AppliedAgainstNextInvoice
+  -- PaidToCustomer
+
+declaration scope CreditClaim:
+  input measurement_period_end content date
+  # Whether a written claim was made at all, and when.
+  input claim_made content boolean
+  input claim_date content date
+  input claim_accepted_date content date
+  # L-5.2: whether a further invoice will be issued, and when the next one is.
+  input further_invoice_expected content boolean
+  input next_invoice_date content date
+  output claim_deadline content date
+  output claim_in_time content boolean
+  output waived content boolean
+  output settlement content Settlement
+  output settlement_due_date content date
+```
+
+## L-5.1 The claim window
+
+| MSA-SCH4 L-5.1 (004-msa-sla-credits.md:92)
+|
+| The Customer must claim a Service Credit in writing within 30 days after
+| the end of the Measurement Period to which it relates. A Service Credit not
+| claimed within that period is waived.
+
+The window runs from the end of the Measurement Period, so the deadline is
+that date plus 30 days and "within 30 days" is inclusive of the thirtieth:
+a claim on day 30 is in time, a claim on day 31 is not.
+
+Waiver is the determinate consequence of the window closing, and it catches
+two cases: a claim made late, and no claim at all. `waived` is therefore the
+negation of `claim_in_time` rather than a test on `claim_date` alone, since a
+Customer who never claims has no claim date to be late.
+
+```catala
+scope CreditClaim:
+  definition claim_deadline equals measurement_period_end + 30 day
+
+  definition claim_in_time equals
+    claim_made and (claim_date <= claim_deadline)
+
+  definition waived equals not claim_in_time
+```
+
+## L-5.2 Settlement
+
+| MSA-SCH4 L-5.2 (004-msa-sla-credits.md:96)
+|
+| A Service Credit is applied against the next invoice issued after the
+| claim is accepted. Where no further invoice will be issued, the Service Credit is
+| paid to the Customer within 30 days.
+
+Set-off against the next invoice is the base case and payment is the exception
+to it, in the order the clause states them. The exception's condition is the
+whole of what L-5.2's second sentence requires — that no further invoice will
+be issued — and the base case is unconditional, so there is nothing to repeat
+from it.
+
+The 30 days for payment run from acceptance of the claim, because that is the
+event L-5.2's first sentence uses to fix the settlement date and the second
+sentence displaces only the mechanism, not the trigger.
+
+```catala
+scope CreditClaim:
+  label l5_2_setoff definition settlement equals AppliedAgainstNextInvoice
+
+  label l5_2_payment exception l5_2_setoff definition settlement
+    under condition not further_invoice_expected
+    consequence equals PaidToCustomer
+
+  label l5_2_setoff_date definition settlement_due_date equals next_invoice_date
+
+  label l5_2_payment_date exception l5_2_setoff_date definition settlement_due_date
+    under condition not further_invoice_expected
+    consequence equals claim_accepted_date + 30 day
+```

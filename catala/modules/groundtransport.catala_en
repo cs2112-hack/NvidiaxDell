@@ -1,0 +1,147 @@
+# Expense Reimbursement Policy — ground transport
+
+> Module GroundTransport
+
+> Using ExpenseDefs
+
+E-5 legislates over two different units and they are kept in separate scopes.
+E-5.1 and E-5.2 are about a rail ticket and turn on the class of travel;
+E-5.3 is about a taxi or private hire **journey** ("£60 per journey") and turns
+on where and when the journey ran. Merging them would invent a rule that E-5
+does not contain, namely a single cap applying across both heads.
+
+## Prologue — declarations
+
+```catala-metadata
+declaration enumeration RailClass:
+  -- StandardClass
+  -- FirstClass
+
+declaration scope RailFare:
+  input class_of_travel content RailClass
+  input ticket_cost content money
+  input standard_class_fare_same_day content money
+  input pre_approval content ExpenseDefs.PreApproval
+  input incurred_on content date
+  internal is_standard_class content boolean
+  internal is_first_class content boolean
+  internal pre_approval_obtained content boolean
+  output reimbursable_amount content money
+
+declaration scope TaxiFare:
+  input journey_cost content money
+  input is_airport_journey content boolean
+  input journey_start_hour content integer
+  input journey_start_minute content integer
+  internal minutes_after_midnight content integer
+  output reimbursable_amount content money
+```
+
+There are no judgement inputs. `standard_class_fare_same_day` is a
+counterfactual *price* — the standard class fare for the same journey booked on
+the day of travel — which is a figure to be evidenced, like a salary, and not
+something anyone exercises judgement over. That is what keeps E-5.2 out of
+HYBRID.
+
+E-5.3's time of day is taken as an hour and a minute rather than a `date`,
+because Catala's `date` has no time component and E-5.3's carve-out turns on
+the clock and not on the calendar.
+
+## E-5.1 Standard class rail
+
+| EXP-POL E-5.1 (002-expense-reimbursement-policy.md:82)
+|
+| Standard class rail travel is reimbursable at actual cost.
+
+Uncapped, and stated in its own right so that the contrast E-5.2 draws is
+visible in the code: the definition is conditioned on the class of travel being
+standard, and E-5.2 supplies the definition for the other value of the
+enumeration. The two conditions are exhaustive and mutually exclusive over
+`RailClass`, so exactly one applies and no `Conflict` can arise.
+
+```catala
+scope RailFare:
+  definition is_standard_class equals class_of_travel with pattern StandardClass
+
+  label e5_1 definition reimbursable_amount
+    under condition is_standard_class
+    consequence equals ticket_cost
+```
+
+## E-5.2 First class rail
+
+| EXP-POL E-5.2 (002-expense-reimbursement-policy.md:84)
+|
+| First class rail travel is reimbursable only where the ticket cost does
+| not exceed the standard class fare for the same journey booked on the day of
+| travel, or where Pre-Approval has been obtained.
+
+"Reimbursable only where" is a prohibition with two alternative releases, so it
+is encoded as a base of nil for first class travel with a single exception
+carrying the disjunction. The two gates are alternatives, not a hierarchy —
+either suffices — which is why they are one exception with an `or` rather than
+two nested ones.
+
+`does not exceed` is `<=`: a first class ticket costing exactly the same-day
+standard class fare is reimbursable.
+
+The exception repeats its parent's condition `is_first_class`. Without it the
+exception would fire for standard class travel too and conflict with E-5.1.
+
+```catala
+scope RailFare:
+  definition is_first_class equals class_of_travel with pattern FirstClass
+
+  definition pre_approval_obtained equals
+    (output of ExpenseDefs.PreApprovalValid with {
+       -- pre_approval: pre_approval
+       -- expense_incurred_at: incurred_on
+       -- expense_amount: ticket_cost
+     }).valid
+
+  label e5_2 definition reimbursable_amount
+    under condition is_first_class
+    consequence equals $0.00
+
+  label e5_2_permitted exception e5_2 definition reimbursable_amount
+    under condition
+      is_first_class
+      and (ticket_cost <= standard_class_fare_same_day
+           or pre_approval_obtained)
+    consequence equals ticket_cost
+```
+
+## E-5.3 Private hire and taxi
+
+| EXP-POL E-5.3 (002-expense-reimbursement-policy.md:88)
+|
+| Private hire and taxi journeys are reimbursable at actual cost up to
+| £60 per journey, save that a journey to or from an airport before 06:00 or after
+| 22:00 is reimbursable at actual cost without limit.
+
+The "save that" limb is an exception within the same clause, so it is encoded as
+an exception to the £60 cap rather than folded into it. Both of the carve-out's
+requirements must hold: the journey must be to or from an airport **and** it
+must fall before 06:00 or after 22:00. An airport journey at noon is capped, and
+a non-airport journey at 03:00 is capped.
+
+The boundaries are read strictly as the words run. "Before 06:00" excludes
+06:00 itself, and "after 22:00" excludes 22:00 itself, so a journey starting at
+exactly either time is capped at £60. That leaves the interval from 06:00 to
+22:00 inclusive inside the cap.
+
+```catala
+scope TaxiFare:
+  definition minutes_after_midnight equals
+    journey_start_hour * 60 + journey_start_minute
+
+  label e5_3 definition reimbursable_amount equals
+    Money.min of journey_cost, $60.00
+
+  label e5_3_airport exception e5_3 definition reimbursable_amount
+    under condition
+      is_airport_journey
+      and (minutes_after_midnight < 6 * 60
+           or minutes_after_midnight > 22 * 60)
+    consequence equals journey_cost
+```

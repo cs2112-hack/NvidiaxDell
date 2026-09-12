@@ -302,6 +302,6 @@ scope MealPerDiemForDay:
 |
 | Reading (A) is adopted because it follows the words E-7.2 actually uses. The
 | choice is pinned by `TestE7_2_ClientBillable_ReadingA` in
-| `catala/tests/test_meal_per_diem.catala_en`, which also records reading (B)'s
+| `catala/tests/test_mealperdiem.catala_en`, which also records reading (B)'s
 | number, so changing the reading changes a failing test rather than silently
 | changing an answer.
