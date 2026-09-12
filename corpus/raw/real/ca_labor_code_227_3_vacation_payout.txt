@@ -1,0 +1,6 @@
+SOURCE: https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=LAB&sectionNum=227.3
+RETRIEVED: 2026-09-12
+LICENSE: public domain (US/state government edict)
+
+227.3.
+Unless otherwise provided by a collective-bargaining agreement, whenever a contract of employment or employer policy provides for paid vacations, and an employee is terminated without having taken off his vested vacation time, all vested vacation shall be paid to him as wages at his final rate in accordance with such contract of employment or employer policy respecting eligibility or time served; provided, however, that an employment contract or employer policy shall not provide for forfeiture of vested vacation time upon termination. The Labor Commissioner or a designated representative, in the resolution of any dispute with regard to vested vacation time, shall apply the principles of equity and fairness.(Amended by Stats. 1976, Ch. 1041.)

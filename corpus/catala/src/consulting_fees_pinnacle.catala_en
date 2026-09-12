@@ -1,0 +1,64 @@
+# Consulting fees — Pinnacle Advisory Partners / Acme (SOW No. 2)
+
+> Module Consulting_fees_pinnacle
+
+Source: SYN-013 (Statement of Work No. 2, 2026-04-01). Acme is the customer here, which is
+why this is its own module and cannot collide with the Acme-as-provider agreements.
+
+```catala-metadata
+declaration scope ConsultingFees:
+  input hours content decimal
+  input month_of_service content date
+  input invoice_date content date
+
+  output fees content money
+  output fees_payable content money
+  output change_order_required content boolean
+  output eighty_percent_notice_required content boolean
+  output invoice_payable content boolean
+```
+
+## SYN-013 § 3.1–3.3 — rate, ceiling, and the 80% notice
+
+  Services are provided on a time-and-materials basis at a blended rate of two hundred
+  twenty-five dollars ($225.00) per hour. The total fees payable under this Statement of
+  Work shall not exceed one hundred twelve thousand five hundred dollars ($112,500.00),
+  corresponding to five hundred (500) hours, without a written change order signed by
+  Company. Consultant shall notify Company in writing when eighty percent (80%) of the
+  amount in Section 3.2 has been incurred.
+
+```catala
+scope ConsultingFees:
+  definition fees equals $225 * hours
+
+  definition change_order_required equals fees > $112,500
+
+  definition eighty_percent_notice_required equals fees >= $112,500 * 80%
+```
+
+## SYN-013 § 5.3 — the invoicing window
+
+  Invoices submitted more than ninety (90) days after the end of the month in which the
+  services were performed are not payable.
+
+`month_of_service` is the first day of the month, so the end of that month is the day
+before the first of the next one.
+
+```catala
+scope ConsultingFees:
+  definition invoice_payable equals
+    invoice_date <= ((month_of_service + 1 month) - 1 day) + 90 day
+```
+
+## What Acme can actually pay
+
+The ceiling in § 3.2 caps the payable amount; anything above it waits for a change order,
+and an out-of-time invoice is not payable at all.
+
+```catala
+scope ConsultingFees:
+  definition fees_payable equals
+    if not invoice_payable then $0
+    else if fees > $112,500 then $112,500
+    else fees
+```

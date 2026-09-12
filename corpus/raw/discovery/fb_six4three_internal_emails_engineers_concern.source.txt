@@ -1,0 +1,8 @@
+SOURCE: https://www.documentcloud.org/documents/6429802/
+PDF: https://s3.documentcloud.org/documents/6429802/Engineers-concern-in-internal-Facebook-emails.pdf
+TITLE: Engineers concern in internal Facebook emails
+PAGES: 4
+DC_SOURCE_FIELD: Leaked documents in Six4Three case
+DESCRIPTION: Engineers express concern about potentially unethical behavior in a Facebook policy ship that will cut off thousands of third-party apps from valuable user date.
+RETRIEVED: 2026-09-12
+LICENSE: public court record / publicly released document; underlying internal material is third-party. Internal demo use.

@@ -1,0 +1,653 @@
+SOURCE: https://www.documentcloud.org/documents/7010041/
+TEXT: https://s3.documentcloud.org/documents/7010041/Facebook-Instagram-Emails.txt
+TITLE: Facebook Instagram Emails
+PAGES: 16
+RETRIEVED: 2026-09-12
+
+. from: Mark Zuckerberg
+to: David Ebersman
+Zuckerberg
+
+ 
+  
+
+Mark
+
+
+
+. time: Mon .Feb 27 23:41:03 PST 2012 (1330414863647)
+0 subject: null
+0 body
+
+One business questions I've been thinking about recently is how much we should be
+willing to pay to acquire mobile app companies like Instagram and Path that are building
+networks that are competitive with our own. These companies have the properties where
+they have millions of users (up to about 20m at the moment for lnstagram). fast growth. a
+small team (10-25 employees) and no revenue. The businesses are nascent but the
+networks are established. the brands are already meaningful and ifthey grow to a large
+scale they could be very disruptive to us. 'l'hese entrepreneurs don't want to sell (largely
+inspired our success), but at a high enough price -- like $500111 or $1 -- they'd have to
+consider it. Given that we think our own valuation is fairly aggressive right now and that
+we're vulnerable in mobile, I'm curious if we should consider going after one or two of
+them. What do you think about this?
+
+CONFIDENTIAL F80015879
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED 
+NOT FOR MEMBERS AND STAFF ONLY
+
+  
+ 
+
+from: David Ebersman
+
+. to: Mark Zuckerber
+E-bersman' .
+
+0 time: Tue Feb 28 09:37:43 PST 2012 (1330450663315)
+
+0 subject: null
+
+. body
+
+David
+
+I tend to have a high bar for considerations. All the research 1 have seen is that
+most deals fail to create the value expected by the acquirer. My instinct is that many deals
+are done because the E0 is frustrated that the business is not where they want it to be,
+they would rather do something than nothing. and seems like the biggest lever they
+have. This is a bad reason to do a deal. So for these two ideas speci?cally, 1 would ask
+you to ?nd a compelling elucidation of what you are trying to accomplish. ll neutralize a
+potential competitor? Bad reason in my book since someone else will spring up
+immediately in their place. There will always be consumers who are instinctively
+negative about the industry leaders and want to work with the upstarts. We will always
+have upstarts nipping at our heels. We have to win against competitors by having better
+products. 2) acquire taient? Seems expensive for this. 3) integrate their products with ours
+in order to improve our service? This can be a very compelling reason. if you have a ciear
+vision for how the implementation would be great for users and that we cannot do the
+product improvements ourselves in a reasonable timeframe. 4) other? Happy to discuss
+
+further.
+CONFIDENTIAL FBOO15880
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED FB-HJC-ACAL-00063221
+
+NOT FOR MEMBERS AND STAFF ONLY
+
+  
+ 
+
+. from: Mark Zuckerberg
+. to: David Ebersman(
+Zuckerberg
+
+. Mark
+
+. time: Tue Feb 28 09:55:42 PST 2012 (1330451742327)
+0 subject: null
+. body
+
+It's a combination 0ft] and (3). The basic plan would be to buy these companies and.
+leave their products running while over time incorporating the social dynamics they've
+invented into our core products. One thing that may make (1) more reasonable here is that
+there are network effects around social products and a ?nite number of different social
+mechanics to invent. Once someone wins at a speci?c mechanic. it's difficult for others to
+supplant them without doing something different. It's possible someone beats lnstagram
+by building something that is better to the point. that they get network migration. but this
+is harder as long as lnstagram keeps running as a product. (3) is also a factor but in reality
+we already know these companies' social dynamics and will integrate them over the next
+12-24 months anyway. The integration plan involves building their mechanics into our
+products rather than directly integrating their products i't?that makes sense. By a
+combination of l) and (3). one way of looking at this is that what we're really buying is
+time. Even if some new competitors springs up. buying lnstagram. Path. Foursquare. etc
+now will give us a year or more to integrate their dynamics before anyone can get close
+to their scale again. Within that time. if we incorporate the social mechanics they were
+using, those new products won't get much traction since we'll already have their
+mechanics deployed at scale.
+
+CONFIDENTIAL FBOO15881
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED 
+NOT FOR MEMBERS AND STAFF ONLY
+
+  
+
+from: Mark Zuckerbe_
+
+. to: David Ebersman( Mark 
+0 time: Tue- Feb 38 10:43:09 PST 2012 0330454589214)
+
+. subject:
+
+. body
+
+Above, I didn't mean to imply that we'd be buying them to prevent them from competing
+with us in any way. Buying them would give us the people and time to incorporate their
+innovations into our core products, which is how we'd do the integration rather than
+actually combining the products. I'm mostly excited about what the companies could do
+together if we worked to build what they've invented into more people's experiences.
+
+CONFIDENTIAL FBOO15882
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED 
+NOT FOR MEMBERS AND STAFF ONLY
+
+ 
+
+From:
+
+ 
+
+ 
+  
+
+To:
+Sent: 2/13/2012 3:44:44 AM
+Subject: Chat with
+?Si PM me: hey what's up
+drivingto dinner but will be able to type more in like 5 min
+(?53 PM can we talk for a minute now?
+or 5 minutes from now so, not surprisingly, zuck pinged me to say "i'm not sure ifthis is a good idea yet, but i think
+maybe facebook should buy instagram, what do you think?" i obviously want to discuss with you
+before i reply to him
+me: got it
+you know him better than I do
+nil PM a) will he go into destroy mode if] say no
+b) will he understand if we choose to raise instead
+(55 PM C) will he understand that I don't want to shutter the product and that doesn't align with what FB does
+with companies
+probably (and probably also if we just don't engage at all)
+b) no, he'll go harder into destroy mode then
+(150 PM 0) what i think he would most likely want to see is for instagram to turn into a stand-alone mobile
+facebook photos app, like beluga turned into facebook messenger
+(VS 7 P\l (re he hasn't indicated anything to me at all there, i'm just speculating)
+me: I thought they were already working on something internally for a long time
+his PM well what's our goal here then
+i could see that merging into instagram
+me: fair enough
+50 PM are we sure we can't downplay our hand
+say we're focused on pretty photos and an open name space and we're not sure how that fits in?
+I'm riffmg here
+ur goal depends on what you want to do. if you're actually interested in considering selling at the
+right price, then i would (slowly) talk with him and try to talk with twitter in parallel. (do not slow
+down the series discussions in any event.) if you are of the mind "i don't want to sell at any price"
+then we need to ?gure out how to shut this down with minimal damage. i think that means playing it
+out REALLY slowly with him.
+7w PM yeah, downplaying our position could be a way to play it out really slowly in the latter scenario
+if. PM me: well trying to focus on the questions an hesitations he's already having (pretty photos, namespace,
+open)
+I'm not interested really - even at the right price I don't think so
+Tu} PM then we should ?gure out how to shut it down
+me: I think so.
+Wit-l -any ideas? downplaying our position is a good thought but he's way too smart for "oh never mind
+little old us, we're just pretty pictures"
+me: it's a little bit crazy but I don't think they go away as an option in the future
+sure I'd want to be smarter than that too
+Tris -here's one idea: i could tell him "i don't think it makes a ton of sense and i think if you start down
+that path you risk a bidding war with twitter and google for this, whereas if you leave it alone it'll
+probably just go its own way"
+me: well my is why would he ask you knowing it would get to me
+-ie facebook is better with an independent instagram than witha instagram that's part of twitter or
+CONFIDENTIAL FTC-IG0014305
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED 
+
+NOT FOR MEMBERS AND STAFF ONLY
+
+google
+it's a way of approaching you indirectly. smart.
+
+     
+ 
+
+    
+ 
+
+me: 
+?7150 PM #f course if i make the "leave instagram alone for facebook's sake" argument, he will conclude
+at it's best to crush instagram. i guess there's not that much that can be done about that though.
+me: hah
+7477 PM unless we figure out how to show that insta is pushing lots of content in and that a good thing
+but he already knows what small goes in given press articles
+and we are going to have overlap in features
+PM or you could respond and get more info
+like try to understand why he's thinking abt it
+7* II) PM "that depends on why you might think its a good idea and bad idea, I can help give pros and cons"
+then we can craft the approach rather than guessing
+I I PM eah that could make sense. but i doubt he'll tell me his full rationale. he already told me that he
+thinks it's bad for anybody else to control posting of photos onto fb at large scale (keep that between
+us please), but i think there's more to it
+i suspect that what he's really worried about is twitter.
+7 I3 PM if twitter and instragram became one company it would make life more dif?cult for facebook.
+me: everything is you and 1
+nd instagram is a more natural fit for twitter as a product.
+YUP
+me: I'd agree on that hunch
+7 I 3 PM given jack and I having coffee tues
+and rinks tomorrow
+why are you meeting with -directly if you're not serious about doing something with twitter?
+5 PM me: well - he needs to know we're not interested
+and they haven't said anything
+how's this as a reply to mark: "why do you think it's a good idea? i've never heard kevin express
+interest in selling, and the product seems pretty different to me. i actually think instagram can do well
+as a stand-alone brand advertising business fwiw."
+.7, lo PM (he told me he thinks instagram can't be a good independent business because of how much it's about
+photos, but i think that's partially posturing.)
+the only reason to include my last sentence is to remove his fear that there will be a twitter deal
+me: to be clear theyve said nothing - and I want to maintain a good relationship so I think avoiding him
+isn't a good idea when I can just say 
+7 PM no
+that is unless you think there's a better way to turn them down
+and also I thought we wanted some leverage of interest for fundraising
+7: I 8 PM eah i think that's ?ne
+PM me: I think instead of product seems diff - you may pt out how the existing structure (following and
+namespace) doesn't mesh well
+or would make it hard to be successful inside
+successful acq
+7.2 I PM sure
+me: but again he's prob thinking more that he doesn't want twitter to have it
+less that it will be successful inside
+7.22 PM only concern with that approach is it signals "this is a better ?t for twitter". maybe better to
+leave it more vaguewhy do you think it's a good idea? i've never heard kevin express interest in
+selling, and the product seems pretty different to me. i actually think instagram can do well as a
+stand-alone brand advertising business fwiw
+oops never mind everything after "vague" above, i hit paste by accident
+me: got it
+ya I hear that
+7.23 PM I mean honestly he seems like a guy with a clear sense of what he wants
+CONFIDENTIAL FTC-IG0014306
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED FB-HJC-ACAL-00101439
+
+NOT FOR MEMBERS AND STAFF ONLY
+
+7 I?\l
+
+7.25 PM
+
+7% PM
+
+7 :7 
+
+7'38 
+
+730 PM
+
+73? PM
+
+71%  
+
+7'33 P\l
+
+733 PM
+
+7:34 
+
+7 ii 
+
+mm yeah
+me: and I think getting more info is all we can do
+I don't know that we'll be able to sway
+in fact what worries me abt the response is that we signal that we're trying too hard to avoid it
+ny thoughts on how to not do that?
+me: I don't know if we need the stand alone biz thing I think
+ok. so just this: "why do you think it's a good idea? i've never heard kevin express interest in
+selling, and the product seems pretty different to me."
+me: "I've never heard Kevin express interest in selling. the product seems pretty different than what
+you're going after. why do you think it's a good idea?
+at the end?
+I dont care abt the middle sentence
+meaning I was wordsmithing
+sure that's fine
+me: ok why don't we see where that goes
+1 do think we have to be careful with twitter conversations so he doesn't get conflicting repts
+eP
+me: don't want to make any enemies
+
+     
+
+   
+ 
+
+Ffor sure
+ut mark doesn't react emotionally, he reacts based on competition
+just sent him that language, we'll see what he says
+me: ok good
+that's why i think signaling no competition is good
+eah, but he's too smart to take our word for it 
+i do think the biggest hot button for him is the possibility of a sale to twitter
+me: bottom line 1 don't think we'll ever escape the wrath of mark
+haha
+me: it just depends how long we avoid it
+that's why we need to raise 7O build an army and keep our heads down
+-one thing to consider is doing some PR around how much we love facebook platform and how
+awesome it is to be a complimentary player to facebook
+me: it will come
+when? I don't know
+that's a good idea
+eah i think that's a key project to point our pr person at
+we need to make it as hard as possible for fb to mess with our ability to get distribution on the
+platform
+me: reached out to me again - broke his own rule
+aha
+me: ah I agree
+was he chill
+me: yes
+-see he's learning 
+me: ood-
+i think we should let him in, even ifit's a small piece. he's such a good dude
+haha
+me: ah we have to plan for the inevitability of FB hating us
+and i actually think we can put him to work recruiting engineers for us
+yeah we do
+me: I mean twitter is so different
+and yet
+i think he spends most of his time partying these days, so he has time to recruit for us
+me: 
+
+1 like. lot
+
+  
+
+ 
+ 
+ 
+
+  
+
+  
+
+    
+
+ 
+
+  
+
+CONFIDENTIAL FTC-IG0014307
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED 
+NOT FOR MEMBERS AND STAFF ONLY
+
+and he actually has a good network out of google which i think is probably complimentary to
+yours
+
+me: had ood time with-and -
+is a good dude
+benchmark is about to gear up its engineering recruiting effort btw, but that won't spin up for at
+
+least a cou le of months
+7 PM cool reiand - is keen to do this and i think he can be helpful too. i honestly think-
+will he] less with recruiting but he's a great guy
+yeahhis a great guy, we should include him too. i think our existing plan to have him "?ll in"
+
+the round makes sense
+
+me: a. path stuff with Kleiner?
+basicall i think we have room for one of dst,- or - and then we can have-
+and/mind .?ll in the rest once the lead sets the price
+7-38 l?\l me: yep
+
+well I'm planning on sending sig pages on the grants tonight
+
+and we start talking this week
+l?\l -mark just replied and asked if anybody else has tried to buy instagram. i think the best reply is "i
+
+really shouldn't step over boundaries and talk about that, but the answer is not yet."
+
+is that cool?
+
+oh and then he also asked "should ijust talk to kevin directly"? i think he's going to do that anyway, so
+
+i should tell him "yes"
+
+me: isn't the ?rst part contradictory with the secondtell him to talk to me and that I haven't mentioned anyone
+but it signals that this won't be a precedent for my telling him that stuff in the future
+
+ 
+ 
+ 
+   
+
+ 
+
+   
+     
+
+ 
+   
+
+ok will do
+me: ok
+then we should talk about how to respond
+7 43 ow to respond to what?
+me: he will reach out to me
+7 4-1 PM I've avoided chatting once and failed
+
+eah. let's see what he says.
+
+  
+ 
+
+me:
+7.45 PM ok chat me later - just sat down to dinner cool?
+or we can talk tomorrow
+
+whatevers easiest
+
+ 
+  
+
+?v PM ure. i'm landing in about an hour so will lose my wifi in about 30 minutes 
+have a good dinner 
+me: thanks - 
+CONFIDENTIAL FTC-IG0014308
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED FB-HJC-ACAL-OO101441
+
+NOT FOR MEMBERS AND STAFF ONLY
+
+from: Mark Zuckerberg 
+to: Mark 
+
+time: Thu Apr 05 01:05:16 PDT 2012 (13336131 16164)
+subject: null
+body
+
+ 
+
+[just need to decide if we're going to buy Instagram
+
+CONFIDENTIAL FBOO15975
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED 
+NOT FOR MEMBERS AND STAFF ONLY
+
+. from: Mark Zuckerbera
+
+. to: Mark 
+
+0 time: Thu Apr 05 01:12:03 PDT 2012 (1333613523286)
+0 subject: null
+0 body
+
+  
+
+We have this big issue right now because gaming is shifting from us to mobile platforms.
+It's causing all this negative momentum in a bunch of ways around gamer overall user
+engagement. ad spend from gamers. overall revenue. etc.
+
+CONFIDENTIAL FBOO15976
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED FB-HJC-ACAL-00063317
+NOT FOR MEMBERS AND STAFF ONLY
+
+   
+
+from: Mark Zuckerber 
+
+to: Mark 
+
+time: Thu Apr 05 01:13:53 PDT 2012 (1333613633057)
+subject: null
+body
+
+Pinterest and Foursquare are likely more valuable markets than photos.
+
+CONFIDENTIAL FBOO15977
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED 
+NOT FOR MEMBERS AND STAFF ONLY
+
+   
+
+from: Mark Zuckerberu 
+
+to: Mark Zuckerberg(?.
+
+time: Thu Apr 05 01:14:49 PDT 2012 (1333613689779)
+subject: null
+body
+
+Instagram can hurt us meaningfully without becoming a huge business though. For the
+others. if they become big we'll just regret not doing them.
+
+CONFIDENTIAL FBOO15978
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED FB-HJC-ACAL-00063319
+NOT FOR MEMBERS AND STAFF ONLY
+
+. from: Mark Zuckerberg
+
+. to: Mark 
+
+. time: Thu Apr 05 01:14:58 PDT 2012 (1333613698394)
+0 subject: null
+0 body
+
+  
+
+Or we can buy them then. or build them along the way.
+
+CONFIDENTIAL FBOO15979
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED 
+NOT FOR MEMBERS AND STAFF ONLY
+
+. from: Mark Zuckerberu
+
+. to: Mark 
+
+. time: Thu Apr 05 01:15:10 PDT 2012 (1333613710460)
+. subject: null
+. body
+
+  
+
+We're kind of already working on building some version of Foursquare.
+
+CONFIDENTIAL FBOO15980
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED FB-HJC-ACAL-00063321
+NOT FOR MEMBERS AND STAFF ONLY
+
+Outlook Email
+
+From: Mark Zuckerberg
+
+Sent: 4 9 2012 10:09:37 AM
+
+To: 
+
+Subject: RE: CONFIDENTIAL ANNOUNCEMENT
+
+ 
+
+Thanks. One reason people underestimate the importance of watd?uing Google is that we can likely always just buy any
+competitive startups, but it'll be a while before we can buy Google.
+
+ 
+
+m?
+
+Sent: Monday, April 09, 2012 10:04 AM
+
+To: Mark Zuckerberg
+
+Subject: Re: CONFIDENTIAL ANNOUNCEMENT
+Well played.
+
+Sent from my iPhone
+
+On Apr 9, 2012, at 9:58 AM, "Mark Zuckerberg" wrote:
+
+Confidential DO NOT SHARE
+
+Hey everyone,
+
+I'm excited to share the news that last night we reached an agreement to acquire Instagram.
+
+Below is a post about the deal that I?m about to put on my timeline. Instagram has built a successful network and
+mainstream brand by focusing on building the best mobile photos experience. After spending a lot of time with the Instagram
+team over the last few months working on Open Graph, and over the last couple of weeks discussing this, it?s clear we share
+the same values and vision for the future of mobile photos.
+
+We are committed to keeping the Instagram brand and growing their app independently. We will also continue on our FB
+Camera work. Over time we can build these two products to move closer together as it makes sense.
+
+As always, feel free to ask me any questions you have about this at this week?s open 
+
+Mark
+
+ 
+
+Timeline post below:
+
+I'm excited to share the news that we've agreed to acquire Instagram and
+that their talented team will be joining Facebook.
+
+For years, we've focused on building the best experience for sharing
+photos with your friends and family. Now, we'll be able to work even more
+closely with the Instagram team to also offer the best experiences for
+sharing beautiful mobile photos with people based on your interests.
+
+We believe these are different experiences that complement each other.
+But in order to do this well, we need to be mindful about keeping and
+building on Instagram's and features rather than just trying to
+
+CONFIDENTIAL F80020281
+
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED FB-HJC-ACAL-00067600
+NOT FOR MEMBERS AND STAFF ONLY
+
+integrate everything into Facebook.
+
+That's why we're committed to building and growing Instagram
+independently. Millions of people around the world love the Instagram app
+and the brand associated with it, and our goal is to help spread this app
+and brand to even more people.
+
+We think the fact that Instagram is connected to other services beyond
+Facebook is an important part of the experience. We plan on keeping
+features like the ability to post to other social networks, the ability
+
+to not share your Instagrams on Facebook if you want, and the ability to
+have followers and follow people separately from your friends on Facebook.
+
+These and many other features are important parts of the Instagram
+experience and we understand that. We will try to learn from Instagram's
+experience to build similar features into our other products. At the same
+time, we will try to help Instagram continue to grow by using Facebook's
+strong engineering team and infrastructure.
+
+This is an important milestone for Facebook because it's the first time
+we've ever acquired a product and company with so many users. We don't
+plan on doing many more of these, if any at all. But providing the best
+photo sharing experience is one reason why so many people love Facebook
+and we knew it wouid be worth bringing these two companies together.
+
+We're looking forward to working with the Instagram team and to all of
+the great new experiences we're going to be able to build together.
+
+CONFIDENTIAL
+HIGHLY CONFIDENTIAL TREATMENT REQUESTED
+NOT FOR MEMBERS AND STAFF ONLY
+
+FBOOZOZ82
+FB-HJC-ACAL-00067601
+

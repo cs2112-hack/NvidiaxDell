@@ -1,0 +1,27 @@
+# Target bonus — Acme offer letter (Dana Reyes)
+
+> Module Incentive_comp_acme
+
+Source: SYN-014 § 2.2 (offer letter, 2026-01-15).
+
+```catala-metadata
+declaration scope IncentiveCompAcme:
+  input annual_base_salary content money
+  output target_bonus_rate content decimal
+  output target_bonus content money
+```
+
+## SYN-014 § 2.2 — target annual bonus
+
+  Target annual bonus: fifteen percent (15%) of your annual base salary, payable in March
+  following the performance year, subject to Acme's achievement of company targets and
+  your continued employment through the payment date.
+
+The conditions on payment ("achievement of company targets") are judgments, not rules:
+they stay in the vector store. Only the rate is encoded.
+
+```catala
+scope IncentiveCompAcme:
+  definition target_bonus_rate equals 15%
+  definition target_bonus equals annual_base_salary * target_bonus_rate
+```

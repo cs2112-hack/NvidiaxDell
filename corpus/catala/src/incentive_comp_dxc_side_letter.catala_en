@@ -1,0 +1,26 @@
+# Target bonus — DXC Technology CFO side letter (real SEC filing)
+
+> Module Incentive_comp_dxc_side_letter
+
+Source: EDGAR-002, DXC Technology EX-10.7 side letter, filed 2025. Encoded to show the
+same clause shape running on a real filed document rather than an authored one.
+
+```catala-metadata
+declaration scope IncentiveCompDxc:
+  input annual_base_salary content money
+  output target_bonus_rate content decimal
+  output target_bonus content money
+```
+
+## EDGAR-002 ¶ 2–3
+
+  Effective as of April 1, 2025, your base salary will be increased to $800,000 per year,
+  and shall be payable in accordance with the Company's normal U.S. payroll practices.
+  Effective as of April 1, 2025, your target annual bonus under the Company's annual
+  incentive plan will be increased to 135% of your base salary.
+
+```catala
+scope IncentiveCompDxc:
+  definition target_bonus_rate equals 135%
+  definition target_bonus equals annual_base_salary * target_bonus_rate
+```

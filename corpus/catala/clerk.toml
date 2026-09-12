@@ -1,0 +1,14 @@
+[project]
+include_dirs = ["src"]
+
+[[target]]
+name = "liability"
+modules = ["Legal_types", "Liability_cap_acme_northwind",
+            "Service_credit_acme_northwind",
+            "Sick_leave_accrual_acme", "Expense_approval_acme", "Final_paycheck_acme",
+            "Conflict_service_credit_acme_globex",
+            "Conflict_liability_cap_with_amendment",
+            "Consulting_fees_pinnacle", "Overtime_flsa", "Incentive_comp_acme",
+            "Incentive_comp_dxc_side_letter", "Confidentiality_duration"]
+backends = ["ocaml"]
+tests = ["tests/"]

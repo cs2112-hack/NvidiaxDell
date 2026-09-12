@@ -1,0 +1,500 @@
+SOURCE: https://www.sec.gov/Archives/edgar/data/1042418/000149315225019381/ex10-1.htm
+FORM: None EX-10.1
+FILED: 2025-10-27
+MATCHED QUERY: "shall not exceed the fees paid"
+LICENSE: public SEC disclosure (EDGAR); underlying contract publicly filed
+
+EX-10.1
+2
+ex10-1.htm
+EX-10.1
+
+Exhibit
+10.1
+
+Certain
+personally identifiable information has been omitted from this exhibit pursuant to Item 601(a)(6) of Regulation S-K. [***] indicates
+that information has been redacted.
+
+MASTER
+SERVICES AGREEMENT
+
+THIS
+MASTER SERVICES AGREEMENT (the “Agreement”) is made and entered into as of this 21st day of October, 2025, by and between
+Frameshift Management, Inc. (hereinafter referred to as “Consultant”), a Delaware corporation with an address at 1108 Lavaca
+St, Suite 110-329, Austin, TX 78701, and Inhibitor Therapeutics, Inc. (the “Company”) a Delaware corporation with offices
+at 3014 West Palmira Ave., Suite 302, Tampa, FL 33629, (hereinafter Consultant and Company may be referred to individually as “Party”
+or jointly as “the Parties”).
+
+RECITALS
+
+WHEREAS,
+the Company desires to engage Consultant to provide consulting services for biostatistics, regulatory, business development and strategic
+consulting in support of Company’s programs in basal cell carcinomas in Gorlin’s syndrome, and related services that the
+Company may request (“the Services”); and
+
+WHEREAS,
+the Consultant has the skill, expertise, and know-how in certain areas needed to perform the above referenced Services;
+
+NOW,
+THEREFORE, in exchange for good and valuable consideration and promises, the sufficiency of which is hereby acknowledged, the Parties
+agree as follows:
+
+1.Engagement.
+The Company hereby engages the Consultant and the Consultant hereby accepts such engagement,
+upon the terms and conditions set forth in this Agreement, for one or more projects. The
+specific details of each project, including the services to be performed, compensation, and
+term, shall be set forth in separate statements of work (“Statements of Work”
+or “SOWs”) executed under this agreement.
+
+2.Term.
+This Agreement shall commence on October 21, 2025, and shall continue for an indefinite period
+until terminated in accordance with this Agreement. The term of any specific project shall
+be set forth in the applicable SOW. During the term of each SOW, Consultant agrees that its
+staff will be reasonably available to the Company by remote internet access, at its place
+of business, by teleconference, or at such location as the Company may reasonably request,
+from time to time, to enable Consultant to perform the Services requested. Consultant shall
+be compensated for this engagement in accordance with the compensation rate set forth in
+the applicable SOW.
+
+3.Duties.
+Upon completion of a signed SOW by the Parties, the Consultant shall provide general consulting
+services and assistance to the Company related to the performance of the Services described
+in such SOW.
+
+4.Billing
+and Performance-based Compensation.
+
+a.As
+consideration for all services rendered by Consultant under this Agreement, the Company shall
+pay Consultant at the rate of specified in the applicable SOW
+
+b.Consultant
+shall be reimbursed for business travel and other expenses incurred in performance of the
+services, as set forth in the applicable SOW or as otherwise approved by the Company. Travel
+expenses shall be pre-approved and governed by Consultant’s 2025 Travel and Expense
+Policy.
+
+c.Consultant
+shall issue monthly written invoices to the Company for consulting fees and expenses under
+this Agreement. Any payment due Consultant shall be made within fifteen (15) days of receipt
+of an invoice, via wire or ACH transfer.
+
+5.Security
+and Computer Policies. Consultant shall be subject to and shall at all times conform
+to the Company security rules and requirements for the protection of the Company’s
+facilities, materials, information, equipment and personnel. Additionally, Consultant shall
+comply with all rules of the Company concerning access to computers and networks of the Company,
+and its affiliates, and use of computer data and software.
+
+6.Independent
+Contractor.
+
+a.The
+relationship of the Consultant to the Company shall be that of an independent contractor,
+and neither this Agreement nor any conduct hereunder shall be deemed to create a relationship
+of employer-employee, partnership, joint venture, subcontractor, or any other teaming or
+common enterprise. Consultant shall be responsible for payment of all taxes including Federal,
+State and Local taxes arising out of Consultant’s activities in accordance with this
+Agreement.
+
+b.The
+Consultant shall have no authority to bind the Company to, or assume, enter into, or act
+on behalf of the Company for any obligation, agreement, or act.
+
+7.Confidentiality
+and Non-Circumvention.
+
+a.During
+the term of this Agreement, and at all times thereafter, the Consultant shall keep confidential
+and not disclose, any confidential and proprietary information learned as a result of this
+Agreement or any SOW, whether belonging to Company or its clients, to any other party other
+than in connection with Consultant’s assigned duties and activities hereunder.
+
+b.Consultant
+shall not, without the prior written consent of the Company, (a) utilize any confidential
+information to circumvent or compete with the Company, or (b) utilize information lawfully
+furnished or disclosed to Consultant by a non-party to this Agreement, or information independently
+developed by Consultant relative to the Services under this Agreement, to circumvent or compete
+with the Company.
+
+c.It
+is expressly agreed that the identities of clients, governmental authorities, corporations,
+and any other relevant third parties and contracts, processes, etc. constitute confidential
+information under this Agreement, and Consultant hereby expressly agrees that it, including,
+but not limited to its associates, agents, affiliates, representatives, contractors, shall
+not enter into a transaction, directly or indirectly, or attempt or do business with the
+Company’s client or with any third party identified or introduced by the Company without
+the prior written consent of the Company.
+
+d.Consultant
+and Company will enter into a separate form of Confidentiality Agreement (the “CDA”).
+The provisions of confidentiality and non-disclosure contained in that NDA shall be incorporated
+herein as if set forth at length herein.
+
+8.Non-Compete.
+Regarding any of the information referred to in this Agreement, the Consultant agrees not
+to use the same to compete with the Company during the term of this Agreement.
+
+9.Inventions
+and Pre-Existing Intellectual Property.
+
+a.Any
+and all inventions, discoveries, developments, improvements, innovations and copyrightable
+material and other intellectual property rights created or conceived by Consultant during
+this engagement that are directly related to Company’s programs in basal cell carcinomas
+in Gorlin’s syndrome, or incorporate any of Company’s confidential or proprietary
+materials or intellectual property, shall be the exclusive property of Company and considered
+works made for hire by Consultant for the Company. For the avoidance of doubt, Consultant
+hereby grants, transfers and assigns all right, title and interest in the same to Company,
+including without limitation the copyright therein throughout the world. Consultant will,
+at the request and cost of the Company, promptly sign, make and do all such deeds, documents,
+acts and things as the Company may reasonably require in order to effectuate the purpose
+of this paragraph.
+
+b.Notwithstanding
+Section 9(a), any and all methods, software tools, AI models, prompts, know-how and other
+intellectual property developed by Consultant prior to or independently of this engagement
+(including any modifications or improvements thereto, even if developed during the term of
+this Agreement) (collectively, the “Consultant IP”) – shall remain the
+sole and exclusive property of Consultant.
+
+c.In
+any event where Consultant’s deliverables under this Agreement incorporate or derive
+from Consultant IP, Consultant hereby grants Company a non-exclusive, non-transferable, worldwide
+license to use such Consultant IP solely as embedded in, and to the extent required to exploit,
+the deliverable, conditioned upon full payment of all amounts due.
+
+10.Termination.
+Either Party may, at any time, terminate this Agreement or any SOW (a) for material breach,
+if the breaching Party fails to cure within 15 days after written notice, or (b) without
+cause upon 45 days prior written notice. In the event of a termination under this paragraph,
+Consultant shall complete as soon as possible any tasks pending at the time of termination
+unless directed otherwise by the Company, and shall promptly return to the Company all property,
+documents, and other information belonging to the Company. If Consultant’s engagement
+hereunder is terminated for any reason, Company shall pay Consultant any unpaid fees and
+reimburse approved expenses through the Termination Date of the Agreement or the applicable
+SOW. This Agreement shall otherwise terminate at the conclusion of the Term outlined herein,
+unless the parties agree in writing to an extension or modification of same.
+
+11.Force
+Majeure. Neither Party shall be liable for any delay or failure to perform caused by
+acts beyond its reasonable control, including acts of God, natural disasters, epidemics,
+cyber-attacks, labor disputes, war, terrorism, or governmental action, provided that the
+affected Party (a) promptly notifies the other, (b) uses commercially reasonable efforts
+to mitigate, and (c) resumes full performance as soon as practicable. If a force-majeure
+event persists for more than 30 days, either Party may terminate the affected SOW upon 10
+days’ notice.
+
+12.Acknowledgement.
+Company and Consultant hereby acknowledge and agree that the terms and conditions contained
+in this Agreement are fair and reasonable and necessary for the protection of the legitimate
+business interests of Company and Consultant.
+
+13.Prohibition
+on Assignment. Because the skill, expertise, and know-how of Consultant is of material
+inducement to the Company entering into this Agreement, this Agreement shall not be assignable,
+either in whole or in part, by Consultant, nor may Consultant delegate any or all duties,
+responsibilities or obligations hereunder.
+
+14.Equitable
+Relief. Any breach of the term and conditions of this Agreement or any SOW by Consultant
+will result in material damage to the Company. It would be difficult to establish the monetary
+value of such damage. Therefore, Company shall be entitled to injunctive relief by a court
+of appropriate jurisdiction in the event of Consultant’s breach or threatened breach
+of any of the terms of this Agreement or any SOW.
+
+15.Indemnification.
+
+a.Consultant
+shall defend, indemnify, and hold harmless Company from third-party claims arising out of
+Consultant’s gross negligence or willful misconduct in performing the Services.
+
+b.Company
+shall defend, indemnify, and hold harmless Consultant from third-party claims alleging that
+materials or instructions supplied by Company infringe any intellectual-property right, or
+arising from Company’s negligence or willful misconduct.
+
+16.Limitation
+of Liability. EXCEPT FOR (a) A PARTY’S WILLFUL MISCONDUCT OR GROSS NEGLIGENCE and
+(b) EACH PARTY’S INDEMNITY OBLIGATIONS UNDER SECTION 15, NEITHER PARTY SHALL BE LIABLE
+FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, PUNITIVE, OR EXEMPLARY DAMAGES, EVEN
+IF ADVISED OF THE POSSIBILITY. EACH PARTY’S AGGREGATE LIABILITY UNDER THIS AGREEMENT
+SHALL NOT EXCEED THE FEES PAID OR PAYABLE UNDER THE RELEVANT SOW.
+
+17.Governing
+Law and Forum. This Agreement, including its validity, construction, interpretation and
+enforcement is governed by the laws of the State of Florida, without regard to the principle
+of conflicts of law. Company and Consultant agree that they will not institute any action
+against the other except in the state or federal courts of general jurisdiction in Hillsborough
+County, State of Florida, and they irrevocably submit to the jurisdiction of such courts
+and waive any objection they may have to either the jurisdiction or venue of such court.
+15. Notices. All notices, requests, demands and other communication required or permitted
+hereunder, shall be in writing and shall be deemed to have been given if delivered in person
+or by courier, or mailed by certified mail, postage prepaid, as follows:
+
+If
+to Company:
+
+Inhibitor
+Therapeutics, Inc.
+
+3014
+West Palmira Ave Suite 302
+
+Tampa,
+FL 33629 Attn: James McNulty, CFO
+
+Email:
+jamcnulty@usrxpharma.com
+
+If
+to Consultant:
+
+Frameshift
+Management, Inc.
+
+1108
+Lavaca St, Suite 110-329
+
+Austin,
+TX 78701
+
+Email:
+legal@frameshiftmgmt.com
+
+Or
+to such other address as any Party may notify the other in the manner provided above.
+
+18.Modification
+and Waiver. Failure of either Party to insist, in one or more instances, on performance
+by the other in strict accordance with the terms and conditions of this Agreement shall not
+be deemed a waiver or relinquishment of any right granted in this Agreement or of the future
+performance of any such term or condition or of any other term or condition of this Agreement,
+unless such waiver is contained in a writing signed by the Party making the waiver. This
+Agreement may be modified or amended only in writing signed by all of the Parties hereto.
+
+19.Entire
+Agreement. This Agreement, including any SOWs, exhibits or attachments hereto, constitutes
+the entire agreement between the Parties with respect to the subject matter hereof and supersedes
+all prior and contemporaneous agreements, understandings, representations, and communications,
+whether oral or written, relating to such subject matter—including any previous consulting
+agreement between the Parties. No amendment, modification, or waiver of any provision of
+this Agreement shall be effective unless in writing and signed by both Parties.
+
+20.Counterparts.
+This Agreement may be executed in two or more counterparts, each of which shall be deemed
+an original but all of which together shall constitute one and the same instrument. The execution
+of this Agreement may be by actual, electronic or facsimile signature.
+
+21.Severability.
+This Agreement is intended to be performed in accordance with, and only to the extent permitted
+by, all applicable laws, ordinances, rules and regulations. If any provision of this Agreement
+and the application of such provisions to other persons or circumstances shall not be affected
+thereby, but rather shall be enforced to the greatest extent permitted by law.
+
+22.Attorney’s
+Fees. In the event that there is any controversy or claim arising out of or relating
+to this Agreement, the prevailing party shall be entitled to recover its reasonable attorneys’
+fees, costs, and expenses from the non-prevailing party.
+
+23.Headings.
+Section headings are intended for ease of reference only and are not to be considered part
+of this Agreement and are not intended to be a full and accurate description of the contents
+hereof.
+
+IN
+WITNESS WHEREOF, the parties have caused this Agreement to be executed as of the date first above
+
+INHIBITOR
+THERAPEUTICS, INC.
+
+FRAMESHIFT
+MANAGEMENT, INC. (Consultant)
+
+By:
+
+By:
+
+Name:
+Frank O’Donnell Jr
+
+Name:
+Jonathan P. Feldmann
+
+Title:
+CEO & Executive Chairman
+
+Title:
+Chief Operating Officer
+
+Date:
+
+Date:
+
+EXHIBIT
+A
+
+STATEMENT
+OF WORK No. 1
+
+This
+Statement of Work (“SOW”) is entered into as of this 21st day of October, 2025, between Frameshift Management, Inc. (“Consultant”)
+and Inhibitor Therapeutics, Inc. (the “Company”), pursuant to the Master Services Agreement (the “Agreement”)
+between the Parties effective October 21, 2025.
+
+1.Project Title:
+HP2001 Clinical Study Report Re-Analysis and Re-Framing
+
+2.Services and
+Deliverables: This contract is a performance-based arrangement. Consultant shall perform the following services (the “Services”):
+
+●HP2001
+Clinical Study Re-Analysis and Re-Framing
+
+●Re-evaluation
+and analysis of patient-level data from HP2001, with a primary focus on the assignment of
+responses based upon the criteria set forth in the study’s Statistical Analysis Plan.
+
+●Comparison
+of that analysis with the evaluation criteria used in the approvals of vismodegib and sonidegib,
+and framing the results within the specific clinical context of BCCNS.
+
+●The
+deliverables from this re-analysis will include documentation and presentation to management
+of the following:
+
+●Regulatory
+Pathway Optimization: [***]
+
+●Endpoint
+Analysis: [***]
+
+●Reframing:
+[***]
+
+●Data
+Integrity Framework: [***]
+
+●Strategic
+Decision Support: [***]
+
+●FDA
+Meeting Request and Preparation
+
+●Based
+on the analysis above, we anticipate an opportunity to discuss the clinical path within a
+clinical advisory meeting (Type B, C or D) with FDA. This will include the following:
+
+●Briefing
+booklet and formal meeting request
+
+●Filing
+of an appropriate FDA meeting request, including briefing booklet and any necessary supporting
+materials.
+
+●If
+FDA accepts a meeting request, we will provide meeting minutes and coordinate follow-up with
+the agency for final minutes.
+
+●This
+is intended to be a preliminary, clinical advisory meeting with FDA. Additional follow-on
+work will be required for subsequent FDA submissions (including NDA filing).
+
+3.Future
+SOW: A second stage of the project, outside of the scope of this SOW, anticipates supporting
+the Company through the NDA, including regulatory support, presenting and defending our work
+and the filings before FDA, assisting with the NDA’s clinical and CMC reports assembly,
+and other necessary tasks. This will include delivering a comprehensive pre-NDA clinical
+strategy and a full HP2001 clinical study report with new analyses for the NDA filing. This
+is not included in the compensation or scope of this SOW. Consultant’s preliminary
+estimate for the cost of that future SOW is [***]. Consultant will provide detailed
+proposal and revised costs based on the outcome of the FDA meeting described above and based
+on Company’s successful completion of the formulation work for the CMC section of the
+NDA filing.
+
+4.Term:
+The term of this SOW shall commence on October 21, 2025, and shall continue until the deliverables
+are completed, unless terminated earlier in accordance with the Agreement.
+
+5.Compensation:
+For the Services performed under this Agreement, the Company shall pay Consultant the following
+fees:
+
+a.Costs
+for the analysis and management presentation described above will be a fixed [***].
+Costs for the FDA materials, meeting request, and regulatory work described above will be
+a minimum of [***], with additional costs if the scope of regulatory work expands
+beyond [***] hours (additional hours to be billed hourly). These costs will be split
+into two payments:
+
+i[***]
+upon contract execution
+
+ii[***]
+upon submission of the FDA meeting request and response from FDA (where the response
+may be acceptance of a meeting, declining a meeting, or providing written responses in lieu
+of a meeting).
+
+b.Reasonable
+and pre-approved business travel and other expenses incurred in performance of the Services
+as per the terms of the Agreement.
+
+c.Invoices
+will be submitted, and payments will be made upon the terms of the Agreement.
+
+d.Upon
+submission of the briefing package 18,000,000 unvested 4-year warrants (“Warrants”)
+to purchase an equivalent number of shares of Company common stock at the closing price on
+the day prior to execution of this Statement of Work, vesting upon one of the following:
+(1) license or sale of the Company’s itraconazole program, (2) sale of a majority of
+the Company’s equity (3) a merger or other change of control transaction wherein ownership/management
+of the Company’s itraconazole program transfers to a third party, or (4) FDA’s
+approval of the Company’s itraconazole program followed by the company proceeding to
+commercialize rather than selling or licensing. Warrants will be issued to Frameshift Innovation
+LLC, include cashless/net share provisions, and will be governed by a separate Warrant agreement
+signed by Frameshift Innovation LLC and Company.
+
+6.Company
+Responsibilities: Company will provide access to any documents and related data from
+prior studies necessary to complete the Services.
+
+7.Entire
+Agreement; Conflict: This SOW, together with the Agreement, constitutes the entire agreement
+between the Parties with respect to the Services described herein and supersedes all prior
+discussions and understandings between the Parties relating to such Services. In the event
+of any conflict or inconsistency between the terms of this SOW and the Agreement, the terms
+of the Agreement shall prevail, unless this SOW explicitly states an intent to supersede
+a specific provision of the Agreement and is signed by both Parties.
+
+Signature
+Page Follows
+
+IN
+WITNESS WHEREOF, the parties have caused this SOW to be executed as of the date first above
+
+INHIBITOR
+THERAPEUTICS, INC.
+
+FRAMESHIFT
+MANAGEMENT, INC. (Consultant)
+
+By:
+
+By:
+
+Name:
+Frank O’Donnell Jr
+
+Name:
+Jonathan P. Feldmann
+
+Title:
+CEO & Executive Chairman
+
+Title:
+Chief Operating Officer
+
+Date:
+
+Date:
