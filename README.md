@@ -1,4 +1,4 @@
-# Precedence
+# Ross
 
 **Your contracts already contain the answers as arithmetic. We compile them so they can be run.**
 
@@ -21,7 +21,7 @@ Contracts contain two kinds of sentences.
 | Liability caps, PTO accrual rates, SLA credit tiers, notice periods, approval thresholds, payment terms | "Good faith", "material breach", "commercially reasonable efforts", governing law, recitals |
 | → compiled to **Catala**, executed | → **local vector store**, quoted with citations |
 
-Precedence splits them. The rule-like clauses become typed, executable Catala scopes. Everything else is retrieved and cited. Answers are always labeled with which engine produced them, and the two are never silently blended.
+Ross splits them. The rule-like clauses become typed, executable Catala scopes. Everything else is retrieved and cited. Answers are always labeled with which engine produced them, and the two are never silently blended.
 
 Catala is the DSL used to compile French tax and social-benefit law into verified code. An MSA is not harder than the French tax code.
 
@@ -69,41 +69,6 @@ Open-source dependencies only. No third-party content that isn't cleared for use
 2. **Elicit.** A question missing inputs returns exactly which inputs are missing, from the type signature.
 3. **Conflict.** A new order form is dropped into the ingest folder; the merge is refused, both clauses shown side by side. Add the order-of-precedence rule, re-ingest, merge succeeds.
 4. **Adversary.** The counter: attacks attempted, disagreements found, all of them now permanent tests.
-
-## Running it
-
-```bash
-# toolchain (on the box)
-opam install catala            # compiler + clerk
-clerk typecheck catala/src/*.catala_en
-
-# tests — the accumulated adversarial counterexamples
-clerk test
-
-# ingest the corpus
-./precedence ingest corpus/
-
-# ask
-./precedence ask "liability cap, ordinary breach, $200k fees trailing 12 months"
-```
-
-## Repository layout
-
-```
-corpus/
-  raw/real/          public EDGAR contracts, statutes, SLAs
-  raw/templates/     CC-licensed standard agreements
-  raw/synthetic/     authored documents, incl. planted conflicts
-  manifest.csv       per-document source + license
-catala/
-  clerk.toml
-  src/               scopes: liability, leave, service credits
-  tests/             fact patterns + adversarial counterexamples
-vector_store/        non-rule clauses, chunked, versioned with src
-gold/
-  qa_pairs.jsonl     question → expected answer → source → scope
-  conflicts.jsonl    expected conflict pairs + correct resolution
-```
 
 ## Limitations
 
