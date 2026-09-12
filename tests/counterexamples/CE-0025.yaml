@@ -1,0 +1,110 @@
+id: CE-0025
+component: catala
+fact_pattern: 'Only two Measurement Periods fell below the Service Level: January 2025 and
+  February 2025. The Supplier issued an availability report for each month and then a corrected
+  restatement of each, so the Customer''s availability record carries two entries for January
+  (99.50% as first reported, 99.62% as restated) and two for February (99.71% and 99.55%).
+  No third or fourth calendar month fell below 99.90%. The Customer purports to terminate
+  for chronic failure on 5 March 2025.'
+citations:
+- MSA-SCH4 L-6.1
+- MSA-SCH4 L-2.1
+source_reasoning: 'L-2.1 fixes what is counted: ''Measurement Period means each calendar month''.
+  January 2025 is one Measurement Period however many availability reports describe it. L-6.1
+  requires the Availability Percentage to be less than 99.90% either ''in each of three consecutive
+  Measurement Periods'' or ''in any four Measurement Periods in a rolling twelve-month period''.
+  Here only two calendar months failed, so neither limb is satisfied and no termination right
+  arises. The module''s rolling_trigger counts list ENTRIES rather than distinct Measurement
+  Periods (number of q among failing_periods whose period_start falls in the 12-month window
+  >= 4), so two failing months each appearing twice satisfy the four-period limb. The consecutive
+  limb is unaffected because it matches on period_start - 1 month and - 2 month, and correctly
+  returns false - so the module''s own two limbs disagree about the same facts, which is the
+  tell. There is no assertion or documented precondition requiring the history to hold one
+  entry per Measurement Period, and nothing in Schedule 4 makes a restated month a separate
+  Measurement Period. Consequence: the module hands the Customer a right to terminate the
+  Agreement without liability for early termination charges on facts that give none.'
+expected:
+  right_arisen: false
+  rolling_trigger: false
+  right_exercisable: false
+  notice_exercises_the_right: false
+observed:
+  failing_periods:
+  - period_start: '2025-01-01'
+    period_end: '2025-01-31'
+    availability_percentage: 99.5
+  - period_start: '2025-01-01'
+    period_end: '2025-01-31'
+    availability_percentage: 99.62
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.71
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.55
+  consecutive_trigger: false
+  rolling_trigger: true
+  right_arisen: true
+  completing_periods:
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.71
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.55
+  arisen_occurrences:
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.71
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.55
+  live_occurrences:
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.71
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.55
+  assessed_occurrences:
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.71
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.55
+  trigger_period_end: '2025-02-28'
+  notice_period_days: 30.0
+  early_termination_charges_payable: false
+  exercise_deadline: '2025-03-30'
+  notice_exercises_the_right: true
+  right_lapsed: false
+  right_exercisable: true
+target:
+  module: ChronicFailure
+  path: catala/modules/ChronicFailure.catala_en
+  scope: ChronicFailureRight
+inputs:
+  availability_history:
+  - period_start: '2025-01-01'
+    period_end: '2025-01-31'
+    availability_percentage: 99.5
+  - period_start: '2025-01-01'
+    period_end: '2025-01-31'
+    availability_percentage: 99.62
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.71
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.55
+  assessment_date: '2025-03-10'
+  notice_given: true
+  notice_date: '2025-03-05'
+round: 2
+discovered: '2026-09-12'
+status: fixed
+notes: exact duplicate entries (same effect); out-of-order history entries (order-independent,
+  no effect); empty list (correct); three duplicated entries of a single month (count 3, no
+  trigger - so the defect needs two distinct months); entries for months outside the rolling
+  window (correctly excluded)

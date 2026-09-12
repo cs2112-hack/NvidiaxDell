@@ -13,7 +13,14 @@ unexecutable through the interface the whole system answers questions with
 interpreter, which serialises nothing — so the guard against its return is
 `scripts/check_executable.py`, run as step 6 of `scripts/check.sh`. What the
 tests here add is the answer CE-0009 asked for, pinned on its own facts, plus
-the invariant that the two route booleans are always opposites.
+the invariant that the two route booleans are opposites wherever the credit
+survives L-5.1.
+
+The `CE0031_` tests cover the case they are not opposites in: L-5.1 waives the
+credit, so L-5.2 routes it neither way and `settlement_due_date` is `Absent`.
+Both invoice cases are tested, because the old complementary pair got each of
+them wrong in a different direction, and the converse is tested too — a claim
+in time must still be routed and must still name a date.
 
 > Using ServiceCreditClaim
 
@@ -160,7 +167,7 @@ scope TestL5_2_SetOffAgainstNextInvoice:
     }
   assertion r.applied_against_next_invoice = true
   assertion r.paid_to_customer = false
-  assertion r.settlement_due_date = |2025-03-01|
+  assertion r.settlement_due_date = Present content |2025-03-01|
 ```
 
 ## L5_2_PaidWhereNoFurtherInvoice
@@ -185,34 +192,120 @@ scope TestL5_2_PaidWhereNoFurtherInvoice:
     }
   assertion r.applied_against_next_invoice = false
   assertion r.paid_to_customer = true
-  assertion r.settlement_due_date = |2025-03-12|
+  assertion r.settlement_due_date = Present content |2025-03-12|
 ```
 
-## L5_2_SettlementIsIndependentOfWaiver
+## CE0031_AWaivedCreditIsSettledNeitherWay
 
-L-5.1 and L-5.2 answer different questions. A waived credit is still routed by
-L-5.2's mechanics, so the two outputs must be read together: `waived` is what
-says there is nothing to settle.
+CE-0031's own facts. The Service failed the Service Level in the January 2025
+Measurement Period, which ended 31 January 2025; the Customer never claimed
+the credit in writing, and the Service is winding down so no further invoice
+will be issued. L-5.1 waives the credit. L-5.2 then cannot operate at all:
+its first limb needs an invoice issued after a claim was accepted, and there
+was no claim to accept; its second limb says which mechanism applies where
+there will be no further invoice, not that a waived credit is payable. So the
+credit is neither set off nor paid and nothing is due.
+
+Before L-5.1's waiver was made an exception to L-5.2 the two route booleans
+were complements, so one of them was always true: this fact pattern returned
+`paid_to_customer = true` with a settlement date of 2 March 2025 — the module
+required the Company to pay a credit it had itself reported as waived.
 
 ```catala
 #[test]
-declaration scope TestL5_2_SettlementIsIndependentOfWaiver:
+declaration scope TestCE0031_AWaivedCreditIsSettledNeitherWay:
   output r content ServiceCreditClaim.CreditClaim
 
-scope TestL5_2_SettlementIsIndependentOfWaiver:
+scope TestCE0031_AWaivedCreditIsSettledNeitherWay:
+  definition r equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: false
+      -- claim_date: |2025-01-31|
+      -- claim_accepted_date: |2025-01-31|
+      -- further_invoice_expected: false
+      -- next_invoice_date: |2025-01-31|
+    }
+  assertion r.claim_deadline = |2025-03-02|
+  assertion r.claim_in_time = false
+  assertion r.waived = true
+  assertion r.applied_against_next_invoice = false
+  assertion r.paid_to_customer = false
+  assertion r.settlement_due_date = Absent
+```
+
+## CE0031_AWaivedCreditIsNotSetOffEither
+
+The mirror case, which the same defect produced the other way round: the same
+waived credit where a further invoice *will* be issued. L-5.2's first limb
+presupposes a claim that was accepted, so a waived credit is not set off
+against that invoice either, and there is still no settlement date.
+
+A claim one day late is used here rather than no claim at all, so that the
+route is tested on the other branch of L-5.1 as well: L-5.1 waives a late
+claim and a missing claim alike.
+
+```catala
+#[test]
+declaration scope TestCE0031_AWaivedCreditIsNotSetOffEither:
+  output r content ServiceCreditClaim.CreditClaim
+
+scope TestCE0031_AWaivedCreditIsNotSetOffEither:
   definition r equals
     output of ServiceCreditClaim.CreditClaim with {
       -- measurement_period_end: |2025-01-31|
       -- claim_made: true
       -- claim_date: |2025-03-03|
       -- claim_accepted_date: |2025-03-10|
-      -- further_invoice_expected: false
+      -- further_invoice_expected: true
       -- next_invoice_date: |2025-04-01|
     }
   assertion r.waived = true
   assertion r.applied_against_next_invoice = false
-  assertion r.paid_to_customer = true
-  assertion r.settlement_due_date = |2025-04-09|
+  assertion r.paid_to_customer = false
+  assertion r.settlement_due_date = Absent
+```
+
+## CE0031_WaiverDoesNotSwallowASurvivingCredit
+
+The converse of CE-0031: L-5.1's waiver is an exception to L-5.2, so it must
+not fire where the claim was in time. The same two invoice cases as above, on
+a claim made on the thirtieth day, still resolve to exactly one route each and
+still name a date.
+
+```catala
+#[test]
+declaration scope TestCE0031_WaiverDoesNotSwallowASurvivingCredit:
+  output with_invoice content ServiceCreditClaim.CreditClaim
+  output without_invoice content ServiceCreditClaim.CreditClaim
+
+scope TestCE0031_WaiverDoesNotSwallowASurvivingCredit:
+  definition with_invoice equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: true
+      -- claim_date: |2025-03-02|
+      -- claim_accepted_date: |2025-03-10|
+      -- further_invoice_expected: true
+      -- next_invoice_date: |2025-04-01|
+    }
+  definition without_invoice equals
+    output of ServiceCreditClaim.CreditClaim with {
+      -- measurement_period_end: |2025-01-31|
+      -- claim_made: true
+      -- claim_date: |2025-03-02|
+      -- claim_accepted_date: |2025-03-10|
+      -- further_invoice_expected: false
+      -- next_invoice_date: |2025-04-01|
+    }
+  assertion with_invoice.waived = false
+  assertion with_invoice.applied_against_next_invoice = true
+  assertion with_invoice.paid_to_customer = false
+  assertion with_invoice.settlement_due_date = Present content |2025-04-01|
+  assertion without_invoice.waived = false
+  assertion without_invoice.applied_against_next_invoice = false
+  assertion without_invoice.paid_to_customer = true
+  assertion without_invoice.settlement_due_date = Present content |2025-04-09|
 ```
 
 ## CE0009_TheFactPatternThatCouldNotBeAnswered
@@ -245,22 +338,24 @@ scope TestCE0009_TheFactPatternThatCouldNotBeAnswered:
   assertion r.waived = false
   assertion r.applied_against_next_invoice = true
   assertion r.paid_to_customer = false
-  assertion r.settlement_due_date = |2026-04-01|
+  assertion r.settlement_due_date = Present content |2026-04-01|
 ```
 
-## CE0009_TheTwoRoutesAreAlwaysOpposites
+## CE0009_TheTwoRoutesAreOppositesWhereTheCreditSurvives
 
-L-5.2 admits exactly two routes and no third, so whichever way the exception
-hierarchy resolves, exactly one of the two booleans is true. Asserted on both
-sides of the only condition that decides it.
+L-5.2 admits exactly two routes and no third, so for a credit that survives
+L-5.1 exactly one of the two booleans is true whichever way the exception
+hierarchy resolves. Asserted on both sides of the only condition that decides
+it. Where L-5.1 waives the credit neither route operates and both are false —
+that case is `CE0031_AWaivedCreditIsSettledNeitherWay`.
 
 ```catala
 #[test]
-declaration scope TestCE0009_TheTwoRoutesAreAlwaysOpposites:
+declaration scope TestCE0009_TheTwoRoutesAreOppositesWhereTheCreditSurvives:
   output with_invoice content ServiceCreditClaim.CreditClaim
   output without_invoice content ServiceCreditClaim.CreditClaim
 
-scope TestCE0009_TheTwoRoutesAreAlwaysOpposites:
+scope TestCE0009_TheTwoRoutesAreOppositesWhereTheCreditSurvives:
   definition with_invoice equals
     output of ServiceCreditClaim.CreditClaim with {
       -- measurement_period_end: |2026-01-31|
@@ -285,5 +380,5 @@ scope TestCE0009_TheTwoRoutesAreAlwaysOpposites:
     = (not without_invoice.paid_to_customer)
   assertion with_invoice.applied_against_next_invoice = true
   assertion without_invoice.paid_to_customer = true
-  assertion without_invoice.settlement_due_date = |2026-04-09|
+  assertion without_invoice.settlement_due_date = Present content |2026-04-09|
 ```

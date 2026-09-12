@@ -1,0 +1,996 @@
+[
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "ChronicFailure",
+      "path": "catala/modules/ChronicFailure.catala_en",
+      "scope": "ChronicFailureRight"
+    },
+    "fact_pattern": "The Availability Percentage for the Service was 99.50% in each of January, February, March and April 2025. The right to terminate for chronic failure therefore arose twice: once on the completion of the Jan/Feb/Mar run of three consecutive Measurement Periods (the Measurement Period giving rise to it ending 31 March 2025, so exercisable to 30 April 2025), and again on the completion of the Feb/Mar/Apr run (period ending 30 April 2025, exercisable to 30 May 2025). The Customer gave 30 days' written notice of termination on 15 April 2025 - squarely inside the window for the first occurrence. The question is put to the module on 10 June 2025, after both windows have closed.",
+    "inputs": {
+      "availability_history": [
+        {
+          "period_start": "2025-01-01",
+          "period_end": "2025-01-31",
+          "availability_percentage": 99.5
+        },
+        {
+          "period_start": "2025-02-01",
+          "period_end": "2025-02-28",
+          "availability_percentage": 99.5
+        },
+        {
+          "period_start": "2025-03-01",
+          "period_end": "2025-03-31",
+          "availability_percentage": 99.5
+        },
+        {
+          "period_start": "2025-04-01",
+          "period_end": "2025-04-30",
+          "availability_percentage": 99.5
+        }
+      ],
+      "assessment_date": "2025-06-10",
+      "notice_given": true,
+      "notice_date": "2025-04-15"
+    },
+    "expected": {
+      "notice_exercises_the_right": true,
+      "right_lapsed": false,
+      "right_exercisable": true
+    },
+    "observed": {
+      "notice_exercises_the_right": false,
+      "right_lapsed": true,
+      "right_exercisable": false,
+      "trigger_period_end": "2025-04-30",
+      "exercise_deadline": "2025-05-30"
+    },
+    "citations": [
+      "MSA-SCH4 L-6.1",
+      "MSA-SCH4 L-6.2",
+      "MSA-SCH4 L-2.1"
+    ],
+    "source_reasoning": "L-6.1 gives the right where the Availability Percentage is less than 99.90% in each of three consecutive Measurement Periods. Jan, Feb and Mar 2025 are three such consecutive Measurement Periods (L-2.1: each calendar month), so a right arose on the end of the March Measurement Period. L-6.2 requires the right to be exercised 'within 30 days after the end of the Measurement Period which gives rise to it, failing which it lapses in respect of THAT OCCURRENCE'. The words 'that occurrence' fix the unit of lapse as the individual occurrence, and the Measurement Period giving rise to the March occurrence ended 31 March 2025, so its window ran to 30 April 2025. Notice on 15 April 2025 is inside that window and therefore exercises the right; nothing in L-6.2 makes the later Feb/Mar/Apr occurrence displace it. The module instead picks a single trigger_period_end, preferring whichever occurrence is still 'live' at the assessment date and otherwise the latest arisen one (here 30 April), and then tests the notice against that one occurrence only - so once the March occurrence's own window closes, the module retroactively forgets that the notice exercised it and reports the right as lapsed and unexercisable. Probed on the same facts with an assessment date of 20 April 2025 the module returns notice_exercises_the_right = true, which shows the answer changing with the date the question is asked rather than with the facts L-6.2 makes relevant.",
+    "attacks_tried": [
+      "notice on the period end date itself (notice_date > trigger required - defensible: not 'after the end')",
+      "notice inside the later occurrence's window only (handled correctly)",
+      "assessment date inside the earlier window (correct)",
+      "assessment date after all windows with no notice (correctly lapsed)",
+      "empty availability_history (Absent optionals, no trigger - correct)",
+      "rolling 12-month window endpoints at p-11 months (12 months inclusive - correct)",
+      "consecutive trigger with a one-month gap (correctly no trigger)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "ChronicFailure",
+      "path": "catala/modules/ChronicFailure.catala_en",
+      "scope": "ChronicFailureRight"
+    },
+    "fact_pattern": "Only two Measurement Periods fell below the Service Level: January 2025 and February 2025. The Supplier issued an availability report for each month and then a corrected restatement of each, so the Customer's availability record carries two entries for January (99.50% as first reported, 99.62% as restated) and two for February (99.71% and 99.55%). No third or fourth calendar month fell below 99.90%. The Customer purports to terminate for chronic failure on 5 March 2025.",
+    "inputs": {
+      "availability_history": [
+        {
+          "period_start": "2025-01-01",
+          "period_end": "2025-01-31",
+          "availability_percentage": 99.5
+        },
+        {
+          "period_start": "2025-01-01",
+          "period_end": "2025-01-31",
+          "availability_percentage": 99.62
+        },
+        {
+          "period_start": "2025-02-01",
+          "period_end": "2025-02-28",
+          "availability_percentage": 99.71
+        },
+        {
+          "period_start": "2025-02-01",
+          "period_end": "2025-02-28",
+          "availability_percentage": 99.55
+        }
+      ],
+      "assessment_date": "2025-03-10",
+      "notice_given": true,
+      "notice_date": "2025-03-05"
+    },
+    "expected": {
+      "right_arisen": false,
+      "rolling_trigger": false,
+      "right_exercisable": false,
+      "notice_exercises_the_right": false
+    },
+    "observed": {
+      "right_arisen": true,
+      "rolling_trigger": true,
+      "right_exercisable": true,
+      "notice_exercises_the_right": true,
+      "consecutive_trigger": false,
+      "trigger_period_end": "2025-02-28",
+      "exercise_deadline": "2025-03-30"
+    },
+    "citations": [
+      "MSA-SCH4 L-6.1",
+      "MSA-SCH4 L-2.1"
+    ],
+    "source_reasoning": "L-2.1 fixes what is counted: 'Measurement Period means each calendar month'. January 2025 is one Measurement Period however many availability reports describe it. L-6.1 requires the Availability Percentage to be less than 99.90% either 'in each of three consecutive Measurement Periods' or 'in any four Measurement Periods in a rolling twelve-month period'. Here only two calendar months failed, so neither limb is satisfied and no termination right arises. The module's rolling_trigger counts list ENTRIES rather than distinct Measurement Periods (number of q among failing_periods whose period_start falls in the 12-month window >= 4), so two failing months each appearing twice satisfy the four-period limb. The consecutive limb is unaffected because it matches on period_start - 1 month and - 2 month, and correctly returns false - so the module's own two limbs disagree about the same facts, which is the tell. There is no assertion or documented precondition requiring the history to hold one entry per Measurement Period, and nothing in Schedule 4 makes a restated month a separate Measurement Period. Consequence: the module hands the Customer a right to terminate the Agreement without liability for early termination charges on facts that give none.",
+    "attacks_tried": [
+      "exact duplicate entries (same effect)",
+      "out-of-order history entries (order-independent, no effect)",
+      "empty list (correct)",
+      "three duplicated entries of a single month (count 3, no trigger - so the defect needs two distinct months)",
+      "entries for months outside the rolling window (correctly excluded)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "QuotaRelief",
+      "path": "catala/modules/QuotaRelief.catala_en",
+      "scope": "CommissionAfterRelief"
+    },
+    "fact_pattern": "A quota-bearing salesperson with an assigned FY26 Quota of GBP 1,200,000 and annual base salary of GBP 120,000 is absent on long-term sickness absence continuously from 1 August 2025 to 30 November 2026, so the whole of the FY26 Plan Year (1 October 2025 - 30 September 2026) falls within the absence. She signs no contracts in the Plan Year, so Net Booked Revenue is GBP 0. The Company asks what commission is payable to her for FY26.",
+    "inputs": {
+      "assigned_quota": "1200000.00",
+      "absence_periods": [
+        {
+          "category": "LongTermSicknessAbsence",
+          "start_date": "2025-08-01",
+          "end_date": "2026-11-30"
+        }
+      ],
+      "net_booked_revenue": "0.00",
+      "new_logo_share": 0.0,
+      "commencement_date": "2020-01-01",
+      "annual_base_salary": "120000.00"
+    },
+    "expected": {
+      "commission_payable": "0.00",
+      "quota_for_attainment": "0.00"
+    },
+    "observed": {
+      "__error__": "CatalaError",
+      "diagnostic": "During evaluation: a value is being used as denominator in a division and it computed to zero. -> commission.catala_en:272 'definition attainment_pct equals net_booked_revenue / quota' (S-2 Definitions)"
+    },
+    "citations": [
+      "COMM-PLAN S-6.1",
+      "COMM-PLAN S-6.2",
+      "COMM-PLAN S-3.1",
+      "COMM-PLAN S-2.5",
+      "COMM-PLAN S-1.1"
+    ],
+    "source_reasoning": "S-6.1 is engaged: long-term sickness absence for a continuous period of 30 days or more. It then mandates that 'the Employee's Quota is reduced by 1/365th of the annual Quota for each day of such absence'. All 365 days of the Plan Year (S-1.1: 1 October 2025 to 30 September 2026) are days of that absence, so the mandated reduction is 365/365 of the annual Quota - the Quota is reduced to GBP 0. S-6.2 requires that relief to be applied before Attainment is calculated. The Plan then answers the question put without needing Attainment at all: S-3.1 computes commission as 'Net Booked Revenue multiplied by the Base Commission Rate, multiplied by the accelerator determined under S-4', and Net Booked Revenue is GBP 0 (S-2.3: no contracts signed in the Plan Year), so the product is GBP 0 whatever the accelerator. S-5.1's cap does not bite. The Plan therefore fixes commission_payable at GBP 0.00. The module instead crashes: QuotaRelief faithfully produces a relieved Quota of GBP 0 and Commission.Attainment divides Net Booked Revenue by it. This is a composition-seam defect - QuotaRelief's output domain includes GBP 0 on facts S-6.1 compels, and Commission's input domain excludes it (the scope even carries 'assertion quota > $0', which does not prevent the division from being evaluated). A lawful question is turned into an error. The same crash is reachable directly on Commission.Attainment with net_booked_revenue $0 / quota $0.",
+    "attacks_tried": [
+      "absence of 364 in-year days (quota GBP 3,287.67 - no crash)",
+      "absence wholly outside the Plan Year (relief_days 0 - correct)",
+      "absence spanning the Plan Year exactly (same crash)",
+      "non-qualifying category for the full year (no relief - correct)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "QuotaRelief",
+      "path": "catala/modules/QuotaRelief.catala_en",
+      "scope": "CommissionAfterRelief"
+    },
+    "fact_pattern": "A salesperson who joined before the Plan Year began has an assigned FY26 Quota of GBP 750,000 and an annual base salary of GBP 120,000. She takes statutory parental leave for a continuous period of 30 days, from 1 to 30 November 2025, wholly within the Plan Year. Her Net Booked Revenue for FY26 is GBP 344,178.08, none of it attributable to New Logo customers.",
+    "inputs": {
+      "assigned_quota": "750000.00",
+      "absence_periods": [
+        {
+          "category": "StatutoryParentalLeave",
+          "start_date": "2025-11-01",
+          "end_date": "2025-11-30"
+        }
+      ],
+      "net_booked_revenue": "344178.08",
+      "new_logo_share": 0.0,
+      "commencement_date": "2020-01-01",
+      "annual_base_salary": "120000.00"
+    },
+    "expected": {
+      "commission_payable": "0.00",
+      "accelerator": 0.0
+    },
+    "observed": {
+      "commission_payable": 27534.25,
+      "quota_for_attainment": 688356.16,
+      "attainment_pct": 0.5,
+      "s4_1_band": 1.0,
+      "accelerator": 1.0,
+      "commission_before_cap": 27534.25
+    },
+    "citations": [
+      "COMM-PLAN S-6.1",
+      "COMM-PLAN S-6.2",
+      "COMM-PLAN S-2.2",
+      "COMM-PLAN S-4.1",
+      "COMM-PLAN S-3.1"
+    ],
+    "source_reasoning": "S-6.1 fixes the reduction as '1/365th of the annual Quota for each day of such absence' - 30 days x GBP 750,000 / 365 = GBP 61,643.8356164383..., so the Quota after relief is GBP 688,356.1643835616.... S-6.1 specifies no rounding of that reduction and the Plan confers no power to round it. S-6.2 applies the relief before Attainment. S-2.2 defines Attainment as Net Booked Revenue expressed as a percentage of Quota - a ratio, so it can be taken on the exact relieved Quota without representing sub-penny money: GBP 344,178.08 / GBP 688,356.1643835616... = 49.99999968%, which is less than 50%. S-4.1(a) therefore applies ('Attainment of less than 50%: accelerator of 0.0'), not S-4.1(b). S-3.1 then gives commission = GBP 344,178.08 x 8.0% x 0.0 = GBP 0.00 (S-5.1's cap of GBP 300,000 is not engaged). The module rounds the S-6.1 reduction to the nearest penny mid-computation (relief = GBP 61,643.84, GBP 0.0043835... more than the Plan's reduction), which shrinks the relieved Quota to GBP 688,356.16 and lifts Attainment to exactly 50.00000000%, crossing into S-4.1(b) and multiplying the accelerator from 0.0 to 1.0. One rounded penny in an intermediate quantity moves GBP 27,534.25.",
+    "attacks_tried": [
+      "relief that terminates in pence (e.g. 73 days on GBP 730,000 - exact, no discrepancy)",
+      "rounding that goes down rather than up (cannot be made to straddle a band boundary at whole-penny Net Booked Revenue)",
+      "the same construction at the 100% and 150% band boundaries (reachable but the 50% boundary is the starkest, 0.0 vs 1.0)",
+      "S-5.3's 200% boundary (cap only, smaller effect)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "QuotaRelief",
+      "path": "catala/modules/QuotaRelief.catala_en",
+      "scope": "RelievedQuota"
+    },
+    "fact_pattern": "An employee with an annual Quota of GBP 730,000 is signed off sick continuously from 1 January 2026 to 9 February 2026 - 40 consecutive days of long-term sickness absence. The absence is recorded as two entries because it was certified by two successive fit notes: 1-20 January 2026 and 21 January - 9 February 2026. The two periods abut with no day of attendance between them.",
+    "inputs": {
+      "annual_quota": "730000.00",
+      "absence_periods": [
+        {
+          "category": "LongTermSicknessAbsence",
+          "start_date": "2026-01-01",
+          "end_date": "2026-01-20"
+        },
+        {
+          "category": "LongTermSicknessAbsence",
+          "start_date": "2026-01-21",
+          "end_date": "2026-02-09"
+        }
+      ]
+    },
+    "expected": {
+      "relief_days": 40,
+      "relief": "80000.00",
+      "relieved_quota": "650000.00",
+      "quota_for_attainment": "650000.00"
+    },
+    "observed": {
+      "relief_days": 0.0,
+      "relief": 0.0,
+      "relieved_quota": 730000.0,
+      "quota_for_attainment": 730000.0
+    },
+    "citations": [
+      "COMM-PLAN S-6.1",
+      "COMM-PLAN S-6.2"
+    ],
+    "source_reasoning": "S-6.1 conditions relief on the employee being 'absent on statutory parental leave, adoption leave or long-term sickness absence for a continuous period of 30 days or more'. The test is on the continuous period of absence, not on any administrative record of it: 1 January to 9 February 2026 is one continuous period of 40 days of long-term sickness absence, so the gateway is satisfied and the Quota must be 'reduced by 1/365th of the annual Quota for each day of such absence' - 40/365 x GBP 730,000 = GBP 80,000 exactly, leaving a relieved Quota of GBP 650,000 for S-6.2's Attainment calculation. The module applies the 30-day gateway per list entry (QualifyingAbsence.is_qualifying tests days_of_absence of a single AbsencePeriod), so each 20-day fit-note record fails the gateway and the employee gets nothing. Probed with the identical absence expressed as one record (1 January - 9 February 2026) the module returns relief_days 40 and relief GBP 80,000, so the module's answer turns on how the absence was written down rather than on how long the employee was absent. The relief_days aggregation itself is a union over plan_year_days and handles overlaps and duplicates correctly - the defect is purely in gating qualification per record.",
+    "attacks_tried": [
+      "two 20-day records with a one-day gap between them (correctly no relief - not a continuous period)",
+      "overlapping qualifying absences (correctly deduplicated by the plan_year_days union)",
+      "a 20-day parental leave abutting a 20-day sickness absence (same defect, and S-6.1's disjunctive list makes the combined period qualifying)",
+      "single 29-day and 30-day records (gateway boundary correct)",
+      "duplicate identical absence records (correctly not double-counted)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "retention",
+      "path": "catala/modules/retention.catala_en",
+      "scope": "RetentionEnd"
+    },
+    "fact_pattern": "An Employee Record for a leaver whose employment ended on 29 February 2020. Pensions legislation requires the record to be kept for six years, i.e. for the same period as R-3.1(a) already specifies - not for a longer one. The business unit asks when the record may be deleted.",
+    "inputs": {
+      "data_class": "EmployeeRecord",
+      "retention_trigger_date": "2020-02-29",
+      "consent_renewal_dates": [],
+      "statutory_retention_applies": true,
+      "statutory_retention_period": {
+        "years": 6,
+        "months": 0,
+        "days": 0
+      }
+    },
+    "expected": "2026-02-28",
+    "observed": "2026-03-01",
+    "citations": [
+      "DATA-RET R-3.1",
+      "DATA-RET R-3.3",
+      "DATA-RET R-1.2"
+    ],
+    "source_reasoning": "R-3.3 is an exception to R-3.1(a) only for 'records required to be retained for a LONGER period under pensions or payroll legislation'. A statutory period of six years is not longer than R-3.1(a)'s six years, so R-3.3 is not engaged and R-3.1(a) governs alone: 'Employee Record: 6 years from the end of employment'. Six years from 29 February 2020 falls on a date that does not exist, and R-1.2 settles the direction: 'Where this Standard specifies a maximum period, business units are expected to delete earlier where the purpose ... has been achieved' - the period is a ceiling, so it resolves to 28 February 2026, the last day that is certainly within six years. Retaining to 1 March 2026 keeps the record for a day the Standard does not authorise. The module reaches 1 March 2026 because its r3_3 limb takes Date.max of the round-DOWN six years (2026-02-28) and a round-UP evaluation of the statutory period (Date.add_round_up of 2020-02-29, 6 years = 2026-03-01). The round-up is only justifiable for a statutory floor that genuinely exceeds the Standard's own period; applied to a statutory period equal to R-3.1(a)'s, it silently lengthens the Standard's own maximum. The module's two paths to the same legal quantity disagree: with statutory_retention_applies = false the same trigger yields 2026-02-28, and with a statutory period expressed as 72 months rather than 6 years it again yields 2026-03-01.",
+    "attacks_tried": [
+      "statutory period shorter than six years (3 years -> 2026-02-28, correct)",
+      "statutory period genuinely longer (10 years -> 2030-03-01, correct on the module's stated floor reasoning)",
+      "non-leap trigger dates with an equal statutory period (no discrepancy - year addition is only ambiguous from 29 February)",
+      "13 months from 31 January (2026-02-28, consistent round-down)",
+      "12 months from 29 February (2025-02-28, consistent)",
+      "R-3.1(d) with most_recent_engagement_date earlier than collection (Date.max correct)",
+      "R-3.2 consent renewals out of order and empty (maximum-or-consented correct)",
+      "R-3.2 consent predating the conclusion of recruitment (exception substitutes an earlier date, which is what 'by way of exception' requires)",
+      "statutory_retention_applies with a non-EmployeeRecord class (correctly ignored)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "NdaSurvival",
+      "path": "catala/modules/NdaSurvival.catala_en",
+      "scope": "SurvivalEnd"
+    },
+    "fact_pattern": "A mutual NDA on the standard form with an Effective Date of 1 July 2024, never terminated early. A dispute arises about information the Counterparty disclosed to the Company on 1 January 2023 - eighteen months before the NDA existed. N-2.1 makes information disclosed before the date of the Agreement 'Confidential Information', so the question is properly put: did the N-3 obligations of confidence subsist on 1 January 2023?",
+    "inputs": {
+      "effective_date": "2024-07-01",
+      "is_personal_data": false,
+      "information_is_trade_secret": false,
+      "information_remains_trade_secret": false,
+      "assessment_date": "2023-01-01"
+    },
+    "expected": {
+      "obligations_subsist": false
+    },
+    "observed": {
+      "obligations_subsist": true,
+      "agreement_end_date": "2026-07-01",
+      "survival_end_date": "2029-07-01"
+    },
+    "citations": [
+      "NDA-MUT N-5.1",
+      "NDA-MUT N-3.1",
+      "NDA-MUT N-3.2",
+      "NDA-MUT N-2.1"
+    ],
+    "source_reasoning": "N-5.1 fixes the start of the obligations: 'This Agreement takes effect on the Effective Date and continues for a period of 2 years'. The obligations in N-3.1 and N-3.2 are obligations of the Recipient under this Agreement; before the Effective Date the Agreement has no effect, so no obligation of confidence under N-3 subsists. N-2.1 ('whether before or after the date of this Agreement') extends the SUBJECT MATTER of the obligations backwards to pre-contractual disclosures - it does not backdate the obligations themselves, which is the very reason N-2.1 is needed. The answer for 1 January 2023 is therefore that the obligations did not subsist. The module's n3_in_term limb defines obligations_subsist as true under the single condition assessment_date <= agreement_end_date, with no lower bound at the Effective Date, so it returns true for every date in history before 1 July 2024 - including dates before the parties were in contact. The scope does assert agreement_end_date >= effective_date, so the module knows where the term starts; it simply does not use it on this edge.",
+    "attacks_tried": [
+      "assessment on the Effective Date itself (true - correct)",
+      "assessment on agreement_end_date and one day after (correct boundary at N-5.1/N-5.2)",
+      "assessment exactly at agreement_end + 3 years (true, inclusive - correct on N-5.2)",
+      "termination notice before the Effective Date (correctly ignored)",
+      "termination notice whose 30 days expire after the 2-year term (correctly ignored - N-5.1 says 'terminated EARLIER')",
+      "29 February Effective Date with date round up (2026-03-01 / 2029-03-01, consistent with N-5.1/N-5.2 as periods of protection)",
+      "attempts to falsify both scope assertions (both are vacuous on the current limbs - no input reaches them)"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "ServiceCreditClaim",
+      "path": "catala/modules/ServiceCreditClaim.catala_en",
+      "scope": "CreditClaim"
+    },
+    "fact_pattern": "The Service failed the Service Level in the January 2025 Measurement Period, which ended 31 January 2025. The Customer never claimed the Service Credit in writing. The Service is winding down and no further invoice will be issued to the Customer. The Supplier asks how the credit is to be settled.",
+    "inputs": {
+      "measurement_period_end": "2025-01-31",
+      "claim_made": false,
+      "claim_date": "2025-01-31",
+      "claim_accepted_date": "2025-01-31",
+      "further_invoice_expected": false,
+      "next_invoice_date": "2025-01-31"
+    },
+    "expected": {
+      "waived": true,
+      "applied_against_next_invoice": false,
+      "paid_to_customer": false
+    },
+    "observed": {
+      "waived": true,
+      "applied_against_next_invoice": false,
+      "paid_to_customer": true,
+      "settlement_due_date": "2025-03-02",
+      "claim_deadline": "2025-03-02",
+      "claim_in_time": false
+    },
+    "citations": [
+      "MSA-SCH4 L-5.1",
+      "MSA-SCH4 L-5.2"
+    ],
+    "source_reasoning": "L-5.1: 'The Customer must claim a Service Credit in writing within 30 days after the end of the Measurement Period to which it relates. A Service Credit not claimed within that period is waived.' No claim was made, so the credit is waived - the module agrees (waived = true). L-5.2 then cannot operate: its first limb applies a Service Credit 'against the next invoice issued AFTER THE CLAIM IS ACCEPTED' and its second limb pays the Service Credit to the Customer only 'where no further invoice will be issued'; both presuppose a subsisting, claimed and accepted Service Credit. A credit that L-5.1 has waived is not payable at all, so neither limb operates and the correct answer is that it is neither set off nor paid. The module derives paid_to_customer solely from 'not applied_against_next_invoice', and applied_against_next_invoice solely from further_invoice_expected, with neither gated on claim_in_time. The two booleans are complementary by construction, so the pair cannot express 'no settlement' and one of them is always true: here the module reports that the Company must pay the Customer a waived credit, with a settlement_due_date of 2 March 2025. The mirror case (further_invoice_expected true) reports applied_against_next_invoice = true on the same waived credit. settlement_due_date is typed 'date' rather than 'optional of date', so it too is forced to name a date for a credit that will never be settled.",
+    "attacks_tried": [
+      "claim on the deadline (2025-03-02, in time - correct on 'within 30 days after')",
+      "claim one day late (waived - correct)",
+      "a late claim that the Supplier nonetheless accepted (same defect but muddied by whether acceptance waives the waiver, so the never-claimed case was used instead)",
+      "next_invoice_date earlier than claim_accepted_date (module returns it unchecked, contrary to L-5.2's 'issued after the claim is accepted', but the correct date is not derivable from the inputs so this is not recorded as a separate break)"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "NdaSurvival",
+      "path": "catala/modules/NdaSurvival.catala_en",
+      "scope": "SurvivalEnd"
+    },
+    "fact_pattern": "NDA effective 1 July 2024, not terminated early, so it expires 1 July 2026. The Confidential Information is personal data and no trade secret. The Recipient deletes the personal data on 1 August 2026, one month after expiry. Do the obligations of confidence subsist on 1 January 2027, and when do they end?",
+    "inputs": {
+      "effective_date": "2024-07-01",
+      "is_personal_data": true,
+      "date_ceased_to_hold": "2026-08-01",
+      "information_is_trade_secret": false,
+      "information_remains_trade_secret": false,
+      "assessment_date": "2027-01-01"
+    },
+    "expected": null,
+    "observed": {
+      "survival_end_date": "2026-08-01",
+      "obligations_subsist": false,
+      "agreement_end_date": "2026-07-01"
+    },
+    "citations": [
+      "NDA-MUT N-5.2",
+      "NDA-MUT N-5.4",
+      "NDA-MUT N-6.2"
+    ],
+    "source_reasoning": "Reading (1), which the module adopts: N-5.4 is 'by way of exception to N-5.2' and therefore substitutes its own duration wholesale, so for personal data the obligations last exactly as long as the Recipient holds it (floored at the end of the Agreement, since N-3 binds during the term). Yield: survival_end_date 2026-08-01, obligations_subsist false at 1 January 2027. Reading (2): N-5.2's opening words are mandatory and unqualified - 'The obligations of confidence in N-3 SURVIVE expiry or termination of this Agreement and continue for a period of 3 years' - and N-5.3 and N-5.4 sit side by side as exceptions for two categories that plainly need LONGER protection (a trade secret for so long as it remains one; personal data for so long as it is held), so N-5.4 operates only where it lengthens the three years. Yield: survival_end_date 2029-07-01, obligations_subsist true at 1 January 2027. Nothing in N-5 chooses between them. The choice is material and the module's choice is the aggressive one: on reading (1) a Recipient extinguishes its confidentiality obligation by deleting the data, and if it ceases to hold the personal data during the term (probed with date_ceased_to_hold 2025-06-01) the module returns survival_end_date = agreement_end_date, i.e. the N-3 obligations do not survive expiry by even one day - which is hard to reconcile with N-5.2's express word 'survive'. N-6.2's 'the retained copy remains subject to this Agreement' cuts slightly towards reading (1) but addresses retention, not deletion. The module's own note discusses the N-5.3/N-5.4 overlap and the E-7.2-style layering questions but not this one, so the reading is unrecorded.",
+    "attacks_tried": [
+      "ceased to hold during the term (survival_end_date = agreement_end_date - zero survival)",
+      "ceased to hold later than 3 years after expiry (module correctly extends beyond N-5.2)",
+      "date_ceased_to_hold Absent (Absent survival end - consistent with either reading)",
+      "the n5_3/n5_4/n5_34 four-way partition (complete and disjoint on the two booleans - no Conflict reachable)"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "NdaSurvival",
+      "path": "catala/modules/NdaSurvival.catala_en",
+      "scope": "SurvivalEnd"
+    },
+    "fact_pattern": "NDA effective 1 July 2024, expired 1 July 2026. The Confidential Information constituted a trade secret when disclosed but no longer remains a trade secret. It is not personal data. The question is asked on 1 January 2027.",
+    "inputs": {
+      "effective_date": "2024-07-01",
+      "is_personal_data": false,
+      "information_is_trade_secret": true,
+      "information_remains_trade_secret": false,
+      "assessment_date": "2027-01-01"
+    },
+    "expected": null,
+    "observed": {
+      "survival_end_date": null,
+      "obligations_subsist": false,
+      "agreement_end_date": "2026-07-01"
+    },
+    "citations": [
+      "NDA-MUT N-5.3",
+      "NDA-MUT N-5.2"
+    ],
+    "source_reasoning": "The module returns Absent for survival_end_date while simultaneously holding that the obligations do not subsist. Absent means something definite elsewhere in the same scope - in the n5_4 limb it means 'the Recipient still holds the personal data, so no end date is yet fixed', and in the n5_34 limb it means 'the information remains a trade secret' - i.e. open-ended protection. Reporting open-ended protection together with obligations that have already ended is not a state the Agreement can be in. Which output is wrong depends on a reading N-5.3 does not settle. Reading (1): N-5.3 substitutes 'for so long as that information remains a trade secret', so the obligations ended on the day the information ceased to be a trade secret - the Agreement fixes a date, but that date is not among the scope's inputs, so the module cannot produce it and Absent is a modelling gap rather than a wrong date. Reading (2): N-5.3's exception is spent once the information is no longer a trade secret and the obligations end no later than the end of the Agreement, yielding survival_end_date 2026-07-01. Either way Absent is not the answer. Recorded as an ambiguity rather than a break because no clause compels a particular date on the inputs the scope accepts; the fix is an input for the date the trade secret lapsed, or a reading stated on the face of the module.",
+    "attacks_tried": [
+      "information_remains_trade_secret true (Absent for both outputs, coherent)",
+      "the same lapse in the n5_34 branch where the information is also personal data (there the module DOES produce a date, from N-5.4 - so the two limbs treat an identical N-5.3 lapse differently)",
+      "assessment one day after agreement_end_date (narrows the possible end date to a two-day range but still does not fix it)"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "QuotaRelief",
+      "path": "catala/modules/QuotaRelief.catala_en",
+      "scope": "RelievedQuota"
+    },
+    "fact_pattern": "An employee with an annual FY26 Quota of GBP 730,000 takes statutory parental leave for a continuous period of 30 days from 15 September 2025 to 14 October 2025. The Plan Year runs from 1 October 2025, so 14 of the 30 days fall inside it and 16 fall before it.",
+    "inputs": {
+      "annual_quota": "730000.00",
+      "absence_periods": [
+        {
+          "category": "StatutoryParentalLeave",
+          "start_date": "2025-09-15",
+          "end_date": "2025-10-14"
+        }
+      ]
+    },
+    "expected": null,
+    "observed": {
+      "relief_days": 14.0,
+      "relief": 28000.0,
+      "relieved_quota": 702000.0,
+      "quota_for_attainment": 702000.0
+    },
+    "citations": [
+      "COMM-PLAN S-6.1",
+      "COMM-PLAN S-2.1",
+      "COMM-PLAN S-1.1"
+    ],
+    "source_reasoning": "S-6.1 says the Quota is reduced 'by 1/365th of the annual Quota for each day of such absence', and 'such absence' is the continuous period of 30 days or more that the clause has just defined. Reading (1), literal: all 30 days are days of such absence, so the reduction is 30/365 x GBP 730,000 = GBP 60,000 and the relieved Quota is GBP 670,000. Reading (2), which the module adopts: S-2.1 makes the Quota the annual revenue target for the Plan Year and S-1.1 confines the Plan Year to 1 October 2025 - 30 September 2026, so only days of absence falling inside the Plan Year can reduce it - 14/365 x GBP 730,000 = GBP 28,000, relieved Quota GBP 702,000. Reading (2) is needed to avoid the absurdity of a prior-year absence wiping out an FY26 Quota, but the clause does not say it, and the module also mixes the two measures: the 30-day gateway is tested on the whole absence while the quantum is measured on the in-year portion, so a 30-day absence with one in-year day earns 1/365th of relief while a 29-day absence wholly inside the Plan Year earns none. Nothing in S-6 resolves which measure governs which limb.",
+    "attacks_tried": [
+      "absence straddling the Plan Year end (symmetric, same ambiguity)",
+      "absence wholly before the Plan Year (module gives zero, which reading (1) literally forbids but which is plainly right)",
+      "31-day absence with 1 in-year day (relief_days 1 - the mixed-measure edge)"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "LegalHold",
+      "path": "catala/modules/LegalHold.catala_en",
+      "scope": "HoldEffect"
+    },
+    "fact_pattern": "A record whose ordinary retention period expired on 31 December 2025. A Legal Hold is issued over it on 1 January 2026 and released on 1 March 2026. An auditor asks, as at 1 June 2025 - seven months before the hold was issued - when the record was due to be deleted.",
+    "inputs": {
+      "hold_issued_date": "2026-01-01",
+      "hold_released_date": "2026-03-01",
+      "retention_end_date": "2025-12-31",
+      "assessment_date": "2025-06-01",
+      "retention_under_hold_permitted_by_data_protection_law": true
+    },
+    "expected": null,
+    "observed": {
+      "hold_in_force": false,
+      "deletion_due_date": "2026-03-31",
+      "backup_purge_deadline": "2026-06-29",
+      "erasure_blocked_by_hold": false
+    },
+    "citations": [
+      "DATA-RET R-4.1",
+      "DATA-RET R-4.3",
+      "DATA-RET R-3.1",
+      "DATA-RET R-6.1"
+    ],
+    "source_reasoning": "The scope mixes two time frames. hold_in_force and erasure_blocked_by_hold are expressly as at assessment_date (r2_3 tests assessment_date >= issued and < released), and on these facts both are correctly false because no hold existed on 1 June 2025. deletion_due_date, however, ignores assessment_date entirely: r4_3 fires on nothing more than both hold dates being Present, so it reports 30 days after a release that is still nine months in the future. Reading (1), as-at: on 1 June 2025 R-4.1 is not engaged (no hold in force) and R-4.3's trigger ('On release of a Legal Hold') has not occurred, so R-3.1 alone governs and the answer is 31 December 2025, with R-6.1's backup purge 90 days later. Reading (2), whole-history: the scope reports the single date on which the record will in fact fall due for deletion given everything now known, which is 31 March 2026. The Standard does not say which question R-4.3 answers. On reading (2) the outputs are still incoherent as a set - no hold in force, yet deletion deferred past a release that has not happened - and on reading (1) the date is simply wrong. Recorded as an ambiguity because DATA-RET fixes no as-at convention; the fix is either to gate r4_3 on hold_released_date <= assessment_date or to make the whole scope explicitly prospective.",
+    "attacks_tried": [
+      "hold released before the assessment date with retention already expired (released + 30 - correct on R-4.3)",
+      "retention_end_date equal to the release date (delete on the ordinary expiry - correct on R-4.3's 'otherwise')",
+      "retention_end_date after the release date (ordinary expiry - correct)",
+      "hold in force (Absent deletion date and Absent backup deadline - correct on R-4.1)",
+      "hold in force but retention under hold not permitted by data protection law (erasure_blocked false, deletion still Absent - correct on R-4.2's 'to the extent permitted')",
+      "hold released on the day it was issued (never in force - correct)",
+      "hold_released Present with hold_issued Absent (correctly asserted away - a hold cannot be released before it is issued)"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "availability",
+      "path": "catala/modules/availability.catala_en",
+      "scope": "ServiceAvailability"
+    },
+    "fact_pattern": "Swept L-2.1 to L-2.6, L-3.1 and the L-4.5 feedback edge across the five scopes and the composed ServiceAvailability wiring. No fact pattern found on which the module's answer differs from what Schedule 4 requires.",
+    "inputs": {
+      "period_start": "2025-01-01",
+      "outages": [
+        {
+          "minutes": 500,
+          "is_maintenance": true,
+          "notified_at": "2025-01-02",
+          "window_start": "2025-01-13",
+          "is_emergency_maintenance": false,
+          "emergency_notice_minutes": 0,
+          "force_majeure_event_certified": false,
+          "outage_attributable_to_customer": false,
+          "is_suspension_under_clause_9": false
+        },
+        {
+          "minutes": 100,
+          "is_maintenance": true,
+          "notified_at": "2025-01-02",
+          "window_start": "2025-01-20",
+          "is_emergency_maintenance": false,
+          "emergency_notice_minutes": 0,
+          "force_majeure_event_certified": false,
+          "outage_attributable_to_customer": false,
+          "is_suspension_under_clause_9": false
+        }
+      ],
+      "business_day_calendar": [
+        "2025-01-02",
+        "2025-01-03",
+        "2025-01-06",
+        "2025-01-07",
+        "2025-01-08",
+        "2025-01-09",
+        "2025-01-10",
+        "2025-01-13",
+        "2025-01-14",
+        "2025-01-15",
+        "2025-01-16",
+        "2025-01-17",
+        "2025-01-20"
+      ]
+    },
+    "expected": null,
+    "observed": {
+      "total_minutes": 44640.0,
+      "minutes_not_available": 600.0,
+      "excluded_minutes_before_l4_5": 600.0,
+      "excluded_minutes": 480.0,
+      "scheduled_maintenance_aggregate_minutes": 600.0,
+      "scheduled_maintenance_excess_minutes": 120.0,
+      "unavailable_minutes": 120.0,
+      "availability_percentage": 99.73,
+      "meets_service_level": false
+    },
+    "citations": [
+      "MSA-SCH4 L-2.3",
+      "MSA-SCH4 L-2.4",
+      "MSA-SCH4 L-2.5",
+      "MSA-SCH4 L-2.6",
+      "MSA-SCH4 L-4.5",
+      "MSA-SCH4 L-3.1"
+    ],
+    "source_reasoning": "The L-4.5 feedback edge is the obvious composition seam and it round-trips correctly: ServiceAvailability passes the POST-L-4.5 Excluded Minutes into AvailabilityPercentage, which reconstructs the pre-L-4.5 figure by adding the excess back, so both scopes agree on what the input means and the arithmetic is self-consistent (600 - 600 + 120 = 120 unavailable minutes on 600 minutes of Scheduled Maintenance, of which 480 are Excluded and 120 are not). Mixing Excluded Minutes limbs with the overrun (a 600-minute maintenance aggregate of which 100 minutes are also a certified Force Majeure Event) produces the same total but leaves open which minutes are 'the excess' - Schedule 4 does not identify them, so no expected value is compellable there and it is not recorded as a finding. L-3.1 is correctly tested against the L-2.3 ROUNDED Availability Percentage, which is what L-2.3 defines the Availability Percentage to be: 46 unavailable minutes in a 31-day month gives 99.89695% unrounded, 99.90% rounded, and meets_service_level true - the right answer, not a rounding slip.",
+    "attacks_tried": [
+      "L-2.6 notice boundary: notified 2 January for windows starting 9 and 10 January (4 vs 5 clear business days) - the module requires 5 clear Business Days strictly between notice and window start, which is the ordinary construction of 'not less than 5 Business Days in advance'",
+      "L-2.5(b) emergency notice at 59 and 60 minutes (60 inclusive - correct on 'at least 60 minutes')",
+      "all five Excluded Minutes limbs singly and in combination",
+      "aggregate Scheduled Maintenance at 479, 480 and 481 minutes (excess only above 480 - correct on 'must not exceed 8 hours')",
+      "maintenance outage failing the notice test (correctly not Excluded, counts as Unavailable)",
+      "L-2.3 rounding at 45/46/47/48 unavailable minutes to straddle the 99.90% line",
+      "an exact 99.895% unrounded percentage (unreachable: no whole number of unavailable minutes in a 28/30/31-day month produces it)",
+      "excluded minutes exceeding minutes not available (unreachable through ServiceAvailability - per-outage exclusion is bounded by the outage's own minutes)",
+      "mid-month period_start (the module returns the whole calendar month, which is what L-2.1 requires, though it does not assert that period_start is the first of the month)",
+      "month-length variation across February, April and January denominators"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "ServiceCredits",
+      "path": "catala/modules/ServiceCredits.catala_en",
+      "scope": "ServiceCredit"
+    },
+    "fact_pattern": "Swept the L-4.1 band table at every boundary, the L-4.2 cap, the L-4.3 sub-95% exception to both the cap and the credit, and the L-4.4 arrears exception against each band. No fact pattern found on which the module's answer differs from L-4.",
+    "inputs": {
+      "availability_percentage": 94.99,
+      "monthly_service_charge": "10000.00",
+      "arrears_days": 0,
+      "invoice_undisputed": true
+    },
+    "expected": null,
+    "observed": {
+      "credit_percentage": 0.5,
+      "credit_cap_percentage": 0.5,
+      "credit_payable_percentage": 0.5,
+      "credit_amount": 5000.0
+    },
+    "citations": [
+      "MSA-SCH4 L-4.1",
+      "MSA-SCH4 L-4.2",
+      "MSA-SCH4 L-4.3",
+      "MSA-SCH4 L-4.4",
+      "MSA-SCH4 L-2.7"
+    ],
+    "source_reasoning": "The exception chain l4_1_base < l4_1 < l4_3_credit < l4_4 gives L-4.4 priority over every band including L-4.3's 50%, which is what 'by way of exception to L-4.1' requires once L-4.3 is itself an exception to L-4.1 - probed at 94.00% with 31 days' arrears the credit is 0% while the cap correctly remains 50%, and at 99.00% with 31 days' arrears the credit is 0% even though L-4.4 is structurally an exception to L-4.3 rather than to the 20% band, because exception priority in the tree is transitive. Every band edge is on the right side of its inequality: 99.90 -> 0%, 99.89 -> 5%, 99.50 -> 5%, 99.49 -> 10%, 99.00 -> 10%, 98.99 -> 20%, 98.00 -> 20%, 97.99 -> 30%, 95.00 -> 30%, 94.99 -> 50%.",
+    "attacks_tried": [
+      "all ten band boundaries listed above",
+      "L-4.3 at exactly 95.00% (30%/30% cap - correct on 'less than 95.00%')",
+      "L-4.4 at 30 and 31 days' arrears (31 only - correct on 'more than 30 days')",
+      "L-4.4 with a disputed invoice at 31 days (credit restored to 50% - correct, L-4.4 requires an UNDISPUTED invoice)",
+      "L-4.4 above the Service Level (no effect, the guard 'availability_percentage < 99.90' inside L-4.4 is harmless because the credit is 0% there anyway)",
+      "credit_amount rounding on a Monthly Service Charge whose 5% does not terminate in pence (rounds to the nearest penny, which is unavoidable for a money output and not a mid-computation rounding - credit_payable_percentage is held as an exact decimal and converted to money once)",
+      "L-2.7 assertion with one-off charges exceeding charges_for_the_service (AssertionFailed, but the module's own subtraction fixes charges_for_the_service as the INCLUSIVE total, so that input contradicts the declaration rather than the clause)",
+      "L-2.7 with the excluded categories equal to the whole charge (Monthly Service Charge 0 - accepted)",
+      "availability_percentage assertion bounds at 0.00 and 100.00 (both lawful and both accepted)"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "commission",
+      "path": "catala/modules/commission.catala_en",
+      "scope": "CommissionPayable"
+    },
+    "fact_pattern": "Swept S-2.3 to S-2.6, S-3.1, the S-4.1 band table with the S-4.3 New Logo uplift and the S-4.4 joiner cap stacked on it, the S-5.1/S-5.3 caps, and the S-8 leaver limbs. No fact pattern found on which the module's own answer differs from the Plan. (The two breaks recorded against QuotaRelief bite Commission's Attainment scope through the composition seam; nothing was found in Commission taken alone.)",
+    "inputs": {
+      "net_booked_revenue": "2000001.00",
+      "new_logo_share": 0.0,
+      "quota": "1000000.00",
+      "commencement_date": "2020-01-01",
+      "annual_base_salary": "60000.00"
+    },
+    "expected": null,
+    "observed": {
+      "accelerator_base": 2000001.0,
+      "attainment_pct": 2.000001,
+      "s4_1_band": 2.0,
+      "accelerator": 2.0,
+      "commission_before_cap": 320000.16,
+      "cap": 240000.0,
+      "commission_payable": 240000.0
+    },
+    "citations": [
+      "COMM-PLAN S-4.1",
+      "COMM-PLAN S-4.2",
+      "COMM-PLAN S-4.3",
+      "COMM-PLAN S-4.4",
+      "COMM-PLAN S-5.1",
+      "COMM-PLAN S-5.2",
+      "COMM-PLAN S-5.3"
+    ],
+    "source_reasoning": "The S-4.3/S-4.4 stack is the interesting interaction and it honours the Plan's precedence. S-4.4 is expressed as an exception to S-4.3, which is itself an exception to S-4.1, and Catala's transitive exception priority means S-4.4 wins even where S-4.3's own condition is not met - probed with Attainment 160%, no New Logo revenue and a commencement of 1 January 2026 the accelerator is capped at 1.5 rather than left at S-4.1(d)'s 2.0, which is what 'by way of exception to S-4.1 AND S-4.3' requires. Where the uplift does not reach the cap the cap does not bite (Attainment 60%, New Logo share 70%, joiner -> 1.25, not 1.0 and not 1.5). S-5.2's ordering holds: the accelerator is applied to the whole of Net Booked Revenue (S-4.2) and the cap only afterwards, and S-5.3's 400% cap switches strictly above 200% Attainment (2.000000 -> cap 150,000; 2.000001 -> cap 240,000).",
+    "attacks_tried": [
+      "S-4.1 at 49.99/50/99.99/100/149.99/150 per cent Attainment",
+      "S-4.3 New Logo share at exactly 60% (no uplift - correct on 'more than 60%')",
+      "S-4.4 with commencement exactly on plan_year_start (no cap - correct on 'AFTER the start of the Plan Year')",
+      "S-4.4 with a joiner whose band is 0.0 (min(0.0, 1.5) = 0.0 - the cap does not become a floor)",
+      "S-5.3 at exactly 200% and at 200.0001%",
+      "S-2.4 churn at 180 and 181 days after signature (180 inclusive - correct on 'within 180 days after')",
+      "S-2.4 with a termination date before signature (correctly not churn)",
+      "S-2.6 New Logo window at exactly 24 months before signature and one day earlier (window_start inclusive, signature date exclusive - correct on 'at any time in the 24 months PRECEDING')",
+      "S-2.6 'date round down' on the 24-month window (only ambiguous from a 29 February signature date, which cannot fall in the FY26 Plan Year)",
+      "S-2.3 New Logo revenue with churned New Logo and churned existing-customer contracts mixed (new_logo_share cannot exceed 100% and correctly measures against post-churn Net Booked Revenue)",
+      "S-3.1 rounding with a Net Booked Revenue whose 8% x accelerator does not terminate in pence (held as an exact decimal and converted with 'money of' once)",
+      "S-8.2 gross misconduct with commission already paid (commission_payable 0, overpaid_amount 0 - correct, S-8.2 forfeits unpaid commission and does not create a clawback)",
+      "S-8.1 with contracts signed after the last day of employment (correctly excluded)",
+      "S-8.1 with the full annual Quota against a part-year leaver (the Plan provides no pro-rating, so the full Quota is right)",
+      "S-5.1's 'assertion commission_payable <= cap' (vacuous - commission_payable is defined as a Money.min against cap)",
+      "commencement_date after plan_year_end (S-4.4's cap wrongly applies to an employee who commenced in a LATER Plan Year, but such an employee has no FY26 Net Booked Revenue so no answer changes)"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "clawback",
+      "path": "catala/modules/clawback.catala_en",
+      "scope": "RecoverableCommission"
+    },
+    "fact_pattern": "Swept S-7.1 to S-7.3 including the 24-month long stop across month-end and leap-day payment dates and the stacking of the material-breach exception with the time bar. No fact pattern found on which the module's answer differs from S-7.",
+    "inputs": {
+      "commission_paid": "10000.00",
+      "payment_date": "2024-02-29",
+      "assessment_date": "2026-03-01",
+      "is_churned_contract": true,
+      "terminated_for_company_material_breach": false
+    },
+    "expected": null,
+    "observed": {
+      "long_stop_date": "2026-02-28",
+      "recovery_time_barred": true,
+      "recoverable_amount": 0.0
+    },
+    "citations": [
+      "COMM-PLAN S-7.1",
+      "COMM-PLAN S-7.2",
+      "COMM-PLAN S-7.3"
+    ],
+    "source_reasoning": "The exception chain no_recovery < s7_1 < s7_2 < s7_3 gives both bars priority over the recovery limb, and both bars are conditioned on is_churned_contract so neither can fire vacuously. The only debatable point is the direction of the 24-month rounding from a 29 February payment date: 'date round down' makes the long stop 28 February 2026, so recovery on 1 March 2026 is barred, whereas rounding up would leave one further day. S-7.3 is a limitation bar - a maximum period for the Company to act - and rounding it down shortens the Company's window rather than extending it, which is the conservative direction for a bar on recovery and is the same direction NewLogo uses for its 24-month window in the same document. Neither reading is compelled by the words 'more than 24 months after', and the difference is one day on 29 February payment dates only, so it is not recorded as a break or as a material ambiguity.",
+    "attacks_tried": [
+      "payment on 29 February 2024 with assessment on 28 February, 1 March and 2 March 2026",
+      "payment on 31 August (24 months lands on an existing day, no rounding)",
+      "assessment exactly on the long stop date (not barred - correct on 'MORE than 24 months after')",
+      "time bar and material breach both engaged (both yield 0, no Conflict)",
+      "time bar with is_churned_contract false (correctly no recovery, and recovery_time_barred is reported but does no work)",
+      "a contract churned by non-renewal with terminated_for_company_material_breach true (S-7.2 speaks only of termination by the customer, but the module's condition requires the flag to be set by the caller and computes no judgement of its own - no judgement laundering)"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "mealperdiem",
+      "path": "catala/modules/mealperdiem.catala_en",
+      "scope": "MealPerDiemForDay"
+    },
+    "fact_pattern": "Swept E-3.1 to E-3.5 and the E-7.2 uplift in every combination of tier, Client-Billable status, statement-of-work figure, Pre-Approval and free meals. No fact pattern found on which the module's answer differs from E-3 read with E-7.2 under the reading the module records.",
+    "inputs": {
+      "city_tier": "Tier1",
+      "client_billable": {
+        "is_client_billable": true
+      },
+      "pre_approval": {
+        "obtained": false,
+        "in_writing": false,
+        "obtained_at": "2025-01-01",
+        "approver_authority_limit": "0.00"
+      },
+      "incurred_on": "2025-06-10",
+      "meals_provided_free": 0,
+      "meal_expense_incurred": "200.00",
+      "on_critical_incident_response": true
+    },
+    "expected": null,
+    "observed": {
+      "per_diem_cap": 142.5,
+      "adjusted_per_diem": 142.5,
+      "reimbursable_amount": 142.5
+    },
+    "citations": [
+      "EXP-POL E-3.1",
+      "EXP-POL E-3.2",
+      "EXP-POL E-3.3",
+      "EXP-POL E-3.4",
+      "EXP-POL E-3.5",
+      "EXP-POL E-7.2"
+    ],
+    "source_reasoning": "The E-3.1 < E-3.2 < E-3.3 exception ladder matches the 'by way of exception to E-3.1' and 'by way of exception to E-3.1 and E-3.2' language, and E-3.3 correctly tests the Pre-Approved figure against whichever of E-3.1 or E-3.2 would otherwise apply, so 'a specified HIGHER amount' does the work the words require (a Pre-Approval for GBP 90 against a Critical Incident Response Tier 1 per diem of GBP 95 leaves the cap at GBP 95, not GBP 90). E-3.4's reduction is taken against the applicable per diem after E-3.2/E-3.3 and floored at zero, which is what 'the per diem for that Travel Day is reduced by GBP 15 in respect of each such meal' requires. No quantity in the module rounds: the only multiplication is 1.5 times an E-3.1 figure of 40, 55, 75, 60, 75 or 95, all of which terminate exactly in pence.",
+    "attacks_tried": [
+      "all three tiers with and without the E-7.2 uplift",
+      "E-3.2 with a statement-of-work figure above, below and equal to 1.5x the E-3.1 amount",
+      "E-3.2 with no statement-of-work figure on a Critical Incident Response day (1.5 x 95 = 142.50 - the module's recorded reading (A); reading (B) would give 132.50, and the module's own note states the ambiguity and pins the choice, so it is not re-recorded here)",
+      "E-3.3 with a Pre-Approved figure lower than, equal to and higher than the otherwise applicable per diem",
+      "E-3.3 where the Pre-Approval is not in writing, not obtained, obtained on the same day as the expense, or from an approver whose authority limit is below the specified amount (all correctly ineffective via ExpenseDefs.PreApprovalValid)",
+      "E-3.4 with 0, 1, 5 and 6 free meals (floored at zero, no negative per diem)",
+      "E-3.5 with zero meal expense (correct, though the limb is vacuous because Money.min of 0 and a non-negative per diem is already 0)",
+      "E-3.2 with a statement-of-work figure on a Critical Incident Response day (the GBP 20 uplift is displaced entirely, which is the consequence of the module's recorded reading (A) and falls within the ambiguity its note already states)",
+      "meals_provided_free negative (correctly asserted away)"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "accommodation",
+      "path": "catala/modules/accommodation.catala_en",
+      "scope": "NightlyAccommodation"
+    },
+    "fact_pattern": "Swept E-4.1 to E-4.3 across all three tiers, with and without the E-4.2 evidence, and with taxes, mandatory city charges and parking in every combination. No fact pattern found on which the module's answer differs from E-4.",
+    "inputs": {
+      "city_tier": "Tier1",
+      "room_cost": "400.00",
+      "local_taxes": "0.00",
+      "mandatory_resort_or_city_charge": "0.00",
+      "parking_cost": "25.00",
+      "no_compliant_accommodation_available_evidenced": true
+    },
+    "expected": null,
+    "observed": {
+      "applicable_cap": 308.0,
+      "cost_against_cap": 400.0,
+      "accommodation_reimbursable": 308.0,
+      "parking_reimbursable": 25.0,
+      "reimbursable_amount": 333.0
+    },
+    "citations": [
+      "EXP-POL E-4.1",
+      "EXP-POL E-4.2",
+      "EXP-POL E-4.3"
+    ],
+    "source_reasoning": "E-4.2's uplift is taken on the E-4.1 base cap, which is what '1.4 times the applicable cap' means where 'the applicable cap' is the E-4.1 figure the evidence relates to, and all three products terminate exactly in pence (308.00, 224.00, 168.00). E-4.3 is honoured on both sides: local taxes and the mandatory city charge are measured against the cap and parking is not, and the module keeps the two figures as separate outputs so a caller taking the narrower view of whether parking is reimbursable at all can read accommodation_reimbursable alone - which is the only point on which E-4.3 is silent and which the module's note already records.",
+    "attacks_tried": [
+      "room cost exactly at the Tier 1 cap (GBP 220.00) and one penny above, with and without the E-4.2 evidence; all three tiers probed with a GBP 400 room cost",
+      "E-4.2 evidence where the actual cost is below the base cap (min gives actual cost, the uplift does no harm)",
+      "cost against cap composed entirely of taxes and the mandatory charge",
+      "parking exceeding the cap (correctly reimbursed in full outside the cap)",
+      "1.4x on a base cap chosen to produce a sub-penny product (impossible - the three caps are fixed at 220, 160 and 120)",
+      "negative inputs (correctly asserted away)"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "groundtransport",
+      "path": "catala/modules/groundtransport.catala_en",
+      "scope": "TaxiFare"
+    },
+    "fact_pattern": "Swept E-5.1 to E-5.3 including the RailFare first-class gate and the E-5.3 airport time window at every minute boundary. No fact pattern found on which either scope's answer differs from E-5.",
+    "inputs": {
+      "journey_cost": "120.00",
+      "is_airport_journey": true,
+      "journey_start_hour": 22,
+      "journey_start_minute": 1
+    },
+    "expected": null,
+    "observed": {
+      "reimbursable_amount": 120.0
+    },
+    "citations": [
+      "EXP-POL E-5.1",
+      "EXP-POL E-5.2",
+      "EXP-POL E-5.3"
+    ],
+    "source_reasoning": "E-5.3's window is exclusive at both ends as the words require - 'before 06:00 or after 22:00' - so 05:59 and 22:01 are uncapped and 06:00 and 22:00 are capped at GBP 60. The GBP 60 cap is per journey and applied as a Money.min against actual cost. RailFare's e5_1 and e5_2 limbs partition the RailClass enumeration exactly, and E-5.2's 'reimbursable ONLY where' is encoded as a nil base with a permitting exception, so an unjustified first-class ticket yields GBP 0 rather than the standard-class fare, which is what 'only where' requires.",
+    "attacks_tried": [
+      "E-5.3 at 05:59, 06:00, 22:00 and 22:01 with and without is_airport_journey",
+      "E-5.3 at exactly GBP 60.00 and GBP 60.01 on a non-airport journey",
+      "E-5.3 airport journey inside the daytime window (correctly capped)",
+      "E-5.2 with ticket cost equal to, below and above the same-day standard fare",
+      "E-5.2 with a valid and an invalid Pre-Approval on a ticket above the standard fare",
+      "E-5.2 where the approver's authority limit is below the ticket cost (correctly ineffective)",
+      "journey_start_hour 24 and journey_start_minute 60 (correctly asserted away; the 0-23 and 0-59 bounds admit every lawful clock time)"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "claimwindow",
+      "path": "catala/modules/claimwindow.catala_en",
+      "scope": "ClaimAdmissible"
+    },
+    "fact_pattern": "Swept E-6.1 to E-6.3 at every day boundary with and without certification. No fact pattern found on which the module's answer differs from E-6.",
+    "inputs": {
+      "expense_incurred_date": "2025-05-01",
+      "submission_date": "2025-08-29",
+      "delay_certified_for_good_reason": true
+    },
+    "expected": null,
+    "observed": {
+      "days_elapsed": 120.0,
+      "admissible": true
+    },
+    "citations": [
+      "EXP-POL E-6.1",
+      "EXP-POL E-6.2",
+      "EXP-POL E-6.3"
+    ],
+    "source_reasoning": "The ladder e6_1 < e6_2 < e6_3 matches E-6.2's 'by way of exception to E-6.1' and E-6.3's 'in any circumstances', and the three day ranges tile without a gap or an overlap: 0-60 admissible, 61-120 admissible only on certification, 121 and beyond inadmissible however certified. days_elapsed counts whole days from the date the expense was incurred, so 'within 60 days after' includes day 60 and 'more than 120 days after' starts at day 121.",
+    "attacks_tried": [
+      "days_elapsed 60, 61, 120 and 121 with certification and without",
+      "day 121 with certification (correctly inadmissible - E-6.3 overrides E-6.2)",
+      "day 61 without certification (correctly inadmissible)",
+      "same-day submission (day 0, admissible)",
+      "submission before the expense was incurred (correctly asserted away)",
+      "month-length variation in the elapsed-day count (day arithmetic, unaffected)"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "expensedefs",
+      "path": "catala/modules/expensedefs.catala_en",
+      "scope": "TravelDayCount"
+    },
+    "fact_pattern": "Swept E-2.3's Travel Day count and E-2.4's Pre-Approval test, including their use as sub-scopes from MealPerDiem and GroundTransport. No fact pattern found on which either scope's answer differs from E-2.",
+    "inputs": {
+      "departure_date": "2025-06-01",
+      "return_date": "2025-06-02"
+    },
+    "expected": null,
+    "observed": {
+      "travel_days": 2.0
+    },
+    "citations": [
+      "EXP-POL E-2.3",
+      "EXP-POL E-2.4"
+    ],
+    "source_reasoning": "E-2.3's closing sentence - 'The day of departure and the day of return are each a Travel Day' - is what fixes the inclusive count, and the module's '+ 1' delivers it: one night away yields two Travel Days. A same-day return yields zero, which is right because E-2.3's opening words require the employee to be away overnight, and no overnight is possible where departure and return fall on the same calendar day. E-2.4 is encoded exactly as drafted: obtained, in writing, strictly before the expense, and an approver authority limit at or above the expense amount. The date-granularity point on same-day approval is already recorded in the module's own note.",
+    "attacks_tried": [
+      "departure equal to return (0 Travel Days)",
+      "trips spanning a month end and a leap day (day arithmetic, correct)",
+      "a 1-day, 2-day and 15-day trip",
+      "return before departure (correctly asserted away; the '<=' branch is then reachable only on equality)",
+      "E-2.4 with an approval dated the same day as the expense (treated as too late, as the module's note records)",
+      "E-2.4 with an authority limit exactly equal to the expense amount (valid - correct on 'at or above')",
+      "E-2.4 with obtained true but in_writing false (correctly invalid)",
+      "the composition seam into MealPerDiem (expense_amount = the specified per diem) and into RailFare (expense_amount = the ticket cost) - both pass the amount the relevant clause makes the threshold of the expense"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "ErasureRequest",
+      "path": "catala/modules/ErasureRequest.catala_en",
+      "scope": "ErasureDeadline"
+    },
+    "fact_pattern": "Swept R-5.1 and R-5.2 across validity, verification and each of the three retention grounds, and checked the seam by which legal_hold_blocks_erasure is fed from LegalHold.erasure_blocked_by_hold. No fact pattern found on which the module's answer differs from R-5.",
+    "inputs": {
+      "request_date": "2025-06-01",
+      "verification_date": "2025-06-05",
+      "erasure_request_valid": true,
+      "retention_required_by_legal_obligation": false,
+      "retention_required_for_legal_claims": false,
+      "legal_hold_blocks_erasure": true
+    },
+    "expected": null,
+    "observed": {
+      "deletion_due_date": null,
+      "deletion_refused": true
+    },
+    "citations": [
+      "DATA-RET R-5.1",
+      "DATA-RET R-5.2",
+      "DATA-RET R-4.2"
+    ],
+    "source_reasoning": "R-5.1 measures its 30 days from verification and not from the request, and the module does exactly that, returning Absent where the request is not yet verified because R-5.1 fixes no date until then. R-5.2's three grounds are disjunctive and the module treats them so, returning Absent for the deadline and true for deletion_refused on any one of them. The legal-hold ground is taken as an input rather than inferred, and it matches LegalHold.erasure_blocked_by_hold, which already carries R-4.2's 'to the extent permitted by applicable data protection law' qualification - so the seam passes the same defined concept in both directions.",
+    "attacks_tried": [
+      "valid and verified with no ground (verified + 30 days)",
+      "valid but unverified with a ground engaged (Absent and refused - R-5.2 does not wait for verification)",
+      "invalid request (Absent and not refused; the Standard says nothing about invalid requests, so no expected value is compellable)",
+      "each of the three R-5.2 grounds singly and all together",
+      "verification before the request date (correctly asserted away)",
+      "verification on the request date (permitted, 30 days run from it)",
+      "the deletion_due_date / deletion_refused pair for a state where both are Absent/false (reachable only where R-5.1 fixes no date, which is correct rather than contradictory)"
+    ]
+  }
+]

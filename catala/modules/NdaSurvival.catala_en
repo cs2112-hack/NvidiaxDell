@@ -7,7 +7,9 @@ confidence bind? Nothing else in NDA-MUT is computable, and that is the
 correct outcome rather than a gap — N-1 to N-4 and N-6 to N-9 are qualitative
 throughout and belong to the vector store.
 
-The answer has **two regimes, and they must not be blended**. While the
+The answer has **two regimes, and they must not be blended** — three, counting
+the period before the Agreement takes effect at all, on which N-5.1 is decisive
+and nothing under N-3 binds (CE-0030). While the
 Agreement is in force the N-3 obligations bind of their own force: N-3.1 and
 N-3.2 are unqualified by anything in N-5, and N-5.1 fixes how long the
 Agreement runs. Only once the Agreement has expired or been terminated does
@@ -119,16 +121,58 @@ of the Agreement, and N-6.2 keeps any lawfully retained copy "subject to this
 Agreement", so the Agreement contemplates a Recipient that holds nothing and
 is still bound. Non-possession is nowhere a discharge.
 
-This is the first of the two base cases of `obligations_subsist`, and its
-condition is the exact complement of the N-5.2 case below, so precisely one
-of the two applies at any assessment date. No exception attaches here,
-because no clause of the Agreement makes one.
+This is the in-term base case of `obligations_subsist`. No exception attaches
+to it, because no clause of the Agreement makes one; and it is bounded at both
+ends, the upper bound handing over to the N-5.2 case below and the lower bound
+being the subject of the next block.
 
 ```catala
 scope SurvivalEnd:
   label n3_in_term definition obligations_subsist
-    under condition assessment_date <= agreement_end_date
+    under condition
+      assessment_date >= effective_date
+      and assessment_date <= agreement_end_date
     consequence equals true
+```
+
+| NDA-MUT N-5.1 (005-mutual-nda.md:71)
+|
+| This Agreement takes effect on the Effective Date and continues for a
+| period of 2 years, unless terminated earlier by either party on 30 days'
+| written notice.
+
+**CE-0030.** The in-term limb had an upper bound and no lower one: it answered
+`true` under the single condition `assessment_date <= agreement_end_date`, and
+so said the N-3 obligations subsisted on every date in history before the
+Effective Date — including dates before the parties had met. N-5.1 fixes the
+other end of the term in terms: the Agreement "takes effect on the Effective
+Date", and the obligations in N-3.1 and N-3.2 are obligations of the Recipient
+*under this Agreement*, so before that date there is no Agreement to impose
+them and nothing in N-3 subsists.
+
+The question is a live one rather than a degenerate one, which is why the limb
+needs the bound rather than an assertion. N-2.1 defines Confidential
+Information as information disclosed "whether before or after the date of this
+Agreement", so a dispute about information the Counterparty disclosed eighteen
+months before the Effective Date is squarely within the Agreement's subject
+matter and the question "did the N-3 obligations subsist then?" is properly
+put. N-2.1 extends the subject matter of the obligations backwards; it does not
+backdate the obligations themselves — which is the very reason the parties need
+N-2.1 at all. The answer for a pre-commencement date is therefore that they did
+not subsist, and it is that answer the limb below gives.
+
+That makes three base cases over `obligations_subsist`, whose conditions
+partition the timeline: before the Effective Date, within the term, and after
+it. They cannot overlap, because the scope asserts `agreement_end_date >=
+effective_date`, and they cannot leave a gap, so exactly one applies at any
+assessment date and the whole N-5.3/N-5.4 exception structure still hangs off
+the post-expiry case alone (CE-0017, CE-0018).
+
+```catala
+scope SurvivalEnd:
+  label n5_1_before_effect definition obligations_subsist
+    under condition assessment_date < effective_date
+    consequence equals false
 ```
 
 ## N-5 Term and survival

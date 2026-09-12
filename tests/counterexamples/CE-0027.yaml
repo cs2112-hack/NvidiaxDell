@@ -1,0 +1,71 @@
+id: CE-0027
+component: catala
+fact_pattern: A salesperson who joined before the Plan Year began has an assigned FY26 Quota
+  of GBP 750,000 and an annual base salary of GBP 120,000. She takes statutory parental leave
+  for a continuous period of 30 days, from 1 to 30 November 2025, wholly within the Plan Year.
+  Her Net Booked Revenue for FY26 is GBP 344,178.08, none of it attributable to New Logo customers.
+citations:
+- COMM-PLAN S-6.1
+- COMM-PLAN S-6.2
+- COMM-PLAN S-2.2
+- COMM-PLAN S-4.1
+- COMM-PLAN S-3.1
+source_reasoning: 'S-6.1 fixes the reduction as ''1/365th of the annual Quota for each day
+  of such absence'' - 30 days x GBP 750,000 / 365 = GBP 61,643.8356164383..., so the Quota
+  after relief is GBP 688,356.1643835616.... S-6.1 specifies no rounding of that reduction
+  and the Plan confers no power to round it. S-6.2 applies the relief before Attainment. S-2.2
+  defines Attainment as Net Booked Revenue expressed as a percentage of Quota - a ratio, so
+  it can be taken on the exact relieved Quota without representing sub-penny money: GBP 344,178.08
+  / GBP 688,356.1643835616... = 49.99999968%, which is less than 50%. S-4.1(a) therefore applies
+  (''Attainment of less than 50%: accelerator of 0.0''), not S-4.1(b). S-3.1 then gives commission
+  = GBP 344,178.08 x 8.0% x 0.0 = GBP 0.00 (S-5.1''s cap of GBP 300,000 is not engaged). The
+  module rounds the S-6.1 reduction to the nearest penny mid-computation (relief = GBP 61,643.84,
+  GBP 0.0043835... more than the Plan''s reduction), which shrinks the relieved Quota to GBP
+  688,356.16 and lifts Attainment to exactly 50.00000000%, crossing into S-4.1(b) and multiplying
+  the accelerator from 0.0 to 1.0. One rounded penny in an intermediate quantity moves GBP
+  27,534.25.'
+expected:
+  commission_payable: '0.00'
+  accelerator: 0.0
+observed:
+  quota_relief:
+    relief_days: 30.0
+    relief: 61643.84
+    relieved_quota: 688356.16
+    quota_for_attainment: 688356.16
+  commission:
+    attainment_calc:
+      attainment_pct: 0.5
+    accelerator_calc:
+      commenced_after_plan_year_start: false
+      s4_1_band: 1.0
+      accelerator_before_joiner_cap: 1.0
+      accelerator: 1.0
+    accelerator_base: 344178.08
+    commission_before_cap: 27534.25
+    cap: 300000.0
+    commission_payable: 27534.25
+  quota_for_attainment: 688356.16
+  commission_payable: 27534.25
+target:
+  module: QuotaRelief
+  path: catala/modules/QuotaRelief.catala_en
+  scope: CommissionAfterRelief
+inputs:
+  assigned_quota: '750000.00'
+  absence_periods:
+  - category: StatutoryParentalLeave
+    start_date: '2025-11-01'
+    end_date: '2025-11-30'
+  net_booked_revenue: '344178.08'
+  new_logo_share: 0.0
+  commencement_date: '2020-01-01'
+  annual_base_salary: '120000.00'
+round: 2
+discovered: '2026-09-12'
+status: fixed
+notes: relief that terminates in pence (e.g. 73 days on GBP 730,000 - exact, no discrepancy);
+  rounding that goes down rather than up (cannot be made to straddle a band boundary at whole-penny
+  Net Booked Revenue); the same construction at the 100% and 150% band boundaries (reachable
+  but the 50% boundary is the starkest, 0.0 vs 1.0); S-5.3's 200% boundary (cap only, smaller
+  effect)

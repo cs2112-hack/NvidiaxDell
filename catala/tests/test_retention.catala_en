@@ -28,6 +28,12 @@ checker cannot see:
   cases where `|2020-02-29| + 6 year` and `|2025-01-31| + 13 month` are
   ambiguous. The scope declares `date round down`, so both land on 28
   February.
+* **R-3.3's comparative.** `EqualStatutoryPeriodDoesNotEngage` (CE-0029) puts
+  a statutory period of exactly six years against limb (a)'s six years, where
+  R-3.3's "longer period" is not satisfied and its round-up must not be
+  reached; the same test pins the 72-month spelling of that period, the same
+  facts with the determination switched off, and a genuinely longer period,
+  which still rounds up to protect the statutory floor.
 
 `statutory_retention_period` is `0 day` wherever `statutory_retention_applies`
 is false: the input must still be supplied, and no limb reads it.
@@ -596,4 +602,99 @@ scope TestInputDomain_R3_3_ZeroStatutoryPeriodIsTheFloor:
     }
   assertion at_nil_period.retention_end_date = |2024-01-01|
   assertion at_mixed_unit_period.retention_end_date = |2024-01-01|
+```
+
+## R-3.3 engages only where the statutory period is longer — CE-0029
+
+R-3.3 is an exception to R-3.1(a) for records "required to be retained for a
+**longer** period", so a statutory pensions period of exactly six years does not
+engage it and limb (a) governs alone. Six years from 29 February 2020 is
+ambiguous, and the scope's `date round down` resolves it to 28 February 2026,
+which R-1.2 confirms: the period is a maximum, so the last day certainly within
+it is the answer. Retaining to 1 March 2026 would keep the record for a day the
+Standard does not authorise — and that is what the round-up did while it was
+applied to a statutory period R-3.3 had not engaged on.
+
+The three limbs of the comparative are pinned together, because the defect was
+that the module's routes to the same quantity disagreed: the same trigger with
+the determination switched off, the same six years expressed as 72 months, and a
+period genuinely longer, which still rounds *up* to protect the statutory floor.
+
+```catala
+#[test]
+declaration scope TestR3_3_EqualStatutoryPeriodDoesNotEngage:
+  output at_six_years content Retention.RetentionEnd
+  output at_seventy_two_months content Retention.RetentionEnd
+  output without_statute content Retention.RetentionEnd
+  output at_ten_years content Retention.RetentionEnd
+
+scope TestR3_3_EqualStatutoryPeriodDoesNotEngage:
+  definition at_six_years equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2020-02-29|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 6 year
+    }
+  definition at_seventy_two_months equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2020-02-29|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 72 month
+    }
+  definition without_statute equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2020-02-29|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: false
+      -- statutory_retention_period: 0 day
+    }
+  definition at_ten_years equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2020-02-29|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 10 year
+    }
+  assertion at_six_years.retention_end_date = |2026-02-28|
+  assertion at_six_years.retention_end_date != |2026-03-01|
+  assertion at_seventy_two_months.retention_end_date = |2026-02-28|
+  assertion without_statute.retention_end_date = |2026-02-28|
+  assertion at_six_years.retention_end_date = without_statute.retention_end_date
+  assertion at_ten_years.retention_end_date = |2030-03-01|
+```
+
+A statutory period shorter than six years does not engage R-3.3 either, and
+cannot cut limb (a) down.
+
+```catala
+#[test]
+declaration scope TestR3_3_ShorterStatutoryPeriodDoesNotEngage:
+  output r content Retention.RetentionEnd
+
+scope TestR3_3_ShorterStatutoryPeriodDoesNotEngage:
+  definition r equals
+    output of Retention.RetentionEnd with {
+      -- data_class: Retention.DataClass.EmployeeRecord
+      -- retention_trigger_date: |2020-02-29|
+      -- most_recent_engagement_date: Absent
+      -- talent_pool_consent_date: Absent
+      -- consent_renewal_dates: []
+      -- statutory_retention_applies: true
+      -- statutory_retention_period: 3 year
+    }
+  assertion r.retention_end_date = |2026-02-28|
 ```

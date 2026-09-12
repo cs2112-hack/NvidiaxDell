@@ -68,7 +68,7 @@ declaration scope NetBookedRevenue:
 
 declaration scope Attainment:
   input net_booked_revenue content money
-  input quota content money
+  input quota content decimal
   output attainment_pct content decimal
 
 declaration scope Accelerator:
@@ -83,7 +83,7 @@ declaration scope Accelerator:
 declaration scope CommissionPayable:
   input net_booked_revenue content money
   input new_logo_share content decimal
-  input quota content money
+  input quota content decimal
   input commencement_date content date
   input annual_base_salary content money
   output attainment_calc scope Attainment
@@ -97,7 +97,7 @@ declaration scope LeaverCommission:
   input contracts content list of Contract
   input last_day_of_employment content date
   input termination_reason content TerminationReason
-  input quota content money
+  input quota content decimal
   input commencement_date content date
   input annual_base_salary content money
   input commission_already_paid content money
@@ -262,16 +262,77 @@ precondition on the input, and `QuotaRelief.CommissionAfterRelief` is the scope
 that discharges it structurally: it takes the *assigned* Quota with the absence
 records and can reach this scope only through `QuotaRelief.RelievedQuota`.
 Calling `Attainment` or `CommissionPayable` with a bare `quota` is still
-possible — the caller then carries the S-6.2 obligation itself. The assertion
-records the other precondition the quotient needs: a quota-bearing role has a
-Quota, and the scope refuses to answer for a zero Quota rather than inventing a
-value.
+possible — the caller then carries the S-6.2 obligation itself.
+
+**CE-0027.** The Quota is taken here as an exact `decimal` of pounds and not as
+`money`, and that follows from S-6.2 read with S-6.1. The relieved Quota is the
+assigned Quota less 1/365ths of it, so it is not in general a whole number of
+pence: 30 days of relief on a £750,000 Quota leaves £688,356.1643835616....
+Catala fixes `money` at the cent, so a `money` denominator here is that figure
+rounded — and S-2.2 is the one place where rounding a denominator changes a
+legal outcome, because the quotient it defines is what S-4.1 bands. On those
+facts the rounded penny lifts Attainment from 49.99999968% to exactly 50.00%
+and so moves the accelerator from S-4.1(a)'s 0.0 to S-4.1(b)'s 1.0, £27,534.25
+on a £344,178.08 book. Nothing is lost by taking the ratio on the exact figure,
+because S-2.2 makes Attainment a *percentage*: the relieved Quota is a target
+and never a sum paid, and the only sum of money the Plan produces is S-3.1's
+product, which is where the single conversion to `money` happens (CE-0015).
+S-2.1's assigned Quota is still a sum of money assigned in writing, and
+`AssignedQuota` above still carries it as one — the contrast is the point.
+
+| COMM-PLAN S-2.2 (003-sales-commission-plan.md:29)
+|
+| "Attainment" means Net Booked Revenue expressed as a percentage of
+| Quota.
+
+**CE-0026.** The guard here used to be `assertion quota > $0`, and it was an
+over-tight one. S-6.1 can plainly produce a nil Quota: an Employee absent on
+long-term sickness absence for every day of the Plan Year has her Quota reduced
+by 1/365th of it 365 times, which is the whole of it. The guard therefore
+refused an input the Plan itself compels, and it did not even prevent the
+mischief it was aimed at — Catala is not lazy, so the quotient was evaluated
+and raised a division by zero before any assertion could refuse anything, which
+turned a lawful question into a crash.
+
+Where the Quota is nil the Plan answers without S-2.2 at all. S-3.1 computes
+commission as Net Booked Revenue multiplied by the Base Commission Rate
+multiplied by the S-4 accelerator, and on the only facts that reduce a Quota to
+nil Net Booked Revenue is nil too, so the product is nil whatever the
+accelerator and S-5.1's cap cannot bite. The nil-Quota limb accordingly reports
+Attainment of 0%, which is the reading that asserts the least — no attainment
+of a target that has itself been reduced to nothing — and which cannot change
+the answer, because the multiplicand S-4.2 fixes is itself nil.
+
+What survives of the old guard is two assertions, each a bound the Plan states
+rather than a programming convenience. A Quota cannot be negative: S-2.1 makes
+it an assigned annual revenue target, and S-6.1's reduction is "1/365th ... for
+each day" of a 365-day year and so cannot exceed the annual Quota. And a nil
+Quota can only reach this scope alongside nil Net Booked Revenue: the Plan's
+only route to one is a qualifying absence covering every day of the Plan Year,
+and an Employee absent on all of them signs no contract during it, so S-2.3's
+aggregate is nil. A positive Net Booked Revenue against a nil Quota is not a
+percentage of anything and the Plan fixes no answer for it, so the scope
+declines it rather than inventing a band.
+
+The second limb's condition is `quota <= 0.0` rather than `= 0.0` so that the
+two limbs are exhaustive over the type and the refusal of a negative Quota is
+made by the assertion, which states the bound and says why, instead of by the
+absence of any applicable rule, whose diagnostic says neither. Nothing but nil
+survives the assertion, so the limb answers only for the nil Quota S-6.1
+produces.
 
 ```catala
 scope Attainment:
-  definition attainment_pct equals net_booked_revenue / quota
+  label s2_2 definition attainment_pct
+    under condition quota > 0.0
+    consequence equals (decimal of net_booked_revenue) / quota
 
-  assertion quota > $0
+  label s2_2 definition attainment_pct
+    under condition quota <= 0.0
+    consequence equals 0.0
+
+  assertion quota >= 0.0
+  assertion (quota > 0.0) or (net_booked_revenue = $0)
 ```
 
 ## S-3 Commission calculation

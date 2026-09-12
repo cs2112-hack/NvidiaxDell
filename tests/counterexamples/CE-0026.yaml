@@ -1,0 +1,60 @@
+id: CE-0026
+component: catala
+fact_pattern: A quota-bearing salesperson with an assigned FY26 Quota of GBP 1,200,000 and
+  annual base salary of GBP 120,000 is absent on long-term sickness absence continuously from
+  1 August 2025 to 30 November 2026, so the whole of the FY26 Plan Year (1 October 2025 -
+  30 September 2026) falls within the absence. She signs no contracts in the Plan Year, so
+  Net Booked Revenue is GBP 0. The Company asks what commission is payable to her for FY26.
+citations:
+- COMM-PLAN S-6.1
+- COMM-PLAN S-6.2
+- COMM-PLAN S-3.1
+- COMM-PLAN S-2.5
+- COMM-PLAN S-1.1
+source_reasoning: 'S-6.1 is engaged: long-term sickness absence for a continuous period of
+  30 days or more. It then mandates that ''the Employee''s Quota is reduced by 1/365th of
+  the annual Quota for each day of such absence''. All 365 days of the Plan Year (S-1.1: 1
+  October 2025 to 30 September 2026) are days of that absence, so the mandated reduction is
+  365/365 of the annual Quota - the Quota is reduced to GBP 0. S-6.2 requires that relief
+  to be applied before Attainment is calculated. The Plan then answers the question put without
+  needing Attainment at all: S-3.1 computes commission as ''Net Booked Revenue multiplied
+  by the Base Commission Rate, multiplied by the accelerator determined under S-4'', and Net
+  Booked Revenue is GBP 0 (S-2.3: no contracts signed in the Plan Year), so the product is
+  GBP 0 whatever the accelerator. S-5.1''s cap does not bite. The Plan therefore fixes commission_payable
+  at GBP 0.00. The module instead crashes: QuotaRelief faithfully produces a relieved Quota
+  of GBP 0 and Commission.Attainment divides Net Booked Revenue by it. This is a composition-seam
+  defect - QuotaRelief''s output domain includes GBP 0 on facts S-6.1 compels, and Commission''s
+  input domain excludes it (the scope even carries ''assertion quota > $0'', which does not
+  prevent the division from being evaluated). A lawful question is turned into an error. The
+  same crash is reachable directly on Commission.Attainment with net_booked_revenue $0 / quota
+  $0.'
+expected:
+  commission_payable: '0.00'
+  quota_for_attainment: '0.00'
+observed:
+  __error__: CatalaError
+  diagnostic: "┌─[ERROR]─\n│\n│  During evaluation: a value is being used as denominator in\
+    \ a division and\n│  it computed to zero.\n│\n├─➤ catala/modules/commission.catala_en:272.36-62:\n\
+    │     │\n│ 272 │   definition attainment_pct equals net_booked_revenue / quota\n│    \
+    \ │                                    ‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾‾\n└─ Sales Commission\
+    \ Plan — FY26: commission earned\n   └─ S-2 Definitions"
+target:
+  module: QuotaRelief
+  path: catala/modules/QuotaRelief.catala_en
+  scope: CommissionAfterRelief
+inputs:
+  assigned_quota: '1200000.00'
+  absence_periods:
+  - category: LongTermSicknessAbsence
+    start_date: '2025-08-01'
+    end_date: '2026-11-30'
+  net_booked_revenue: '0.00'
+  new_logo_share: 0.0
+  commencement_date: '2020-01-01'
+  annual_base_salary: '120000.00'
+round: 2
+discovered: '2026-09-12'
+status: fixed
+notes: absence of 364 in-year days (quota GBP 3,287.67 - no crash); absence wholly outside
+  the Plan Year (relief_days 0 - correct); absence spanning the Plan Year exactly (same crash);
+  non-qualifying category for the full year (no relief - correct)

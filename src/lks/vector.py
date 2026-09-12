@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
@@ -41,6 +42,13 @@ import numpy as np
 from .model import Clause, content_hash
 from .segment import load_corpus
 from .triage import Label, load_ledger
+
+LEXICAL_WEIGHT = 0.20
+"""Weight of the lexical signal against the dense score, in [0, 1].
+
+0.0 is the dense-only ranking this store shipped with. Measured against
+eval/routing.yaml; the curve and the chosen value are in eval/RESULTS.md.
+"""
 
 INDEX_DIR = Path("vectorstore/index")
 MODEL_DIR = Path("vectorstore/model/potion-base-8M")
@@ -86,6 +94,86 @@ def model_fingerprint(model_dir: Path = MODEL_DIR) -> str:
             h.update(p.name.encode())
             h.update(p.read_bytes())
     return h.hexdigest()[:16]
+
+
+# --- lexical signal -------------------------------------------------------
+#
+# A static embedding is a bag-of-token average, so it is good at topic and bad
+# at exact keys. But a legal question is full of exact keys: a user who types
+# "99.90%", "£75", "Tier 1", "48 hours" or "C-4.2" has handed over the precise
+# token that identifies one clause, and ranking on the dense vector alone
+# throws it away -- "£75" and "£55" embed almost identically, and "C-4.2"
+# embeds as nothing at all.
+#
+# So retrieval combines the dense score with an IDF-weighted overlap. IDF is
+# computed over the rows being searched, which makes the weighting derived
+# rather than hand-tuned: a rare token (a figure, a clause id, a defined term
+# like "gazetted") dominates, and a token every clause contains ("the",
+# "Company", "Employee") contributes nothing, without a stopword list to
+# maintain.
+
+_TOKEN_RE = re.compile(r"[A-Za-z][A-Za-z'-]*|\d+(?:[.,]\d+)*%?")
+
+
+def lex_tokens(text: str) -> list[str]:
+    """Tokens for the lexical signal: words and numbers, numbers kept intact.
+
+    Numbers are the point, so `99.90%` stays one token rather than becoming
+    `99` and `90`, and `£75` yields `75`. Single letters are dropped: they
+    carry no information and the `C` of `C-4.2` would otherwise match every
+    clause of Annex C.
+    """
+    out = []
+    for t in _TOKEN_RE.findall(text.lower()):
+        t = t.strip("%.-").replace(",", "")
+        if len(t) < 2:
+            continue
+        if "." in t and t.replace(".", "").isdigit():
+            # 98.5 and 98.50 are the same figure, and a user writing one must
+            # match a clause writing the other. Without this the lexical signal
+            # turns an exact key into a penalty: "98.5" is a token found
+            # nowhere in the corpus, so it counts against the question's total
+            # IDF mass and drags down the very clause it identifies.
+            t = t.rstrip("0").rstrip(".") or "0"
+        out.append(t)
+    return out
+
+
+class LexicalIndex:
+    """IDF-weighted token overlap over a fixed list of documents.
+
+    `score(query)` returns, for each document, the share of the query's total
+    IDF mass that the document contains, in [0, 1]. That normalisation is what
+    makes it combinable with a cosine: both are "how much of the question does
+    this row account for", on the same scale.
+    """
+
+    def __init__(self, docs: list[str]):
+        self.n = len(docs)
+        self.postings: dict[str, list[int]] = {}
+        for i, d in enumerate(docs):
+            for t in set(lex_tokens(d)):
+                self.postings.setdefault(t, []).append(i)
+        self.idf = {
+            t: float(np.log(1.0 + self.n / len(ix))) for t, ix in self.postings.items()
+        }
+
+    def score(self, query: str) -> np.ndarray:
+        acc = np.zeros(self.n, dtype=np.float32)
+        if not self.n:
+            return acc
+        terms = set(lex_tokens(query))
+        # Unknown query terms still count against the denominator: a question
+        # naming a figure that appears nowhere in the corpus should not score a
+        # perfect lexical match on whatever else it happens to share.
+        total = sum(self.idf.get(t, float(np.log(1.0 + self.n))) for t in terms)
+        if total <= 0:
+            return acc
+        for t in terms:
+            ix = self.postings.get(t)
+            if ix:
+                acc[ix] += self.idf[t]
+        return acc / total
 
 
 @dataclass
@@ -275,6 +363,22 @@ class VectorStore:
         self.vectors = vectors
         self.manifest = manifest
         self._model = None
+        self._lex: LexicalIndex | None = None
+
+    @property
+    def lexical(self) -> LexicalIndex:
+        """Sparse companion to the committed dense index, built at open time.
+
+        Derived from the chunk text already in the index, so it adds nothing to
+        `manifest.json` and cannot make the committed index disagree with the
+        corpus: there is no new artefact to go stale. The clause ref is
+        appended to each row so that a question naming `L-4.2` finds it.
+        """
+        if self._lex is None:
+            self._lex = LexicalIndex(
+                [f"{c.ref} {c.embed_text()}" for c in self.chunks]
+            )
+        return self._lex
 
     @classmethod
     def open(
@@ -394,12 +498,22 @@ class VectorStore:
         k: int = 5,
         doc_id: str | None = None,
         min_score: float = 0.0,
+        lexical_weight: float | None = None,
     ) -> list[Hit]:
+        """Rank chunks by a blend of the dense and lexical scores.
+
+        `lexical_weight` defaults to LEXICAL_WEIGHT; 0.0 reproduces the
+        dense-only ranking exactly, which is what makes the blend measurable
+        against the old behaviour rather than merely different from it.
+        """
+        w = LEXICAL_WEIGHT if lexical_weight is None else lexical_weight
         q = np.asarray(self.model.encode([query]), dtype=np.float32)[0]
         n = float(np.linalg.norm(q))
         if n:
             q = q / n
         scores = self.vectors @ q
+        if w:
+            scores = (1.0 - w) * scores + w * self.lexical.score(query)
         order = np.argsort(-scores)
         hits: list[Hit] = []
         for i in order:

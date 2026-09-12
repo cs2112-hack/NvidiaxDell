@@ -82,7 +82,7 @@ class Para:
 
     index: int
     text: str
-    kind: str = "body"        # "body" | "heading"
+    kind: str = "body"        # "body" | "heading" | "furniture"
     level: int = 0            # heading level where the format carries one
     note: str = ""            # e.g. "docx auto-numbered list item"
 
@@ -188,6 +188,61 @@ def split_paragraphs(text: str, start_index: int = 1) -> list[Para]:
     return paras
 
 
+# A line that opens a numbered or lettered item. Used ONLY to recover
+# paragraph breaks from a format that lost them (see
+# `paragraphs_from_flat_text`); deciding what the numbering MEANS is
+# lks.structure's job, not this module's.
+_FLAT_MARKER_RE = re.compile(
+    r"^\(?[A-Za-z]{1,3}\)[ \t]+\S"
+    r"|^(?:[A-Z]{1,4}[-.])?\d{1,3}(?:\.\d{1,3})*[.)]?[ \t]+\S"
+)
+_CAPS_LINE_RE = re.compile(r"^[^a-z]{2,60}$")
+
+
+def paragraphs_from_flat_text(text: str, start_index: int = 1
+                              ) -> tuple[list[Para], bool]:
+    """Paragraphs from text that may have lost its blank lines.
+
+    Some PDFs -- and text pasted out of one -- arrive as an unbroken run of
+    lines with no blank line anywhere. Blank lines are the primary signal and
+    are always used where they exist; where a block runs on for many lines
+    with none, the block is re-split at lines that open a numbered or lettered
+    item, or at a short all-capitals line. The return flag says whether that
+    happened, so the conversion report can tell the human that these
+    paragraph breaks were *inferred* rather than read.
+    """
+    blocks = [b for b in re.split(r"\n\s*\n", text) if b.strip()]
+    lines_total = max(1, len(text.split("\n")))
+    blanks = sum(1 for ln in text.split("\n") if not ln.strip())
+    run_on = [b for b in blocks if len(b.split("\n")) >= 8]
+    if not run_on or blanks / lines_total >= 0.05:
+        return split_paragraphs(text, start_index), False
+
+    paras: list[Para] = []
+    i = start_index
+    inferred = False
+    for block in blocks:
+        lines = block.split("\n")
+        if len(lines) < 8:
+            paras.append(Para(index=i, text=block))
+            i += 1
+            continue
+        inferred = True
+        buf: list[str] = []
+        for ln in lines:
+            starts = bool(_FLAT_MARKER_RE.match(ln.strip())) or bool(
+                _CAPS_LINE_RE.match(ln.strip()))
+            if starts and buf:
+                paras.append(Para(index=i, text="\n".join(buf)))
+                i += 1
+                buf = []
+            buf.append(ln)
+        if buf:
+            paras.append(Para(index=i, text="\n".join(buf)))
+            i += 1
+    return paras, inferred
+
+
 # --- per-format readers ----------------------------------------------------
 
 FRONT_MATTER_RE = re.compile(r"\A---\n(.*?)\n---\n?", re.DOTALL)
@@ -235,7 +290,12 @@ def _extract_text(path: Path, fmt: str) -> Extracted:
 
     text = normalise_text(raw)
     if fmt != "md":
-        ex.paras = split_paragraphs(text)
+        ex.paras, inferred = paragraphs_from_flat_text(text)
+        if inferred:
+            ex.warnings.append(
+                "the file contains no blank lines, so paragraph breaks were "
+                "INFERRED from lines that open a numbered or lettered item"
+            )
         return ex
 
     # Markdown: headings are structure the format carries, so keep them typed.
@@ -362,7 +422,11 @@ def _extract_docx(path: Path) -> Extracted:
             kind, level = "body", 0
             m = re.fullmatch(r"(?:Heading|heading)[ _-]?([1-9])", style)
             if m:
-                kind, level = "heading", int(m.group(1))
+                # Word's Title style sits ABOVE Heading1, so heading levels are
+                # shifted down one: otherwise a document's title and its first
+                # section heading look like the same level and neither can be
+                # told from the other.
+                kind, level = "heading", int(m.group(1)) + 1
             elif style in ("Title", "Subtitle"):
                 kind, level = "heading", 1 if style == "Title" else 2
             note = ""
@@ -421,7 +485,11 @@ def _extract_pdf(path: Path) -> Extracted:
 
     if "pdftotext" in backends:
         proc = subprocess.run(
-            [backends["pdftotext"], "-q", "-nopgbrk", "-eol", "unix", str(path), "-"],
+            # -layout keeps the blank line between paragraphs and the leading
+            # indentation of sub-paragraphs; without it poppler reflows the
+            # page and both signals are lost.
+            [backends["pdftotext"], "-q", "-nopgbrk", "-eol", "unix", "-layout",
+             str(path), "-"],
             capture_output=True, text=True, timeout=300,
         )
         if proc.returncode != 0:
@@ -474,13 +542,59 @@ def _extract_pdf(path: Path) -> Extracted:
             f"`ocrmypdf in.pdf out.pdf`) -- guessing at the text of a legal document "
             f"is not an option."
         )
-    ex.paras = split_paragraphs(_dehyphenate(text))
+    ex.paras, inferred = paragraphs_from_flat_text(
+        isolate_page_furniture(_dehyphenate(text)))
     ex.warnings.append(
-        "PDF paragraph breaks are inferred from the text layer, and running "
-        "headers, footers and page numbers may survive as paragraphs. Every "
-        "paragraph is listed in the conversion report; check it."
+        "PDF paragraph breaks come from the text layer, and running headers, "
+        "footers and page numbers survive it as paragraphs. Every paragraph is "
+        "listed in the conversion report; check it."
     )
+    if inferred:
+        ex.warnings.append(
+            "this PDF's text layer contains no blank lines, so paragraph breaks "
+            "were INFERRED from lines that open a numbered or lettered item. A "
+            "clause whose text merely continues on a new line may have been "
+            "joined to its neighbour; check the clause table in the report."
+        )
     return ex
+
+
+_PAGE_NUM_LINE_RE = re.compile(
+    r"^(?:page\s+\d+(?:\s+of\s+\d+)?|\d{1,3}|[-\u2013\u2014]\s*\d{1,3}\s*[-\u2013\u2014])$",
+    re.I,
+)
+
+
+def isolate_page_furniture(text: str) -> str:
+    """Put every running header, footer and page number in its own paragraph.
+
+    Pagination is not part of a document's structure, but it lands in the
+    text layer all the same -- and worse, a footer and the next page's header
+    arrive with no blank line between them or the clause they interrupt, so a
+    clause acquires `Page 2 of 9` in the middle of a sentence. Isolating such
+    lines into their own paragraphs lets `lks.structure` classify them
+    explicitly. They are NOT deleted here: the conversion report has to
+    account for every paragraph, and a line this function guessed wrong about
+    must still be visible to the human reading it.
+
+    A line is furniture if it is a page number, or if it appears three or
+    more times in the document and is short enough to be a running head.
+    """
+    lines = text.split("\n")
+    counts: dict[str, int] = {}
+    for ln in lines:
+        key = ln.strip()
+        if key:
+            counts[key] = counts.get(key, 0) + 1
+    out: list[str] = []
+    for ln in lines:
+        key = ln.strip()
+        repeated = counts.get(key, 0) >= 3 and len(key) <= 80 and len(key.split()) <= 12
+        if key and (_PAGE_NUM_LINE_RE.match(key) or repeated):
+            out += ["", ln, ""]
+        else:
+            out.append(ln)
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip("\n")
 
 
 _HYPHEN_BREAK_RE = re.compile(r"([A-Za-z]{2,})-\n([a-z]{2,})")
@@ -497,6 +611,7 @@ def _dehyphenate(text: str) -> str:
 
 
 class _HTMLText(HTMLParser):
+    FURNITURE = {"nav", "footer", "aside"}
     BLOCK = {"p", "div", "section", "article", "li", "tr", "td", "th", "blockquote",
              "pre", "dd", "dt", "figcaption", "header", "footer", "main", "table",
              "ul", "ol", "dl", "h1", "h2", "h3", "h4", "h5", "h6", "br", "hr"}
@@ -506,6 +621,7 @@ class _HTMLText(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.blocks: list[tuple[str, int, list[str]]] = []   # (kind, level, chunks)
         self._drop = 0
+        self._furniture = 0
         self._cur: tuple[str, int, list[str]] = ("body", 0, [])
         self.title = ""
         self._in_title = False
@@ -514,6 +630,8 @@ class _HTMLText(HTMLParser):
         kind, level, chunks = self._cur
         text = "".join(chunks)
         if text.strip():
+            if self._furniture and kind != "heading":
+                kind = "furniture"
             self.blocks.append((kind, level, [text]))
         self._cur = ("body", 0, [])
 
@@ -521,6 +639,9 @@ class _HTMLText(HTMLParser):
         if tag in self.DROP:
             self._drop += 1
             return
+        if tag in self.FURNITURE:
+            self._flush()
+            self._furniture += 1
         if tag == "title":
             self._in_title = True
             return
@@ -533,6 +654,9 @@ class _HTMLText(HTMLParser):
         if tag in self.DROP:
             self._drop = max(0, self._drop - 1)
             return
+        if tag in self.FURNITURE:
+            self._flush()
+            self._furniture = max(0, self._furniture - 1)
         if tag == "title":
             self._in_title = False
             return
@@ -540,10 +664,11 @@ class _HTMLText(HTMLParser):
             self._flush()
 
     def handle_data(self, data: str) -> None:
-        if self._drop:
-            return
+        # <title> lives inside <head>, which is otherwise dropped whole
         if self._in_title:
             self.title += data
+            return
+        if self._drop:
             return
         self._cur[2].append(data)
 
@@ -563,9 +688,13 @@ def _extract_html(path: Path) -> Extracted:
     i = 1
     for kind, level, chunks in p.blocks:
         text = normalise_text(_html.unescape("".join(chunks)))
+        # HTML source indentation is formatting, not content
+        text = "\n".join(ln.strip() for ln in text.split("\n")).strip()
         if not text.strip():
             continue
-        ex.paras.append(Para(index=i, text=text, kind=kind, level=level))
+        note = ("from an HTML <nav>, <footer> or <aside> element, which is page "
+                "furniture rather than document text") if kind == "furniture" else ""
+        ex.paras.append(Para(index=i, text=text, kind=kind, level=level, note=note))
         i += 1
     if not ex.paras:
         raise ExtractionError(f"{path}: no text content found in the HTML")

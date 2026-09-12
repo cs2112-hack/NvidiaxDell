@@ -95,6 +95,14 @@ declaration scope RetentionEnd:
 | throughout. The scope mode stays `date round down` because every other
 | period in this scope is an R-1.2 maximum, and limb (a)'s own six years
 | keep rounding down even where R-3.3 displaces the result.
+|
+| CE-0029. That round-up is available only where R-3.3 actually governs, and
+| R-3.3 governs only where the statutory period is LONGER than limb (a)'s six
+| years. Applied to a statutory period that is not longer it does not protect
+| a statutory floor at all — it lengthens the Standard's own maximum by a day,
+| which is the one thing `date round down` was chosen to prevent. The
+| engagement of R-3.3 is therefore tested in its condition, below, and not
+| left to a maximum taken over the two dates.
 
 ```catala
 scope RetentionEnd:
@@ -216,8 +224,8 @@ Customer Contracts and Security Logs too.
 
 The statutory period runs from the same Retention Trigger as limb (a), the
 end of employment. The clause bites only where the statutory period is the
-*longer*, so the result is the later of the two dates — which also means a
-supplied period shorter than six years cannot cut limb (a) down.
+*longer*, which means a supplied period shorter than six years cannot cut
+limb (a) down.
 
 It is also the one period here that is a **floor rather than a maximum**, so
 it is the one that rounds *up*: resolving ten years from 29 February back to
@@ -227,6 +235,40 @@ which is the one direction rounding must not err in. Hence the explicit
 rounding note above. Limb (a)'s six years keep rounding down inside their
 R-1.2 maximum, so one record can see both directions — correctly, because
 the two periods are different kinds of thing.
+
+**CE-0029.** "A longer period" is a comparative, and until now the module did
+not test it: the condition asked only whether a statutory period applied, and
+the comparison was left to a `Date.max` over limb (a)'s date and the
+rounded-up statutory date. On a statutory pensions period of exactly six years
+— equal, not longer — that put the round-up to work where R-3.3 does not
+engage at all, and an Employee Record whose employment ended on 29 February
+2020 came back as retainable until 1 March 2026 where R-3.1(a) read with R-1.2
+allows 28 February 2026. The module's two routes to the same legal quantity
+disagreed by a day: the same trigger with `statutory_retention_applies` false
+gave 28 February, and the same six years expressed as 72 months gave 1 March.
+A day of retention the Standard does not authorise is a real defect, because
+R-1.2 makes its periods maxima and the whole point of holding a record is that
+it is held.
+
+So the comparative is now in the condition. The statutory period is compared
+with limb (a)'s six years as a period — by resolving both from the same
+Retention Trigger, which is the only way the Standard offers to compare them,
+Catala's months and days being incomparable as durations — and R-3.3 engages
+only where the statutory period reaches beyond limb (a)'s own date. That
+comparison resolves the statutory period *downwards*: the question it asks is
+whether the period exceeds six years as a length of time, and a period that
+exceeds it only once rounded up (six years from 29 February) does not. Where
+R-3.3 does engage, the floor reasoning above is untouched and the period is
+resolved upwards, so a genuine ten-year statutory period still runs to 1 March
+2030. The `Date.max` is kept as the invariant it always was — R-3.3 cannot
+shorten limb (a) — but on the narrowed condition it can no longer be the thing
+that decides the answer.
+
+| DATA-RET R-3.3 (006-data-retention-standard.md:62)
+|
+| By way of exception to R-3.1(a), records required to be retained for a
+| longer period under pensions or payroll legislation are retained for the
+| period so required.
 
 The period so required cannot run backwards, and R-3.3 is what fixes that
 bound. What the clause receives is a period for which records "are required to
@@ -271,6 +313,9 @@ scope RetentionEnd:
     under condition
       (data_class with pattern EmployeeRecord)
       and statutory_retention_applies
+      and (Date.add_round_down of
+             retention_trigger_date, statutory_retention_period)
+          > retention_trigger_date + 6 year
     consequence equals
       Date.max of
         (retention_trigger_date + 6 year),

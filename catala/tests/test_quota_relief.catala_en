@@ -5,12 +5,17 @@ at 29 and at 30 days, each of the three qualifying absence categories is
 tested, and the non-qualifying category and the "continuous period" limb are
 tested for absence of relief.
 
-Three sections then pin the defects the adversarial reviewer found in the
-quantum limb, each of which produced a plausible number: absence outside the
-Plan Year (CE-0012), absence straddling the Plan Year boundary (CE-0013) and
-overlapping absence records double-counting their shared days (CE-0014). Those
-tests assert a *difference* from the wrong figure as well as the right one,
-because the wrong figure is what a careless re-encoding would reproduce.
+Sections then pin the defects the adversarial reviewer found, each of which
+produced a plausible number: absence outside the Plan Year (CE-0012), absence
+straddling the Plan Year boundary (CE-0013), overlapping absence records
+double-counting their shared days (CE-0014), one continuous absence recorded as
+two abutting fit-note periods (CE-0028), the S-6.1 reduction rounded to the
+penny before Attainment (CE-0027) and an absence covering the whole Plan Year,
+which reduces the Quota to nil and used to crash the composition (CE-0026).
+Those tests assert a *difference* from the wrong figure as well as the right
+one, because the wrong figure is what a careless re-encoding would reproduce —
+and the CE-0028 tests assert that the answer is the same whether the absence is
+written as one record or two, which is the property the defect broke.
 
 The S-6.2 tests are the important ones. The first composes
 `QuotaRelief.RelievedQuota` with `Commission.Attainment` and
@@ -302,13 +307,13 @@ scope TestS6_2_ReliefBeforeAttainment:
   definition on_relieved_quota equals
     output of Commission.Attainment with {
       -- net_booked_revenue: $800,000
-      -- quota: relieved.quota_for_attainment
+      -- quota: relieved.quota_for_attainment_exact
     }
 
   definition on_assigned_quota equals
     output of Commission.Attainment with {
       -- net_booked_revenue: $800,000
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
     }
 
   definition accelerator_on_relieved equals
@@ -588,7 +593,7 @@ scope TestS6_2_CommissionAfterReliefIsStructural:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $800,000
       -- new_logo_share: 0%
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $500,000
     }
@@ -626,4 +631,212 @@ scope TestS6_2_CommissionAfterReliefWithNoAbsence:
   assertion composed.quota_for_attainment = $1,000,000
   assertion composed.commission.attainment_calc.attainment_pct = 80%
   assertion composed.commission_payable = $64,000
+```
+
+## S-6.1 One continuous absence, two abutting records — CE-0028
+
+A 40-day sickness absence certified by two successive fit notes arrives as two
+abutting 20-day records with no day of attendance between them. S-6.1's gateway
+is "a continuous period of 30 days or more", which is a fact about the absence
+and not about the filing, so the two records are one continuous period of 40
+days: 40/365ths of a $730,000 Quota is exactly $80,000, leaving $650,000. The
+per-record gateway gave this Employee nothing, so the test asserts the nil
+answer is *not* produced, and it asserts that the identical absence written as
+one record gives the same figure — which is the property the defect broke.
+
+```catala
+#[test]
+declaration scope TestS6_1_AbuttingRecordsAreOneAbsence:
+  output split content QuotaRelief.RelievedQuota
+  output whole content QuotaRelief.RelievedQuota
+
+scope TestS6_1_AbuttingRecordsAreOneAbsence:
+  definition split equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $730,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-01-20|;
+           absence of LongTermSicknessAbsence, |2026-01-21|, |2026-02-09|
+         ]
+    }
+
+  definition whole equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $730,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-02-09|
+         ]
+    }
+
+  assertion split.relief_days = 40
+  assertion split.relief = $80,000
+  assertion split.relieved_quota = $650,000
+  assertion split.quota_for_attainment = $650,000
+  assertion split.relief_days != 0
+  assertion split.relief != $0
+  assertion split.relief_days = whole.relief_days
+  assertion split.quota_for_attainment = whole.quota_for_attainment
+```
+
+S-6.1's list of grounds is disjunctive, so a 20-day statutory parental leave
+abutting a 20-day long-term sickness absence is also one continuous period of
+qualifying absence of 40 days.
+
+```catala
+#[test]
+declaration scope TestS6_1_AbuttingAcrossCategories:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_AbuttingAcrossCategories:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $730,000
+      -- absence_periods: [
+           absence of StatutoryParentalLeave, |2026-01-01|, |2026-01-20|;
+           absence of LongTermSicknessAbsence, |2026-01-21|, |2026-02-09|
+         ]
+    }
+  assertion r.relief_days = 40
+  assertion r.relief = $80,000
+```
+
+A single day of attendance between the two records breaks the continuous
+period, and neither 20-day spell reaches 30 days. Merging must not go so far as
+to bridge a gap, so this is the other side of CE-0028.
+
+```catala
+#[test]
+declaration scope TestS6_1_OneDayGapBreaksContinuity:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_OneDayGapBreaksContinuity:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $730,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-01-20|;
+           absence of LongTermSicknessAbsence, |2026-01-22|, |2026-02-10|
+         ]
+    }
+  assertion r.relief_days = 0
+  assertion r.relieved_quota = $730,000
+  assertion r.relief_days != 40
+```
+
+A day of some other absence between two sickness records is a day the Employee
+was absent on no ground S-6.1 names, so it breaks the period too.
+
+```catala
+#[test]
+declaration scope TestS6_1_NonQualifyingDayBreaksContinuity:
+  output r content QuotaRelief.RelievedQuota
+
+scope TestS6_1_NonQualifyingDayBreaksContinuity:
+  definition r equals
+    output of QuotaRelief.RelievedQuota with {
+      -- annual_quota: $730,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2026-01-01|, |2026-01-20|;
+           absence of OtherAbsence, |2026-01-21|, |2026-01-21|;
+           absence of LongTermSicknessAbsence, |2026-01-22|, |2026-02-10|
+         ]
+    }
+  assertion r.relief_days = 0
+```
+
+## S-6.1 The reduction is exact, not rounded to the penny — CE-0027
+
+30 days of statutory parental leave on a $750,000 Quota reduce it by
+$61,643.8356164383..., leaving $688,356.1643835616.... S-6.1 specifies no
+rounding of that reduction. Against Net Booked Revenue of $344,178.08 the exact
+Quota gives Attainment of 49.99999968%, which is S-4.1(a) and an accelerator of
+0.0, so no commission is payable. Rounded to the penny the relieved Quota is
+$688,356.16 and Attainment is exactly 50.00%, which is S-4.1(b) and an
+accelerator of 1.0 — $27,534.25. The test asserts the exact answer, asserts the
+rounded denominator would give the other band, and asserts the two differ.
+
+```catala
+#[test]
+declaration scope TestS6_1_ReliefIsNotRoundedToThePenny:
+  output composed content QuotaRelief.CommissionAfterRelief
+  output on_rounded_quota content Commission.Attainment
+  output accelerator_on_rounded content Commission.Accelerator
+
+scope TestS6_1_ReliefIsNotRoundedToThePenny:
+  definition composed equals
+    output of QuotaRelief.CommissionAfterRelief with {
+      -- assigned_quota: $750,000
+      -- absence_periods: [
+           absence of StatutoryParentalLeave, |2025-11-01|, |2025-11-30|
+         ]
+      -- net_booked_revenue: $344,178.08
+      -- new_logo_share: 0%
+      -- commencement_date: |2020-01-01|
+      -- annual_base_salary: $120,000
+    }
+
+  definition on_rounded_quota equals
+    output of Commission.Attainment with {
+      -- net_booked_revenue: $344,178.08
+      -- quota: decimal of $688,356.16
+    }
+
+  definition accelerator_on_rounded equals
+    output of Commission.Accelerator with {
+      -- attainment_pct: on_rounded_quota.attainment_pct
+      -- new_logo_share: 0%
+      -- commencement_date: |2020-01-01|
+    }
+
+  assertion composed.quota_relief.relief_days = 30
+  assertion composed.quota_relief.relief = $61,643.84
+  assertion composed.quota_relief.relieved_quota = $688,356.16
+  assertion composed.quota_relief.quota_for_attainment_exact > 688356.16
+  assertion composed.commission.attainment_calc.attainment_pct < 50%
+  assertion composed.commission.attainment_calc.attainment_pct != 50%
+  assertion composed.commission.accelerator_calc.accelerator = 0.0
+  assertion composed.commission_payable = $0
+  assertion on_rounded_quota.attainment_pct = 50%
+  assertion accelerator_on_rounded.accelerator = 1.0
+  assertion composed.commission.accelerator_calc.accelerator
+    != accelerator_on_rounded.accelerator
+  assertion composed.commission_payable != $27,534.25
+```
+
+## S-6.1 An absence covering the whole Plan Year leaves a nil Quota — CE-0026
+
+Long-term sickness absence from 1 August 2025 to 30 November 2026 covers every
+one of the 365 days of the Plan Year, so S-6.1 consumes 365/365ths of the
+$1,200,000 Quota and the relieved Quota is nil. That is a lawful outcome and the
+Plan answers the question put: S-3.1 multiplies Net Booked Revenue by the Base
+Commission Rate and by the accelerator, and Net Booked Revenue is $0, so the
+product is $0.00 whatever the accelerator and S-5.1's cap does not bite. The
+composition used to raise a division by zero here, on facts S-6.1 compels.
+
+```catala
+#[test]
+declaration scope TestS6_1_NilQuotaIsAnsweredNotRefused:
+  output composed content QuotaRelief.CommissionAfterRelief
+
+scope TestS6_1_NilQuotaIsAnsweredNotRefused:
+  definition composed equals
+    output of QuotaRelief.CommissionAfterRelief with {
+      -- assigned_quota: $1,200,000
+      -- absence_periods: [
+           absence of LongTermSicknessAbsence, |2025-08-01|, |2026-11-30|
+         ]
+      -- net_booked_revenue: $0
+      -- new_logo_share: 0%
+      -- commencement_date: |2020-01-01|
+      -- annual_base_salary: $120,000
+    }
+  assertion composed.quota_relief.relief_days = 365
+  assertion composed.quota_relief.relief = $1,200,000
+  assertion composed.quota_relief.relieved_quota = $0
+  assertion composed.quota_for_attainment = $0
+  assertion composed.quota_relief.quota_for_attainment_exact = 0.0
+  assertion composed.commission.attainment_calc.attainment_pct = 0%
+  assertion composed.commission.accelerator_calc.accelerator = 0.0
+  assertion composed.commission.cap = $300,000
+  assertion composed.commission_payable = $0
 ```

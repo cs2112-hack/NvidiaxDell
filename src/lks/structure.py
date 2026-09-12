@@ -92,15 +92,19 @@ _AFTER = r'(?=[A-Z"“‘\'(\[£$€\d])'
 
 DECIMAL_RE = re.compile(r"^((?:[A-Z]{1,4}[-.])?\d{1,3}(?:\.\d{1,3})+)\.?[ \t]+" + _AFTER)
 NUMBERED_RE = re.compile(r"^(\d{1,3})[.)][ \t]+" + _AFTER)
-LETTERED_RE = re.compile(r"^\(([A-Za-z]{1,5})\)[ \t]+" + _AFTER)
+LETTERED_RE = re.compile(r"^\(([A-Za-z]{1,5})\)[ \t]+(?=\S)")
 ARTICLE_RE = re.compile(
     r"^(ARTICLE|Article|CLAUSE|Clause|SECTION|Section|PARAGRAPH|Paragraph|PART|Part"
     r"|SCHEDULE|Schedule|ANNEX|Annex|APPENDIX|Appendix)\s+"
     r"(\d{1,3}|I|V|X|[IVXLCDM]{2,7})\b[.:]?[ \t]*(.*)$"
 )
 RECITAL_RE = re.compile(
-    r"^(WHEREAS|Whereas|NOW,? THEREFORE|Now,? therefore|IN WITNESS WHEREOF|"
-    r"RECITALS?|BACKGROUND)\b"
+    r"^(WHEREAS|Whereas|NOW,? THEREFORE|Now,? therefore|RECITALS?|BACKGROUND)\b"
+)
+# An execution block is not a recital: it sits at the END of a document, so
+# filing it under the recitals section would reorder the document.
+EXECUTION_RE = re.compile(
+    r"^(IN WITNESS WHEREOF|EXECUTED as a deed|SIGNED (?:by|for)|Signed (?:by|for))\b"
 )
 # A heading's own number: "C-1 Purpose", "4 Payment Terms", "7.2 Fees". This is
 # deliberately separate from the clause markers above -- a heading number needs no
@@ -121,14 +125,25 @@ FURNITURE_RE = re.compile(
     r"^(?:page\s+\d+(?:\s+of\s+\d+)?|\d{1,3}|[-–—]\s*\d{1,3}\s*[-–—]|"
     r"confidential(?:\s*[-–—/]\s*\w+)?|draft|privileged\s*(?:and|&)?\s*"
     r"confidential|internal use only|\[?signature page follows\]?|_{4,}|"
+    r"(?:\u00a9|copyright\b|\(c\)\s*\d{4})[\s\S]{0,60}|"
     r"\.{4,}|\W{1,4})$",
     re.I,
 )
 
+# Context that makes a date an EFFECTIVE date.
 DATE_CONTEXT = (
     r"(?:effective(?:\s+(?:date|as\s+of|from|on))?|with\s+effect\s+(?:from|on)|"
     r"commenc(?:es|ing|ement)(?:\s+(?:on|date))?|takes?\s+effect\s+(?:on|from)|"
-    r"dated|made\s+on|entered\s+into\s+on|in\s+force\s+(?:from|on))"
+    r"in\s+force\s+(?:from|on)|applies\s+from|operative\s+from)"
+)
+# Context that makes a date an EXECUTION or signature date, which is a
+# different thing and frequently a different day: "This Agreement is made on
+# 14 March 2025 and takes effect from 1 April 2025". Taking the first date in
+# the document would date every rule in it three weeks early, which is the
+# silent mis-dating this pipeline must not do.
+EXECUTION_DATE_CONTEXT = (
+    r"(?:dated|made\s+on|entered\s+into\s+on|executed\s+on|signed\s+on|"
+    r"as\s+witness)"
 )
 _MONTHS = ("january february march april may june july august september october "
            "november december").split()
@@ -310,6 +325,9 @@ def _marker(p: Para) -> tuple[str, str, str]:
     m = RECITAL_RE.match(first)
     if m:
         return "recital", m.group(1), p.text.strip()
+    m = EXECUTION_RE.match(first)
+    if m:
+        return "execution", m.group(1), p.text.strip()
     m = ARTICLE_RE.match(first)
     if m:
         return "article", f"{m.group(1)} {m.group(2)}", m.group(3).strip()
@@ -330,7 +348,7 @@ def _marker(p: Para) -> tuple[str, str, str]:
 def detect_scheme(ex: Extracted) -> Scheme:
     """Count markers over the whole document, then choose the layers."""
     counts = {k: 0 for k in ("decimal", "numbered", "lettered", "article",
-                             "recital", "bullet", "none")}
+                             "recital", "execution", "bullet", "none")}
     numbered_headinglike = 0
     fmt_headings = 0
     decimal_depths: set[int] = set()
@@ -531,6 +549,8 @@ class _Builder:
         self.heading_ordinal = 0
         self.para_counter: dict[str, int] = {}
         self.sub_ordinal = 0
+        self.closed = False          # a heading has intervened since the last clause
+        self.last_heading_title = ""
         self.warnings: list[str] = []
         self.title_para: int | None = None
         self.repeated = self._repeated_paragraphs()
@@ -544,6 +564,17 @@ class _Builder:
             if len(key) <= 80:
                 seen[key] = seen.get(key, 0) + 1
         return {k for k, n in seen.items() if n >= 3}
+
+    def _close(self, title: str) -> None:
+        """A heading ends the clause above it.
+
+        Without this, a paragraph under a new heading would be appended to the
+        last numbered clause of the previous section -- silently moving text
+        from one part of the document to another, which is the worst kind of
+        error this converter can make because the text still looks present.
+        """
+        self.closed = True
+        self.last_heading_title = title or self.last_heading_title
 
     def _record(self, p: Para, kind: str, clause_id: str = "", reason: str = "") -> None:
         self.disp.append(Disposition(index=p.index, kind=kind, clause_id=clause_id,
@@ -570,10 +601,26 @@ class _Builder:
             self.section_title = title
 
     def _synth_section(self) -> str:
-        if self.section_id:
+        """The section a synthesised clause belongs to.
+
+        Always a `P-` section, keyed on the enclosing heading's ordinal, even
+        when the document numbers its other sections. A synthesised clause
+        must not be given an id that reads like the document's own numbering:
+        `CL-2.3` claims the document says 2.3, while `P-2.3` says plainly
+        that the number is ours.
+        """
+        sid = f"P-{self.heading_ordinal}"
+        title = self.last_heading_title or (
+            "(text before the first heading)" if not self.heading_ordinal
+            else "(no heading)")
+        self._open_section(sid, title)
+        return sid
+
+    def _lettered_section(self) -> str:
+        """Section for a lettered clause: the document's own, where it has one."""
+        if self.section_id and not self.section_id.startswith("P-"):
             return self.section_id
-        self._open_section("P-0", "(text before the first heading)")
-        return self.section_id
+        return self._synth_section()
 
     def _add(self, p: Para, cid: str, id_source: str, doc_number: str,
              lines: list[str], kind: str = "clause") -> Inferred:
@@ -584,6 +631,7 @@ class _Builder:
                       paras=[p.index], note=note)
         self.clauses.append(cl)
         self.sub_ordinal = 0
+        self.closed = False
         self._record(p, kind, cid, note)
         return cl
 
@@ -593,7 +641,7 @@ class _Builder:
 
     def _append(self, p: Para, lines: list[str], kind: str, reason: str = "") -> bool:
         cur = self.current
-        if cur is None:
+        if cur is None or self.closed:
             return False
         cur.lines.extend(lines)
         cur.paras.append(p.index)
@@ -609,17 +657,18 @@ class _Builder:
                 self._record(p, "title", reason="taken as the document title")
                 continue
             if self._is_furniture(p):
-                self._record(p, "furniture", reason=(
+                self._record(p, "furniture", reason=(p.note or
                     "matches page furniture (running header/footer, page number or "
-                    "classification stamp) and is excluded from the converted "
-                    "document; the full text is preserved here"))
+                    "classification stamp)") + "; excluded from the converted "
+                    "document, with the full text preserved here")
                 continue
             kind, token, rest = _marker(p)
             if is_heading(p) and kind in ("none", "bullet"):
                 self._heading(p, "", p.text.strip())
                 continue
             handler = {
-                "recital": self._recital, "article": self._article,
+                "recital": self._recital, "execution": self._execution,
+                "article": self._article,
                 "decimal": self._decimal, "numbered": self._numbered,
                 "lettered": self._lettered, "bullet": self._bullet,
                 "none": self._plain,
@@ -634,14 +683,19 @@ class _Builder:
         document's title, not a section of it. A document whose sections are
         all top-level headings has no such paragraph, and nothing is consumed.
         """
-        headings = [p for p in self.ex.paras if is_heading(p)]
+        # page furniture is never the document title, even when it is the
+        # first thing in the text layer: a running header at the top of page 1
+        # arrives before the title and looks exactly like it.
+        real = [p for p in self.ex.paras if not self._is_furniture(p)]
+        headings = [p for p in real if is_heading(p)]
         if not headings:
             return None
         first = headings[0]
         if first.kind != "heading":
-            # a plain-text document: its first capitalised line is its title
-            # only when it is the very first paragraph of the file.
-            return first.index if first.index == 1 else None
+            # A plain-text or PDF document carries no heading styles, so the
+            # title is a capitalised line at the very top -- within the first
+            # few paragraphs, since a cover page may precede it.
+            return first.index if first.index in [q.index for q in real[:3]] else None
         if first.level == 0:
             return None
         same = [h for h in headings if h.level == first.level]
@@ -652,6 +706,8 @@ class _Builder:
         return None
 
     def _is_furniture(self, p: Para) -> bool:
+        if p.kind == "furniture":
+            return True
         flat = " ".join(p.text.split())
         if flat in self.repeated and len(flat.split()) <= 12:
             return True
@@ -661,6 +717,7 @@ class _Builder:
     def _heading(self, p: Para, number: str, title: str) -> None:
         self.heading_ordinal += 1
         kind, token, rest = _marker(p)
+        self._close(rest if kind in ("article", "numbered", "decimal") else title)
         if kind == "article":
             sid = _section_from_article(token)
             self._open_section(sid, rest or f"({token})")
@@ -694,6 +751,7 @@ class _Builder:
         # unnumbered heading
         sid = f"P-{self.heading_ordinal}"
         self.pending_heading = ("", title)
+        self.last_heading_title = title
         if self.scheme.clause_layer in ("paragraph", "lettered"):
             self._open_section(sid, title)
             self._record(p, "heading", sid, f"synthesised section {sid} from heading "
@@ -714,6 +772,14 @@ class _Builder:
         return htitle
 
     def _recital(self, p: Para, token: str, rest: str) -> None:
+        flat = " ".join(p.text.split())
+        if token.upper().startswith(("RECITAL", "BACKGROUND")) and _heading_like(flat):
+            # the word alone on a line is the heading of the recitals, not a recital
+            self.heading_ordinal += 1
+            self._close("Recitals")
+            self._open_section("R-1", "Recitals")
+            self._record(p, "heading", "R-1", "heading of the recitals section")
+            return
         self._open_section("R-1", "Recitals")
         n = self.para_counter.get("R-1", 0) + 1
         self.para_counter["R-1"] = n
@@ -723,6 +789,17 @@ class _Builder:
             self.clauses[-1].note or
             f"recital, which the document does not number; id synthesised from "
             f"position ({n} of the recitals). Not citable as a clause number.")
+
+    def _execution(self, p: Para, token: str, rest: str) -> None:
+        """Signature and execution wording, kept as its own closing section."""
+        self._open_section("EX-1", "Execution")
+        n = self.para_counter.get("EX-1", 0) + 1
+        self.para_counter["EX-1"] = n
+        cl = self._add(p, f"EX-1.{n}", "synthesised", "", p.text.split("\n"),
+                       kind="clause")
+        cl.note = cl.note or (
+            "execution / signature wording, which the document does not number; id "
+            "synthesised from position and not citable as a clause number")
 
     def _article(self, p: Para, token: str, rest: str) -> None:
         sid = _section_from_article(token)
@@ -775,7 +852,7 @@ class _Builder:
         indented = p.text.startswith(" ")
         ordinal, reading = _letter_ordinal(token, self.sub_ordinal)
         if self.scheme.clause_layer == "lettered" and not indented:
-            sid = self._synth_section()
+            sid = self._lettered_section()
             n = self.para_counter.get(sid, 0)
             cid = f"{sid}.{ordinal}"
             self.para_counter[sid] = max(n, ordinal)
@@ -805,11 +882,9 @@ class _Builder:
 
     def _plain(self, p: Para, token: str, rest: str) -> None:
         lines = p.text.split("\n")
-        cur = self.current
-        if cur is not None and self.scheme.clause_layer != "paragraph" \
-                and self._is_continuation(p):
-            self._append(p, lines, "continuation",
-                         "unnumbered paragraph following a numbered clause")
+        if self.scheme.clause_layer != "paragraph" and self._is_continuation(p) \
+                and self._append(p, lines, "continuation",
+                                 "unnumbered paragraph continuing the clause above"):
             return
         sid = self._synth_section()
         n = self.para_counter.get(sid, 0) + 1
@@ -824,8 +899,14 @@ class _Builder:
         clause above it: in every numbering scheme here, a new clause starts
         with its number. The alternative -- inventing a clause id in the
         middle of a numbered document -- would produce an id that contradicts
-        the document's own numbering."""
-        return self.current is not None
+        the document's own numbering.
+
+        A heading in between ends that: see `_close`. So does a preceding
+        clause whose own id was synthesised -- two unnumbered paragraphs in a
+        row are two paragraphs, and merging them would discard the only
+        structure such a document has."""
+        cur = self.current
+        return cur is not None and not self.closed and not cur.synthesised
 
     def section_number(self, sid: str) -> str:
         m = re.match(r"^[A-Z]{1,4}-(\d+)$", sid)
@@ -870,6 +951,7 @@ def find_effective_date(ex: Extracted) -> tuple[str | None, str, list[str]]:
     the matched phrase is quoted in the report so a human can check it.
     """
     notes: list[str] = []
+    hits: dict[str, str] = {}                    # iso date -> evidence
     for p in ex.paras:
         flat = " ".join(p.text.split())
         for idx, rx in enumerate(DATE_PATTERNS):
@@ -879,11 +961,17 @@ def find_effective_date(ex: Extracted) -> tuple[str | None, str, list[str]]:
                 iso = _iso_date(m.groups(), idx)
                 if iso is None:
                     continue
+                phrase = flat[start:min(len(flat), m.end() + 10)]
                 if re.search(DATE_CONTEXT, window, re.I):
-                    phrase = flat[start:min(len(flat), m.end() + 10)]
-                    return iso, f"paragraph {p.index}: “...{phrase}...”", notes
-                notes.append(f"paragraph {p.index}: date {iso} found, but not in "
-                             f"effective-date context (“...{flat[start:m.end()][-60:]}...”)")
+                    hits.setdefault(iso, f"paragraph {p.index}: “...{phrase}...”")
+                elif re.search(EXECUTION_DATE_CONTEXT, window, re.I):
+                    notes.append(
+                        f"paragraph {p.index}: date {iso} is an execution or "
+                        f"signature date (“...{phrase}...”), which is not an "
+                        f"effective date and is not used as one")
+                else:
+                    notes.append(f"paragraph {p.index}: date {iso} found, but not "
+                                 f"in effective-date context (“...{phrase}...”)")
         for m in AMBIGUOUS_DATE_RE.finditer(flat):
             notes.append(
                 f"paragraph {p.index}: {m.group(0)!r} is an ambiguous numeric date "
@@ -892,6 +980,16 @@ def find_effective_date(ex: Extracted) -> tuple[str | None, str, list[str]]:
         if ex.meta.get(key):
             notes.append(f"file metadata {key}={ex.meta[key]!r} is a file timestamp, "
                          f"not an effective date, and is not used as one")
+    if len(hits) == 1:
+        iso, evidence = next(iter(hits.items()))
+        return iso, evidence, notes
+    if len(hits) > 1:
+        for iso, evidence in sorted(hits.items()):
+            notes.append(f"candidate effective date {iso} from {evidence}")
+        notes.append(
+            f"{len(hits)} DIFFERENT dates appear in effective-date context "
+            f"({', '.join(sorted(hits))}). Which one governs is a legal judgement, "
+            f"so none is chosen")
     return None, "", notes
 
 
@@ -907,13 +1005,20 @@ def _derive_doc_id(ex: Extracted, title: str) -> tuple[str, str]:
     return "-".join(parts)[:32], f"derived from the file name {Path(ex.source_path).name!r}"
 
 
-def _derive_title(ex: Extracted) -> tuple[str, str]:
+def _derive_title(ex: Extracted, hint: tuple[int, str] | None = None
+                  ) -> tuple[str, str]:
+    """The document's title, from the format's metadata or its own heading.
+
+    `hint` is the paragraph the structure walk took as the document's title,
+    which is the only thing that knows a running header is not one: in a PDF
+    the header of page 1 arrives before the title and looks exactly like it.
+    """
     if ex.meta.get("title"):
         src = "front matter" if "_front_matter" in ex.meta else "file metadata (title)"
         return ex.meta["title"], src
-    headings = [p for p in ex.paras if p.kind == "heading"]
-    if headings:
-        return headings[0].text.strip(), f"first heading (paragraph {headings[0].index})"
+    if hint and hint[1].strip():
+        return " ".join(hint[1].split()), (
+            f"the document's own top-level heading (paragraph {hint[0]})")
     for p in ex.paras[:5]:
         flat = " ".join(p.text.split())
         if 8 <= len(flat) <= 120 and not flat.endswith("."):
@@ -921,7 +1026,8 @@ def _derive_title(ex: Extracted) -> tuple[str, str]:
     return "", ""
 
 
-def build_meta(ex: Extracted, overrides: dict[str, str] | None = None
+def build_meta(ex: Extracted, overrides: dict[str, str] | None = None,
+               title_hint: tuple[int, str] | None = None
                ) -> tuple[dict[str, str], dict[str, str], dict[str, str], list[str]]:
     """Front-matter metadata, its provenance, and what a human must supply."""
     ov = {k: v for k, v in (overrides or {}).items() if v}
@@ -930,7 +1036,7 @@ def build_meta(ex: Extracted, overrides: dict[str, str] | None = None
     need: dict[str, str] = {}
     notes: list[str] = []
 
-    title, tsrc = _derive_title(ex)
+    title, tsrc = _derive_title(ex, title_hint)
     if "title" in ov:
         title, tsrc = ov["title"], "supplied by hand"
     doc_id, dsrc = _derive_doc_id(ex, title)
@@ -993,7 +1099,8 @@ def infer_structure(ex: Extracted, overrides: dict[str, str] | None = None
                     ) -> Structured:
     scheme = detect_scheme(ex)
     clauses, disp, warnings = _Builder(ex, scheme).run()
-    meta, src, need, notes = build_meta(ex, overrides)
+    hint = next(((d.index, d.text) for d in disp if d.kind == "title"), None)
+    meta, src, need, notes = build_meta(ex, overrides, title_hint=hint)
 
     # every input paragraph is accounted for, exactly once. This is an
     # invariant and not a hope: the report is only worth reading if it is
@@ -1008,13 +1115,29 @@ def infer_structure(ex: Extracted, overrides: dict[str, str] | None = None
             f"unaccounted {missing[:10]}, {len(extra)} double-counted {extra[:10]}. "
             f"Refusing to write a report that does not account for the input."
         )
+    bare_refs = sorted({" ".join(m.group(0).split()) for p in ex.paras
+                        for m in re.finditer(
+                            r"\b(?:clause|paragraph|article|section)\s+\d{1,3}"
+                            r"(?:\.\d{1,3})*", p.text, re.I)})
+    if bare_refs:
+        notes.append(
+            f"the document cross-refers to its own numbering ({', '.join(bare_refs[:8])}"
+            f"{' ...' if len(bare_refs) > 8 else ''}). Those references are left "
+            f"exactly as written -- rewriting the words of a clause to match our ids "
+            f"is not something a converter may do -- so they name the document's "
+            f"numbers and not the clause ids above. lks.ingest's dangling-reference "
+            f"detector only recognises house-style references, so these are not "
+            f"checked by it.")
     return Structured(meta=meta, meta_sources=src, needs_human=need, clauses=clauses,
                       dispositions=disp, scheme=scheme, extracted=ex,
                       warnings=list(ex.warnings) + warnings + notes)
 
 
-def _yaml_scalar(v: str) -> str:
+def _yaml_scalar(v: str, bare_ok: bool = False) -> str:
+    """A YAML scalar for a front-matter value, quoted when it needs to be."""
     if re.fullmatch(r"\d{4}-\d{2}-\d{2}", v):
+        return v
+    if bare_ok and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", v):
         return v
     if '"' in v or "\\" in v:
         import yaml
@@ -1044,8 +1167,7 @@ def _document_heading(s: Structured) -> str:
 def render_document(s: Structured) -> str:
     out: list[str] = ["---"]
     for k in _HOUSE_ORDER:
-        out.append(f"{k}: {_yaml_scalar(s.meta.get(k, UNKNOWN))}"
-                   if k != "doc_id" else f"doc_id: {s.meta['doc_id']}")
+        out.append(f"{k}: {_yaml_scalar(s.meta.get(k, UNKNOWN), bare_ok=k == 'doc_id')}")
     ex = s.extracted
     out += [
         f"source_file: {_yaml_scalar(Path(ex.source_path).name)}",
@@ -1096,7 +1218,8 @@ def render_report(s: Structured, converted_path: Path) -> str:
         f"| source | `{ex.source_path}` |",
         f"| format | {ex.fmt} (read with {ex.tool or 'builtin'}) |",
         f"| converted | `{converted_path}` |",
-        f"| numbering scheme | **{s.scheme.name}** — {s.scheme.describe()} |",
+        f"| numbering scheme | **{s.scheme.name}** (sections: "
+        f"{s.scheme.section_layer}, clauses: {s.scheme.clause_layer}) |",
         f"| source paragraphs | {ex.n_paras} |",
         f"| clauses inferred | {len(s.clauses)} |",
         f"| ids from the document | {len(s.clauses) - len(s.synthesised)} |",

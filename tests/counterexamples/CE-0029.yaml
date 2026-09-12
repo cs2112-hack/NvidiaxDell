@@ -1,0 +1,54 @@
+id: CE-0029
+component: catala
+fact_pattern: An Employee Record for a leaver whose employment ended on 29 February 2020.
+  Pensions legislation requires the record to be kept for six years, i.e. for the same period
+  as R-3.1(a) already specifies - not for a longer one. The business unit asks when the record
+  may be deleted.
+citations:
+- DATA-RET R-3.1
+- DATA-RET R-3.3
+- DATA-RET R-1.2
+source_reasoning: 'R-3.3 is an exception to R-3.1(a) only for ''records required to be retained
+  for a LONGER period under pensions or payroll legislation''. A statutory period of six years
+  is not longer than R-3.1(a)''s six years, so R-3.3 is not engaged and R-3.1(a) governs alone:
+  ''Employee Record: 6 years from the end of employment''. Six years from 29 February 2020
+  falls on a date that does not exist, and R-1.2 settles the direction: ''Where this Standard
+  specifies a maximum period, business units are expected to delete earlier where the purpose
+  ... has been achieved'' - the period is a ceiling, so it resolves to 28 February 2026, the
+  last day that is certainly within six years. Retaining to 1 March 2026 keeps the record
+  for a day the Standard does not authorise. The module reaches 1 March 2026 because its r3_3
+  limb takes Date.max of the round-DOWN six years (2026-02-28) and a round-UP evaluation of
+  the statutory period (Date.add_round_up of 2020-02-29, 6 years = 2026-03-01). The round-up
+  is only justifiable for a statutory floor that genuinely exceeds the Standard''s own period;
+  applied to a statutory period equal to R-3.1(a)''s, it silently lengthens the Standard''s
+  own maximum. The module''s two paths to the same legal quantity disagree: with statutory_retention_applies
+  = false the same trigger yields 2026-02-28, and with a statutory period expressed as 72
+  months rather than 6 years it again yields 2026-03-01.'
+expected: '2026-02-28'
+observed:
+  retention_end_date: '2026-03-01'
+target:
+  module: retention
+  path: catala/modules/retention.catala_en
+  scope: RetentionEnd
+inputs:
+  data_class: EmployeeRecord
+  retention_trigger_date: '2020-02-29'
+  consent_renewal_dates: []
+  statutory_retention_applies: true
+  statutory_retention_period:
+    years: 6
+    months: 0
+    days: 0
+round: 2
+discovered: '2026-09-12'
+status: fixed
+notes: statutory period shorter than six years (3 years -> 2026-02-28, correct); statutory
+  period genuinely longer (10 years -> 2030-03-01, correct on the module's stated floor reasoning);
+  non-leap trigger dates with an equal statutory period (no discrepancy - year addition is
+  only ambiguous from 29 February); 13 months from 31 January (2026-02-28, consistent round-down);
+  12 months from 29 February (2025-02-28, consistent); R-3.1(d) with most_recent_engagement_date
+  earlier than collection (Date.max correct); R-3.2 consent renewals out of order and empty
+  (maximum-or-consented correct); R-3.2 consent predating the conclusion of recruitment (exception
+  substitutes an earlier date, which is what 'by way of exception' requires); statutory_retention_applies
+  with a non-EmployeeRecord class (correctly ignored)

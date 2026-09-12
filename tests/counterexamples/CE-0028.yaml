@@ -1,0 +1,55 @@
+id: CE-0028
+component: catala
+fact_pattern: 'An employee with an annual Quota of GBP 730,000 is signed off sick continuously
+  from 1 January 2026 to 9 February 2026 - 40 consecutive days of long-term sickness absence.
+  The absence is recorded as two entries because it was certified by two successive fit notes:
+  1-20 January 2026 and 21 January - 9 February 2026. The two periods abut with no day of
+  attendance between them.'
+citations:
+- COMM-PLAN S-6.1
+- COMM-PLAN S-6.2
+source_reasoning: 'S-6.1 conditions relief on the employee being ''absent on statutory parental
+  leave, adoption leave or long-term sickness absence for a continuous period of 30 days or
+  more''. The test is on the continuous period of absence, not on any administrative record
+  of it: 1 January to 9 February 2026 is one continuous period of 40 days of long-term sickness
+  absence, so the gateway is satisfied and the Quota must be ''reduced by 1/365th of the annual
+  Quota for each day of such absence'' - 40/365 x GBP 730,000 = GBP 80,000 exactly, leaving
+  a relieved Quota of GBP 650,000 for S-6.2''s Attainment calculation. The module applies
+  the 30-day gateway per list entry (QualifyingAbsence.is_qualifying tests days_of_absence
+  of a single AbsencePeriod), so each 20-day fit-note record fails the gateway and the employee
+  gets nothing. Probed with the identical absence expressed as one record (1 January - 9 February
+  2026) the module returns relief_days 40 and relief GBP 80,000, so the module''s answer turns
+  on how the absence was written down rather than on how long the employee was absent. The
+  relief_days aggregation itself is a union over plan_year_days and handles overlaps and duplicates
+  correctly - the defect is purely in gating qualification per record.'
+expected:
+  relief_days: 40
+  relief: '80000.00'
+  relieved_quota: '650000.00'
+  quota_for_attainment: '650000.00'
+observed:
+  relief_days: 0.0
+  relief: 0.0
+  relieved_quota: 730000.0
+  quota_for_attainment: 730000.0
+target:
+  module: QuotaRelief
+  path: catala/modules/QuotaRelief.catala_en
+  scope: RelievedQuota
+inputs:
+  annual_quota: '730000.00'
+  absence_periods:
+  - category: LongTermSicknessAbsence
+    start_date: '2026-01-01'
+    end_date: '2026-01-20'
+  - category: LongTermSicknessAbsence
+    start_date: '2026-01-21'
+    end_date: '2026-02-09'
+round: 2
+discovered: '2026-09-12'
+status: fixed
+notes: two 20-day records with a one-day gap between them (correctly no relief - not a continuous
+  period); overlapping qualifying absences (correctly deduplicated by the plan_year_days union);
+  a 20-day parental leave abutting a 20-day sickness absence (same defect, and S-6.1's disjunctive
+  list makes the combined period qualifying); single 29-day and 30-day records (gateway boundary
+  correct); duplicate identical absence records (correctly not double-counted)

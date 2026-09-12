@@ -1,0 +1,56 @@
+id: CE-0031
+component: catala
+fact_pattern: The Service failed the Service Level in the January 2025 Measurement Period,
+  which ended 31 January 2025. The Customer never claimed the Service Credit in writing. The
+  Service is winding down and no further invoice will be issued to the Customer. The Supplier
+  asks how the credit is to be settled.
+citations:
+- MSA-SCH4 L-5.1
+- MSA-SCH4 L-5.2
+source_reasoning: 'L-5.1: ''The Customer must claim a Service Credit in writing within 30
+  days after the end of the Measurement Period to which it relates. A Service Credit not claimed
+  within that period is waived.'' No claim was made, so the credit is waived - the module
+  agrees (waived = true). L-5.2 then cannot operate: its first limb applies a Service Credit
+  ''against the next invoice issued AFTER THE CLAIM IS ACCEPTED'' and its second limb pays
+  the Service Credit to the Customer only ''where no further invoice will be issued''; both
+  presuppose a subsisting, claimed and accepted Service Credit. A credit that L-5.1 has waived
+  is not payable at all, so neither limb operates and the correct answer is that it is neither
+  set off nor paid. The module derives paid_to_customer solely from ''not applied_against_next_invoice'',
+  and applied_against_next_invoice solely from further_invoice_expected, with neither gated
+  on claim_in_time. The two booleans are complementary by construction, so the pair cannot
+  express ''no settlement'' and one of them is always true: here the module reports that the
+  Company must pay the Customer a waived credit, with a settlement_due_date of 2 March 2025.
+  The mirror case (further_invoice_expected true) reports applied_against_next_invoice = true
+  on the same waived credit. settlement_due_date is typed ''date'' rather than ''optional
+  of date'', so it too is forced to name a date for a credit that will never be settled.'
+expected:
+  waived: true
+  applied_against_next_invoice: false
+  paid_to_customer: false
+observed:
+  claim_deadline: '2025-03-02'
+  claim_in_time: false
+  waived: true
+  applied_against_next_invoice: false
+  paid_to_customer: true
+  settlement_due_date: '2025-03-02'
+target:
+  module: ServiceCreditClaim
+  path: catala/modules/ServiceCreditClaim.catala_en
+  scope: CreditClaim
+inputs:
+  measurement_period_end: '2025-01-31'
+  claim_made: false
+  claim_date: '2025-01-31'
+  claim_accepted_date: '2025-01-31'
+  further_invoice_expected: false
+  next_invoice_date: '2025-01-31'
+round: 2
+discovered: '2026-09-12'
+status: fixed
+notes: claim on the deadline (2025-03-02, in time - correct on 'within 30 days after'); claim
+  one day late (waived - correct); a late claim that the Supplier nonetheless accepted (same
+  defect but muddied by whether acceptance waives the waiver, so the never-claimed case was
+  used instead); next_invoice_date earlier than claim_accepted_date (module returns it unchecked,
+  contrary to L-5.2's 'issued after the claim is accepted', but the correct date is not derivable
+  from the inputs so this is not recorded as a separate break)

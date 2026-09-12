@@ -33,6 +33,11 @@ type checker cannot see:
   (CE-0019) serves notice six months before the Effective Date; the right
   N-5.1 confers does not yet exist, so the full term runs.
   `N5_1_NoticeOnEffectiveDate` is the inclusive side of that floor.
+* **Nor can the obligations.** `N5_1_AssessmentBeforeEffectiveDate` (CE-0030)
+  assesses a date eighteen months before the Effective Date, and the day
+  before it: N-5.1 makes the Agreement take effect on the Effective Date, so
+  the N-3 obligations do not subsist before then, however far back N-2.1
+  reaches for the information they attach to.
 
 > Using NdaSurvival
 
@@ -822,4 +827,88 @@ scope TestN3_ObligationsSubsistOnLastDayOfTerm:
     }
   assertion r.agreement_end_date = |2026-07-01|
   assertion r.obligations_subsist = true
+```
+
+## N5_1_AssessmentBeforeEffectiveDate — CE-0030
+
+N-5.1 makes the Agreement take effect on the Effective Date, and the N-3
+obligations are obligations of the Recipient *under this Agreement*, so nothing
+in N-3 binds before then. The question is a live one: N-2.1 makes information
+disclosed "whether before or after the date of this Agreement" Confidential
+Information, so a dispute about a disclosure eighteen months before the
+Effective Date is squarely within the Agreement — but the obligations did not
+subsist when it was made. The in-term limb had no lower bound and answered
+`true` for every date in history.
+
+The three dates pinned here are the day before the Effective Date, the
+Effective Date itself, and a date a year and a half before it, so the floor is
+tested on both sides as well as far outside.
+
+```catala
+#[test]
+declaration scope TestN5_1_AssessmentBeforeEffectiveDate:
+  output long_before content NdaSurvival.SurvivalEnd
+  output day_before content NdaSurvival.SurvivalEnd
+  output on_effective_date content NdaSurvival.SurvivalEnd
+
+scope TestN5_1_AssessmentBeforeEffectiveDate:
+  definition long_before equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2023-01-01|
+    }
+  definition day_before equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2024-06-30|
+    }
+  definition on_effective_date equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: false
+      -- date_ceased_to_hold: Absent
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2024-07-01|
+    }
+  assertion long_before.obligations_subsist = false
+  assertion day_before.obligations_subsist = false
+  assertion on_effective_date.obligations_subsist = true
+  assertion long_before.agreement_end_date = |2026-07-01|
+  assertion long_before.survival_end_date = Present content |2029-07-01|
+```
+
+The floor is the Effective Date and not the date of expiry, so it does not
+disturb the post-expiry tail: personal data whose holding ceased before the
+Agreement was made still leaves the obligations subsisting throughout the term.
+
+```catala
+#[test]
+declaration scope TestN5_1_FloorDoesNotDisturbTheTail:
+  output r content NdaSurvival.SurvivalEnd
+
+scope TestN5_1_FloorDoesNotDisturbTheTail:
+  definition r equals
+    output of NdaSurvival.SurvivalEnd with {
+      -- effective_date: |2024-07-01|
+      -- termination_notice_date: Absent
+      -- is_personal_data: true
+      -- date_ceased_to_hold: Present content |2024-01-01|
+      -- information_is_trade_secret: false
+      -- information_remains_trade_secret: false
+      -- assessment_date: |2025-01-01|
+    }
+  assertion r.obligations_subsist = true
+  assertion r.survival_end_date = Present content |2026-07-01|
 ```

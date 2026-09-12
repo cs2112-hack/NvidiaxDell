@@ -4,9 +4,9 @@
 
 A Service Credit computed by `Service_credits` is not yet money: L-5.1 puts a
 30-day claim window on it and waives it outright if the window closes, and
-L-5.2 settles it either by set-off against the next invoice or, where there
-will be no next invoice, by payment. This module encodes both. It has no
-judgement inputs: every term is a date or a fact of record.
+L-5.2 settles a surviving credit either by set-off against the next invoice
+or, where there will be no next invoice, by payment. This module encodes both.
+It has no judgement inputs: every term is a date or a fact of record.
 
 L-5.2's choice between the two routes was originally an enumeration,
 `Settlement`, exposed as a scope output. Catala 1.2.1 cannot JSON-encode an
@@ -18,13 +18,14 @@ field for *every* input: the whole of L-5, including L-5.1's 30-day waiver,
 had no working implementation at all. Found by the adversarial reviewer; see
 `tests/counterexamples/CE-0009.yaml`.
 
-The route is therefore expressed as booleans. L-5.2 states two routes which
-are mutually exclusive and between them exhaustive, so one boolean carries the
-decision and the other reads it back: `applied_against_next_invoice` holds the
-L-5.2 exception hierarchy — set-off as the base case, payment as the exception
-to it, in the order the clause states them — and `paid_to_customer` is its
-negation, so the two cannot drift apart. Nothing about the legal structure
-changes; only the output type does.
+The route is therefore expressed as booleans, and the settlement date as an
+`optional of date`. L-5.2's two routes are mutually exclusive, and where the
+credit survives L-5.1 they are between them exhaustive, so
+`applied_against_next_invoice` holds the L-5.2 exception hierarchy — set-off
+as the base case, payment as the exception to it, in the order the clause
+states them — and `paid_to_customer` reads that decision back rather than
+holding a hierarchy of its own that could disagree with it. Nothing about the
+legal structure changes; only the output types do.
 
 ## Prologue — declarations
 
@@ -43,10 +44,12 @@ declaration scope CreditClaim:
   output waived content boolean
   # L-5.2's two routes, as booleans rather than as an enumeration: an
   # enum-typed output cannot be JSON-encoded by Catala 1.2.1 and so cannot be
-  # executed. See CE-0009 and scripts/check_executable.py.
+  # executed. See CE-0009 and scripts/check_executable.py. A waived credit
+  # takes neither route, so both are false; they are not complements.
   output applied_against_next_invoice content boolean
   output paid_to_customer content boolean
-  output settlement_due_date content date
+  # Absent where nothing is due, which is the case of a waived credit.
+  output settlement_due_date content optional of date
 ```
 
 ## L-5.1 The claim window
@@ -91,11 +94,6 @@ be issued — and the base case is unconditional, so there is nothing to repeat
 from it. The same hierarchy is stated twice, once for the route and once for
 the date, because L-5.2's second sentence displaces both.
 
-The two routes are exhaustive as well as exclusive: L-5.2 admits no third
-mechanism. So `paid_to_customer` is defined as the negation of the route
-decision rather than as a second hierarchy of its own, which would be free to
-disagree with the first.
-
 The 30 days for payment run from acceptance of the claim, because that is the
 event L-5.2's first sentence uses to fix the settlement date and the second
 sentence displaces only the mechanism, not the trigger.
@@ -109,11 +107,74 @@ scope CreditClaim:
     under condition not further_invoice_expected
     consequence equals false
 
-  definition paid_to_customer equals not applied_against_next_invoice
-
-  label l5_2_setoff_date definition settlement_due_date equals next_invoice_date
+  label l5_2_setoff_date definition settlement_due_date equals
+    Present content next_invoice_date
 
   label l5_2_payment_date exception l5_2_setoff_date definition settlement_due_date
     under condition not further_invoice_expected
-    consequence equals claim_accepted_date + 30 day
+    consequence equals Present content (claim_accepted_date + 30 day)
+```
+
+## L-5.1 with L-5.2 — a waived credit is settled neither way
+
+| MSA-SCH4 L-5.1 (004-msa-sla-credits.md:92)
+|
+| The Customer must claim a Service Credit in writing within 30 days after
+| the end of the Measurement Period to which it relates. A Service Credit not
+| claimed within that period is waived.
+
+| MSA-SCH4 L-5.2 (004-msa-sla-credits.md:96)
+|
+| A Service Credit is applied against the next invoice issued after the
+| claim is accepted. Where no further invoice will be issued, the Service Credit is
+| paid to the Customer within 30 days.
+
+Both limbs of L-5.2 presuppose a Service Credit that still exists. The first
+applies the credit "against the next invoice issued **after the claim is
+accepted**", and there can be no such invoice where there was no claim to
+accept; the second pays the credit "where no further invoice will be issued",
+which settles which of the two mechanisms applies rather than making a credit
+L-5.1 has waived payable after all. A waived credit is therefore neither set
+off nor paid, and no date is due for it.
+
+An earlier version derived `paid_to_customer` as the bare negation of
+`applied_against_next_invoice`, and derived that solely from
+`further_invoice_expected`, with neither gated on L-5.1. Two complementary
+booleans cannot express "no settlement at all", so one of them was always
+true: on a credit the module itself reported as waived it answered that the
+Company must pay the Customer, 30 days after a claim that was never made —
+and in the mirror case, that the credit would be set off against the next
+invoice. `settlement_due_date` was typed `date` rather than `optional of
+date`, so it too was forced to name a date for a credit that will never be
+settled. Found by the adversarial reviewer; see
+tests/counterexamples/CE-0031.yaml.
+
+L-5.1's waiver is therefore an exception to the whole of L-5.2, sitting below
+the payment limb in each hierarchy so that it defeats both limbs. Its
+condition is `waived` alone: it does not repeat `not further_invoice_expected`
+from its parent, because that condition is precisely what it must override —
+the waiver applies however the L-5.2 routes would otherwise have resolved —
+and the root of each hierarchy is unconditional, so there is nothing else to
+carry down.
+
+`paid_to_customer` is then the remaining route where the credit survives
+L-5.1: `(not waived) and (not applied_against_next_invoice)`. The two route
+booleans stay exclusive but are no longer complements — both are false on a
+waived credit — and reading one back from the other still keeps them from
+drifting apart. `waived` remains the output that says there is nothing to
+settle; what has changed is that the settlement outputs now agree with it.
+
+```catala
+scope CreditClaim:
+  label l5_1_waived exception l5_2_payment
+    definition applied_against_next_invoice
+    under condition waived
+    consequence equals false
+
+  definition paid_to_customer equals
+    (not waived) and (not applied_against_next_invoice)
+
+  label l5_1_waived_date exception l5_2_payment_date definition settlement_due_date
+    under condition waived
+    consequence equals Absent
 ```

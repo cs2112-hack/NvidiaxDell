@@ -23,6 +23,29 @@ The regression arm matters as much: staging the candidate and re-running every
 recorded counterexample catches a new clause that silently changes an answer
 the corpus previously settled. A new document that alters an existing
 entitlement without saying so is exactly the case a human must see.
+
+## Real documents: convert first, and record the conversion
+
+A real document -- a PDF from a law firm, a .docx from HR -- carries none of
+the house convention. Rather than teaching the segmenter to guess, a document
+that does not parse is converted by `lks.extract` + `lks.structure` into a
+house-convention file under `ingest/converted/`, and *that* file is what the
+proposal triages, conflict-checks and would merge. The conversion is recorded
+in the proposal, and three further conflicts come out of it:
+
+* `conversion-metadata` (blocking) -- a `doc_id`, `title` or `effective_date`
+  the document does not state. Nothing invents one; an invented effective
+  date would silently date a rule.
+* `conversion-unassigned-text` (blocking) -- a paragraph the converter could
+  not place. Text that reached no clause is never merged silently.
+* `conversion-synthesised-ids` (advisory) -- clauses whose ids are positional
+  because the document numbers nothing. They are not citable, and a human
+  should say so or renumber before anyone cites them.
+
+None of this loosens the gate. `merge()` still refuses while any blocking
+conflict lacks a human `resolution` and `resolved_by`, and it additionally
+refuses to copy a document whose front matter still carries the
+`NEEDS-HUMAN-INPUT` sentinel, whatever resolutions have been recorded.
 """
 from __future__ import annotations
 
@@ -43,6 +66,7 @@ from .literate import encoded_refs
 from .model import Clause, Document, referenced_clauses
 from .registry import build_registry
 from .segment import ConventionError, load_corpus, parse_document
+from .structure import NEEDS_HUMAN, Conversion, convert_file
 from .triage import Decision, Label, load_ledger, propose as triage_propose
 
 PROPOSALS = Path("ingest/proposals")
@@ -66,6 +90,9 @@ class ConflictKind:
     DOC_COLLISION = "doc-collision"
     COMPILER_CONFLICT = "compiler-conflict"
     REGRESSION = "counterexample-regression"
+    CONVERSION_METADATA = "conversion-metadata"
+    CONVERSION_UNASSIGNED = "conversion-unassigned-text"
+    CONVERSION_SYNTHESISED = "conversion-synthesised-ids"
 
 
 @dataclass
@@ -97,6 +124,8 @@ class Proposal:
     conflicts: list[Conflict] = field(default_factory=list)
     candidate_modules: list[str] = field(default_factory=list)
     notes: list[str] = field(default_factory=list)
+    original_path: str = ""                   # before conversion, if converted
+    conversion: dict[str, Any] | None = None  # lks.structure.Conversion.to_dict()
 
     @property
     def dir(self) -> Path:
@@ -118,6 +147,9 @@ class Proposal:
         return {
             "id": self.id,
             "source_path": self.source_path,
+            "original_path": self.original_path or self.source_path,
+            "converted": self.conversion is not None,
+            "conversion": self.conversion,
             "doc_id": self.doc_id,
             "title": self.title,
             "created": self.created,
@@ -144,6 +176,8 @@ class Proposal:
             title=d["title"], created=d["created"], triage=d.get("triage") or {},
             candidate_modules=d.get("candidate_modules") or [],
             notes=d.get("notes") or [],
+            original_path=d.get("original_path") or "",
+            conversion=d.get("conversion"),
         )
         pr.conflicts = [Conflict(**c) for c in (d.get("conflicts") or [])]
         return pr
@@ -499,6 +533,87 @@ def detect_regressions(candidate_paths: list[str | Path]) -> list[Conflict]:
     return out
 
 
+# --- conversion-derived conflicts -----------------------------------------
+
+
+def detect_conversion_conflicts(conv: Conversion) -> list[Conflict]:
+    """What a conversion could not settle on its own.
+
+    These are not text heuristics about the rules; they are facts about the
+    conversion itself, and each names the thing a human has to do. They are
+    raised as conflicts rather than printed as warnings for one reason: a
+    warning is a thing you scroll past, and `merge()` refuses on a conflict.
+    """
+    s = conv.structured
+    out: list[Conflict] = []
+    ref = s.meta["doc_id"]
+
+    for field_, why in s.needs_human.items():
+        out.append(
+            Conflict(
+                kind=ConflictKind.CONVERSION_METADATA, incoming_ref=f"{ref} {field_}",
+                detail=(
+                    f"the converted document has no {field_}: {why} Until it is "
+                    f"supplied, the front matter carries the literal "
+                    f"{NEEDS_HUMAN!r}, and merge refuses on that sentinel whatever "
+                    f"resolution is recorded here. Re-run with the value, e.g. "
+                    f"`lks convert {Path(s.extracted.source_path).name} "
+                    f"--{field_.replace('_', '-')} ...`, then re-ingest."
+                ),
+            )
+        )
+
+    for d in s.unassigned:
+        out.append(
+            Conflict(
+                kind=ConflictKind.CONVERSION_UNASSIGNED,
+                incoming_ref=f"{ref} paragraph {d.index}",
+                detail=(
+                    f"the converter could not assign this paragraph to any clause "
+                    f"({d.reason}), so it is NOT in the converted document. Its full "
+                    f"text is in {conv.report_path}. Place it by hand in "
+                    f"{conv.converted_path} and re-ingest -- text that reached no "
+                    f"clause is text nothing in this system can cite."
+                ),
+            )
+        )
+
+    if s.synthesised:
+        ids = [c.clause_id for c in s.synthesised]
+        out.append(
+            Conflict(
+                kind=ConflictKind.CONVERSION_SYNTHESISED, incoming_ref=ref,
+                detail=(
+                    f"{len(ids)} clause id(s) are positional because the document "
+                    f"numbers nothing at that level: {ids[:10]}"
+                    f"{' ...' if len(ids) > 10 else ''}. A synthesised id is not "
+                    f"something a lawyer can cite, so a citation to one is a "
+                    f"citation to our guess. Confirm or renumber in "
+                    f"{conv.converted_path}; the per-clause provenance is in "
+                    f"{conv.report_path}."
+                ),
+                severity="advisory",
+            )
+        )
+
+    if s.furniture:
+        out.append(
+            Conflict(
+                kind=ConflictKind.CONVERSION_UNASSIGNED,
+                incoming_ref=f"{ref} page furniture",
+                detail=(
+                    f"{len(s.furniture)} paragraph(s) were treated as running "
+                    f"headers, footers or page numbers and left out of the converted "
+                    f"document: paragraphs "
+                    f"{[d.index for d in s.furniture][:10]}. Their full text is in "
+                    f"{conv.report_path}; check that none of them is document text."
+                ),
+                severity="advisory",
+            )
+        )
+    return out
+
+
 # --- the pipeline ----------------------------------------------------------
 
 
@@ -506,22 +621,59 @@ def propose_ingestion(
     doc_path: str | Path,
     candidate_paths: list[str | Path] | None = None,
     corpus_dir: str | Path = "corpus",
+    converted_dir: str | Path = "ingest/converted",
+    overrides: dict[str, str] | None = None,
 ) -> Proposal:
-    """Run triage and conflict detection on a new document. Merges nothing."""
+    """Run triage and conflict detection on a new document. Merges nothing.
+
+    Accepts any format `lks.extract` supports. A file already in the house
+    convention is handled exactly as before; anything else is converted first
+    (see the module docstring) and the conversion is recorded in the proposal.
+    `overrides` supplies metadata the document does not state, e.g.
+    `{"effective_date": "2026-01-01"}`.
+    """
     doc_path = Path(doc_path)
+    conv: Conversion | None = None
     try:
         doc = parse_document(doc_path)
-    except ConventionError as e:
-        raise ConventionError(
-            f"{doc_path} does not follow the corpus convention, so it cannot be "
-            f"triaged clause by clause: {e}"
-        ) from e
+    except ConventionError as house_error:
+        # Not in the house convention: convert, and say so. The converted file
+        # is what gets triaged and what would be merged, so the rest of this
+        # function -- and everything downstream of it -- is unchanged.
+        conv = convert_file(doc_path, out_dir=converted_dir, overrides=overrides)
+        try:
+            doc = parse_document(conv.converted_path)
+        except ConventionError as e:       # pragma: no cover - defensive
+            raise ConventionError(
+                f"{doc_path} was converted to {conv.converted_path} but the result "
+                f"still does not parse under the house convention: {e}. The original "
+                f"did not parse either ({house_error}). Inspect "
+                f"{conv.report_path} -- nothing has been merged."
+            ) from e
 
     pid = f"{date.today().isoformat()}-{doc.doc_id.lower()}"
     pr = Proposal(
         id=pid, source_path=str(doc_path), doc_id=doc.doc_id, title=doc.title,
         created=date.today().isoformat(),
     )
+    if conv is not None:
+        s = conv.structured
+        # the CONVERTED file is the document of record from here on: it is what
+        # segments, what the vector store would index, and what merge copies.
+        pr.source_path = str(conv.converted_path)
+        pr.original_path = str(doc_path)
+        pr.conversion = conv.to_dict()
+        pr.notes.append(
+            f"{doc_path} is not in the house convention ({s.extracted.fmt}, read "
+            f"with {s.extracted.tool}), so it was converted to "
+            f"{conv.converted_path} using the {s.scheme.name} scheme. Review "
+            f"{conv.report_path}: it accounts for all "
+            f"{s.extracted.n_paras} source paragraph(s) and gives the provenance "
+            f"of every clause id. Everything below was computed from the "
+            f"CONVERTED file."
+        )
+        for w in s.warnings:
+            pr.notes.append(f"conversion: {w}")
 
     for c in doc.clauses:
         label, reason, _ = triage_propose(c)
@@ -534,6 +686,8 @@ def propose_ingestion(
         f"heuristic and must be adjudicated before the modules are trusted"
     )
 
+    if conv is not None:
+        pr.conflicts.extend(detect_conversion_conflicts(conv))
     pr.conflicts.extend(detect_static_conflicts(doc, corpus_dir))
     cps = [Path(p) for p in (candidate_paths or [])]
     pr.candidate_modules = [str(p) for p in cps]
@@ -553,7 +707,15 @@ def propose_ingestion(
 
 
 def merge(pid: str, corpus_dir: str | Path = "corpus") -> dict[str, Any]:
-    """Merge a proposal. Refuses while any blocking conflict is unresolved."""
+    """Merge a proposal. Refuses while any blocking conflict is unresolved.
+
+    A converted document is refused on one further ground, which no
+    resolution can clear: front matter still carrying the `NEEDS-HUMAN-INPUT`
+    sentinel. A `doc_id`, `title` or `effective_date` the document never
+    stated must be supplied as a value, not resolved as a comment -- a corpus
+    document whose effective date reads `NEEDS-HUMAN-INPUT` would date every
+    rule in it to nothing at all.
+    """
     pr = Proposal.load(pid)
     if pr.unresolved:
         lines = [
@@ -569,6 +731,22 @@ def merge(pid: str, corpus_dir: str | Path = "corpus") -> dict[str, Any]:
         )
 
     src = Path(pr.source_path)
+    if not src.exists():
+        raise MergeRefused(
+            f"refusing to merge {pid}: its document {src} no longer exists. Re-run "
+            f"`lks ingest` on the source."
+        )
+    head = src.read_text(encoding="utf-8")[:2000]
+    if NEEDS_HUMAN in head:
+        missing = [ln.split(":", 1)[0].strip() for ln in head.splitlines()
+                   if NEEDS_HUMAN in ln]
+        raise MergeRefused(
+            f"refusing to merge {pid}: {src} still carries the {NEEDS_HUMAN} "
+            f"sentinel for {missing or ['a required field']}. The document does not "
+            f"state it and nothing here will invent it -- supply the value (e.g. "
+            f"`lks convert <file> --effective-date YYYY-MM-DD`, or edit {src}) and "
+            f"re-ingest. This refusal is not clearable by a resolution."
+        )
     dest = Path(corpus_dir) / src.name
     shutil.copy(src, dest)
     moved = []

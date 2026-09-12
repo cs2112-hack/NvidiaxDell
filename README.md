@@ -104,6 +104,32 @@ $PY scripts/lks proposals
 $PY scripts/lks merge <proposal-id>     # refused while conflicts are unresolved
 ```
 
+### Real documents
+
+`ingest` accepts `.md`, `.txt`, `.docx`, `.pdf` and `.html`. A file already in
+the house convention is handled exactly as before. Anything else is
+**converted first, visibly**: `lks.extract` reads the format (a `.docx` with
+`zipfile`, a `.pdf` with `pdftotext` or `pypdf` — whichever is installed),
+`lks.structure` infers the document's own numbering scheme, and the result is
+written to `ingest/converted/<doc-id>.md` in the house convention, with
+`ingest/converted/<doc-id>.report.md` beside it. Everything downstream then
+runs unchanged.
+
+```bash
+$PY scripts/lks convert --formats            # what this machine can read
+$PY scripts/lks convert contract.pdf         # convert and inspect, merging nothing
+$PY scripts/lks convert policy.docx --effective-date 2026-01-01
+```
+
+The report is the point. It accounts for **every** paragraph of the input,
+states per clause whether the id came from the document or was **synthesised**
+(a synthesised id is positional and cannot be cited), and lists every
+paragraph that could not be confidently assigned, verbatim. A `doc_id`, title
+or effective date the document does not state is never invented: the front
+matter carries `NEEDS-HUMAN-INPUT`, ingestion raises a blocking conflict, and
+`merge` refuses on that sentinel whatever resolutions are recorded — an
+invented effective date would silently date a rule.
+
 A new document becomes a **proposal**, never a merge. `merge` raises unless
 every blocking conflict carries an explicit human `resolution` and
 `resolved_by`. Six detectors run; five are text heuristics, and the sixth asks

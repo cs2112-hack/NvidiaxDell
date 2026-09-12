@@ -1,0 +1,74 @@
+== 1. typecheck (--check-invariants) ==
+   ok    catala/modules/accommodation.catala_en
+   ok    catala/modules/availability.catala_en
+   ok    catala/modules/ChronicFailure.catala_en
+   ok    catala/modules/claimwindow.catala_en
+   ok    catala/modules/clawback.catala_en
+   ok    catala/modules/commission.catala_en
+   ok    catala/modules/ErasureRequest.catala_en
+   ok    catala/modules/expensedefs.catala_en
+   ok    catala/modules/groundtransport.catala_en
+   ok    catala/modules/LeaveAccrual.catala_en
+   ok    catala/modules/LegalHold.catala_en
+   ok    catala/modules/mealperdiem.catala_en
+   ok    catala/modules/NdaSurvival.catala_en
+   ok    catala/modules/overtime.catala_en
+   ok    catala/modules/QuotaRelief.catala_en
+   ok    catala/modules/retention.catala_en
+   ok    catala/modules/ServiceCreditClaim.catala_en
+   ok    catala/modules/ServiceCredits.catala_en
+   ok    catala/modules/WorkingTimeDefs.catala_en
+== 2. literate fidelity (quotations match the corpus) ==
+   ok    118 quotations, 135 blocks, 8 declared NO-CLAUSE
+== 3. RULE/HYBRID coverage (every rule clause encoded somewhere) ==
+   96/96 RULE+HYBRID clauses encoded
+   note  PROSE clauses also quoted in Catala: ['NDA-MUT N-3.1', 'NDA-MUT N-3.2']
+== 4. clerk test (#[test] scope assertions) ==
+   ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  ALL TESTS PASSED  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+   ┃                     FAILED     PASSED      TOTAL      RATIO                  ┃
+   ┃   tests                  0        500        500      100 %                  ┃
+== 5. counterexample regression (permanent, re-run forever) ==
+   FAIL  CE-0026: expected {'commission_payable': '0.00', 'quota_for_attainment': '0.00'} got {'quota_relief': {'relief_days': 365.0, 'relief_exact': 1200000.0, 'relief': 1200000.0, 'relieved_quota_exact': 0.0, 'relieved_quota': 0.0, 'quota_for_attainment_exact': 0.0, 'quota_for_attainment': 0.0}, 'commission': {'attainment_calc': {'attainment_pct': 0.0}, 'accelerator_calc': {'commenced_after_plan_year_start': False, 's4_1_band': 0.0, 'accelerator_before_joiner_cap': 0.0, 'accelerator': 0.0}, 'accelerator_base': 0.0, 'commission_before_cap': 0.0, 'cap': 300000.0, 'commission_payable': 0.0}, 'quota_for_attainment': 0.0, 'commission_payable': 0.0} 
+   FAIL  CE-0027: expected {'commission_payable': '0.00', 'accelerator': 0.0} got {'quota_relief': {'relief_days': 30.0, 'relief_exact': 61643.83561643836, 'relief': 61643.84, 'relieved_quota_exact': 688356.1643835617, 'relieved_quota': 688356.16, 'quota_for_attainment_exact': 688356.1643835617, 'quota_for_attainment': 688356.16}, 'commission': {'attainment_calc': {'attainment_pct': 0.4999999968159204}, 'accelerator_calc': {'commenced_after_plan_year_start': False, 's4_1_band': 0.0, 'accelerator_before_joiner_cap': 0.0, 'accelerator': 0.0}, 'accelerator_base': 344178.08, 'commission_before_cap': 0.0, 'cap': 300000.0, 'commission_payable': 0.0}, 'quota_for_attainment': 688356.16, 'commission_payable': 0.0} 
+   FAIL  CE-0028: expected {'relief_days': 40, 'relief': '80000.00', 'relieved_quota': '650000.00', 'quota_for_attainment': '650000.00'} got {'relief_days': 40.0, 'relief_exact': 80000.0, 'relief': 80000.0, 'relieved_quota_exact': 650000.0, 'relieved_quota': 650000.0, 'quota_for_attainment_exact': 650000.0, 'quota_for_attainment': 650000.0} 
+   28/31 counterexamples pass  (store: {'total': 31, 'open': 8, 'fixed': 23, 'by_component': {'catala': {'open': 8, 'fixed': 23}}, 'max_round': 3})
+== 6. every scope is JSON-executable (no enum-typed outputs) ==
+   ok    45 scopes, no enum-typed outputs (all JSON-executable)
+== 7. vector store (files + mongo, both pinned to corpus AND triage) ==
+   ok    files: 49 chunks, {'HYBRID': 11, 'PROSE': 38}, corpus 02cf61fc87e254d9, triage 33d1ccd17502ab76
+   ok    mongo: 49 chunks via $vectorSearch (mongot)
+== 8. exception-branch coverage ==
+   ChronicFailure.ChronicFailureRight.right_lapsed: 2 branches
+   ErasureRequest.ErasureDeadline.deletion_due_date: 3 branches
+   ErasureRequest.ErasureDeadline.deletion_refused: 2 branches
+   LeaveAccrual.HalfDayRounding.rounded_days: 2 branches
+   LeaveAccrual.MonthlyAccrual.days_accrued: 2 branches
+   LeaveAccrual.CarryForward.permitted_carry_forward_days: 2 branches
+   LegalHold.HoldEffect.deletion_due_date: 3 branches
+   LegalHold.HoldEffect.erasure_blocked_by_hold: 2 branches
+   NdaSurvival.SurvivalEnd.agreement_end_date: 2 branches
+   NdaSurvival.SurvivalEnd.survival_end_date: 4 branches
+   NdaSurvival.SurvivalEnd.obligations_subsist: 6 branches
+   ServiceCreditClaim.CreditClaim.applied_against_next_invoice: 3 branches
+   ServiceCreditClaim.CreditClaim.settlement_due_date: 3 branches
+   ServiceCredits.ServiceCredit.credit_percentage: 4 branches
+   ServiceCredits.ServiceCredit.credit_cap_percentage: 2 branches
+   accommodation.NightlyAccommodation.applicable_cap: 2 branches
+   availability.ScheduledMaintenance.excess_minutes: 2 branches
+   availability.AvailabilityPercentage.unavailable_minutes: 2 branches
+   claimwindow.ClaimAdmissible.admissible: 3 branches
+   clawback.RecoverableCommission.recoverable_amount: 4 branches
+   commission.Accelerator.accelerator: 3 branches
+   commission.CommissionPayable.cap: 2 branches
+   commission.LeaverCommission.commission_payable: 2 branches
+   groundtransport.RailFare.reimbursable_amount: 3 branches
+   groundtransport.TaxiFare.reimbursable_amount: 2 branches
+   mealperdiem.MealPerDiemForDay.per_diem_cap: 3 branches
+   mealperdiem.MealPerDiemForDay.reimbursable_amount: 2 branches
+   mealperdiem.MealPerDiemForDay.per_diem_under_e3_1: 2 branches
+   overtime.HourPremium.multiplier: 7 branches
+   overtime.HourPremium.night_premium: 2 branches
+   overtime.HourPremium.accrues_toil: 3 branches
+   retention.RetentionEnd.retention_end_date: 8 branches
+
+GATE: PASS

@@ -379,3 +379,20 @@ body {
   .examplewhy { white-space: normal; }
   .statusline { flex-wrap: wrap; }
 }
+
+
+/* ---------- fill from a description ---------- */
+
+.fillrow { display: flex; gap: 12px; align-items: stretch; max-width: 780px; margin: 4px 0 6px; }
+.fillfield {
+  flex: 1; font: 400 italic var(--t1)/1.4 var(--serif); color: var(--ink);
+  background: none; border: 0; border-bottom: 1px solid var(--rule);
+  padding: 7px 2px;
+}
+.fillfield::placeholder { color: var(--ink-soft); }
+.fillfield:focus { border-bottom-color: var(--ink); }
+/* A filled field is marked so it is obvious which values a person did not type
+   and therefore ought to check. */
+.field input.was-filled, .field select.was-filled {
+  border-left: 3px solid var(--quoted); background: var(--paper-lift);
+}

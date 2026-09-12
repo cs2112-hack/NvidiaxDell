@@ -334,6 +334,46 @@ async function selectScope(key) {
   }
 
   host.appendChild(el('h3', 'h3', 'The facts this rule needs'));
+
+  const fillrow = el('form', 'fillrow');
+  const fillq = el('input', 'fillfield');
+  fillq.placeholder = 'Or describe the situation in words and let the facts be filled in';
+  const fillbtn = el('button', 'btn ghost', 'Fill from a description');
+  fillbtn.type = 'submit';
+  fillrow.append(fillq, fillbtn);
+  const fillnote = el('p', 'hint');
+  fillrow.onsubmit = async (ev) => {
+    ev.preventDefault();
+    const q = fillq.value.trim();
+    if (!q) return;
+    fillbtn.disabled = true;
+    fillnote.textContent = 'Reading the description…';
+    try {
+      const r = await api('/api/slotfill', { target: s.key, question: q });
+      if (r.error) { fillnote.textContent = r.error; return; }
+      for (const [k, v] of Object.entries(r.facts)) {
+        const node = $('fact-' + k);
+        if (node) {
+          node.value = (v === true) ? 'true' : (v === false) ? 'false' : String(v);
+          node.classList.add('was-filled');
+        }
+      }
+      const n = Object.keys(r.facts).length;
+      fillnote.textContent =
+        `Filled ${n} fact${n === 1 ? '' : 's'} from your description` +
+        (r.omitted.length
+          ? `. The description does not state ${r.omitted.join(', ')}, so those were left for you rather than guessed.`
+          : '.') +
+        ' Check every value before running — nothing has been executed.';
+    } catch (err) {
+      fillnote.textContent = err.message;
+    } finally {
+      fillbtn.disabled = false;
+    }
+  };
+  host.appendChild(fillrow);
+  host.appendChild(fillnote);
+
   const grid = el('div', 'factgrid');
   const judge = new Set(s.judgement_inputs);
   for (const name of s.inputs) {

@@ -1,0 +1,111 @@
+id: CE-0024
+component: catala
+fact_pattern: 'The Availability Percentage for the Service was 99.50% in each of January,
+  February, March and April 2025. The right to terminate for chronic failure therefore arose
+  twice: once on the completion of the Jan/Feb/Mar run of three consecutive Measurement Periods
+  (the Measurement Period giving rise to it ending 31 March 2025, so exercisable to 30 April
+  2025), and again on the completion of the Feb/Mar/Apr run (period ending 30 April 2025,
+  exercisable to 30 May 2025). The Customer gave 30 days'' written notice of termination on
+  15 April 2025 - squarely inside the window for the first occurrence. The question is put
+  to the module on 10 June 2025, after both windows have closed.'
+citations:
+- MSA-SCH4 L-6.1
+- MSA-SCH4 L-6.2
+- MSA-SCH4 L-2.1
+source_reasoning: 'L-6.1 gives the right where the Availability Percentage is less than 99.90%
+  in each of three consecutive Measurement Periods. Jan, Feb and Mar 2025 are three such consecutive
+  Measurement Periods (L-2.1: each calendar month), so a right arose on the end of the March
+  Measurement Period. L-6.2 requires the right to be exercised ''within 30 days after the
+  end of the Measurement Period which gives rise to it, failing which it lapses in respect
+  of THAT OCCURRENCE''. The words ''that occurrence'' fix the unit of lapse as the individual
+  occurrence, and the Measurement Period giving rise to the March occurrence ended 31 March
+  2025, so its window ran to 30 April 2025. Notice on 15 April 2025 is inside that window
+  and therefore exercises the right; nothing in L-6.2 makes the later Feb/Mar/Apr occurrence
+  displace it. The module instead picks a single trigger_period_end, preferring whichever
+  occurrence is still ''live'' at the assessment date and otherwise the latest arisen one
+  (here 30 April), and then tests the notice against that one occurrence only - so once the
+  March occurrence''s own window closes, the module retroactively forgets that the notice
+  exercised it and reports the right as lapsed and unexercisable. Probed on the same facts
+  with an assessment date of 20 April 2025 the module returns notice_exercises_the_right =
+  true, which shows the answer changing with the date the question is asked rather than with
+  the facts L-6.2 makes relevant.'
+expected:
+  notice_exercises_the_right: true
+  right_lapsed: false
+  right_exercisable: true
+observed:
+  failing_periods:
+  - period_start: '2025-01-01'
+    period_end: '2025-01-31'
+    availability_percentage: 99.5
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.5
+  - period_start: '2025-03-01'
+    period_end: '2025-03-31'
+    availability_percentage: 99.5
+  - period_start: '2025-04-01'
+    period_end: '2025-04-30'
+    availability_percentage: 99.5
+  consecutive_trigger: true
+  rolling_trigger: true
+  right_arisen: true
+  completing_periods:
+  - period_start: '2025-03-01'
+    period_end: '2025-03-31'
+    availability_percentage: 99.5
+  - period_start: '2025-04-01'
+    period_end: '2025-04-30'
+    availability_percentage: 99.5
+  arisen_occurrences:
+  - period_start: '2025-03-01'
+    period_end: '2025-03-31'
+    availability_percentage: 99.5
+  - period_start: '2025-04-01'
+    period_end: '2025-04-30'
+    availability_percentage: 99.5
+  live_occurrences: []
+  assessed_occurrences:
+  - period_start: '2025-03-01'
+    period_end: '2025-03-31'
+    availability_percentage: 99.5
+  - period_start: '2025-04-01'
+    period_end: '2025-04-30'
+    availability_percentage: 99.5
+  trigger_period_end: '2025-04-30'
+  notice_period_days: 30.0
+  early_termination_charges_payable: false
+  exercise_deadline: '2025-05-30'
+  notice_exercises_the_right: false
+  right_lapsed: true
+  right_exercisable: false
+target:
+  module: ChronicFailure
+  path: catala/modules/ChronicFailure.catala_en
+  scope: ChronicFailureRight
+inputs:
+  availability_history:
+  - period_start: '2025-01-01'
+    period_end: '2025-01-31'
+    availability_percentage: 99.5
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.5
+  - period_start: '2025-03-01'
+    period_end: '2025-03-31'
+    availability_percentage: 99.5
+  - period_start: '2025-04-01'
+    period_end: '2025-04-30'
+    availability_percentage: 99.5
+  assessment_date: '2025-06-10'
+  notice_given: true
+  notice_date: '2025-04-15'
+round: 2
+discovered: '2026-09-12'
+status: fixed
+notes: 'notice on the period end date itself (notice_date > trigger required - defensible:
+  not ''after the end''); notice inside the later occurrence''s window only (handled correctly);
+  assessment date inside the earlier window (correct); assessment date after all windows with
+  no notice (correctly lapsed); empty availability_history (Absent optionals, no trigger -
+  correct); rolling 12-month window endpoints at p-11 months (12 months inclusive - correct);
+  consecutive trigger with a one-month gap (correctly no trigger)'

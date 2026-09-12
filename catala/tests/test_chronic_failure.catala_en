@@ -23,6 +23,15 @@ The `CE0008_` tests put the notice outside the window at the lower end —
 dated before the third failing period had even ended, so before any right
 existed — and require that it does not exercise anything.
 
+The `CE0024_` tests put two **overlapping** occurrences in one history, a
+month apart, with the notice inside the first one's window: the answer must be
+the same whenever the question is asked, so the same facts are put to the
+scope at three assessment dates and required to answer identically. The
+`CE0025_` tests give the same calendar month two availability reports and
+require it to count once, L-2.1 making a Measurement Period a calendar month
+however many reports describe it — and require that deduplication does not
+suppress a genuine four-in-twelve trigger.
+
 > Using ChronicFailure
 
 ## Helper
@@ -392,7 +401,9 @@ scope TestL6_1_FourSpreadBeyondTwelveMonths:
 L-6.1: a history can complete the pattern more than once, and both triggers
 can be satisfied. Six failures in two runs of three: March completes the first
 consecutive run, September the second, and July, August and September each
-complete a rolling four. L-6.2 assesses the earliest occurrence, March.
+complete a rolling four. Assessed on 20 April 2025, only the March occurrence
+has arisen — the later completing periods had not ended — so it is the one the
+reported window describes and the one the aggregate answers rest on.
 
 ```catala
 #[test]
@@ -821,4 +832,276 @@ scope TestCE0008_TheWindowOpensWhenTheTriggeringPeriodEnds:
   assertion premature_and_window_closed.notice_exercises_the_right = false
   assertion premature_and_window_closed.right_lapsed = true
   assertion premature_and_window_closed.right_exercisable = false
+```
+
+## CE0024_ANoticeInsideAnEarlierOccurrenceSurvivesThatWindowClosing
+
+CE-0024's own facts. The Availability Percentage was 99.50% in each of
+January, February, March and April 2025, so the right arose twice: once on the
+completion of the Jan/Feb/Mar run, the Measurement Period giving rise to it
+ending 31 March 2025 and its window running to 30 April 2025, and again on the
+completion of the Feb/Mar/Apr run, ending 30 April 2025 with a window to 30
+May 2025. Notice of termination was given on 15 April 2025, squarely inside
+the first occurrence's window, and the question is put on 10 June 2025 after
+both windows have closed.
+
+L-6.2 lapses the right "in respect of that occurrence", so the April
+occurrence lapsing unexercised says nothing about the March occurrence, which
+the 15 April notice validly exercised. Collapsing the two occurrences into one
+`trigger_period_end` made the module report the right as lapsed and
+unexercisable once the March window closed.
+
+```catala
+#[test]
+declaration scope TestCE0024_ANoticeInsideAnEarlierOccurrenceSurvivesThatWindowClosing:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestCE0024_ANoticeInsideAnEarlierOccurrenceSurvivesThatWindowClosing:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-02-01|, |2025-02-28|, 99.50;
+           mp of |2025-03-01|, |2025-03-31|, 99.50;
+           mp of |2025-04-01|, |2025-04-30|, 99.50
+         ]
+      -- assessment_date: |2025-06-10|
+      -- notice_given: true
+      -- notice_date: |2025-04-15|
+    }
+  assertion (number of r.failing_periods) = 4
+  assertion r.consecutive_trigger = true
+  assertion r.rolling_trigger = true
+  assertion r.right_arisen = true
+  assertion (number of r.completing_periods) = 2
+  assertion (number of r.occurrences) = 2
+  assertion (number of r.arisen_occurrences) = 2
+  assertion (number of r.live_occurrences) = 0
+  assertion (number of r.exercised_occurrences) = 1
+  assertion (number of r.lapsed_occurrences) = 1
+  assertion r.trigger_period_end = Present content |2025-03-31|
+  assertion r.exercise_deadline = Present content |2025-04-30|
+  assertion r.notice_exercises_the_right = true
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = true
+```
+
+## CE0024_TheAnswerDoesNotMoveWithTheDateTheQuestionIsAsked
+
+The same facts as CE-0024, put to the scope at three assessment dates: 20
+April 2025 (inside the March window), 15 May 2025 (the March window closed,
+the April window open) and 10 June 2025 (both closed). L-6.2 makes the exercise
+of a right turn on the date of the notice against the window of the occurrence
+it exercises, and none of that moves when the question is asked later, so all
+three must answer identically on exercise, lapse and exercisability. The
+module previously answered `notice_exercises_the_right = true` on the first
+date and `false` on the third.
+
+The per-occurrence state does move with the assessment date, and correctly so:
+on 20 April the March occurrence's window is still open, by 15 May it has
+closed but the April occurrence's is open, and by 10 June both have closed.
+
+```catala
+#[test]
+declaration scope TestCE0024_TheAnswerDoesNotMoveWithTheDateTheQuestionIsAsked:
+  output on_20_april content ChronicFailure.ChronicFailureRight
+  output on_15_may content ChronicFailure.ChronicFailureRight
+  output on_10_june content ChronicFailure.ChronicFailureRight
+
+scope TestCE0024_TheAnswerDoesNotMoveWithTheDateTheQuestionIsAsked:
+  definition on_20_april equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-02-01|, |2025-02-28|, 99.50;
+           mp of |2025-03-01|, |2025-03-31|, 99.50;
+           mp of |2025-04-01|, |2025-04-30|, 99.50
+         ]
+      -- assessment_date: |2025-04-20|
+      -- notice_given: true
+      -- notice_date: |2025-04-15|
+    }
+  definition on_15_may equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-02-01|, |2025-02-28|, 99.50;
+           mp of |2025-03-01|, |2025-03-31|, 99.50;
+           mp of |2025-04-01|, |2025-04-30|, 99.50
+         ]
+      -- assessment_date: |2025-05-15|
+      -- notice_given: true
+      -- notice_date: |2025-04-15|
+    }
+  definition on_10_june equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-02-01|, |2025-02-28|, 99.50;
+           mp of |2025-03-01|, |2025-03-31|, 99.50;
+           mp of |2025-04-01|, |2025-04-30|, 99.50
+         ]
+      -- assessment_date: |2025-06-10|
+      -- notice_given: true
+      -- notice_date: |2025-04-15|
+    }
+  assertion on_20_april.notice_exercises_the_right = true
+  assertion on_15_may.notice_exercises_the_right = true
+  assertion on_10_june.notice_exercises_the_right = true
+  assertion on_20_april.right_lapsed = false
+  assertion on_15_may.right_lapsed = false
+  assertion on_10_june.right_lapsed = false
+  assertion on_20_april.right_exercisable = true
+  assertion on_15_may.right_exercisable = true
+  assertion on_10_june.right_exercisable = true
+  assertion (number of on_20_april.arisen_occurrences) = 1
+  assertion (number of on_20_april.live_occurrences) = 1
+  assertion (number of on_15_may.arisen_occurrences) = 2
+  assertion (number of on_15_may.live_occurrences) = 1
+  assertion (number of on_10_june.arisen_occurrences) = 2
+  assertion (number of on_10_june.live_occurrences) = 0
+```
+
+## CE0024_ALapsedOccurrenceDoesNotRevivePerOccurrence
+
+The same four failing months with no notice at all, assessed on 10 June 2025
+after both windows have closed. Every occurrence that has arisen has lapsed,
+so the right has lapsed outright — the per-occurrence lapse must not become a
+reason never to report a lapse.
+
+```catala
+#[test]
+declaration scope TestCE0024_ALapsedOccurrenceDoesNotRevivePerOccurrence:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestCE0024_ALapsedOccurrenceDoesNotRevivePerOccurrence:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-02-01|, |2025-02-28|, 99.50;
+           mp of |2025-03-01|, |2025-03-31|, 99.50;
+           mp of |2025-04-01|, |2025-04-30|, 99.50
+         ]
+      -- assessment_date: |2025-06-10|
+      -- notice_given: false
+      -- notice_date: |2025-06-10|
+    }
+  assertion (number of r.arisen_occurrences) = 2
+  assertion (number of r.lapsed_occurrences) = 2
+  assertion (number of r.exercised_occurrences) = 0
+  assertion r.notice_exercises_the_right = false
+  assertion r.right_lapsed = true
+  assertion r.right_exercisable = false
+```
+
+## CE0025_ARestatedReportIsNotASecondMeasurementPeriod
+
+CE-0025's own facts. Only January and February 2025 fell below the Service
+Level, and the Supplier reported each month and then restated it, so the
+record carries two entries for January (99.50% as first reported, 99.62% as
+restated) and two for February (99.71% and 99.55%). L-2.1 makes a Measurement
+Period a calendar month, so that is two failing Measurement Periods and not
+four: neither limb of L-6.1 is satisfied and no right arises. Counting list
+entries instead made the rolling four-in-twelve limb fire on two failing
+months, while the consecutive limb — which matches on the month before and the
+month before that, and is therefore insensitive to duplicates — correctly did
+not.
+
+```catala
+#[test]
+declaration scope TestCE0025_ARestatedReportIsNotASecondMeasurementPeriod:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestCE0025_ARestatedReportIsNotASecondMeasurementPeriod:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-01-01|, |2025-01-31|, 99.62;
+           mp of |2025-02-01|, |2025-02-28|, 99.71;
+           mp of |2025-02-01|, |2025-02-28|, 99.55
+         ]
+      -- assessment_date: |2025-03-10|
+      -- notice_given: true
+      -- notice_date: |2025-03-05|
+    }
+  assertion (number of r.failing_periods) = 4
+  assertion (number of r.failing_measurement_periods) = 2
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = false
+  assertion (number of r.completing_periods) = 0
+  assertion r.trigger_period_end = Absent
+  assertion r.notice_exercises_the_right = false
+  assertion r.right_lapsed = false
+  assertion r.right_exercisable = false
+```
+
+## CE0025_DeduplicationDoesNotSuppressARealTrigger
+
+The converse: four *distinct* failing calendar months inside twelve months,
+one of which was reported twice, still satisfy L-6.1's second limb. Reducing
+the history to one entry per Measurement Period must remove duplicates and
+nothing else.
+
+```catala
+#[test]
+declaration scope TestCE0025_DeduplicationDoesNotSuppressARealTrigger:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestCE0025_DeduplicationDoesNotSuppressARealTrigger:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-01-01|, |2025-01-31|, 99.62;
+           mp of |2025-03-01|, |2025-03-31|, 99.50;
+           mp of |2025-05-01|, |2025-05-31|, 99.50;
+           mp of |2025-07-01|, |2025-07-31|, 99.50
+         ]
+      -- assessment_date: |2025-08-15|
+      -- notice_given: false
+      -- notice_date: |2025-08-15|
+    }
+  assertion (number of r.failing_periods) = 5
+  assertion (number of r.failing_measurement_periods) = 4
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = true
+  assertion r.right_arisen = true
+  assertion (number of r.completing_periods) = 1
+  assertion r.trigger_period_end = Present content |2025-07-31|
+  assertion r.exercise_deadline = Present content |2025-08-30|
+  assertion r.right_exercisable = true
+```
+
+## CE0025_DuplicatesDoNotCreateAConsecutiveRun
+
+Three entries for a single calendar month are one Measurement Period, not
+three consecutive ones, so the first limb of L-6.1 is not satisfied either.
+This is the limb that was already correct, pinned so that the reduction to one
+entry per period cannot break it.
+
+```catala
+#[test]
+declaration scope TestCE0025_DuplicatesDoNotCreateAConsecutiveRun:
+  output r content ChronicFailure.ChronicFailureRight
+
+scope TestCE0025_DuplicatesDoNotCreateAConsecutiveRun:
+  definition r equals
+    output of ChronicFailure.ChronicFailureRight with {
+      -- availability_history: [
+           mp of |2025-01-01|, |2025-01-31|, 99.50;
+           mp of |2025-01-01|, |2025-01-31|, 99.60;
+           mp of |2025-01-01|, |2025-01-31|, 99.70
+         ]
+      -- assessment_date: |2025-03-10|
+      -- notice_given: false
+      -- notice_date: |2025-03-10|
+    }
+  assertion (number of r.failing_periods) = 3
+  assertion (number of r.failing_measurement_periods) = 1
+  assertion r.consecutive_trigger = false
+  assertion r.rolling_trigger = false
+  assertion r.right_arisen = false
 ```

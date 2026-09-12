@@ -26,6 +26,11 @@ What it reports, and why each number is here
   the system refuse to compute and name the input a human must supply? A
   violation here is a correctness bug, not a quality metric, and is reported
   first.
+* the two-engine invariant -- no part may quote a RULE clause as prose, and no
+  figure may be stated by anything but an executed scope. Checked on every
+  case rather than assumed from the index build, because the invariant is the
+  thing this system exists to hold and a routing change is exactly what could
+  break it.
 * every failure, with the router's scores and candidate list, so a human can
   see what is wrong rather than a single number.
 
@@ -83,7 +88,7 @@ def as_list(v: Any) -> list[str]:
 # --- running one case ------------------------------------------------------
 
 
-def predict(chat: Any, question: str) -> dict[str, Any]:
+def predict(chat: Any, question: str, ledger: dict[str, Any] | None = None) -> dict[str, Any]:
     ans = chat.answer(question)
     cat = [p for p in ans.parts if p.engine == "CATALA"]
     quo = [p for p in ans.parts if p.engine == "VECTOR" and p.kind == "quotation"]
@@ -107,8 +112,21 @@ def predict(chat: Any, question: str) -> dict[str, Any]:
             if c not in cites:
                 cites.append(c)
 
+    # -- the two-engine invariant ----------------------------------------
+    # A VECTOR part may only quote. If anything it cites is a RULE clause, a
+    # rule has reached the user as a quotation instead of as an execution.
+    quoted_rule = sorted({
+        r for p in quo + cav for r in (norm_cite(c) for c in p.citations)
+        if (ledger or {}).get(r) == "RULE"
+    })
+    # A figure may only come from an executed scope: a computed part must carry
+    # the outputs the scope returned.
+    unsourced_figure = bool(head and head.kind == "computed" and not head.outputs)
+
     return {
         "engine": engine,
+        "quoted_rule_clauses": quoted_rule,
+        "unsourced_figure": unsourced_figure,
         "kind": head.kind if head else (quo[0].kind if quo else (nocov[0].kind if nocov else None)),
         "scope": head.scope if head else None,
         "ambiguous": bool(head and head.kind == "ambiguous-route"),
@@ -194,8 +212,8 @@ def judge(case: dict[str, Any], got: dict[str, Any]) -> dict[str, Any]:
         "citations": cit,
         "judgement_safety": jsafe,
         "why": case.get("why", ""),
-        "passed": engine_ok and (scope_ok is not False) and (jsafe is None or jsafe["ok"])
-                  and cit["recall"] in (None, 1.0) if False else None,
+        # filled in by aggregate(), which owns the pass criterion
+        "passed": None,
     }
 
 
@@ -295,6 +313,17 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
                 if unamb_expected else None
             ),
         },
+        "invariant": {
+            "quoted_rule_clauses": sorted({
+                r for rec in records for r in rec["got"]["quoted_rule_clauses"]
+            }),
+            "cases_quoting_a_rule": sum(
+                1 for rec in records if rec["got"]["quoted_rule_clauses"]
+            ),
+            "unsourced_figures": sum(
+                1 for rec in records if rec["got"]["unsourced_figure"]
+            ),
+        },
         "judgement": {
             "n": len(jcases),
             "silently_computed": sum(
@@ -307,7 +336,15 @@ def aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
             k: {
                 "ids": [r["id"] for r in v],
                 "both_pass": all(r["passed"] for r in v),
-                "collapsed": len({(r["got"]["engine"], r["got"]["scope"]) for r in v}) == 1,
+                # Collapsed means the router produced the SAME answer for both
+                # halves -- same engine, same scope AND the same citations. Two
+                # halves of a pair that route to one scope but cite different
+                # clauses have been distinguished, which is the point.
+                "collapsed": len({
+                    (r["got"]["engine"], r["got"]["scope"],
+                     tuple(r["got"]["citations"]))
+                    for r in v
+                }) == 1,
             }
             for k, v in sorted(pairs.items())
         },
@@ -346,7 +383,17 @@ def render(agg: dict[str, Any], records: list[dict[str, Any]], settings: dict[st
     w(f"  citation recall        {pct(c['recall'])}   {bar(c['recall'])}   fn={c['fn']}")
     w("")
 
-    # judgement safety first: a violation is a correctness bug
+    inv = agg["invariant"]
+    w("-- the two-engine invariant (hard constraint, not a quality metric) " + "-" * 10)
+    bad = inv["cases_quoting_a_rule"] or inv["unsourced_figures"]
+    w(f"  answers quoting a RULE clause as prose  {inv['cases_quoting_a_rule']}"
+      + (f"  <-- VIOLATION: {inv['quoted_rule_clauses'][:5]}" if inv["cases_quoting_a_rule"] else ""))
+    w(f"  figures stated without scope outputs    {inv['unsourced_figures']}"
+      + ("  <-- VIOLATION" if inv["unsourced_figures"] else ""))
+    w("  " + ("HELD" if not bad else "BROKEN"))
+    w("")
+
+    # judgement safety next: a violation is a correctness bug
     j = agg["judgement"]
     w("-- judgement safety (a human must decide; the machine must not) " + "-" * 14)
     flag = "  <-- INVARIANT VIOLATION" if j["silently_computed"] else ""
@@ -459,13 +506,24 @@ SWEEPS = {
                          [0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65, 0.70]),
     "vector-threshold": ("VECTOR_THRESHOLD",
                          [0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.55, 0.60, 0.65]),
-    "lexical-weight": ("LEXICAL_WEIGHT",
-                       [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.40, 0.50]),
+    "lexical-weight": ("lks.vector.LEXICAL_WEIGHT",
+                       [0.0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.50, 0.60]),
+    "support-citations": ("SUPPORT_CITATIONS", [1, 2, 3, 4, 5, 6, 8, 11]),
+    "support-spread": ("SUPPORT_SPREAD",
+                       [0.0, 0.01, 0.02, 0.04, 0.06, 0.08, 0.10, 0.15, 0.20, 1.0]),
+    "coencoder-margin": ("ROUTE_COENCODER_MARGIN",
+                         [0.0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.10, 0.15]),
+    "engine-margin": ("ENGINE_MARGIN",
+                      [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.15, 0.20, 0.25, 0.30]),
+    "vector-spread": ("VECTOR_SPREAD",
+                      [0.0, 0.02, 0.04, 0.06, 0.08, 0.10, 0.12, 0.16, 0.20, 0.30]),
 }
 
 
-def run_once(chat: Any, cases: list[dict[str, Any]]) -> tuple[list[dict], dict]:
-    records = [judge(c, predict(chat, c["question"])) for c in cases]
+def run_once(
+    chat: Any, cases: list[dict[str, Any]], ledger: dict[str, str] | None = None
+) -> tuple[list[dict], dict]:
+    records = [judge(c, predict(chat, c["question"], ledger)) for c in cases]
     return records, aggregate(records)
 
 
@@ -481,6 +539,11 @@ def main() -> int:
     ap.add_argument("--catala-threshold", type=float)
     ap.add_argument("--vector-threshold", type=float)
     ap.add_argument("--lexical-weight", type=float)
+    ap.add_argument("--engine-margin", type=float)
+    ap.add_argument("--coencoder-margin", type=float)
+    ap.add_argument("--support-citations", type=int)
+    ap.add_argument("--support-spread", type=float)
+    ap.add_argument("--vector-spread", type=float)
     ap.add_argument("--sweep", choices=sorted(SWEEPS), action="append",
                     help="sweep a threshold and print the curve instead of one run")
     a = ap.parse_args()
@@ -497,30 +560,54 @@ def main() -> int:
             print(f"no cases match {a.only!r}", file=sys.stderr)
             return 2
 
+    from lks import vector as vec_mod
+
+    def _target(name: str):
+        """Resolve a sweepable constant name to (module, attribute).
+
+        Plain names live on `lks.chat`; `lks.vector.X` reaches the retrieval
+        constants, because the lexical weight belongs to the store rather than
+        to the chat layer.
+        """
+        if name.startswith("lks.vector."):
+            return vec_mod, name.rsplit(".", 1)[1]
+        return chat_mod, name
+
     overrides = {
         "ROUTE_MARGIN": a.margin,
         "CATALA_THRESHOLD": a.catala_threshold,
         "VECTOR_THRESHOLD": a.vector_threshold,
-        "LEXICAL_WEIGHT": a.lexical_weight,
+        "lks.vector.LEXICAL_WEIGHT": a.lexical_weight,
+        "ENGINE_MARGIN": a.engine_margin,
+        "VECTOR_SPREAD": a.vector_spread,
+        "ROUTE_COENCODER_MARGIN": a.coencoder_margin,
+        "SUPPORT_CITATIONS": a.support_citations,
+        "SUPPORT_SPREAD": a.support_spread,
     }
     for k, v in overrides.items():
         if v is not None:
-            setattr(chat_mod, k, v)
+            mod, attr = _target(k)
+            setattr(mod, attr, v)
 
+    from lks.triage import load_ledger
+
+    ledger = {ref: d.label.value for ref, d in load_ledger().items()}
     chat = chat_mod.Chat.open(backend=a.backend)
 
     if a.sweep:
         curves: dict[str, Any] = {}
         for name in a.sweep:
             const, values = SWEEPS[name]
-            saved = getattr(chat_mod, const, None)
+            mod, attr = _target(const)
+            saved = getattr(mod, attr, None)
             if saved is None:
-                print(f"lks.chat has no {const}; skipping sweep {name}", file=sys.stderr)
+                print(f"{mod.__name__} has no {attr}; skipping sweep {name}",
+                      file=sys.stderr)
                 continue
             rows = []
             for v in values:
-                setattr(chat_mod, const, v)
-                _recs, agg = run_once(chat, cases)
+                setattr(mod, attr, v)
+                _recs, agg = run_once(chat, cases, ledger)
                 rows.append({
                     "value": v,
                     "pass_rate": agg["pass_rate"],
@@ -531,7 +618,7 @@ def main() -> int:
                     "over_confident": agg["ambiguity"]["over_confident"],
                     "under_confident": agg["ambiguity"]["under_confident"],
                 })
-            setattr(chat_mod, const, saved)
+            setattr(mod, attr, saved)
             curves[name] = {"constant": const, "baseline": saved, "rows": rows}
 
         if a.json:
@@ -552,14 +639,17 @@ def main() -> int:
                       f"{mark}{cur_mark}")
         return 0
 
-    records, agg = run_once(chat, cases)
+    records, agg = run_once(chat, cases, ledger)
     settings = {
         "ROUTE_MARGIN": chat_mod.ROUTE_MARGIN,
         "CATALA_THRESHOLD": chat_mod.CATALA_THRESHOLD,
         "VECTOR_THRESHOLD": chat_mod.VECTOR_THRESHOLD,
     }
-    if hasattr(chat_mod, "LEXICAL_WEIGHT"):
-        settings["LEXICAL_WEIGHT"] = chat_mod.LEXICAL_WEIGHT
+    for extra in ("ENGINE_MARGIN", "VECTOR_SPREAD", "ROUTE_COENCODER_MARGIN",
+                  "SUPPORT_CITATIONS", "SUPPORT_SPREAD"):
+        if hasattr(chat_mod, extra):
+            settings[extra] = getattr(chat_mod, extra)
+    settings["LEXICAL_WEIGHT"] = vec_mod.LEXICAL_WEIGHT
 
     if a.json:
         print(json.dumps(

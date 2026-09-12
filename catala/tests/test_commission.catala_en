@@ -8,11 +8,18 @@ S-4.1 uses "or more" (inclusive) at the foot of each band and "less than"
 (strict), S-2.4 uses "within 180 days" (inclusive) and S-8.1 uses "on or
 before" (inclusive). A single mid-range test sees none of that.
 
-Three traps get dedicated tests that assert a *difference* rather than only a
+Four traps get dedicated tests that assert a *difference* rather than only a
 value, because the wrong encoding of each produces a perfectly plausible
 number: S-4.2 (the accelerator is a cliff over the whole of Net Booked
 Revenue, not a marginal rate), S-5.2 (the cap comes after the accelerator, not
-before) and S-4.4 (the joiner cap defeats S-4.1 as well as S-4.3).
+before), S-4.4 (the joiner cap defeats S-4.1 as well as S-4.3) and S-2.2 (the
+Quota it divides by is exact, so a sub-penny relieved Quota cannot be rounded
+across an S-4.1 band boundary — CE-0027).
+
+The last section covers the nil Quota S-6.1 can produce (CE-0026). It is an
+input the Plan compels and `Attainment` answers for it; the guard that used to
+refuse it refused nothing, because the quotient was evaluated first and raised
+a division by zero.
 
 > Using Commission
 
@@ -352,7 +359,7 @@ scope TestS2_2_Attainment:
   definition r equals
     output of Commission.Attainment with {
       -- net_booked_revenue: $1,500,000
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
     }
   assertion r.attainment_pct = 150%
 ```
@@ -679,7 +686,7 @@ scope TestS4_2_WholeRevenueNotMarginal:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $1,200,000
       -- new_logo_share: 0%
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $200,000
     }
@@ -709,7 +716,7 @@ scope TestS3_1_NilRevenueNilCommission:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $0
       -- new_logo_share: 0%
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2026-11-01|
       -- annual_base_salary: $100,000
     }
@@ -741,7 +748,7 @@ scope TestS3_1_NoIntermediateRoundingAt1_5:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $10,000.44
       -- new_logo_share: 10%
-      -- quota: $8,000
+      -- quota: decimal of $8,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
     }
@@ -766,7 +773,7 @@ scope TestS3_1_NoIntermediateRoundingAt1_75:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $10,000.44
       -- new_logo_share: 70%
-      -- quota: $8,000
+      -- quota: decimal of $8,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
     }
@@ -790,7 +797,7 @@ scope TestS3_1_NoIntermediateRoundingAt2_25:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $10,000.44
       -- new_logo_share: 70%
-      -- quota: $5,000
+      -- quota: decimal of $5,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
     }
@@ -815,7 +822,7 @@ scope TestS5_1_CapNotBinding:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $1,000,000
       -- new_logo_share: 0%
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $200,000
     }
@@ -834,7 +841,7 @@ scope TestS5_1_CapBinding:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $3,000,000
       -- new_logo_share: 0%
-      -- quota: $2,000,000
+      -- quota: decimal of $2,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
     }
@@ -860,7 +867,7 @@ scope TestS5_2_CapAfterAcceleratorNotBefore:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $3,000,000
       -- new_logo_share: 0%
-      -- quota: $2,000,000
+      -- quota: decimal of $2,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
     }
@@ -885,7 +892,7 @@ scope TestS5_3_AttainmentExactly200:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $2,000,000
       -- new_logo_share: 0%
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
     }
@@ -908,7 +915,7 @@ scope TestS5_3_AttainmentAbove200:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $2,100,000
       -- new_logo_share: 0%
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
     }
@@ -931,7 +938,7 @@ scope TestS5_3_RaisedCapStillBinds:
     output of Commission.CommissionPayable with {
       -- net_booked_revenue: $10,000,000
       -- new_logo_share: 0%
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
     }
@@ -961,7 +968,7 @@ scope TestS8_1_LeaverCutOffInclusive:
          ]
       -- last_day_of_employment: |2026-01-01|
       -- termination_reason: OtherReason
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
       -- commission_already_paid: $20,000
@@ -989,7 +996,7 @@ scope TestS8_1_LeaverCutOffExcludesLater:
          ]
       -- last_day_of_employment: |2025-12-31|
       -- termination_reason: OtherReason
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
       -- commission_already_paid: $0
@@ -1020,7 +1027,7 @@ scope TestS8_2_GrossMisconductForfeitsBalance:
          ]
       -- last_day_of_employment: |2026-01-01|
       -- termination_reason: GrossMisconduct
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $100,000
       -- commission_already_paid: $20,000
@@ -1053,7 +1060,7 @@ scope TestS8_1_OverpaymentIsNotADebt:
       -- contracts: [ signed_only of 1, $1,000,000, |2026-03-31|, [] ]
       -- last_day_of_employment: |2026-03-31|
       -- termination_reason: OtherReason
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $500,000
       -- commission_already_paid: $200,000
@@ -1082,7 +1089,7 @@ scope TestS8_2_OverpaidGrossMisconductLeaver:
       -- contracts: [ signed_only of 1, $1,000,000, |2026-03-31|, [] ]
       -- last_day_of_employment: |2026-03-31|
       -- termination_reason: GrossMisconduct
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $500,000
       -- commission_already_paid: $200,000
@@ -1106,11 +1113,90 @@ scope TestS8_1_NoOverpaymentReportedWhenUnderpaid:
       -- contracts: [ signed_only of 1, $1,000,000, |2026-03-31|, [] ]
       -- last_day_of_employment: |2026-03-31|
       -- termination_reason: OtherReason
-      -- quota: $1,000,000
+      -- quota: decimal of $1,000,000
       -- commencement_date: |2025-10-01|
       -- annual_base_salary: $500,000
       -- commission_already_paid: $40,000
     }
   assertion r.commission_payable = $100,000
   assertion r.overpaid_amount = $0
+```
+
+## S-2.2 A nil Quota is answered, not refused — CE-0026
+
+S-6.1 reduces the Quota to nil where a qualifying absence covers every day of
+the Plan Year, so a nil Quota is an input the Plan produces and `Attainment`
+must answer for it rather than dividing by zero. The nil-Quota limb reports 0%,
+which carries through S-4.1(a) to an accelerator of 0.0 and, on the nil Net
+Booked Revenue that accompanies it, to the $0.00 S-3.1 fixes whatever the
+accelerator.
+
+The two refusals the scope keeps are error cases and so cannot be asserted
+here: executed with a nil Quota and a *positive* Net Booked Revenue, and with a
+negative Quota, the scope reports `AssertionFailed` — a percentage of nothing
+is not a quantity the Plan fixes, and there is no such thing as a negative
+Quota. Both were verified by execution; neither is reachable through
+`QuotaRelief.CommissionAfterRelief`.
+
+```catala
+#[test]
+declaration scope TestS2_2_NilQuotaGivesNilAttainment:
+  output r content Commission.Attainment
+  output payable content Commission.CommissionPayable
+
+scope TestS2_2_NilQuotaGivesNilAttainment:
+  definition r equals
+    output of Commission.Attainment with {
+      -- net_booked_revenue: $0
+      -- quota: 0.0
+    }
+
+  definition payable equals
+    output of Commission.CommissionPayable with {
+      -- net_booked_revenue: $0
+      -- new_logo_share: 0%
+      -- quota: 0.0
+      -- commencement_date: |2020-01-01|
+      -- annual_base_salary: $120,000
+    }
+
+  assertion r.attainment_pct = 0%
+  assertion payable.attainment_calc.attainment_pct = 0%
+  assertion payable.accelerator_calc.accelerator = 0.0
+  assertion payable.commission_before_cap = $0
+  assertion payable.commission_payable = $0
+```
+
+## S-2.2 The denominator is exact, so a sub-penny Quota does not move a band — CE-0027
+
+The Quota is taken as an exact `decimal` because S-6.1's relief is 1/365ths of
+an annual figure and so is not in general a whole number of pence. On
+$344,178.08 of Net Booked Revenue the exact relieved Quota of
+$688,356.1643835616... gives Attainment below 50%, and the same Quota rounded to
+the penny gives exactly 50% — which is the S-4.1(a)/(b) boundary, 0.0 against
+1.0. The pair is the test.
+
+```catala
+#[test]
+declaration scope TestS2_2_ExactDenominatorKeepsTheBand:
+  output exact content Commission.Attainment
+  output rounded content Commission.Attainment
+
+scope TestS2_2_ExactDenominatorKeepsTheBand:
+  definition exact equals
+    output of Commission.Attainment with {
+      -- net_booked_revenue: $344,178.08
+      -- quota: 750000.0 - 750000.0 * (30.0 / 365.0)
+    }
+
+  definition rounded equals
+    output of Commission.Attainment with {
+      -- net_booked_revenue: $344,178.08
+      -- quota: decimal of $688,356.16
+    }
+
+  assertion exact.attainment_pct < 50%
+  assertion exact.attainment_pct != 50%
+  assertion rounded.attainment_pct = 50%
+  assertion exact.attainment_pct != rounded.attainment_pct
 ```

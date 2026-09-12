@@ -1,0 +1,52 @@
+id: CE-0030
+component: catala
+fact_pattern: 'A mutual NDA on the standard form with an Effective Date of 1 July 2024, never
+  terminated early. A dispute arises about information the Counterparty disclosed to the Company
+  on 1 January 2023 - eighteen months before the NDA existed. N-2.1 makes information disclosed
+  before the date of the Agreement ''Confidential Information'', so the question is properly
+  put: did the N-3 obligations of confidence subsist on 1 January 2023?'
+citations:
+- NDA-MUT N-5.1
+- NDA-MUT N-3.1
+- NDA-MUT N-3.2
+- NDA-MUT N-2.1
+source_reasoning: 'N-5.1 fixes the start of the obligations: ''This Agreement takes effect
+  on the Effective Date and continues for a period of 2 years''. The obligations in N-3.1
+  and N-3.2 are obligations of the Recipient under this Agreement; before the Effective Date
+  the Agreement has no effect, so no obligation of confidence under N-3 subsists. N-2.1 (''whether
+  before or after the date of this Agreement'') extends the SUBJECT MATTER of the obligations
+  backwards to pre-contractual disclosures - it does not backdate the obligations themselves,
+  which is the very reason N-2.1 is needed. The answer for 1 January 2023 is therefore that
+  the obligations did not subsist. The module''s n3_in_term limb defines obligations_subsist
+  as true under the single condition assessment_date <= agreement_end_date, with no lower
+  bound at the Effective Date, so it returns true for every date in history before 1 July
+  2024 - including dates before the parties were in contact. The scope does assert agreement_end_date
+  >= effective_date, so the module knows where the term starts; it simply does not use it
+  on this edge.'
+expected:
+  obligations_subsist: false
+observed:
+  agreement_end_date: '2026-07-01'
+  survival_end_date: '2029-07-01'
+  obligations_subsist: true
+target:
+  module: NdaSurvival
+  path: catala/modules/NdaSurvival.catala_en
+  scope: SurvivalEnd
+inputs:
+  effective_date: '2024-07-01'
+  is_personal_data: false
+  information_is_trade_secret: false
+  information_remains_trade_secret: false
+  assessment_date: '2023-01-01'
+round: 2
+discovered: '2026-09-12'
+status: fixed
+notes: assessment on the Effective Date itself (true - correct); assessment on agreement_end_date
+  and one day after (correct boundary at N-5.1/N-5.2); assessment exactly at agreement_end
+  + 3 years (true, inclusive - correct on N-5.2); termination notice before the Effective
+  Date (correctly ignored); termination notice whose 30 days expire after the 2-year term
+  (correctly ignored - N-5.1 says 'terminated EARLIER'); 29 February Effective Date with date
+  round up (2026-03-01 / 2029-03-01, consistent with N-5.1/N-5.2 as periods of protection);
+  attempts to falsify both scope assertions (both are vacuous on the current limbs - no input
+  reaches them)

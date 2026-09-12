@@ -442,6 +442,67 @@ def as_decimal(v: Any) -> Decimal:
     return Decimal(str(v))
 
 
+_TRUE_WORDS = {"true", "yes", "1"}
+_FALSE_WORDS = {"false", "no", "0"}
+
+
+def _as_bool(v: Any) -> bool | None:
+    """Interpret a value as a boolean, or None if it is not one.
+
+    The comparison used to be `bool(expected) == bool(actual)`, which leans on
+    Python truthiness and so reported that a boolean `True` AGREED with the
+    string "0" -- every non-empty string is truthy. That is a false pass, the
+    one direction a verification primitive must never fail in: a counterexample
+    asserting an entitlement arises would have been satisfied by an output
+    saying it does not.
+
+    So a boolean is only compared against something that genuinely is one: a
+    bool, 0 or 1, or a word that spells a boolean. Anything else disagrees.
+    """
+    if isinstance(v, bool):
+        return v
+    if isinstance(v, str):
+        w = v.strip().lower()
+        if w in _TRUE_WORDS:
+            return True
+        if w in _FALSE_WORDS:
+            return False
+        return None
+    if isinstance(v, (int, float, Decimal)) and v in (0, 1):
+        return bool(v)
+    return None
+
+
+def _numeric(v: Any) -> bool:
+    """Whether a value is a number, including one written as a string.
+
+    Counterexample YAML routinely writes money as a quoted string -- '80000.00'
+    reads more like a legal figure than 80000.0, and YAML will keep the quotes.
+    Catala's JSON emits money as a number. An earlier version of `values_agree`
+    required BOTH sides to be int/float/Decimal before comparing numerically,
+    so '80000.00' and 80000.0 fell through to string equality and reported a
+    failure against a module that was producing exactly the expected value.
+
+    That is the safe direction for the bug to point -- a false failure, not a
+    false pass -- but it still wastes the one signal the regression suite
+    exists to give, and three counterexamples were sitting red against correct
+    code. Booleans are excluded deliberately: `True` is an `int` in Python and
+    comparing it numerically to 1 would let a boolean output agree with a
+    quantity.
+    """
+    if isinstance(v, bool):
+        return False
+    if isinstance(v, (int, float, Decimal)):
+        return True
+    if isinstance(v, str):
+        try:
+            Decimal(v.strip())
+            return True
+        except Exception:
+            return False
+    return False
+
+
 def values_agree(
     expected: Any,
     actual: Any,
@@ -472,10 +533,11 @@ def values_agree(
     test pass.
     """
     if isinstance(expected, bool) or isinstance(actual, bool):
-        return bool(expected) == bool(actual)
-    if isinstance(expected, (int, float, Decimal)) and isinstance(
-        actual, (int, float, Decimal)
-    ):
+        e, a = _as_bool(expected), _as_bool(actual)
+        if e is None or a is None:
+            return False        # a boolean does not agree with a non-boolean
+        return e == a
+    if _numeric(expected) and _numeric(actual):
         e, a = as_decimal(expected), as_decimal(actual)
         if money:
             q = Decimal("0.01")

@@ -58,11 +58,27 @@ CONTENT: list[tuple[str, str]] = [
           "collection and redelivery."),
     ("p", "4.3 The remedy in 4.2 is in addition to any other remedy available to "
           "the Company."),
+    ("h", "5. INDEMNITY AND INSURANCE"),
+    ("p", "5.1 The Supplier shall indemnify the Company against any claim brought "
+          "by a third party alleging that the goods infringe that third party's "
+          "intellectual property rights."),
+    ("p", "5.2 The Supplier shall maintain product liability insurance of not less "
+          "than GBP 5,000,000 in respect of any one claim, and shall produce the "
+          "certificate of insurance to the Company on request."),
+    ("h", "6. TERMINATION"),
+    ("p", "6.1 The Company may cancel a purchase order in whole or in part at any "
+          "time before delivery by written notice to the Supplier."),
+    ("p", "6.2 Where the Company cancels a purchase order under 6.1, it shall pay "
+          "the Supplier the cost of work properly performed before cancellation, "
+          "and no other sum is payable in respect of the cancellation."),
+    ("p", "6.3 Either party may terminate any agreement constituted by a purchase "
+          "order immediately where the other party becomes insolvent, has an "
+          "administrator appointed or ceases to carry on business."),
 ]
 
 PAGE_W, PAGE_H = 595, 842
-LEFT, TOP, BOTTOM = 64, 780, 80
-LEADING, PARA_GAP, WRAP = 14, 10, 78
+LEFT, TOP, BOTTOM = 64, 760, 300
+LEADING, PARA_GAP, WRAP = 14, 16, 78
 
 
 def _esc(s: str) -> str:
