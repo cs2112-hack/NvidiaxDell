@@ -1,0 +1,616 @@
+[
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "ChronicFailure",
+      "path": "catala/modules/ChronicFailure.catala_en",
+      "scope": "ChronicFailureRight"
+    },
+    "fact_pattern": "The Availability Percentage was below 99.90% in each of January, February and March 2024 (occurrence 1). The Customer did not serve a termination notice and that right lapsed on 30 April 2024. Service then met the Service Level for fifteen months. The Availability Percentage was then below 99.90% again in each of July, August and September 2025 (occurrence 2) -- a fresh set of three consecutive failing Measurement Periods. The Customer served written notice of termination on 5 October 2025 and the position is assessed on 10 October 2025. (The two clusters are more than twelve months apart, so only the three-consecutive-periods limb of L-6.1 is engaged; the rolling four-in-twelve limb is not.)",
+    "inputs": {
+      "availability_history": [
+        {
+          "period_start": "2024-01-01",
+          "period_end": "2024-01-31",
+          "availability_percentage": 99.8
+        },
+        {
+          "period_start": "2024-02-01",
+          "period_end": "2024-02-29",
+          "availability_percentage": 99.8
+        },
+        {
+          "period_start": "2024-03-01",
+          "period_end": "2024-03-31",
+          "availability_percentage": 99.8
+        },
+        {
+          "period_start": "2024-04-01",
+          "period_end": "2024-04-30",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2024-05-01",
+          "period_end": "2024-05-31",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2024-06-01",
+          "period_end": "2024-06-30",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2024-07-01",
+          "period_end": "2024-07-31",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2024-08-01",
+          "period_end": "2024-08-31",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2024-09-01",
+          "period_end": "2024-09-30",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2024-10-01",
+          "period_end": "2024-10-31",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2024-11-01",
+          "period_end": "2024-11-30",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2024-12-01",
+          "period_end": "2024-12-31",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2025-01-01",
+          "period_end": "2025-01-31",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2025-02-01",
+          "period_end": "2025-02-28",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2025-03-01",
+          "period_end": "2025-03-31",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2025-04-01",
+          "period_end": "2025-04-30",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2025-05-01",
+          "period_end": "2025-05-31",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2025-06-01",
+          "period_end": "2025-06-30",
+          "availability_percentage": 99.95
+        },
+        {
+          "period_start": "2025-07-01",
+          "period_end": "2025-07-31",
+          "availability_percentage": 99.8
+        },
+        {
+          "period_start": "2025-08-01",
+          "period_end": "2025-08-31",
+          "availability_percentage": 99.8
+        },
+        {
+          "period_start": "2025-09-01",
+          "period_end": "2025-09-30",
+          "availability_percentage": 99.8
+        }
+      ],
+      "assessment_date": "2025-10-10",
+      "notice_given": true,
+      "notice_date": "2025-10-05"
+    },
+    "expected": {
+      "right_arisen": true,
+      "trigger_period_end": "2025-09-30",
+      "exercise_deadline": "2025-10-30",
+      "right_lapsed": false,
+      "right_exercisable": true
+    },
+    "observed": {
+      "right_arisen": true,
+      "trigger_period_end": "2024-03-31",
+      "exercise_deadline": "2024-04-30",
+      "right_lapsed": true,
+      "right_exercisable": false,
+      "consecutive_trigger": true,
+      "rolling_trigger": false,
+      "completing_periods": [
+        "2024-03 (end 2024-03-31)",
+        "2025-09 (end 2025-09-30)"
+      ]
+    },
+    "citations": [
+      "MSA-SCH4 L-6.1",
+      "MSA-SCH4 L-6.2"
+    ],
+    "source_reasoning": "L-6.1 gives a termination right wherever the Availability Percentage is below 99.90% in each of three consecutive Measurement Periods. July, August and September 2025 are three such periods, so a right arose on the expiry of September 2025. L-6.2 requires that right to be exercised 'within 30 days after the end of the Measurement Period which gives rise to it, failing which it lapses IN RESPECT OF THAT OCCURRENCE'. The Measurement Period giving rise to the right the Customer is exercising is September 2025, which ended 30 September 2025; the deadline is therefore 30 October 2025 and notice served on 5 October 2025 is in time. The closing words of L-6.2 ('in respect of that occurrence') confine the lapse to the occurrence whose window expired -- the March 2024 occurrence -- and expressly preserve any later occurrence. The module instead takes trigger_period_end as the MINIMUM period_end over all completing periods, i.e. the earliest occurrence ever recorded, derives one global exercise_deadline from it (2024-04-30) and then sets a single global right_lapsed. The lapse of occurrence 1 therefore destroys the right arising from occurrence 2, which is precisely what the words 'in respect of that occurrence' forbid. The customer loses a right to terminate without early termination charges.",
+    "attacks_tried": [
+      "L-6.1 consecutive trigger: three consecutive failing periods (Jul-Sep 2025) -- fires correctly",
+      "L-6.1 rolling trigger alone: failures Jan/Apr/Jul/Oct 2025, no three consecutive -- rolling_trigger true, consecutive_trigger false, correct",
+      "L-6.1 neither-but-close: failures Jan/Feb/Apr 2025 (three failures, not consecutive, only three in the window) -- right_arisen false, correct",
+      "L-6.1 rolling window at exactly twelve months: failures Jan/Jun/Sep/Dec 2025 (12-calendar-month span) -- triggers, correct",
+      "L-6.1 rolling window at thirteen months: failures Dec 2024/Jun/Sep/Dec 2025 -- does not trigger, correct",
+      "L-6.2 day 30 with notice (notice 2025-10-30 on a 2025-09-30 trigger) -- not lapsed, correct",
+      "L-6.2 day 31 with notice (notice 2025-10-31) -- lapsed, correct",
+      "L-6.2 day 30 / day 31 with no notice, judged by assessment_date -- correct both sides",
+      "L-6.2 two separate occurrences (BREAK)",
+      "L-6.2 notice dated before the right arose (BREAK)",
+      "99.90% threshold on availability_percentage: 99.90 is not a failing period, 99.89 is"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "ChronicFailure",
+      "path": "catala/modules/ChronicFailure.catala_en",
+      "scope": "ChronicFailureRight"
+    },
+    "fact_pattern": "The Availability Percentage was below 99.90% in July, August and September 2025, so a chronic-failure right arose on the expiry of September 2025. The only written notice the Customer ever served was dated 15 August 2025 -- served in the middle of the failing run, before the third consecutive period had even ended and therefore before any right existed. No notice was served in October 2025. The position is assessed on 1 December 2025, i.e. after the 30-day exercise window (which closed on 30 October 2025) has expired.",
+    "inputs": {
+      "availability_history": [
+        {
+          "period_start": "2025-07-01",
+          "period_end": "2025-07-31",
+          "availability_percentage": 99.8
+        },
+        {
+          "period_start": "2025-08-01",
+          "period_end": "2025-08-31",
+          "availability_percentage": 99.8
+        },
+        {
+          "period_start": "2025-09-01",
+          "period_end": "2025-09-30",
+          "availability_percentage": 99.8
+        }
+      ],
+      "assessment_date": "2025-12-01",
+      "notice_given": true,
+      "notice_date": "2025-08-15"
+    },
+    "expected": {
+      "right_arisen": true,
+      "exercise_deadline": "2025-10-30",
+      "right_lapsed": true,
+      "right_exercisable": false
+    },
+    "observed": {
+      "right_arisen": true,
+      "exercise_deadline": "2025-10-30",
+      "right_lapsed": false,
+      "right_exercisable": true
+    },
+    "citations": [
+      "MSA-SCH4 L-6.1",
+      "MSA-SCH4 L-6.2"
+    ],
+    "source_reasoning": "L-6.1 makes the right conditional on the Availability Percentage being below 99.90% 'in each of three consecutive Measurement Periods'. The third of those periods, September 2025, did not end until 30 September 2025, so no right existed on 15 August 2025 and the notice of that date cannot be an exercise of it. L-6.2 then fixes the window: the right 'must be exercised WITHIN 30 DAYS AFTER THE END of the Measurement Period which gives rise to it'. That window is 30 September 2025 to 30 October 2025; 15 August 2025 falls outside it because it is not 'after the end' of September 2025 at all. No exercise having occurred inside the window, L-6.2's 'failing which it lapses' bites and, as at the 1 December 2025 assessment date, the right has lapsed. The module's lapse rule is 'if notice_given then notice_date > deadline else assessment_date > deadline': it tests only the upper bound of the window and, once notice_given is true, stops looking at assessment_date altogether. Any notice bearing a date on or before the deadline -- including one predating the right, or predating the Agreement -- is treated as a good exercise, and the right is reported as still exercisable indefinitely. The Supplier is exposed to a termination without early termination charges on the strength of a notice that L-6.2 does not recognise.",
+    "attacks_tried": [
+      "L-6.1 consecutive trigger: three consecutive failing periods (Jul-Sep 2025) -- fires correctly",
+      "L-6.1 rolling trigger alone: failures Jan/Apr/Jul/Oct 2025, no three consecutive -- rolling_trigger true, consecutive_trigger false, correct",
+      "L-6.1 neither-but-close: failures Jan/Feb/Apr 2025 (three failures, not consecutive, only three in the window) -- right_arisen false, correct",
+      "L-6.1 rolling window at exactly twelve months: failures Jan/Jun/Sep/Dec 2025 (12-calendar-month span) -- triggers, correct",
+      "L-6.1 rolling window at thirteen months: failures Dec 2024/Jun/Sep/Dec 2025 -- does not trigger, correct",
+      "L-6.2 day 30 with notice (notice 2025-10-30 on a 2025-09-30 trigger) -- not lapsed, correct",
+      "L-6.2 day 31 with notice (notice 2025-10-31) -- lapsed, correct",
+      "L-6.2 day 30 / day 31 with no notice, judged by assessment_date -- correct both sides",
+      "L-6.2 two separate occurrences (BREAK)",
+      "L-6.2 notice dated before the right arose (BREAK)",
+      "99.90% threshold on availability_percentage: 99.90 is not a failing period, 99.89 is"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "ServiceCreditClaim",
+      "path": "catala/modules/ServiceCreditClaim.catala_en",
+      "scope": "CreditClaim"
+    },
+    "fact_pattern": "The Measurement Period is January 2026, which ended on 31 January 2026. The Customer claimed the Service Credit in writing on 5 February 2026 -- five days after the end of the period, comfortably inside the 30-day window. The Supplier accepted the claim on 10 March 2026 and a further invoice is due to be issued on 1 April 2026. Every element of L-5.1 and L-5.2 is plainly answerable on these facts.",
+    "inputs": {
+      "measurement_period_end": "2026-01-31",
+      "claim_made": true,
+      "claim_date": "2026-02-05",
+      "claim_accepted_date": "2026-03-10",
+      "further_invoice_expected": true,
+      "next_invoice_date": "2026-04-01"
+    },
+    "expected": {
+      "claim_deadline": "2026-03-02",
+      "claim_in_time": true,
+      "waived": false,
+      "settlement": "AppliedAgainstNextInvoice",
+      "settlement_due_date": "2026-04-01"
+    },
+    "observed": {
+      "__error__": "CatalaError",
+      "diagnostic": "Unexpected error: Invalid_argument(\"Json_encoding.construct: consequence of non exhaustive Json_encoding.string_enum. Strings are: 'AppliedAgainstNextInvoice' 'PaidToCustomer'\")"
+    },
+    "citations": [
+      "MSA-SCH4 L-5.1",
+      "MSA-SCH4 L-5.2"
+    ],
+    "source_reasoning": "L-5.1 compels claim_deadline and the waiver answer: the Customer 'must claim a Service Credit in writing within 30 days after the end of the Measurement Period', so the deadline is 31 January 2026 + 30 days = 2 March 2026, a claim made on 5 February 2026 is in time, and the second sentence ('A Service Credit not claimed within that period is waived') therefore does not operate -- waived is false. L-5.2 compels the settlement answer: a further invoice will be issued, so the credit 'is applied against the next invoice issued after the claim is accepted', i.e. the 1 April 2026 invoice, and not the alternative payment route which applies only 'where no further invoice will be issued'. The module answers none of this: the CreditClaim scope raises an unhandled Invalid_argument on the serialisation of its Settlement enumeration output. It does so on EVERY input I tried -- in-window and out-of-window claims, claim_made true and false, further_invoice_expected true and false, and several unrelated period ends -- so the whole of L-5 is unexecutable and L-5.1's 30-day waiver, the single most commonly litigated line in the Schedule, has no working implementation at all. The Catala sibling modules run normally under the same runner, so this is not an environment fault.",
+    "attacks_tried": [
+      "L-5.1 day 30 (claim 2026-03-02 on a 2026-01-31 period end) -- error",
+      "L-5.1 day 31 (claim 2026-03-03) -- error",
+      "L-5.1 claim well inside the window (2026-02-05) -- error",
+      "L-5.1 claim before the deadline but with claim_made false (credit never claimed, window still open) -- different error, Invalid_argument(\"compare: functional value\")",
+      "L-5.2 further_invoice_expected false (payment route, claim_accepted_date + 30 days) -- error",
+      "L-5.2 next_invoice_date earlier than claim_accepted_date, testing 'the next invoice issued AFTER the claim is accepted' -- error",
+      "Two further unrelated period ends / date sets (2025-06-30, 2026-01-31) to rule out input-format error -- error",
+      "Static reading, not reproducible because the scope never returns: 'waived equals not claim_in_time' has no assessment date, so a credit that simply has not been claimed yet is reported as waived even while L-5.1's 30-day window is still open; L-5.1 waives only a credit 'not claimed within that period', which cannot be determined before the period expires."
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "availability",
+      "path": "catala/modules/availability.catala_en",
+      "scope": "AvailabilityPercentage"
+    },
+    "fact_pattern": "January 2026: 31 days, 44,640 minutes. The Service was not Available for 600 whole minutes in the month, all of it during properly notified Scheduled Maintenance windows (10 hours in aggregate). Scheduled Maintenance therefore exceeded 8 hours in aggregate by 120 minutes. Applying L-2.5(a) as cut down by L-4.5, the Excluded Minutes for the period are 480 and the excess is 120 minutes. Those three Schedule-defined quantities -- 600 minutes not Available, 480 Excluded Minutes, 120 excess minutes -- are fed to the scope.",
+    "inputs": {
+      "total_minutes": 44640,
+      "minutes_not_available": 600,
+      "excluded_minutes": 480,
+      "scheduled_maintenance_excess_minutes": 120
+    },
+    "expected": {
+      "unavailable_minutes": 120,
+      "availability_percentage": 99.73,
+      "meets_service_level": false
+    },
+    "observed": {
+      "unavailable_minutes": 240.0,
+      "availability_percentage": 99.46,
+      "availability_percentage_unrounded": 99.46236559139786,
+      "meets_service_level": false
+    },
+    "citations": [
+      "MSA-SCH4 L-2.4",
+      "MSA-SCH4 L-2.5",
+      "MSA-SCH4 L-4.5",
+      "MSA-SCH4 L-2.3",
+      "MSA-SCH4 L-4.1"
+    ],
+    "source_reasoning": "L-4.5 states that where Scheduled Maintenance exceeds 8 hours in aggregate 'the excess minutes are NOT Excluded Minutes and count as Unavailable Minutes'. On these facts that fixes Excluded Minutes at 480 -- the 120 excess minutes are removed from the L-2.5(a) exclusion by the express words of L-4.5. L-2.4 then defines Unavailable Minutes as each whole minute during which the Service is not Available 'excluding Excluded Minutes': 600 - 480 = 120. L-4.5's second limb is satisfied by that same subtraction; it does not add the excess a second time, because the excess minutes were never Excluded Minutes to begin with. L-2.3 then gives (44640 - 120) / 44640 x 100 = 99.7311...%, rounded to 99.73%. The module instead computes minutes_not_available - excluded_minutes + scheduled_maintenance_excess_minutes = 600 - 480 + 120 = 240, charging the excess twice: once by its removal from the exclusion and again by the L-4.5 addition. Its arm is only self-consistent if the caller supplies the PRE-L-4.5 exclusion figure (600) in a field declared and documented as the L-2.5 defined term 'Excluded Minutes' -- a field whose legally correct value, once L-4.5 has operated, is 480. Confirmed by probing the same facts with excluded_minutes 600, which returns the correct 120 / 99.73%. The consequence is money: 99.73% falls in L-4.1(a) (5% of the Monthly Service Charge) whereas the module's 99.46% falls in L-4.1(b) (10%), doubling the credit.",
+    "attacks_tried": [
+      "L-2.3 rounding at the exact midpoint: raw 99.895% -> 99.90% (half-up), meets_service_level true -- correct",
+      "L-2.3 rounding just below: raw 99.894% -> 99.89%, raw 99.8945% -> 99.89%, raw 99.8955% -> 99.90%, raw 99.875% -> 99.88% -- rounds (not truncates), half away from zero, correct",
+      "L-2.3 rounding applied to the percentage and not the fraction (a 2dp rounding of the fraction would turn 99.9% into 100%) -- correct",
+      "L-3.1 / L-4.1 compare the ROUNDED figure, not the raw one: raw 99.8955% (rounded 99.90%) meets the Service Level and earns nothing -- correct",
+      "L-2.1 / L-2.3 denominator: 31-day month -> 44,640 minutes; 28-day February -> 40,320 -- correct",
+      "L-4.5 / L-2.6 8-hour aggregate at 479, 480 and 481 minutes, and as two 300-minute windows -- excess 0/0/1/120, correct ('must not exceed' makes exactly 480 lawful)",
+      "L-4.5 excess actually moves the availability figure: 600 minutes of Scheduled Maintenance plus a 100-minute outage -> 220 Unavailable Minutes, 99.51% -- correct via ServiceAvailability",
+      "L-2.5(b) emergency maintenance notice at 59 / 60 / 61 minutes -- excluded only from 60, correct",
+      "L-2.5(c) Force Majeure and L-2.5(d) Customer act: both are plain boolean inputs (force_majeure_event_certified, outage_attributable_to_customer) and nothing in the module infers either -- no judgement laundering",
+      "L-2.5(e) clause 9 suspension: boolean input -- correct",
+      "L-2.6 maintenance without sufficient notice: 600 minutes of maintenance notified 1 business day ahead is not Scheduled Maintenance, is not excluded and does not count toward the 8-hour aggregate -- correct",
+      "L-2.4 partial minute: Outage.minutes is an integer, so a sub-minute outage cannot be expressed and the 'each whole minute' rounding is silently delegated to the caller -- gap, not a wrong number",
+      "Outage both Scheduled Maintenance and Force Majeure certified, aggregate over 8 hours: the excess is treated as Unavailable even though L-2.5(c) would independently exclude it -- too contrived to rest a break on"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "availability",
+      "path": "catala/modules/availability.catala_en",
+      "scope": "ScheduledMaintenanceWindow"
+    },
+    "fact_pattern": "The Supplier notifies the Customer on Monday 5 January 2026 of a maintenance window opening on Monday 12 January 2026. Monday to Friday are Business Days throughout (no holidays in the calendar supplied). Monday 12 January is the fifth Business Day after the day of notification (6, 7, 8, 9, 12 January). There are four clear Business Days between the two dates.",
+    "inputs": {
+      "is_maintenance": true,
+      "notified_at": "2026-01-05",
+      "window_start": "2026-01-12",
+      "business_day_calendar": [
+        "2025-12-01",
+        "2025-12-02",
+        "2025-12-03",
+        "2025-12-04",
+        "2025-12-05",
+        "2025-12-08",
+        "2025-12-09",
+        "2025-12-10",
+        "2025-12-11",
+        "2025-12-12",
+        "2025-12-15",
+        "2025-12-16",
+        "2025-12-17",
+        "2025-12-18",
+        "2025-12-19",
+        "2025-12-22",
+        "2025-12-23",
+        "2025-12-24",
+        "2025-12-25",
+        "2025-12-26",
+        "2025-12-29",
+        "2025-12-30",
+        "2025-12-31",
+        "2026-01-01",
+        "2026-01-02",
+        "2026-01-05",
+        "2026-01-06",
+        "2026-01-07",
+        "2026-01-08",
+        "2026-01-09",
+        "2026-01-12",
+        "2026-01-13",
+        "2026-01-14",
+        "2026-01-15",
+        "2026-01-16",
+        "2026-01-19",
+        "2026-01-20",
+        "2026-01-21",
+        "2026-01-22",
+        "2026-01-23",
+        "2026-01-26",
+        "2026-01-27",
+        "2026-01-28",
+        "2026-01-29",
+        "2026-01-30",
+        "2026-02-02",
+        "2026-02-03",
+        "2026-02-04",
+        "2026-02-05",
+        "2026-02-06",
+        "2026-02-09",
+        "2026-02-10",
+        "2026-02-11",
+        "2026-02-12",
+        "2026-02-13",
+        "2026-02-16",
+        "2026-02-17",
+        "2026-02-18",
+        "2026-02-19",
+        "2026-02-20",
+        "2026-02-23",
+        "2026-02-24",
+        "2026-02-25",
+        "2026-02-26",
+        "2026-02-27"
+      ]
+    },
+    "expected": {
+      "reading_A_five_business_days_after_notice": {
+        "business_days_notice": 5,
+        "is_scheduled_maintenance": true
+      },
+      "reading_B_five_clear_business_days": {
+        "business_days_notice": 4,
+        "is_scheduled_maintenance": false
+      }
+    },
+    "observed": {
+      "business_days_notice": 4.0,
+      "is_scheduled_maintenance": false
+    },
+    "citations": [
+      "MSA-SCH4 L-2.6",
+      "MSA-SCH4 L-2.5",
+      "MSA-SCH4 L-4.5"
+    ],
+    "source_reasoning": "L-2.6 requires the window to be 'notified to the Customer not less than 5 Business Days in advance' and does not say whether the day of notification and the first day of the window are counted. Reading A (the window may open on the fifth Business Day after the notice) makes 12 January good notice. Reading B (five clear Business Days must fall between notice and window, the orthodox English construction of a 'not less than X days' notice period) requires the window to open no earlier than 13 January. The module counts Business Days strictly between notified_at and window_start, i.e. it adopts reading B; probing 13 January returns business_days_notice 5 and is_scheduled_maintenance true. Nothing in Schedule 4 compels either reading, so this is a defect in the document rather than the code -- but it decides money, not merely form: on reading A an 8-hour window is Scheduled Maintenance and its 480 minutes are Excluded under L-2.5(a) (Availability Percentage 100.00%, no credit); on reading B the same 480 minutes are Unavailable Minutes (99.89% in a 31-day month) and attract a 5% Service Credit under L-4.1(a). Schedule 4 should state the counting convention, or borrow clause 1's.",
+    "attacks_tried": [
+      "Window opening on the same day / 3 Business Days ahead (9 January) -- 3 days' notice, not Scheduled Maintenance",
+      "Window opening on the fifth Business Day after notice (12 January) -- 4 days' notice under the module, the ambiguity above",
+      "Window opening on the sixth Business Day after notice (13 January) -- 5 days' notice, Scheduled Maintenance",
+      "Window opening on the seventh Business Day (14 January) -- 6 days' notice, Scheduled Maintenance",
+      "is_maintenance false with ample notice -- never Scheduled Maintenance, correct",
+      "Business Days are supplied as an explicit calendar input rather than inferred, so clause 1's definition is honoured -- no defined-term drift"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "availability",
+      "path": "catala/modules/availability.catala_en",
+      "scope": "ServiceAvailability"
+    },
+    "fact_pattern": "January 2026. The Supplier notified two maintenance windows with ample notice and carried out maintenance in both. The windows ran for 6 hours each, 12 hours of Scheduled Maintenance in aggregate, but the Service was in fact Unavailable for only 120 whole minutes in each window -- 240 minutes of downtime in total. There were no other outages.",
+    "inputs": {
+      "period_start": "2026-01-01",
+      "outages": [
+        {
+          "minutes": 120,
+          "is_maintenance": true,
+          "notified_at": "2026-01-05",
+          "window_start": "2026-01-14",
+          "is_emergency_maintenance": false,
+          "emergency_notice_minutes": 0,
+          "force_majeure_event_certified": false,
+          "outage_attributable_to_customer": false,
+          "is_suspension_under_clause_9": false
+        },
+        {
+          "minutes": 120,
+          "is_maintenance": true,
+          "notified_at": "2026-01-05",
+          "window_start": "2026-01-14",
+          "is_emergency_maintenance": false,
+          "emergency_notice_minutes": 0,
+          "force_majeure_event_certified": false,
+          "outage_attributable_to_customer": false,
+          "is_suspension_under_clause_9": false
+        }
+      ],
+      "business_day_calendar": [
+        "2025-12-01",
+        "2025-12-02",
+        "2025-12-03",
+        "2025-12-04",
+        "2025-12-05",
+        "2025-12-08",
+        "2025-12-09",
+        "2025-12-10",
+        "2025-12-11",
+        "2025-12-12",
+        "2025-12-15",
+        "2025-12-16",
+        "2025-12-17",
+        "2025-12-18",
+        "2025-12-19",
+        "2025-12-22",
+        "2025-12-23",
+        "2025-12-24",
+        "2025-12-25",
+        "2025-12-26",
+        "2025-12-29",
+        "2025-12-30",
+        "2025-12-31",
+        "2026-01-01",
+        "2026-01-02",
+        "2026-01-05",
+        "2026-01-06",
+        "2026-01-07",
+        "2026-01-08",
+        "2026-01-09",
+        "2026-01-12",
+        "2026-01-13",
+        "2026-01-14",
+        "2026-01-15",
+        "2026-01-16",
+        "2026-01-19",
+        "2026-01-20",
+        "2026-01-21",
+        "2026-01-22",
+        "2026-01-23",
+        "2026-01-26",
+        "2026-01-27",
+        "2026-01-28",
+        "2026-01-29",
+        "2026-01-30",
+        "2026-02-02",
+        "2026-02-03",
+        "2026-02-04",
+        "2026-02-05",
+        "2026-02-06",
+        "2026-02-09",
+        "2026-02-10",
+        "2026-02-11",
+        "2026-02-12",
+        "2026-02-13",
+        "2026-02-16",
+        "2026-02-17",
+        "2026-02-18",
+        "2026-02-19",
+        "2026-02-20",
+        "2026-02-23",
+        "2026-02-24",
+        "2026-02-25",
+        "2026-02-26",
+        "2026-02-27"
+      ]
+    },
+    "expected": {
+      "reading_A_proviso_measured_on_maintenance_duration": {
+        "scheduled_maintenance_aggregate_minutes": 720,
+        "scheduled_maintenance_excess_minutes": 240,
+        "unavailable_minutes": 240,
+        "availability_percentage": 99.46,
+        "note": "L-4.1(b) applies: 10% of the Monthly Service Charge"
+      },
+      "reading_B_proviso_measured_on_downtime_within_windows": {
+        "scheduled_maintenance_aggregate_minutes": 240,
+        "scheduled_maintenance_excess_minutes": 0,
+        "unavailable_minutes": 0,
+        "availability_percentage": 100.0,
+        "note": "no Service Credit"
+      }
+    },
+    "observed": {
+      "scheduled_maintenance_aggregate_minutes": 240.0,
+      "scheduled_maintenance_excess_minutes": 0.0,
+      "unavailable_minutes": 0.0,
+      "excluded_minutes": 240.0,
+      "minutes_not_available": 240.0,
+      "availability_percentage": 100.0,
+      "meets_service_level": true,
+      "total_minutes": 44640.0
+    },
+    "citations": [
+      "MSA-SCH4 L-2.6",
+      "MSA-SCH4 L-4.5",
+      "MSA-SCH4 L-2.5"
+    ],
+    "source_reasoning": "L-2.6 defines 'Scheduled Maintenance' as the MAINTENANCE carried out within a notified window, and its proviso caps 'Scheduled Maintenance' at '8 hours in aggregate in any Measurement Period'. On reading A the thing measured is therefore the maintenance itself -- 720 minutes here -- so the cap is breached by 240 minutes and L-4.5 makes those 240 excess minutes count as Unavailable Minutes, dropping the Availability Percentage to 99.46% and engaging L-4.1(b). On reading B the proviso is read together with L-2.5, which only ever excludes 'minutes during which the Service is not Available', so the only minutes capable of being capped are the 240 minutes of downtime, the cap is not reached, and there is no credit. The module adopts reading B by construction: the only duration it has is Outage.minutes (downtime), the Outage structure carries window_start but no window_end and no maintenance duration, so the length of a Scheduled Maintenance window cannot be expressed at all and reading A is unreachable. I record this as AMBIGUITY rather than BREAK because the facts that separate the readings cannot be fed to the module, so no probe can show a wrong number on stated inputs -- but the choice is worth 10% of the Monthly Service Charge on the facts above and the Schedule does not resolve it. A related unencoded element: L-2.6 also requires the maintenance to be 'carried out WITHIN a window notified', and the module never tests that, because there is no field for when the maintenance actually ran; maintenance carried out wholly outside its notified window is still treated as Scheduled Maintenance and excluded (probed: a 480-minute maintenance outage with a window_start of 14 January yields 480 Excluded Minutes and 100.00% availability whenever the notice lead time is satisfied, whatever day the work was really done).",
+    "attacks_tried": [
+      "Two 120-minute maintenance outages inside 12 hours of notified windows -- aggregate measured as 240, no excess",
+      "A single 480-minute and a single 481-minute maintenance outage -- proviso boundary handled correctly once downtime and window duration coincide",
+      "A 480-minute maintenance outage with a notified window_start unrelated to when the work ran -- excluded regardless, 'carried out within a window' untested",
+      "Maintenance notified only 1 business day ahead -- correctly not Scheduled Maintenance, so the notice limb is encoded even though the window limb is not"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "ServiceCredits",
+      "path": "catala/modules/ServiceCredits.catala_en",
+      "scope": "MonthlyServiceCharge"
+    },
+    "fact_pattern": "In the Measurement Period the Customer was invoiced 1,000 of recurring charges for the Service and, separately, a 2,000 one-off implementation charge. Nothing was billed for professional services or pass-through items. The recurring figure of 1,000 is supplied as charges_for_the_service and the 2,000 one-off as one_off_charges.",
+    "inputs": {
+      "charges_for_the_service": 1000,
+      "one_off_charges": 2000,
+      "professional_services_charges": 0,
+      "pass_through_charges": 0
+    },
+    "expected": {
+      "reading_A_charges_for_the_service_is_the_gross_billed_total": {
+        "monthly_service_charge": 0,
+        "note": "on this reading one_off_charges is a component of charges_for_the_service and cannot exceed it; the inputs are incoherent and the definition's floor is nil, since a total of charges with a subset excluded cannot be negative"
+      },
+      "reading_B_charges_for_the_service_is_already_net_of_the_excluded_categories": {
+        "monthly_service_charge": 1000,
+        "note": "the recurring charge for the Service is the Monthly Service Charge and the one-off is simply not part of it"
+      }
+    },
+    "observed": {
+      "monthly_service_charge": -1000.0
+    },
+    "citations": [
+      "MSA-SCH4 L-2.7",
+      "MSA-SCH4 L-4.1",
+      "MSA-SCH4 L-4.2",
+      "MSA-SCH4 L-4.3"
+    ],
+    "source_reasoning": "L-2.7 defines the Monthly Service Charge as 'the charges payable by the Customer in respect of the Service for the Measurement Period in question, EXCLUDING one-off charges, professional services charges and pass-through charges'. It is an exclusion from a base, and the Schedule never says what the base is: reading A treats it as everything billed in the period (so the excluded categories are subtracted out), reading B treats 'charges payable in respect of the Service' as already excluding them (so nothing is subtracted). The module implements unconditional subtraction, which is reading A, and gives -1,000 on these facts. The observed value is impossible on BOTH readings: a total of charges from which a subset is excluded has a floor of nil, so L-2.7 cannot produce a negative Monthly Service Charge, and a negative Monthly Service Charge propagates into L-4.1 to L-4.3 as a negative Service Credit -- probed at 97.00% availability on a -1,000 charge the ServiceCredit scope returns credit_amount -300.00, i.e. a sum payable by the Customer to the Supplier for the Supplier's own breach, which L-4.1 ('the Customer is entitled to a Service Credit') and L-1.3 (a genuine pre-estimate of the Customer's loss) both preclude. Under reading B the module also silently double-excludes whenever the caller supplies the net figure: charges_for_the_service 10,000 with a separate 3,000 one-off yields 7,000 instead of 10,000 and understates every credit by 30%. The document should state the base; the module should floor the result at nil and reject a negative charge.",
+    "attacks_tried": [
+      "L-4.1 band boundaries at 100.00, 99.91, 99.90, 99.89, 99.51, 99.50, 99.49, 99.01, 99.00, 98.99, 98.01, 98.00 and 97.99 -- every inclusive/exclusive edge correct, and 99.90 exactly earns nothing",
+      "L-4.3 at 95.01, 95.00 and 94.99 -- exactly 95.00 stays in L-4.1(d) at 30% with a 30% cap; 94.99 moves BOTH the cap and the credit to 50%, so neither half of L-4.3 was implemented alone",
+      "L-4.2 cap: no availability figure produces credit_payable_percentage above the applicable cap; credit_payable is min(credit, cap) on every band probed, and the L-4.3 exception raises the cap and the credit together",
+      "L-4.4 arrears at 29, 30, 31 and 60 days, each with invoice_undisputed true and false -- barred only above 30 days AND only when undisputed, so exactly 30 days still earns the credit",
+      "L-4.4 judgement laundering: 'undisputed' is a bare boolean input and nothing in the module infers it from arrears_days or anything else",
+      "L-4.4 stacked on L-4.3: availability 94.00% with 31 days' undisputed arrears -- credit 0 although the cap stays at 50%, so the L-4.4 exception is not swallowed by the L-4.3 exception despite being nested under it",
+      "L-4.4 where no credit arises anyway (99.95%) -- 0, correct",
+      "Negative Monthly Service Charge (the ambiguity above)"
+    ]
+  }
+]

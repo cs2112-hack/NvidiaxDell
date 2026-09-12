@@ -1,0 +1,76 @@
+id: CE-0014
+component: catala
+fact_pattern: An Employee is assigned an annual Quota of $1,000,000 for the FY26 Plan Year.
+  The Employee is absent on statutory parental leave from 1 October 2025 to 30 November 2025
+  (61 days) and, on the HR record, on certified long-term sickness absence from 15 October
+  2025 to 15 December 2025 (62 days). The two records overlap over 15 October to 30 November
+  2025 (47 days), so the Employee was in fact absent on every day from 1 October to 15 December
+  2025 and on no other day - 76 days of absence in total.
+citations:
+- COMM-PLAN S-6.1
+- COMM-PLAN S-6.2
+- COMM-PLAN S-2.1
+source_reasoning: 'S-6.1 sets the quantum as a reduction of 1/365th of the annual Quota ''for
+  each day of such absence''. The unit of account is the day of absence, not the absence record:
+  a day on which the Employee is absent is one day of absence however many leave categories
+  the HR system records against it, and it can therefore attract one 1/365th reduction and
+  no more. The Employee here was absent on 76 distinct days (1 October to 15 December 2025
+  inclusive: 31 + 30 + 15). Relief = $1,000,000 x 76/365 = $208,219.1781, i.e. $208,219.18
+  to the cent; relieved Quota $791,780.82. The module sums relief_days across absence records
+  without taking their union, so the 47 overlapping days are each counted twice and 123 days
+  of relief are given for 76 days of absence - a $128,766.48 over-relief. That reading also
+  produces results the clause cannot sanction: with enough overlapping records relief_days
+  exceeds 365 and the Quota goes negative, which no reduction ''by 1/365th ... for each day''
+  of a 365-day year can ever produce. Note that S-6.1''s gateway (''a continuous period of
+  30 days or more'') is satisfied for each record on its own here, so the error is purely
+  in the quantum, not in eligibility.'
+expected:
+  relief_days: 76
+  relief: 208219.18
+  relieved_quota: 791780.82
+  quota_for_attainment: 791780.82
+observed:
+  relief_days: 123.0
+  relief: 336986.3
+  relieved_quota: 663013.7
+  quota_for_attainment: 663013.7
+target:
+  module: QuotaRelief
+  path: catala/modules/QuotaRelief.catala_en
+  scope: RelievedQuota
+inputs:
+  annual_quota: 1000000
+  absence_periods:
+  - category: StatutoryParentalLeave
+    start_date: '2025-10-01'
+    end_date: '2025-11-30'
+  - category: LongTermSicknessAbsence
+    start_date: '2025-10-15'
+    end_date: '2025-12-15'
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'exception stacking: two qualifying absences in the same Plan Year; overlapping absence
+  records of different qualifying categories (this finding); two disjoint 20-day absences
+  -> correctly nil; aggregation check: whether S-6.1 aggregates separate short absences to
+  reach 30 days (it does not, and the module correctly does not); boundary: absence of exactly
+  29 days (QualifyingAbsence, parental) -> relief_days 0; exactly 30 days -> relief_days 30.
+  Both correct; inclusive day count (end-start)/1day+1 is the natural reading of a ''continuous
+  period of 30 days or more''.; two separate 20-day qualifying-category absences -> relief_days
+  0. Correct: neither is a continuous period of 30 days or more, and S-6.1 does not aggregate
+  separate absences.; category gate: OtherAbsence of 181 days -> is_qualifying_category false,
+  relief 0. Correct per the closed list in S-6.1.; reversed dates (end before start) -> days_of_absence
+  -28, no relief. Degenerate input, no rule engaged.; absence of exactly 365 days inside the
+  Plan Year -> relieved_quota $0 (recorded separately as an AMBIGUITY about Attainment on
+  a zero Quota).; absence of 396 days (2025-10-01..2026-10-31) -> relieved_quota -$84,931.51,
+  i.e. a negative Quota. This is a downstream symptom of the same defect as this finding (days
+  outside the Plan Year being counted); with counting confined to the Plan Year and to distinct
+  days, relief can never exceed the annual Quota.; composition of S-6 into S-3/S-4: no scope
+  in either module computes commission from an assigned Quota plus absence periods. commission.AssignedQuota
+  defines quota = assigned_quota with no S-6 term, and CommissionPayable/LeaverCommission
+  take `quota` as a free input, so whether S-6.2 (''applied before Attainment'') is honoured
+  depends entirely on the caller. Not recordable as a counterexample, because no probe can
+  distinguish a relieved from an unrelieved quota once it is an input - but it is a live gap:
+  feeding the module its own AssignedQuota output silently skips S-6 (e.g. assigned quota
+  $1,000,000, 73 qualifying absence days, NBR $800,000: relieved Attainment 100% -> accelerator
+  1.5 -> $96,000, unrelieved Attainment 80% -> accelerator 1.0 -> $64,000).'

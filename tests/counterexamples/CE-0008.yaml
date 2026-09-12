@@ -1,0 +1,88 @@
+id: CE-0008
+component: catala
+fact_pattern: The Availability Percentage was below 99.90% in July, August and September 2025,
+  so a chronic-failure right arose on the expiry of September 2025. The only written notice
+  the Customer ever served was dated 15 August 2025 -- served in the middle of the failing
+  run, before the third consecutive period had even ended and therefore before any right existed.
+  No notice was served in October 2025. The position is assessed on 1 December 2025, i.e.
+  after the 30-day exercise window (which closed on 30 October 2025) has expired.
+citations:
+- MSA-SCH4 L-6.1
+- MSA-SCH4 L-6.2
+source_reasoning: 'L-6.1 makes the right conditional on the Availability Percentage being
+  below 99.90% ''in each of three consecutive Measurement Periods''. The third of those periods,
+  September 2025, did not end until 30 September 2025, so no right existed on 15 August 2025
+  and the notice of that date cannot be an exercise of it. L-6.2 then fixes the window: the
+  right ''must be exercised WITHIN 30 DAYS AFTER THE END of the Measurement Period which gives
+  rise to it''. That window is 30 September 2025 to 30 October 2025; 15 August 2025 falls
+  outside it because it is not ''after the end'' of September 2025 at all. No exercise having
+  occurred inside the window, L-6.2''s ''failing which it lapses'' bites and, as at the 1
+  December 2025 assessment date, the right has lapsed. The module''s lapse rule is ''if notice_given
+  then notice_date > deadline else assessment_date > deadline'': it tests only the upper bound
+  of the window and, once notice_given is true, stops looking at assessment_date altogether.
+  Any notice bearing a date on or before the deadline -- including one predating the right,
+  or predating the Agreement -- is treated as a good exercise, and the right is reported as
+  still exercisable indefinitely. The Supplier is exposed to a termination without early termination
+  charges on the strength of a notice that L-6.2 does not recognise.'
+expected:
+  right_arisen: true
+  exercise_deadline: '2025-10-30'
+  right_lapsed: true
+  right_exercisable: false
+observed:
+  failing_periods:
+  - period_start: '2025-07-01'
+    period_end: '2025-07-31'
+    availability_percentage: 99.8
+  - period_start: '2025-08-01'
+    period_end: '2025-08-31'
+    availability_percentage: 99.8
+  - period_start: '2025-09-01'
+    period_end: '2025-09-30'
+    availability_percentage: 99.8
+  consecutive_trigger: true
+  rolling_trigger: false
+  right_arisen: true
+  completing_periods:
+  - period_start: '2025-09-01'
+    period_end: '2025-09-30'
+    availability_percentage: 99.8
+  trigger_period_end: '2025-09-30'
+  notice_period_days: 30.0
+  early_termination_charges_payable: false
+  exercise_deadline: '2025-10-30'
+  right_lapsed: false
+  right_exercisable: true
+target:
+  module: ChronicFailure
+  path: catala/modules/ChronicFailure.catala_en
+  scope: ChronicFailureRight
+inputs:
+  availability_history:
+  - period_start: '2025-07-01'
+    period_end: '2025-07-31'
+    availability_percentage: 99.8
+  - period_start: '2025-08-01'
+    period_end: '2025-08-31'
+    availability_percentage: 99.8
+  - period_start: '2025-09-01'
+    period_end: '2025-09-30'
+    availability_percentage: 99.8
+  assessment_date: '2025-12-01'
+  notice_given: true
+  notice_date: '2025-08-15'
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'L-6.1 consecutive trigger: three consecutive failing periods (Jul-Sep 2025) -- fires
+  correctly; L-6.1 rolling trigger alone: failures Jan/Apr/Jul/Oct 2025, no three consecutive
+  -- rolling_trigger true, consecutive_trigger false, correct; L-6.1 neither-but-close: failures
+  Jan/Feb/Apr 2025 (three failures, not consecutive, only three in the window) -- right_arisen
+  false, correct; L-6.1 rolling window at exactly twelve months: failures Jan/Jun/Sep/Dec
+  2025 (12-calendar-month span) -- triggers, correct; L-6.1 rolling window at thirteen months:
+  failures Dec 2024/Jun/Sep/Dec 2025 -- does not trigger, correct; L-6.2 day 30 with notice
+  (notice 2025-10-30 on a 2025-09-30 trigger) -- not lapsed, correct; L-6.2 day 31 with notice
+  (notice 2025-10-31) -- lapsed, correct; L-6.2 day 30 / day 31 with no notice, judged by
+  assessment_date -- correct both sides; L-6.2 two separate occurrences (BREAK); L-6.2 notice
+  dated before the right arose (BREAK); 99.90% threshold on availability_percentage: 99.90
+  is not a failing period, 99.89 is'

@@ -320,3 +320,48 @@ clerk-only alias rewritten to `interpret --scope=Test`.
   must be public, but the compiler's own suite uses `#[test]` in a plain
   ```` ```catala ```` block. Resolved empirically in this repo — see
   `docs/DECISIONS.md`.
+
+## Verified compiler bug: an enum-typed output cannot be JSON-encoded
+
+**Catala 1.2.1 cannot serialise a scope output whose type is an enumeration**,
+and this makes the scope completely unexecutable through the JSON interface.
+
+Minimal reproduction:
+
+```
+declaration enumeration Choice:
+  -- Alpha
+  -- Beta
+
+declaration scope PlainEnum:
+  input flag content boolean
+  output pick content Choice
+```
+
+    $ clerk run probe.catala_en --scope=PlainEnum --input '{"flag":true}' -F json
+    Unexpected error: Invalid_argument("Json_encoding.construct: consequence
+    of non exhaustive Json_encoding.string_enum. Strings are: 'Alpha' 'Beta'")
+
+Established by probing:
+
+- It is purely a **serialisation** failure. The same scope runs correctly with
+  human output (`pick = Alpha`), so the logic and the exception hierarchy are
+  fine; only `-F json` fails.
+- It fires for a **bare enum output** and for an **enum nested inside a struct
+  output**. Both are unusable.
+- Payload-free, two-case enums are enough to trigger it, so it is not about
+  payloads or arity.
+
+**Consequence for this repo, and it is not negotiable.** The architecture
+answers rule questions by *executing* the scope and reading its JSON output
+(`docs/ARCHITECTURE.md`). A scope with an enum-typed output therefore cannot
+answer anything at all — it is dead code that typechecks, passes
+`clerk test` (assertions run under the interpreter, not through JSON), and
+fails only when someone actually asks it a question. `ServiceCreditClaim`
+shipped in exactly that state and the whole of MSA-SCH4 L-5 was unanswerable
+until an adversarial reviewer tried to execute it.
+
+**Rule:** no scope may have an enum-typed output, directly or nested. Express
+the choice as a `boolean`, or as separate boolean outputs, or as an integer
+code with the meanings documented in the literate prose. `scripts/check.sh`
+enforces this statically, because `clerk test` cannot see it.

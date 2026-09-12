@@ -1,0 +1,350 @@
+[
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "QuotaRelief",
+      "path": "catala/modules/QuotaRelief.catala_en",
+      "scope": "RelievedQuota"
+    },
+    "fact_pattern": "An Employee is assigned an annual Quota of $1,000,000 for the FY26 Plan Year (1 October 2025 to 30 September 2026). The Employee has no absence at all during the Plan Year. In the following financial year the Employee is on certified long-term sickness absence continuously from 1 January 2027 to 30 June 2027 (181 days). The question is the Quota against which FY26 Attainment is measured.",
+    "inputs": {
+      "annual_quota": 1000000,
+      "absence_periods": [
+        {
+          "category": "LongTermSicknessAbsence",
+          "start_date": "2027-01-01",
+          "end_date": "2027-06-30"
+        }
+      ]
+    },
+    "expected": {
+      "relief_days": 0,
+      "relief": 0.0,
+      "relieved_quota": 1000000.0,
+      "quota_for_attainment": 1000000.0
+    },
+    "observed": {
+      "relief_days": 181.0,
+      "relief": 495890.41,
+      "relieved_quota": 504109.59,
+      "quota_for_attainment": 504109.59
+    },
+    "citations": [
+      "COMM-PLAN S-1.1",
+      "COMM-PLAN S-2.1",
+      "COMM-PLAN S-6.1",
+      "COMM-PLAN S-6.2",
+      "COMM-PLAN S-2.2"
+    ],
+    "source_reasoning": "S-6.1 is the only relief-granting clause and it operates on 'the Employee's Quota'. S-2.1 fixes what that is: 'the annual revenue target assigned to the Employee in writing at the start of the Plan Year'. S-1.1 confines the whole Plan to 'the financial year commencing 1 October 2025 and ending 30 September 2026 (the \"Plan Year\")'. S-6.1's unit of relief - 1/365th of the annual Quota per day - is a proration of that same annual (365-day) period, so the days it counts can only be days of the Plan Year; there is no other 365-day period in the instrument for the fraction to refer to. S-6.2 confirms the temporal frame by tying the relief to the calculation of Attainment, and Attainment under S-2.2/S-2.3 measures revenue from contracts 'signed by the Employee during the Plan Year' - a Plan-Year-to-Plan-Year comparison. An absence running from 1 January to 30 June 2027 lies wholly after the Plan Year ended on 30 September 2026 and therefore consumes no day of the Plan Year: S-6.1 gives nil relief, and the operative Quota remains the assigned $1,000,000. Nothing in S-6.1 or elsewhere in the Plan extends relief to absence in a different financial year; S-1.1 defeats any such reading. The module applies no Plan-Year filter to the absence period at all, so a future-year absence retrospectively cuts the FY26 Quota by 181/365ths and inflates Attainment (and hence the S-4 accelerator and the S-5.3 cap) for a year in which the Employee was never absent.",
+    "attacks_tried": [
+      "date/duration boundary at 29 vs 30 days of absence",
+      "absence wholly outside the Plan Year (this finding)",
+      "absence wholly before the Plan Year (2024-01-01..2024-06-30, 182 days) -> relief $498,630.14, same defect, same clauses",
+      "boundary: absence of exactly 29 days (QualifyingAbsence, parental) -> relief_days 0; exactly 30 days -> relief_days 30. Both correct; inclusive day count (end-start)/1day+1 is the natural reading of a 'continuous period of 30 days or more'.",
+      "two separate 20-day qualifying-category absences -> relief_days 0. Correct: neither is a continuous period of 30 days or more, and S-6.1 does not aggregate separate absences.",
+      "category gate: OtherAbsence of 181 days -> is_qualifying_category false, relief 0. Correct per the closed list in S-6.1.",
+      "reversed dates (end before start) -> days_of_absence -28, no relief. Degenerate input, no rule engaged.",
+      "absence of exactly 365 days inside the Plan Year -> relieved_quota $0 (recorded separately as an AMBIGUITY about Attainment on a zero Quota).",
+      "absence of 396 days (2025-10-01..2026-10-31) -> relieved_quota -$84,931.51, i.e. a negative Quota. This is a downstream symptom of the same defect as this finding (days outside the Plan Year being counted); with counting confined to the Plan Year and to distinct days, relief can never exceed the annual Quota.",
+      "composition of S-6 into S-3/S-4: no scope in either module computes commission from an assigned Quota plus absence periods. commission.AssignedQuota defines quota = assigned_quota with no S-6 term, and CommissionPayable/LeaverCommission take `quota` as a free input, so whether S-6.2 ('applied before Attainment') is honoured depends entirely on the caller. Not recordable as a counterexample, because no probe can distinguish a relieved from an unrelieved quota once it is an input - but it is a live gap: feeding the module its own AssignedQuota output silently skips S-6 (e.g. assigned quota $1,000,000, 73 qualifying absence days, NBR $800,000: relieved Attainment 100% -> accelerator 1.5 -> $96,000, unrelieved Attainment 80% -> accelerator 1.0 -> $64,000)."
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "QuotaRelief",
+      "path": "catala/modules/QuotaRelief.catala_en",
+      "scope": "RelievedQuota"
+    },
+    "fact_pattern": "An Employee is assigned an annual Quota of $1,000,000 for the FY26 Plan Year. The Employee is on statutory parental leave continuously from 1 August 2025 to 30 October 2025 - 91 days in all, of which only the 30 days from 1 October 2025 to 30 October 2025 fall inside the Plan Year; the remaining 61 days fall in the preceding financial year. The question is the Quota against which FY26 Attainment is measured.",
+    "inputs": {
+      "annual_quota": 1000000,
+      "absence_periods": [
+        {
+          "category": "StatutoryParentalLeave",
+          "start_date": "2025-08-01",
+          "end_date": "2025-10-30"
+        }
+      ]
+    },
+    "expected": {
+      "relief_days": 30,
+      "relief": 82191.78,
+      "relieved_quota": 917808.22,
+      "quota_for_attainment": 917808.22
+    },
+    "observed": {
+      "relief_days": 91.0,
+      "relief": 249315.07,
+      "relieved_quota": 750684.93,
+      "quota_for_attainment": 750684.93
+    },
+    "citations": [
+      "COMM-PLAN S-1.1",
+      "COMM-PLAN S-2.1",
+      "COMM-PLAN S-6.1",
+      "COMM-PLAN S-6.2"
+    ],
+    "source_reasoning": "Two distinct tests in S-6.1 must be kept apart. The gateway test is whether the Employee 'is absent ... for a continuous period of 30 days or more'; this absence is continuous for 91 days, so the gate is passed and relief is due. The quantum test is separate: the Quota 'is reduced by 1/365th of the annual Quota for each day of such absence'. Because S-1.1 confines the Plan to the Plan Year and S-2.1 makes the Quota the annual target for that Plan Year, and because the 1/365th unit is a proration of that 365-day Plan Year (1 October 2025 to 30 September 2026 is exactly 365 days), the days that can be counted in the quantum are the days of the absence that fall within the Plan Year. Here that is 1 to 30 October 2025 inclusive - 30 days. Relief = $1,000,000 x 30/365 = $82,191.7808, i.e. $82,191.78 to the cent, and the relieved Quota is $917,808.22. The 61 days from 1 August to 30 September 2025 belong to the previous financial year and cannot reduce an FY26 target: that would be relief given twice for one absence (once in each year's plan) and would make the 1/365th fraction refer to no identifiable annual period. The module counts the whole 91 days, over-relieving by 61/365ths of Quota - $167,123.29 - which materially inflates Attainment and can push the Employee up an S-4.1 band and into the S-5.3 400% cap.",
+    "attacks_tried": [
+      "absence straddling the start of the Plan Year (this finding)",
+      "absence straddling the end of the Plan Year would present the mirror image",
+      "boundary: absence of exactly 29 days (QualifyingAbsence, parental) -> relief_days 0; exactly 30 days -> relief_days 30. Both correct; inclusive day count (end-start)/1day+1 is the natural reading of a 'continuous period of 30 days or more'.",
+      "two separate 20-day qualifying-category absences -> relief_days 0. Correct: neither is a continuous period of 30 days or more, and S-6.1 does not aggregate separate absences.",
+      "category gate: OtherAbsence of 181 days -> is_qualifying_category false, relief 0. Correct per the closed list in S-6.1.",
+      "reversed dates (end before start) -> days_of_absence -28, no relief. Degenerate input, no rule engaged.",
+      "absence of exactly 365 days inside the Plan Year -> relieved_quota $0 (recorded separately as an AMBIGUITY about Attainment on a zero Quota).",
+      "absence of 396 days (2025-10-01..2026-10-31) -> relieved_quota -$84,931.51, i.e. a negative Quota. This is a downstream symptom of the same defect as this finding (days outside the Plan Year being counted); with counting confined to the Plan Year and to distinct days, relief can never exceed the annual Quota.",
+      "composition of S-6 into S-3/S-4: no scope in either module computes commission from an assigned Quota plus absence periods. commission.AssignedQuota defines quota = assigned_quota with no S-6 term, and CommissionPayable/LeaverCommission take `quota` as a free input, so whether S-6.2 ('applied before Attainment') is honoured depends entirely on the caller. Not recordable as a counterexample, because no probe can distinguish a relieved from an unrelieved quota once it is an input - but it is a live gap: feeding the module its own AssignedQuota output silently skips S-6 (e.g. assigned quota $1,000,000, 73 qualifying absence days, NBR $800,000: relieved Attainment 100% -> accelerator 1.5 -> $96,000, unrelieved Attainment 80% -> accelerator 1.0 -> $64,000)."
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "QuotaRelief",
+      "path": "catala/modules/QuotaRelief.catala_en",
+      "scope": "RelievedQuota"
+    },
+    "fact_pattern": "An Employee is assigned an annual Quota of $1,000,000 for the FY26 Plan Year. The Employee is absent on statutory parental leave from 1 October 2025 to 30 November 2025 (61 days) and, on the HR record, on certified long-term sickness absence from 15 October 2025 to 15 December 2025 (62 days). The two records overlap over 15 October to 30 November 2025 (47 days), so the Employee was in fact absent on every day from 1 October to 15 December 2025 and on no other day - 76 days of absence in total.",
+    "inputs": {
+      "annual_quota": 1000000,
+      "absence_periods": [
+        {
+          "category": "StatutoryParentalLeave",
+          "start_date": "2025-10-01",
+          "end_date": "2025-11-30"
+        },
+        {
+          "category": "LongTermSicknessAbsence",
+          "start_date": "2025-10-15",
+          "end_date": "2025-12-15"
+        }
+      ]
+    },
+    "expected": {
+      "relief_days": 76,
+      "relief": 208219.18,
+      "relieved_quota": 791780.82,
+      "quota_for_attainment": 791780.82
+    },
+    "observed": {
+      "relief_days": 123.0,
+      "relief": 336986.3,
+      "relieved_quota": 663013.7,
+      "quota_for_attainment": 663013.7
+    },
+    "citations": [
+      "COMM-PLAN S-6.1",
+      "COMM-PLAN S-6.2",
+      "COMM-PLAN S-2.1"
+    ],
+    "source_reasoning": "S-6.1 sets the quantum as a reduction of 1/365th of the annual Quota 'for each day of such absence'. The unit of account is the day of absence, not the absence record: a day on which the Employee is absent is one day of absence however many leave categories the HR system records against it, and it can therefore attract one 1/365th reduction and no more. The Employee here was absent on 76 distinct days (1 October to 15 December 2025 inclusive: 31 + 30 + 15). Relief = $1,000,000 x 76/365 = $208,219.1781, i.e. $208,219.18 to the cent; relieved Quota $791,780.82. The module sums relief_days across absence records without taking their union, so the 47 overlapping days are each counted twice and 123 days of relief are given for 76 days of absence - a $128,766.48 over-relief. That reading also produces results the clause cannot sanction: with enough overlapping records relief_days exceeds 365 and the Quota goes negative, which no reduction 'by 1/365th ... for each day' of a 365-day year can ever produce. Note that S-6.1's gateway ('a continuous period of 30 days or more') is satisfied for each record on its own here, so the error is purely in the quantum, not in eligibility.",
+    "attacks_tried": [
+      "exception stacking: two qualifying absences in the same Plan Year",
+      "overlapping absence records of different qualifying categories (this finding)",
+      "two disjoint 20-day absences -> correctly nil",
+      "aggregation check: whether S-6.1 aggregates separate short absences to reach 30 days (it does not, and the module correctly does not)",
+      "boundary: absence of exactly 29 days (QualifyingAbsence, parental) -> relief_days 0; exactly 30 days -> relief_days 30. Both correct; inclusive day count (end-start)/1day+1 is the natural reading of a 'continuous period of 30 days or more'.",
+      "two separate 20-day qualifying-category absences -> relief_days 0. Correct: neither is a continuous period of 30 days or more, and S-6.1 does not aggregate separate absences.",
+      "category gate: OtherAbsence of 181 days -> is_qualifying_category false, relief 0. Correct per the closed list in S-6.1.",
+      "reversed dates (end before start) -> days_of_absence -28, no relief. Degenerate input, no rule engaged.",
+      "absence of exactly 365 days inside the Plan Year -> relieved_quota $0 (recorded separately as an AMBIGUITY about Attainment on a zero Quota).",
+      "absence of 396 days (2025-10-01..2026-10-31) -> relieved_quota -$84,931.51, i.e. a negative Quota. This is a downstream symptom of the same defect as this finding (days outside the Plan Year being counted); with counting confined to the Plan Year and to distinct days, relief can never exceed the annual Quota.",
+      "composition of S-6 into S-3/S-4: no scope in either module computes commission from an assigned Quota plus absence periods. commission.AssignedQuota defines quota = assigned_quota with no S-6 term, and CommissionPayable/LeaverCommission take `quota` as a free input, so whether S-6.2 ('applied before Attainment') is honoured depends entirely on the caller. Not recordable as a counterexample, because no probe can distinguish a relieved from an unrelieved quota once it is an input - but it is a live gap: feeding the module its own AssignedQuota output silently skips S-6 (e.g. assigned quota $1,000,000, 73 qualifying absence days, NBR $800,000: relieved Attainment 100% -> accelerator 1.5 -> $96,000, unrelieved Attainment 80% -> accelerator 1.0 -> $64,000)."
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "commission",
+      "path": "catala/modules/commission.catala_en",
+      "scope": "CommissionPayable"
+    },
+    "fact_pattern": "An Employee who has been employed since before the start of the Plan Year has Net Booked Revenue for FY26 of $10,000.44 against a Quota of $8,000, so Attainment is 125.0055%. Only 10% of Net Booked Revenue is attributable to New Logo customers, so no S-4.3 uplift applies, and annual base salary is $100,000 so no S-5 cap bites. The question is the commission payable.",
+    "inputs": {
+      "net_booked_revenue": 10000.44,
+      "new_logo_share": 0.1,
+      "quota": 8000,
+      "commencement_date": "2025-10-01",
+      "annual_base_salary": 100000
+    },
+    "expected": 1200.05,
+    "observed": 1200.06,
+    "citations": [
+      "COMM-PLAN S-3.1",
+      "COMM-PLAN S-2.5",
+      "COMM-PLAN S-4.1",
+      "COMM-PLAN S-4.2",
+      "COMM-PLAN S-5.1"
+    ],
+    "source_reasoning": "S-3.1 prescribes a single product: 'Net Booked Revenue multiplied by the Base Commission Rate, multiplied by the accelerator determined under S-4'. S-2.5 fixes the Base Commission Rate at 8.0%; Attainment of 125.0055% falls in S-4.1(c) so the accelerator is 1.5; S-4.2 applies it to the whole of Net Booked Revenue; new-logo share of 10% does not engage S-4.3 and the Employee is not a mid-year joiner so S-4.4 is not engaged. The product S-3.1 requires is therefore $10,000.44 x 0.08 x 1.5 = $10,000.44 x 0.12 = $1,200.0528, which as a money amount is $1,200.05 - and $1,200.05 whether the fraction of a cent is rounded to nearest or truncated, since the remainder is 0.28 of a cent. The module instead evaluates the product in two rounded steps: $10,000.44 x 8.0% = $800.0352, rounded to the cent as $800.04, then x 1.5 = $1,200.06. S-3.1 authorises no intermediate rounding of the Base Commission Rate product - the Base Commission Rate is defined in S-2.5 as a rate to be applied, not as a separately payable sum - so the extra half-cent created at the first step is multiplied by the accelerator and the Employee is overpaid. The error is systematic, not a one-off: the same input at accelerator 1.75 (S-4.3 engaged) gives the module $1,400.07 against the $1,400.0616 -> $1,400.06 that S-3.1 requires, and at accelerator 2.25 it gives $1,800.09 against $1,800.0792 -> $1,800.08. It runs in the Company's favour or the Employee's depending on the cents, and because S-5.1 caps the result rather than fixing it, it survives into the amount actually paid.",
+    "attacks_tried": [
+      "rounding at exact and near-midpoint cents of the S-3.1 product, at accelerators 1.5, 1.75 and 2.25 (all three off by one cent)",
+      "marginal vs whole-revenue accelerator: NBR $1,200,000 / Quota $1,000,000 gives $144,000 (whole) not $104,000 (marginal), so S-4.2 is correctly implemented",
+      "order of operations under S-5.2: NBR $10,000,000, Quota $5,000,000, salary $100,000 -> $250,000; applying the 250% cap before the 2.0 accelerator would give $500,000, so the module honours S-5.2",
+      "S-5.3 boundary: Attainment exactly 200% -> cap 250% of salary ($250,000); Attainment 200.02% -> cap 400% ($400,000). 'Exceeds' correctly exclusive",
+      "S-4.1 band boundaries probed at 49.99%, 50%, 99.99%, 100%, 149.99%, 150%, 200%, 250% - all correct and inclusive/exclusive the right way round",
+      "S-4.3 boundary probed at 59.99%, exactly 60%, 60.01% - 'more than 60%' correctly exclusive",
+      "S-4.4 joiner cap: joiner at Attainment 160% with 70% new logo would reach 2.25, capped to 1.5; joiner already below the cap (1.0, 1.25) left untouched; commencement exactly on 2025-10-01 correctly not a joiner, 2025-10-02 correctly is",
+      "exception transitivity: joiner with new-logo share 10% engages S-4.4 but not S-4.3 - no Conflict and no fallback to the uncapped S-4.1 value",
+      "overflow: NBR $900bn, salary $100bn - no wraparound"
+    ]
+  },
+  {
+    "verdict": "BREAK",
+    "component": "catala",
+    "target": {
+      "module": "commission",
+      "path": "catala/modules/commission.catala_en",
+      "scope": "LeaverCommission"
+    },
+    "fact_pattern": "An Employee joined before the start of the Plan Year, signed one contract on 31 March 2026 for an annual contract value of $1,000,000 with a customer that is a New Logo, and ceased employment on 31 March 2026 for a reason other than gross misconduct. Quota is $1,000,000 and annual base salary $500,000, so the entitlement under S-8.1 is $1,000,000 x 8.0% x 1.75 = $140,000, well inside the 250% cap. No contract has been terminated or gone unrenewed, so there is no Churned Contract. Through an administrative error in the ordinary payment cycle the Employee has already been paid $200,000 of commission. The question is what is payable to the Employee on ceasing employment.",
+    "inputs": {
+      "contracts": [
+        {
+          "contract_id": 1,
+          "annual_contract_value": 1000000,
+          "signature_date": "2026-03-31",
+          "customer_contract_dates": []
+        }
+      ],
+      "last_day_of_employment": "2026-03-31",
+      "termination_reason": "OtherReason",
+      "quota": 1000000,
+      "commencement_date": "2025-10-01",
+      "annual_base_salary": 500000,
+      "commission_already_paid": 200000
+    },
+    "expected": 0.0,
+    "observed": -60000.0,
+    "citations": [
+      "COMM-PLAN S-8.1",
+      "COMM-PLAN S-7.1",
+      "COMM-PLAN S-2.4",
+      "COMM-PLAN S-7.2",
+      "COMM-PLAN S-7.3",
+      "COMM-PLAN S-8.2"
+    ],
+    "source_reasoning": "S-8.1 creates an entitlement running one way only: the leaver 'is entitled to commission in respect of contracts signed on or before their last day of employment, payable in the ordinary payment cycle'. It is a sum payable to the Employee, and its floor is nil - once the $140,000 entitlement is exhausted by the $200,000 already paid, the amount still payable under S-8.1 is nothing. The Plan contains exactly one provision that can make a sum run the other way, S-7.1, and it is tightly conditioned: it operates only 'where commission has been paid in respect of a contract which subsequently becomes a Churned Contract', only over 'the commission attributable to that contract', only at the Company's option ('may recover'), and subject to the S-7.2 material-breach bar and the S-7.3 24-month long-stop. On these facts no contract is a Churned Contract within S-2.4 - nothing has been terminated by the customer or left unrenewed - so S-7.1 cannot operate at all and the Company has no recovery right in respect of the $60,000 overpayment under this Plan. The module nevertheless reports commission_payable of -$60,000, asserting a debt owed by the Employee that S-7.1 does not create and that S-7.2/S-7.3 could not even be tested against. That the field means 'amount payable to the Employee' rather than a net balance is confirmed by the module's own S-8.2 branch, which returns $0 for a gross-misconduct leaver instead of the negative of the sum already paid. The correct answer is $0.",
+    "attacks_tried": [
+      "S-8.1 boundary: contract signed exactly on the last day of employment is correctly included ($140,000); a contract signed the day after is correctly excluded (nil)",
+      "S-8.2 with commission already paid: gross-misconduct leaver with $40,000 already paid and a $140,000 entitlement correctly yields $0 payable and does not claw back the $40,000, matching 'forfeits any commission not yet paid'",
+      "already-paid exceeding entitlement with no Churned Contract (this finding)",
+      "Plan-Year filter for a leaver: contracts signed outside 1 Oct 2025 - 30 Sep 2026 correctly excluded via S-2.3",
+      "S-5.1/S-5.3 cap correctly applied to the leaver's entitlement before the already-paid subtraction"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "commission",
+      "path": "catala/modules/commission.catala_en",
+      "scope": "CommissionPayable"
+    },
+    "fact_pattern": "An Employee employed throughout the Plan Year has Net Booked Revenue of $400,000 against a Quota of $1,000,000 - Attainment of 40%, below the 50% floor in S-4.1(a). 70% of that Net Booked Revenue is attributable to New Logo customers. Annual base salary is $200,000. The question is whether any commission is payable.",
+    "inputs": {
+      "net_booked_revenue": 400000,
+      "new_logo_share": 0.7,
+      "quota": 1000000,
+      "commencement_date": "2025-10-01",
+      "annual_base_salary": 200000
+    },
+    "expected": "Open. Reading 1 (literal, which the module implements): S-4.3 is unconditional as to band - it says only 'where more than 60% of Net Booked Revenue is attributable to New Logo customers, the accelerator determined under S-4.1 is increased by 0.25'. S-4.1(a) 'determines' an accelerator of 0.0, and 0.0 increased by 0.25 is 0.25, giving commission of $400,000 x 8.0% x 0.25 = $8,000. Reading 2 (purposive): S-4.1(a)'s accelerator of 0.0 is a qualifying floor - no commission at all below 50% Attainment - and an 'increase' under S-4.3 presupposes an accelerator that pays, so S-4.3 cannot convert a nil entitlement into a positive one; accelerator 0.0 and commission $0. The Plan does not say which is right, and S-9.1 leaves the question to the Chief Revenue Officer.",
+    "observed": 8000.0,
+    "citations": [
+      "COMM-PLAN S-4.1",
+      "COMM-PLAN S-4.3",
+      "COMM-PLAN S-3.1",
+      "COMM-PLAN S-9.1"
+    ],
+    "source_reasoning": "The ambiguity is in the document, not the encoding. S-4.3 is drafted as an exception 'to S-4.1' as a whole and attaches no band condition, so on its face it applies in band (a) as much as in bands (b) to (d); that is the reading the module takes, and on the literal words it is the better one, which is why this is not recorded as a BREAK. But S-4.1(a) is the only place the Plan expresses the policy that sub-50% performance earns nothing, and Reading 1 defeats that policy entirely: an Employee at 1% Attainment with a new-logo-heavy book is paid 2% of Net Booked Revenue, while an Employee at 49% Attainment with a 60% new-logo book is paid nothing - a discontinuity the drafter is unlikely to have intended and which no clause acknowledges. Contrast S-4.4, where the drafter took care to say it was an exception 'to S-4.1 and S-4.3', showing the drafter was alert to how these exceptions stack; the absence of any equivalent carve-out of band (a) from S-4.3 is what makes the point arguable rather than settled. The two readings differ by $8,000 on these facts, and the drafting should be fixed rather than resolved by the encoder.",
+    "attacks_tried": [
+      "S-4.3 applied inside S-4.1 band (a) where the base accelerator is 0.0",
+      "the same question for a mid-year joiner: S-4.4's cap at 1.5 does not disturb it, min(0.25, 1.5) = 0.25 on either view of S-4.4",
+      "S-4.3 at exactly 60% new-logo share, which correctly gives no uplift and so does not reach this question"
+    ]
+  },
+  {
+    "verdict": "AMBIGUITY",
+    "component": "catala",
+    "target": {
+      "module": "commission",
+      "path": "catala/modules/commission.catala_en",
+      "scope": "Attainment"
+    },
+    "fact_pattern": "An Employee is assigned an annual Quota of $1,000,000 and is absent on statutory parental leave for the whole of the Plan Year - a continuous period of 365 days from 1 October 2025 to 30 September 2026. Quota relief under S-6.1 is 365/365ths of the annual Quota, so the relieved Quota applied under S-6.2 is $0 (confirmed by probing QuotaRelief.RelievedQuota with those facts). The Employee nevertheless signs contracts worth $500,000 of Net Booked Revenue. The question is the Employee's Attainment, and hence the accelerator under S-4.1 and the cap under S-5.3.",
+    "inputs": {
+      "net_booked_revenue": 500000,
+      "quota": 0
+    },
+    "expected": "Open. Reading 1: Attainment is 'Net Booked Revenue expressed as a percentage of Quota' (S-2.2); with a Quota of $0 there is no percentage, Attainment is undefined, no S-4.1 band can be selected and the question falls to the Chief Revenue Officer under S-9.1 - a refusal to compute is the faithful answer. Reading 2: any positive revenue against a nil target is unlimited over-attainment, so S-4.1(d) gives an accelerator of 2.0 and S-5.3 (Attainment 'exceeds 200%') raises the cap to 400% of salary. Reading 3: the S-6.1 reduction is implicitly floored so that Quota never reaches nil. The Plan chooses none of these.",
+    "observed": {
+      "__error__": "CatalaError",
+      "diagnostic": "During evaluation: a value is being used as denominator in a division and it computed to zero (definition attainment_pct equals net_booked_revenue / quota)"
+    },
+    "citations": [
+      "COMM-PLAN S-2.2",
+      "COMM-PLAN S-6.1",
+      "COMM-PLAN S-6.2",
+      "COMM-PLAN S-4.1",
+      "COMM-PLAN S-5.3",
+      "COMM-PLAN S-9.1"
+    ],
+    "source_reasoning": "S-6.1 makes a nil Quota reachable on facts the Plan plainly contemplates - a full Plan Year of statutory parental leave is 365 days, and 365 x 1/365th of the annual Quota is the whole of it - while S-6.2 then requires that nil figure to be used for Attainment. S-2.2 defines Attainment only as a percentage of Quota and gives no rule for a Quota of nil, so no clause compels any of the three readings; this is a gap in the document rather than a mis-encoding, which is why it is an AMBIGUITY and not a BREAK. It is recorded because the consequences are large (Reading 2 would hand a fully-absent Employee the top S-4.1 band and the 400% S-5.3 cap) and because it is worth noting what the module does: it raises an evaluation error rather than inventing a figure or silently returning zero, which is the right posture for an unanswerable question - but the module also carries 'assertion quota > $0' in the same scope, so the division error fires first and the assertion never reports; and a negative Quota (reachable through the over-relief recorded in the QuotaRelief findings) fails that assertion instead, producing a second, differently-shaped error on a closely related question.",
+    "attacks_tried": [
+      "Attainment with Quota $0 and positive Net Booked Revenue (this finding)",
+      "Attainment with Quota $0 and Net Booked Revenue $0 - same division-by-zero error",
+      "Attainment with a negative Quota (-$100,000), reachable via the S-6 over-relief - fails 'assertion quota > $0' instead",
+      "Attainment with ordinary values - exact, no rounding of the percentage (500,000/1,000,000 = 0.5 selects S-4.1(b) at the boundary)"
+    ]
+  },
+  {
+    "verdict": "NO_BREAK_FOUND",
+    "component": "catala",
+    "target": {
+      "module": "clawback",
+      "path": "catala/modules/clawback.catala_en",
+      "scope": "RecoverableCommission"
+    },
+    "fact_pattern": "No counterexample constructed against the S-7 clawback encoding. Every boundary and every combination of the two bars was probed and each matched what S-7.1 to S-7.3 require.",
+    "inputs": {
+      "commission_paid": 40000,
+      "payment_date": "2025-01-15",
+      "assessment_date": "2027-01-15",
+      "is_churned_contract": true,
+      "terminated_for_company_material_breach": false
+    },
+    "expected": 40000.0,
+    "observed": {
+      "long_stop_date": "2027-01-15",
+      "recoverable_amount": 40000.0,
+      "recovery_time_barred": false
+    },
+    "citations": [
+      "COMM-PLAN S-7.1",
+      "COMM-PLAN S-7.2",
+      "COMM-PLAN S-7.3"
+    ],
+    "source_reasoning": "Recorded as NO_BREAK_FOUND, not as approval. The recorded probe is the S-7.3 long-stop boundary: assessment exactly 24 months after the payment date is not 'more than 24 months after' it, so recovery is not barred and the full $40,000 remains recoverable - which is what the module returns, so there is no discrepancy to record. The findings above are the discrepancies from this round; this entry exists to record which attacks on S-7 were run and failed.",
+    "attacks_tried": [
+      "S-7.3 long-stop boundary: assessment 2027-01-14 (1 day short) recoverable, exactly 2027-01-15 (24 months) recoverable, 2027-01-16 barred. 'More than 24 months' correctly exclusive of the anniversary itself",
+      "S-7.2 alone (material breach, well inside the long-stop) -> $0",
+      "both bars at once (material breach and assessment 2027-06-01, past the long-stop) -> $0 with no Conflict, so the exception chain no_recovery < s7_1 < s7_2 < s7_3 resolves cleanly on overlapping bars",
+      "S-7.3 firing while S-7.2 does not (time-barred, no material breach) -> $0, so the transitive exception does not fall back to the s7_1 value",
+      "no Churned Contract at all -> $0 under the default, with and without the two bars set",
+      "judgement laundering: 'material breach by the Company' is taken as the input terminated_for_company_material_breach and is nowhere inferred from termination dates, contract values or the churn flag; the module has no route to decide it for itself",
+      "month-length/leap boundary: payment_date 2024-02-29 -> long_stop_date 2026-02-28 (24 months rounded down, as 2026-02-29 does not exist). The Plan does not address this; the rounding-down choice is not contradicted by S-7.3",
+      "assessment_date before payment_date -> not barred, full recovery. Degenerate input, no rule engaged",
+      "quantum: S-7.1 recovers 'the commission attributable to that contract' and the module recovers exactly the commission_paid input for that contract, with no attempt to re-derive it",
+      "S-7.1 discretion ('may recover'): the module reports a recoverable amount rather than a mandatory deduction, and nothing in it purports to exercise the discretion",
+      "also probed and found correct in the commission module, feeding S-7's Churned Contract trigger: S-2.4's 180-day window at day 179 (churned), day 180 (churned - 'within 180 days after' is inclusive), day 181 (not churned), termination on the signature date itself (churned), a termination dated before the signature date (not churned - it cannot be 'within 180 days after' signature), the non-renewal limb alone at days 180 and 181, and both limbs absent",
+      "S-2.6's 24-month New Logo window: a prior contract date exactly 24 months before signature defeats New Logo status, one day earlier does not, a date on the signature date itself does not (it is not 'preceding'), and the day before signature does; month-end and leap cases (signature 2028-02-29 -> window start 2026-02-28) behave consistently. Note the module tests dates supplied in customer_contract_dates rather than whether a contract was subsisting; on the reading that the field holds the dates on which the customer had a contract, this is faithful to 'had no contract ... at any time in the 24 months preceding', so no counterexample was recorded"
+    ]
+  }
+]

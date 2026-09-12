@@ -1,0 +1,72 @@
+id: CE-0013
+component: catala
+fact_pattern: An Employee is assigned an annual Quota of $1,000,000 for the FY26 Plan Year.
+  The Employee is on statutory parental leave continuously from 1 August 2025 to 30 October
+  2025 - 91 days in all, of which only the 30 days from 1 October 2025 to 30 October 2025
+  fall inside the Plan Year; the remaining 61 days fall in the preceding financial year. The
+  question is the Quota against which FY26 Attainment is measured.
+citations:
+- COMM-PLAN S-1.1
+- COMM-PLAN S-2.1
+- COMM-PLAN S-6.1
+- COMM-PLAN S-6.2
+source_reasoning: 'Two distinct tests in S-6.1 must be kept apart. The gateway test is whether
+  the Employee ''is absent ... for a continuous period of 30 days or more''; this absence
+  is continuous for 91 days, so the gate is passed and relief is due. The quantum test is
+  separate: the Quota ''is reduced by 1/365th of the annual Quota for each day of such absence''.
+  Because S-1.1 confines the Plan to the Plan Year and S-2.1 makes the Quota the annual target
+  for that Plan Year, and because the 1/365th unit is a proration of that 365-day Plan Year
+  (1 October 2025 to 30 September 2026 is exactly 365 days), the days that can be counted
+  in the quantum are the days of the absence that fall within the Plan Year. Here that is
+  1 to 30 October 2025 inclusive - 30 days. Relief = $1,000,000 x 30/365 = $82,191.7808, i.e.
+  $82,191.78 to the cent, and the relieved Quota is $917,808.22. The 61 days from 1 August
+  to 30 September 2025 belong to the previous financial year and cannot reduce an FY26 target:
+  that would be relief given twice for one absence (once in each year''s plan) and would make
+  the 1/365th fraction refer to no identifiable annual period. The module counts the whole
+  91 days, over-relieving by 61/365ths of Quota - $167,123.29 - which materially inflates
+  Attainment and can push the Employee up an S-4.1 band and into the S-5.3 400% cap.'
+expected:
+  relief_days: 30
+  relief: 82191.78
+  relieved_quota: 917808.22
+  quota_for_attainment: 917808.22
+observed:
+  relief_days: 91.0
+  relief: 249315.07
+  relieved_quota: 750684.93
+  quota_for_attainment: 750684.93
+target:
+  module: QuotaRelief
+  path: catala/modules/QuotaRelief.catala_en
+  scope: RelievedQuota
+inputs:
+  annual_quota: 1000000
+  absence_periods:
+  - category: StatutoryParentalLeave
+    start_date: '2025-08-01'
+    end_date: '2025-10-30'
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'absence straddling the start of the Plan Year (this finding); absence straddling the
+  end of the Plan Year would present the mirror image; boundary: absence of exactly 29 days
+  (QualifyingAbsence, parental) -> relief_days 0; exactly 30 days -> relief_days 30. Both
+  correct; inclusive day count (end-start)/1day+1 is the natural reading of a ''continuous
+  period of 30 days or more''.; two separate 20-day qualifying-category absences -> relief_days
+  0. Correct: neither is a continuous period of 30 days or more, and S-6.1 does not aggregate
+  separate absences.; category gate: OtherAbsence of 181 days -> is_qualifying_category false,
+  relief 0. Correct per the closed list in S-6.1.; reversed dates (end before start) -> days_of_absence
+  -28, no relief. Degenerate input, no rule engaged.; absence of exactly 365 days inside the
+  Plan Year -> relieved_quota $0 (recorded separately as an AMBIGUITY about Attainment on
+  a zero Quota).; absence of 396 days (2025-10-01..2026-10-31) -> relieved_quota -$84,931.51,
+  i.e. a negative Quota. This is a downstream symptom of the same defect as this finding (days
+  outside the Plan Year being counted); with counting confined to the Plan Year and to distinct
+  days, relief can never exceed the annual Quota.; composition of S-6 into S-3/S-4: no scope
+  in either module computes commission from an assigned Quota plus absence periods. commission.AssignedQuota
+  defines quota = assigned_quota with no S-6 term, and CommissionPayable/LeaverCommission
+  take `quota` as a free input, so whether S-6.2 (''applied before Attainment'') is honoured
+  depends entirely on the caller. Not recordable as a counterexample, because no probe can
+  distinguish a relieved from an unrelieved quota once it is an input - but it is a live gap:
+  feeding the module its own AssignedQuota output silently skips S-6 (e.g. assigned quota
+  $1,000,000, 73 qualifying absence days, NBR $800,000: relieved Attainment 100% -> accelerator
+  1.5 -> $96,000, unrelieved Attainment 80% -> accelerator 1.0 -> $64,000).'

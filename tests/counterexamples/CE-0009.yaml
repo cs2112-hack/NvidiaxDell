@@ -1,0 +1,72 @@
+id: CE-0009
+component: catala
+fact_pattern: The Measurement Period is January 2026, which ended on 31 January 2026. The
+  Customer claimed the Service Credit in writing on 5 February 2026 -- five days after the
+  end of the period, comfortably inside the 30-day window. The Supplier accepted the claim
+  on 10 March 2026 and a further invoice is due to be issued on 1 April 2026. Every element
+  of L-5.1 and L-5.2 is plainly answerable on these facts.
+citations:
+- MSA-SCH4 L-5.1
+- MSA-SCH4 L-5.2
+source_reasoning: 'L-5.1 compels claim_deadline and the waiver answer: the Customer ''must
+  claim a Service Credit in writing within 30 days after the end of the Measurement Period'',
+  so the deadline is 31 January 2026 + 30 days = 2 March 2026, a claim made on 5 February
+  2026 is in time, and the second sentence (''A Service Credit not claimed within that period
+  is waived'') therefore does not operate -- waived is false. L-5.2 compels the settlement
+  answer: a further invoice will be issued, so the credit ''is applied against the next invoice
+  issued after the claim is accepted'', i.e. the 1 April 2026 invoice, and not the alternative
+  payment route which applies only ''where no further invoice will be issued''. The module
+  answers none of this: the CreditClaim scope raises an unhandled Invalid_argument on the
+  serialisation of its Settlement enumeration output. It does so on EVERY input I tried --
+  in-window and out-of-window claims, claim_made true and false, further_invoice_expected
+  true and false, and several unrelated period ends -- so the whole of L-5 is unexecutable
+  and L-5.1''s 30-day waiver, the single most commonly litigated line in the Schedule, has
+  no working implementation at all. The Catala sibling modules run normally under the same
+  runner, so this is not an environment fault.'
+expected:
+  claim_deadline: '2026-03-02'
+  claim_in_time: true
+  waived: false
+  settlement: AppliedAgainstNextInvoice
+  settlement_due_date: '2026-04-01'
+observed:
+  __error__: CatalaError
+  diagnostic: '┌─[ERROR]─
+
+    │
+
+    │  Unexpected error: Invalid_argument("Json_encoding.construct: consequence
+
+    │  of non exhaustive Json_encoding.string_enum. Strings are:
+
+    │  ''AppliedAgainstNextInvoice'' ''PaidToCustomer''")
+
+    │
+
+    └─'
+target:
+  module: ServiceCreditClaim
+  path: catala/modules/ServiceCreditClaim.catala_en
+  scope: CreditClaim
+inputs:
+  measurement_period_end: '2026-01-31'
+  claim_made: true
+  claim_date: '2026-02-05'
+  claim_accepted_date: '2026-03-10'
+  further_invoice_expected: true
+  next_invoice_date: '2026-04-01'
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'L-5.1 day 30 (claim 2026-03-02 on a 2026-01-31 period end) -- error; L-5.1 day 31
+  (claim 2026-03-03) -- error; L-5.1 claim well inside the window (2026-02-05) -- error; L-5.1
+  claim before the deadline but with claim_made false (credit never claimed, window still
+  open) -- different error, Invalid_argument("compare: functional value"); L-5.2 further_invoice_expected
+  false (payment route, claim_accepted_date + 30 days) -- error; L-5.2 next_invoice_date earlier
+  than claim_accepted_date, testing ''the next invoice issued AFTER the claim is accepted''
+  -- error; Two further unrelated period ends / date sets (2025-06-30, 2026-01-31) to rule
+  out input-format error -- error; Static reading, not reproducible because the scope never
+  returns: ''waived equals not claim_in_time'' has no assessment date, so a credit that simply
+  has not been claimed yet is reported as waived even while L-5.1''s 30-day window is still
+  open; L-5.1 waives only a credit ''not claimed within that period'', which cannot be determined
+  before the period expires.'

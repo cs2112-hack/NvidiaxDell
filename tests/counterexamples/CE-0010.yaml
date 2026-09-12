@@ -1,0 +1,73 @@
+id: CE-0010
+component: catala
+fact_pattern: 'January 2026: 31 days, 44,640 minutes. The Service was not Available for 600
+  whole minutes in the month, all of it during properly notified Scheduled Maintenance windows
+  (10 hours in aggregate). Scheduled Maintenance therefore exceeded 8 hours in aggregate by
+  120 minutes. Applying L-2.5(a) as cut down by L-4.5, the Excluded Minutes for the period
+  are 480 and the excess is 120 minutes. Those three Schedule-defined quantities -- 600 minutes
+  not Available, 480 Excluded Minutes, 120 excess minutes -- are fed to the scope.'
+citations:
+- MSA-SCH4 L-2.4
+- MSA-SCH4 L-2.5
+- MSA-SCH4 L-4.5
+- MSA-SCH4 L-2.3
+- MSA-SCH4 L-4.1
+source_reasoning: 'L-4.5 states that where Scheduled Maintenance exceeds 8 hours in aggregate
+  ''the excess minutes are NOT Excluded Minutes and count as Unavailable Minutes''. On these
+  facts that fixes Excluded Minutes at 480 -- the 120 excess minutes are removed from the
+  L-2.5(a) exclusion by the express words of L-4.5. L-2.4 then defines Unavailable Minutes
+  as each whole minute during which the Service is not Available ''excluding Excluded Minutes'':
+  600 - 480 = 120. L-4.5''s second limb is satisfied by that same subtraction; it does not
+  add the excess a second time, because the excess minutes were never Excluded Minutes to
+  begin with. L-2.3 then gives (44640 - 120) / 44640 x 100 = 99.7311...%, rounded to 99.73%.
+  The module instead computes minutes_not_available - excluded_minutes + scheduled_maintenance_excess_minutes
+  = 600 - 480 + 120 = 240, charging the excess twice: once by its removal from the exclusion
+  and again by the L-4.5 addition. Its arm is only self-consistent if the caller supplies
+  the PRE-L-4.5 exclusion figure (600) in a field declared and documented as the L-2.5 defined
+  term ''Excluded Minutes'' -- a field whose legally correct value, once L-4.5 has operated,
+  is 480. Confirmed by probing the same facts with excluded_minutes 600, which returns the
+  correct 120 / 99.73%. The consequence is money: 99.73% falls in L-4.1(a) (5% of the Monthly
+  Service Charge) whereas the module''s 99.46% falls in L-4.1(b) (10%), doubling the credit.'
+expected:
+  unavailable_minutes: 120
+  availability_percentage: 99.73
+  meets_service_level: false
+observed:
+  unavailable_minutes: 240.0
+  availability_percentage_unrounded: 99.46236559139786
+  availability_percentage: 99.46
+  meets_service_level: false
+target:
+  module: availability
+  path: catala/modules/availability.catala_en
+  scope: AvailabilityPercentage
+inputs:
+  total_minutes: 44640
+  minutes_not_available: 600
+  excluded_minutes: 480
+  scheduled_maintenance_excess_minutes: 120
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'L-2.3 rounding at the exact midpoint: raw 99.895% -> 99.90% (half-up), meets_service_level
+  true -- correct; L-2.3 rounding just below: raw 99.894% -> 99.89%, raw 99.8945% -> 99.89%,
+  raw 99.8955% -> 99.90%, raw 99.875% -> 99.88% -- rounds (not truncates), half away from
+  zero, correct; L-2.3 rounding applied to the percentage and not the fraction (a 2dp rounding
+  of the fraction would turn 99.9% into 100%) -- correct; L-3.1 / L-4.1 compare the ROUNDED
+  figure, not the raw one: raw 99.8955% (rounded 99.90%) meets the Service Level and earns
+  nothing -- correct; L-2.1 / L-2.3 denominator: 31-day month -> 44,640 minutes; 28-day February
+  -> 40,320 -- correct; L-4.5 / L-2.6 8-hour aggregate at 479, 480 and 481 minutes, and as
+  two 300-minute windows -- excess 0/0/1/120, correct (''must not exceed'' makes exactly 480
+  lawful); L-4.5 excess actually moves the availability figure: 600 minutes of Scheduled Maintenance
+  plus a 100-minute outage -> 220 Unavailable Minutes, 99.51% -- correct via ServiceAvailability;
+  L-2.5(b) emergency maintenance notice at 59 / 60 / 61 minutes -- excluded only from 60,
+  correct; L-2.5(c) Force Majeure and L-2.5(d) Customer act: both are plain boolean inputs
+  (force_majeure_event_certified, outage_attributable_to_customer) and nothing in the module
+  infers either -- no judgement laundering; L-2.5(e) clause 9 suspension: boolean input --
+  correct; L-2.6 maintenance without sufficient notice: 600 minutes of maintenance notified
+  1 business day ahead is not Scheduled Maintenance, is not excluded and does not count toward
+  the 8-hour aggregate -- correct; L-2.4 partial minute: Outage.minutes is an integer, so
+  a sub-minute outage cannot be expressed and the ''each whole minute'' rounding is silently
+  delegated to the caller -- gap, not a wrong number; Outage both Scheduled Maintenance and
+  Force Majeure certified, aggregate over 8 hours: the excess is treated as Unavailable even
+  though L-2.5(c) would independently exclude it -- too contrived to rest a break on'

@@ -1,0 +1,76 @@
+id: CE-0012
+component: catala
+fact_pattern: An Employee is assigned an annual Quota of $1,000,000 for the FY26 Plan Year
+  (1 October 2025 to 30 September 2026). The Employee has no absence at all during the Plan
+  Year. In the following financial year the Employee is on certified long-term sickness absence
+  continuously from 1 January 2027 to 30 June 2027 (181 days). The question is the Quota against
+  which FY26 Attainment is measured.
+citations:
+- COMM-PLAN S-1.1
+- COMM-PLAN S-2.1
+- COMM-PLAN S-6.1
+- COMM-PLAN S-6.2
+- COMM-PLAN S-2.2
+source_reasoning: 'S-6.1 is the only relief-granting clause and it operates on ''the Employee''s
+  Quota''. S-2.1 fixes what that is: ''the annual revenue target assigned to the Employee
+  in writing at the start of the Plan Year''. S-1.1 confines the whole Plan to ''the financial
+  year commencing 1 October 2025 and ending 30 September 2026 (the "Plan Year")''. S-6.1''s
+  unit of relief - 1/365th of the annual Quota per day - is a proration of that same annual
+  (365-day) period, so the days it counts can only be days of the Plan Year; there is no other
+  365-day period in the instrument for the fraction to refer to. S-6.2 confirms the temporal
+  frame by tying the relief to the calculation of Attainment, and Attainment under S-2.2/S-2.3
+  measures revenue from contracts ''signed by the Employee during the Plan Year'' - a Plan-Year-to-Plan-Year
+  comparison. An absence running from 1 January to 30 June 2027 lies wholly after the Plan
+  Year ended on 30 September 2026 and therefore consumes no day of the Plan Year: S-6.1 gives
+  nil relief, and the operative Quota remains the assigned $1,000,000. Nothing in S-6.1 or
+  elsewhere in the Plan extends relief to absence in a different financial year; S-1.1 defeats
+  any such reading. The module applies no Plan-Year filter to the absence period at all, so
+  a future-year absence retrospectively cuts the FY26 Quota by 181/365ths and inflates Attainment
+  (and hence the S-4 accelerator and the S-5.3 cap) for a year in which the Employee was never
+  absent.'
+expected:
+  relief_days: 0
+  relief: 0.0
+  relieved_quota: 1000000.0
+  quota_for_attainment: 1000000.0
+observed:
+  relief_days: 181.0
+  relief: 495890.41
+  relieved_quota: 504109.59
+  quota_for_attainment: 504109.59
+target:
+  module: QuotaRelief
+  path: catala/modules/QuotaRelief.catala_en
+  scope: RelievedQuota
+inputs:
+  annual_quota: 1000000
+  absence_periods:
+  - category: LongTermSicknessAbsence
+    start_date: '2027-01-01'
+    end_date: '2027-06-30'
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'date/duration boundary at 29 vs 30 days of absence; absence wholly outside the Plan
+  Year (this finding); absence wholly before the Plan Year (2024-01-01..2024-06-30, 182 days)
+  -> relief $498,630.14, same defect, same clauses; boundary: absence of exactly 29 days (QualifyingAbsence,
+  parental) -> relief_days 0; exactly 30 days -> relief_days 30. Both correct; inclusive day
+  count (end-start)/1day+1 is the natural reading of a ''continuous period of 30 days or more''.;
+  two separate 20-day qualifying-category absences -> relief_days 0. Correct: neither is a
+  continuous period of 30 days or more, and S-6.1 does not aggregate separate absences.; category
+  gate: OtherAbsence of 181 days -> is_qualifying_category false, relief 0. Correct per the
+  closed list in S-6.1.; reversed dates (end before start) -> days_of_absence -28, no relief.
+  Degenerate input, no rule engaged.; absence of exactly 365 days inside the Plan Year ->
+  relieved_quota $0 (recorded separately as an AMBIGUITY about Attainment on a zero Quota).;
+  absence of 396 days (2025-10-01..2026-10-31) -> relieved_quota -$84,931.51, i.e. a negative
+  Quota. This is a downstream symptom of the same defect as this finding (days outside the
+  Plan Year being counted); with counting confined to the Plan Year and to distinct days,
+  relief can never exceed the annual Quota.; composition of S-6 into S-3/S-4: no scope in
+  either module computes commission from an assigned Quota plus absence periods. commission.AssignedQuota
+  defines quota = assigned_quota with no S-6 term, and CommissionPayable/LeaverCommission
+  take `quota` as a free input, so whether S-6.2 (''applied before Attainment'') is honoured
+  depends entirely on the caller. Not recordable as a counterexample, because no probe can
+  distinguish a relieved from an unrelieved quota once it is an input - but it is a live gap:
+  feeding the module its own AssignedQuota output silently skips S-6 (e.g. assigned quota
+  $1,000,000, 73 qualifying absence days, NBR $800,000: relieved Attainment 100% -> accelerator
+  1.5 -> $96,000, unrelieved Attainment 80% -> accelerator 1.0 -> $64,000).'

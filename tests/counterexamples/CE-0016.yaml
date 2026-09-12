@@ -1,0 +1,87 @@
+id: CE-0016
+component: catala
+fact_pattern: An Employee joined before the start of the Plan Year, signed one contract on
+  31 March 2026 for an annual contract value of $1,000,000 with a customer that is a New Logo,
+  and ceased employment on 31 March 2026 for a reason other than gross misconduct. Quota is
+  $1,000,000 and annual base salary $500,000, so the entitlement under S-8.1 is $1,000,000
+  x 8.0% x 1.75 = $140,000, well inside the 250% cap. No contract has been terminated or gone
+  unrenewed, so there is no Churned Contract. Through an administrative error in the ordinary
+  payment cycle the Employee has already been paid $200,000 of commission. The question is
+  what is payable to the Employee on ceasing employment.
+citations:
+- COMM-PLAN S-8.1
+- COMM-PLAN S-7.1
+- COMM-PLAN S-2.4
+- COMM-PLAN S-7.2
+- COMM-PLAN S-7.3
+- COMM-PLAN S-8.2
+source_reasoning: 'S-8.1 creates an entitlement running one way only: the leaver ''is entitled
+  to commission in respect of contracts signed on or before their last day of employment,
+  payable in the ordinary payment cycle''. It is a sum payable to the Employee, and its floor
+  is nil - once the $140,000 entitlement is exhausted by the $200,000 already paid, the amount
+  still payable under S-8.1 is nothing. The Plan contains exactly one provision that can make
+  a sum run the other way, S-7.1, and it is tightly conditioned: it operates only ''where
+  commission has been paid in respect of a contract which subsequently becomes a Churned Contract'',
+  only over ''the commission attributable to that contract'', only at the Company''s option
+  (''may recover''), and subject to the S-7.2 material-breach bar and the S-7.3 24-month long-stop.
+  On these facts no contract is a Churned Contract within S-2.4 - nothing has been terminated
+  by the customer or left unrenewed - so S-7.1 cannot operate at all and the Company has no
+  recovery right in respect of the $60,000 overpayment under this Plan. The module nevertheless
+  reports commission_payable of -$60,000, asserting a debt owed by the Employee that S-7.1
+  does not create and that S-7.2/S-7.3 could not even be tested against. That the field means
+  ''amount payable to the Employee'' rather than a net balance is confirmed by the module''s
+  own S-8.2 branch, which returns $0 for a gross-misconduct leaver instead of the negative
+  of the sum already paid. The correct answer is $0.'
+expected: 0.0
+observed:
+  qualifying_contracts:
+  - contract_id: 1.0
+    annual_contract_value: 1000000.0
+    signature_date: '2026-03-31'
+    customer_contract_dates: []
+  revenue:
+    gross_booked_revenue: 1000000.0
+    churned_contract_value: 0.0
+    net_booked_revenue: 1000000.0
+    new_logo_revenue: 1000000.0
+    new_logo_share: 1.0
+  entitlement:
+    attainment_calc:
+      attainment_pct: 1.0
+    accelerator_calc:
+      commenced_after_plan_year_start: false
+      s4_1_band: 1.5
+      accelerator_before_joiner_cap: 1.75
+      accelerator: 1.75
+    accelerator_base: 1000000.0
+    commission_before_cap: 140000.0
+    cap: 1250000.0
+    commission_payable: 140000.0
+  commission_payable: -60000.0
+target:
+  module: commission
+  path: catala/modules/commission.catala_en
+  scope: LeaverCommission
+inputs:
+  contracts:
+  - contract_id: 1
+    annual_contract_value: 1000000
+    signature_date: '2026-03-31'
+    customer_contract_dates: []
+  last_day_of_employment: '2026-03-31'
+  termination_reason: OtherReason
+  quota: 1000000
+  commencement_date: '2025-10-01'
+  annual_base_salary: 500000
+  commission_already_paid: 200000
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'S-8.1 boundary: contract signed exactly on the last day of employment is correctly
+  included ($140,000); a contract signed the day after is correctly excluded (nil); S-8.2
+  with commission already paid: gross-misconduct leaver with $40,000 already paid and a $140,000
+  entitlement correctly yields $0 payable and does not claw back the $40,000, matching ''forfeits
+  any commission not yet paid''; already-paid exceeding entitlement with no Churned Contract
+  (this finding); Plan-Year filter for a leaver: contracts signed outside 1 Oct 2025 - 30
+  Sep 2026 correctly excluded via S-2.3; S-5.1/S-5.3 cap correctly applied to the leaver''s
+  entitlement before the already-paid subtraction'

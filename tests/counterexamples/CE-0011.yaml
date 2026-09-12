@@ -1,0 +1,74 @@
+id: CE-0011
+component: catala
+fact_pattern: An Employee spends a Travel Day in a Tier 3 city. The travel is not Client-Billable
+  Travel. No Pre-Approval of any kind has been obtained. The Employee is not engaged on Critical
+  Incident Response. The Employee incurs GBP 500 of meal expense on the day. The record of
+  meals provided at no cost carries the value -10 (a corrupt or mis-signed free-meal count;
+  no meal was in fact provided free). The Policy caps this day at GBP 40 and contains no provision
+  capable of raising that figure on these facts, yet the module reimburses GBP 190.
+citations:
+- EXP-POL E-3.1(c)
+- EXP-POL E-3.4
+- EXP-POL E-3.2
+- EXP-POL E-3.3
+- EXP-POL E-7.2
+source_reasoning: 'E-3.1(c) fixes the Tier 3 entitlement at reimbursement of meal expenses
+  ''up to'' GBP 40 per Travel Day. Every clause capable of displacing or raising that figure
+  is inapplicable on these facts: E-3.2 requires Client-Billable Travel (false); E-3.3 requires
+  Pre-Approval for a specified higher amount (none obtained, and no amount specified); E-7.2
+  requires Critical Incident Response (false). E-3.4 is the only other clause that touches
+  the day''s per diem, and it is reduction-only in terms - ''the per diem for that Travel
+  Day IS REDUCED by GBP 15 in respect of each such meal'' - and its operative fact is a meal
+  ''provided at no cost to the Employee'', of which there can only be nought or more. No reading
+  of E-3.4 permits it to increase the per diem, so nothing in the Policy can carry this day
+  above GBP 40. The module nevertheless computes e3_4_reduction = 15 * (-10) = -150 and then
+  adjusted_per_diem = max(0, 40 - (-150)) = 190, paying GBP 190 - GBP 150 more than the ceiling
+  E-3.1(c) imposes. The defect is an unguarded input domain on meals_provided_free: the declaration
+  is a bare ''integer'' with no lower bound and no assertion, and the sign of the reduction
+  is never checked. The sibling module claimwindow does guard its analogous ordering assumption
+  (''assertion submission_date >= expense_incurred_date''), which shows the guard was available
+  and was simply omitted here. The correct behaviour is either to reject the input as it does
+  not describe any state of affairs the Policy recognises, or to treat the free-meal count
+  as nought or more so that E-3.4 applies no reduction and E-3.1(c) governs, giving GBP 40.
+  On either correct behaviour the module''s GBP 190 is wrong, and it errs in the direction
+  of over-payment, silently, with no error raised. Magnitude scales without bound with the
+  magnitude of the corrupt count.'
+expected:
+  per_diem_cap: 40.0
+  adjusted_per_diem: 40.0
+  reimbursable_amount: 40.0
+observed:
+  per_diem_cap: 40.0
+  adjusted_per_diem: 190.0
+  reimbursable_amount: 190.0
+target:
+  module: mealperdiem
+  path: catala/modules/mealperdiem.catala_en
+  scope: MealPerDiemForDay
+inputs:
+  city_tier: Tier3
+  client_billable:
+    is_client_billable: false
+  pre_approval:
+    obtained: false
+    in_writing: false
+    obtained_at: '2025-01-01'
+    approver_authority_limit: 0
+  incurred_on: '2025-06-10'
+  meals_provided_free: -10
+  meal_expense_incurred: 500
+  on_critical_incident_response: false
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'free-meal count -1 on Tier 1: observed adjusted_per_diem 90.00 against an E-3.1(a)
+  cap of 75.00, confirming the same defect at the other tier; free-meal counts 0,1,2,3,4 on
+  Tier 3: 40/25/10/0/0, correct and correctly floored at nought by Money.max; same unguarded-domain
+  attack on groundtransport TaxiFare: journey_start_hour 10 with journey_start_minute 5000
+  yields minutes_after_midnight 5600, satisfying the E-5.3 airport carve-out and reimbursing
+  100.00 without limit; and journey_start_hour -1 likewise. Not recorded as a separate BREAK
+  because no clean prose fact pattern states a journey time in that form; same attack on accommodation
+  NightlyAccommodation: parking_cost -100 with Tier 1 room 400 yields reimbursable_amount
+  120.00, i.e. below the E-4.1 cap the module itself computed. Not recorded separately for
+  the same reason; negative meal_expense_incurred; sub-penny meal_expense_incurred 0.01: reimbursable
+  0.01, correct'

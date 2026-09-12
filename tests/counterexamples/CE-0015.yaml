@@ -1,0 +1,72 @@
+id: CE-0015
+component: catala
+fact_pattern: An Employee who has been employed since before the start of the Plan Year has
+  Net Booked Revenue for FY26 of $10,000.44 against a Quota of $8,000, so Attainment is 125.0055%.
+  Only 10% of Net Booked Revenue is attributable to New Logo customers, so no S-4.3 uplift
+  applies, and annual base salary is $100,000 so no S-5 cap bites. The question is the commission
+  payable.
+citations:
+- COMM-PLAN S-3.1
+- COMM-PLAN S-2.5
+- COMM-PLAN S-4.1
+- COMM-PLAN S-4.2
+- COMM-PLAN S-5.1
+source_reasoning: 'S-3.1 prescribes a single product: ''Net Booked Revenue multiplied by the
+  Base Commission Rate, multiplied by the accelerator determined under S-4''. S-2.5 fixes
+  the Base Commission Rate at 8.0%; Attainment of 125.0055% falls in S-4.1(c) so the accelerator
+  is 1.5; S-4.2 applies it to the whole of Net Booked Revenue; new-logo share of 10% does
+  not engage S-4.3 and the Employee is not a mid-year joiner so S-4.4 is not engaged. The
+  product S-3.1 requires is therefore $10,000.44 x 0.08 x 1.5 = $10,000.44 x 0.12 = $1,200.0528,
+  which as a money amount is $1,200.05 - and $1,200.05 whether the fraction of a cent is rounded
+  to nearest or truncated, since the remainder is 0.28 of a cent. The module instead evaluates
+  the product in two rounded steps: $10,000.44 x 8.0% = $800.0352, rounded to the cent as
+  $800.04, then x 1.5 = $1,200.06. S-3.1 authorises no intermediate rounding of the Base Commission
+  Rate product - the Base Commission Rate is defined in S-2.5 as a rate to be applied, not
+  as a separately payable sum - so the extra half-cent created at the first step is multiplied
+  by the accelerator and the Employee is overpaid. The error is systematic, not a one-off:
+  the same input at accelerator 1.75 (S-4.3 engaged) gives the module $1,400.07 against the
+  $1,400.0616 -> $1,400.06 that S-3.1 requires, and at accelerator 2.25 it gives $1,800.09
+  against $1,800.0792 -> $1,800.08. It runs in the Company''s favour or the Employee''s depending
+  on the cents, and because S-5.1 caps the result rather than fixing it, it survives into
+  the amount actually paid.'
+expected: 1200.05
+observed:
+  attainment_calc:
+    attainment_pct: 1.250055
+  accelerator_calc:
+    commenced_after_plan_year_start: false
+    s4_1_band: 1.5
+    accelerator_before_joiner_cap: 1.5
+    accelerator: 1.5
+  accelerator_base: 10000.44
+  commission_before_cap: 1200.06
+  cap: 250000.0
+  commission_payable: 1200.06
+target:
+  module: commission
+  path: catala/modules/commission.catala_en
+  scope: CommissionPayable
+inputs:
+  net_booked_revenue: 10000.44
+  new_logo_share: 0.1
+  quota: 8000
+  commencement_date: '2025-10-01'
+  annual_base_salary: 100000
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'rounding at exact and near-midpoint cents of the S-3.1 product, at accelerators 1.5,
+  1.75 and 2.25 (all three off by one cent); marginal vs whole-revenue accelerator: NBR $1,200,000
+  / Quota $1,000,000 gives $144,000 (whole) not $104,000 (marginal), so S-4.2 is correctly
+  implemented; order of operations under S-5.2: NBR $10,000,000, Quota $5,000,000, salary
+  $100,000 -> $250,000; applying the 250% cap before the 2.0 accelerator would give $500,000,
+  so the module honours S-5.2; S-5.3 boundary: Attainment exactly 200% -> cap 250% of salary
+  ($250,000); Attainment 200.02% -> cap 400% ($400,000). ''Exceeds'' correctly exclusive;
+  S-4.1 band boundaries probed at 49.99%, 50%, 99.99%, 100%, 149.99%, 150%, 200%, 250% - all
+  correct and inclusive/exclusive the right way round; S-4.3 boundary probed at 59.99%, exactly
+  60%, 60.01% - ''more than 60%'' correctly exclusive; S-4.4 joiner cap: joiner at Attainment
+  160% with 70% new logo would reach 2.25, capped to 1.5; joiner already below the cap (1.0,
+  1.25) left untouched; commencement exactly on 2025-10-01 correctly not a joiner, 2025-10-02
+  correctly is; exception transitivity: joiner with new-logo share 10% engages S-4.4 but not
+  S-4.3 - no Conflict and no fallback to the uncapped S-4.1 value; overflow: NBR $900bn, salary
+  $100bn - no wraparound'

@@ -1,0 +1,157 @@
+id: CE-0007
+component: catala
+fact_pattern: The Availability Percentage was below 99.90% in each of January, February and
+  March 2024 (occurrence 1). The Customer did not serve a termination notice and that right
+  lapsed on 30 April 2024. Service then met the Service Level for fifteen months. The Availability
+  Percentage was then below 99.90% again in each of July, August and September 2025 (occurrence
+  2) -- a fresh set of three consecutive failing Measurement Periods. The Customer served
+  written notice of termination on 5 October 2025 and the position is assessed on 10 October
+  2025. (The two clusters are more than twelve months apart, so only the three-consecutive-periods
+  limb of L-6.1 is engaged; the rolling four-in-twelve limb is not.)
+citations:
+- MSA-SCH4 L-6.1
+- MSA-SCH4 L-6.2
+source_reasoning: L-6.1 gives a termination right wherever the Availability Percentage is
+  below 99.90% in each of three consecutive Measurement Periods. July, August and September
+  2025 are three such periods, so a right arose on the expiry of September 2025. L-6.2 requires
+  that right to be exercised 'within 30 days after the end of the Measurement Period which
+  gives rise to it, failing which it lapses IN RESPECT OF THAT OCCURRENCE'. The Measurement
+  Period giving rise to the right the Customer is exercising is September 2025, which ended
+  30 September 2025; the deadline is therefore 30 October 2025 and notice served on 5 October
+  2025 is in time. The closing words of L-6.2 ('in respect of that occurrence') confine the
+  lapse to the occurrence whose window expired -- the March 2024 occurrence -- and expressly
+  preserve any later occurrence. The module instead takes trigger_period_end as the MINIMUM
+  period_end over all completing periods, i.e. the earliest occurrence ever recorded, derives
+  one global exercise_deadline from it (2024-04-30) and then sets a single global right_lapsed.
+  The lapse of occurrence 1 therefore destroys the right arising from occurrence 2, which
+  is precisely what the words 'in respect of that occurrence' forbid. The customer loses a
+  right to terminate without early termination charges.
+expected:
+  right_arisen: true
+  trigger_period_end: '2025-09-30'
+  exercise_deadline: '2025-10-30'
+  right_lapsed: false
+  right_exercisable: true
+observed:
+  failing_periods:
+  - period_start: '2024-01-01'
+    period_end: '2024-01-31'
+    availability_percentage: 99.8
+  - period_start: '2024-02-01'
+    period_end: '2024-02-29'
+    availability_percentage: 99.8
+  - period_start: '2024-03-01'
+    period_end: '2024-03-31'
+    availability_percentage: 99.8
+  - period_start: '2025-07-01'
+    period_end: '2025-07-31'
+    availability_percentage: 99.8
+  - period_start: '2025-08-01'
+    period_end: '2025-08-31'
+    availability_percentage: 99.8
+  - period_start: '2025-09-01'
+    period_end: '2025-09-30'
+    availability_percentage: 99.8
+  consecutive_trigger: true
+  rolling_trigger: false
+  right_arisen: true
+  completing_periods:
+  - period_start: '2024-03-01'
+    period_end: '2024-03-31'
+    availability_percentage: 99.8
+  - period_start: '2025-09-01'
+    period_end: '2025-09-30'
+    availability_percentage: 99.8
+  trigger_period_end: '2024-03-31'
+  notice_period_days: 30.0
+  early_termination_charges_payable: false
+  exercise_deadline: '2024-04-30'
+  right_lapsed: true
+  right_exercisable: false
+target:
+  module: ChronicFailure
+  path: catala/modules/ChronicFailure.catala_en
+  scope: ChronicFailureRight
+inputs:
+  availability_history:
+  - period_start: '2024-01-01'
+    period_end: '2024-01-31'
+    availability_percentage: 99.8
+  - period_start: '2024-02-01'
+    period_end: '2024-02-29'
+    availability_percentage: 99.8
+  - period_start: '2024-03-01'
+    period_end: '2024-03-31'
+    availability_percentage: 99.8
+  - period_start: '2024-04-01'
+    period_end: '2024-04-30'
+    availability_percentage: 99.95
+  - period_start: '2024-05-01'
+    period_end: '2024-05-31'
+    availability_percentage: 99.95
+  - period_start: '2024-06-01'
+    period_end: '2024-06-30'
+    availability_percentage: 99.95
+  - period_start: '2024-07-01'
+    period_end: '2024-07-31'
+    availability_percentage: 99.95
+  - period_start: '2024-08-01'
+    period_end: '2024-08-31'
+    availability_percentage: 99.95
+  - period_start: '2024-09-01'
+    period_end: '2024-09-30'
+    availability_percentage: 99.95
+  - period_start: '2024-10-01'
+    period_end: '2024-10-31'
+    availability_percentage: 99.95
+  - period_start: '2024-11-01'
+    period_end: '2024-11-30'
+    availability_percentage: 99.95
+  - period_start: '2024-12-01'
+    period_end: '2024-12-31'
+    availability_percentage: 99.95
+  - period_start: '2025-01-01'
+    period_end: '2025-01-31'
+    availability_percentage: 99.95
+  - period_start: '2025-02-01'
+    period_end: '2025-02-28'
+    availability_percentage: 99.95
+  - period_start: '2025-03-01'
+    period_end: '2025-03-31'
+    availability_percentage: 99.95
+  - period_start: '2025-04-01'
+    period_end: '2025-04-30'
+    availability_percentage: 99.95
+  - period_start: '2025-05-01'
+    period_end: '2025-05-31'
+    availability_percentage: 99.95
+  - period_start: '2025-06-01'
+    period_end: '2025-06-30'
+    availability_percentage: 99.95
+  - period_start: '2025-07-01'
+    period_end: '2025-07-31'
+    availability_percentage: 99.8
+  - period_start: '2025-08-01'
+    period_end: '2025-08-31'
+    availability_percentage: 99.8
+  - period_start: '2025-09-01'
+    period_end: '2025-09-30'
+    availability_percentage: 99.8
+  assessment_date: '2025-10-10'
+  notice_given: true
+  notice_date: '2025-10-05'
+round: 1
+discovered: '2026-09-12'
+status: open
+notes: 'L-6.1 consecutive trigger: three consecutive failing periods (Jul-Sep 2025) -- fires
+  correctly; L-6.1 rolling trigger alone: failures Jan/Apr/Jul/Oct 2025, no three consecutive
+  -- rolling_trigger true, consecutive_trigger false, correct; L-6.1 neither-but-close: failures
+  Jan/Feb/Apr 2025 (three failures, not consecutive, only three in the window) -- right_arisen
+  false, correct; L-6.1 rolling window at exactly twelve months: failures Jan/Jun/Sep/Dec
+  2025 (12-calendar-month span) -- triggers, correct; L-6.1 rolling window at thirteen months:
+  failures Dec 2024/Jun/Sep/Dec 2025 -- does not trigger, correct; L-6.2 day 30 with notice
+  (notice 2025-10-30 on a 2025-09-30 trigger) -- not lapsed, correct; L-6.2 day 31 with notice
+  (notice 2025-10-31) -- lapsed, correct; L-6.2 day 30 / day 31 with no notice, judged by
+  assessment_date -- correct both sides; L-6.2 two separate occurrences (BREAK); L-6.2 notice
+  dated before the right arose (BREAK); 99.90% threshold on availability_percentage: 99.90
+  is not a failing period, 99.89 is'

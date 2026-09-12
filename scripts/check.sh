@@ -74,7 +74,10 @@ else:
     print(f"   {len(rs)-len(bad)}/{len(rs)} counterexamples pass  (store: {s})")
 PYEOF
 
-echo "== 6. vector store (files + mongo, both pinned to corpus AND triage) =="
+echo "== 6. every scope is JSON-executable (no enum-typed outputs) =="
+"$PY" scripts/check_executable.py || rc=1
+
+echo "== 7. vector store (files + mongo, both pinned to corpus AND triage) =="
 "$PY" - <<'PYEOF'
 from lks.vector import VectorStore, IndexStaleError, IndexMissingError
 try:
@@ -99,7 +102,7 @@ except IndexStaleError as e:
 PYEOF
 [ $? -ne 0 ] && rc=1
 
-echo "== 7. exception-branch coverage =="
+echo "== 8. exception-branch coverage =="
 "$PY" - <<'PYEOF'
 from pathlib import Path
 from lks.reviewer import discover_scopes, exception_branches
