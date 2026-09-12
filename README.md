@@ -30,8 +30,37 @@ makes it.
 ## Quick start
 
 ```bash
-. scripts/env.sh                      # catala, clerk, $PY on PATH
+./scripts/start.sh          # brings up everything, prints the URL
+```
 
+Then open **http://127.0.0.1:8765**. Stop with `./scripts/stop.sh`.
+
+`start.sh` stages the Catala standard library if needed, starts MongoDB (and
+falls back to the committed file index if Docker is unavailable), rebuilds the
+vector index if it does not match the corpus, starts Ollama and checks the
+model is present, builds the rule registry, and serves the interface. It says
+what it did and what it could not do, line by line; `--no-model` skips the
+local model, and everything except the model-backed features still works.
+
+### The five views
+
+| View | What it is for |
+|---|---|
+| **Ask** | a question; answers are labelled with the engine that produced them |
+| **Rules** | pick a rule, fill in the facts, execute, and see which provision governed |
+| **Clause** | any clause verbatim, how it was triaged, which rule encodes it |
+| **Intake** | documents awaiting a decision, and recording how a conflict is resolved |
+| **Verification** | the gate, every counterexample, and defects found in the documents |
+
+In **Rules**, "Fill from a description" turns a sentence into the facts the
+rule needs. Nothing is executed from that — the fields are filled in, marked so
+you can see which you did not type, and anything the description did not state
+is left for you rather than guessed.
+
+### From the command line
+
+```bash
+. scripts/env.sh
 $PY scripts/lks ask "what service credit do we owe at 98.5% uptime?"
 $PY scripts/lks scopes --grep Credit  # what can answer this, and what it needs
 $PY scripts/lks run ServiceCredits.ServiceCredit \
@@ -39,8 +68,17 @@ $PY scripts/lks run ServiceCredits.ServiceCredit \
        "arrears_days":0,"invoice_undisputed":true}'
 $PY scripts/lks why Overtime.HourPremium multiplier   # the exception hierarchy
 $PY scripts/lks cite EMP-ANNEX-C C-7.2                # a clause, verbatim
+$PY scripts/lks convert path/to/contract.docx         # a real document
 $PY scripts/lks check                                 # the full gate
 ```
+
+### What is verified, and what is not
+
+`$PY scripts/lks check` runs eight gates; the current state is 19 modules
+typechecking, 504 in-source assertions, 31/31 counterexamples, 96/96 rule
+clauses encoded. `docs/AGENT-RESULTS.md` gives the measured limits of the local
+model — triage 88.8%, and HYBRID recall of 64%, which is the number to be
+careful about. The adversarial review loop is built but not yet measured.
 
 ## Layout
 
